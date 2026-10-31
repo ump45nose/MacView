@@ -34,8 +34,10 @@ let package = Package(
             name: "mvbench",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "MVFoundation",
+                "MVTestSupport",
             ]
         ),
-        .testTarget(name: "mvbenchTests", dependencies: ["mvbench"]),
+        .testTarget(name: "mvbenchTests", dependencies: ["mvbench", "MVTestSupport"]),
     ]
 )

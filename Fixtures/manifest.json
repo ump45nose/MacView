@@ -1,0 +1,1230 @@
+{
+  "fixtures" : [
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 480
+        },
+        "progressive" : false,
+        "type" : "public.jpeg"
+      },
+      "path" : "image/format/baseline.jpg",
+      "purpose" : "基线 JPEG"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 480
+        },
+        "progressive" : true,
+        "type" : "public.jpeg"
+      },
+      "path" : "image/format/progressive.jpg",
+      "purpose" : "渐进 JPEG"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 480
+        },
+        "type" : "public.png"
+      },
+      "path" : "image/format/image.png",
+      "purpose" : "PNG"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 480
+        },
+        "type" : "public.heic"
+      },
+      "path" : "image/format/image.heic",
+      "purpose" : "HEIC；硬件编码，重新生成时字节可能不同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 480
+        },
+        "type" : "public.avif"
+      },
+      "path" : "image/format/image.avif",
+      "purpose" : "AVIF；重新生成时字节可能不同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 480
+        },
+        "type" : "public.tiff"
+      },
+      "path" : "image/format/image.tiff",
+      "purpose" : "TIFF，LZW 压缩"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 480
+        },
+        "type" : "org.webmproject.webp"
+      },
+      "path" : "image/format/image.webp",
+      "purpose" : "WebP，用 cwebp 生成"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 480
+        },
+        "type" : "com.adobe.photoshop-image"
+      },
+      "path" : "image/format/image.psd",
+      "purpose" : "PSD 合成图"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "quadrants" : [
+          "#FF0000",
+          "#00FF00",
+          "#0000FF",
+          "#FFFF00"
+        ],
+        "type" : "public.jpeg"
+      },
+      "path" : "image/orientation/1.jpg",
+      "purpose" : "EXIF 方向 1：像素按逆变换存放，正确处理方向后与方向 1 看起来相同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 2,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "quadrants" : [
+          "#FF0000",
+          "#00FF00",
+          "#0000FF",
+          "#FFFF00"
+        ],
+        "type" : "public.jpeg"
+      },
+      "path" : "image/orientation/2.jpg",
+      "purpose" : "EXIF 方向 2：像素按逆变换存放，正确处理方向后与方向 1 看起来相同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 3,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "quadrants" : [
+          "#FF0000",
+          "#00FF00",
+          "#0000FF",
+          "#FFFF00"
+        ],
+        "type" : "public.jpeg"
+      },
+      "path" : "image/orientation/3.jpg",
+      "purpose" : "EXIF 方向 3：像素按逆变换存放，正确处理方向后与方向 1 看起来相同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 4,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "quadrants" : [
+          "#FF0000",
+          "#00FF00",
+          "#0000FF",
+          "#FFFF00"
+        ],
+        "type" : "public.jpeg"
+      },
+      "path" : "image/orientation/4.jpg",
+      "purpose" : "EXIF 方向 4：像素按逆变换存放，正确处理方向后与方向 1 看起来相同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 5,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "quadrants" : [
+          "#FF0000",
+          "#00FF00",
+          "#0000FF",
+          "#FFFF00"
+        ],
+        "type" : "public.jpeg"
+      },
+      "path" : "image/orientation/5.jpg",
+      "purpose" : "EXIF 方向 5：像素按逆变换存放，正确处理方向后与方向 1 看起来相同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 6,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "quadrants" : [
+          "#FF0000",
+          "#00FF00",
+          "#0000FF",
+          "#FFFF00"
+        ],
+        "type" : "public.jpeg"
+      },
+      "path" : "image/orientation/6.jpg",
+      "purpose" : "EXIF 方向 6：像素按逆变换存放，正确处理方向后与方向 1 看起来相同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 7,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "quadrants" : [
+          "#FF0000",
+          "#00FF00",
+          "#0000FF",
+          "#FFFF00"
+        ],
+        "type" : "public.jpeg"
+      },
+      "path" : "image/orientation/7.jpg",
+      "purpose" : "EXIF 方向 7：像素按逆变换存放，正确处理方向后与方向 1 看起来相同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 8,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "quadrants" : [
+          "#FF0000",
+          "#00FF00",
+          "#0000FF",
+          "#FFFF00"
+        ],
+        "type" : "public.jpeg"
+      },
+      "path" : "image/orientation/8.jpg",
+      "purpose" : "EXIF 方向 8：像素按逆变换存放，正确处理方向后与方向 1 看起来相同"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 600,
+          "width" : 600
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/aspect/square-1x1.jpg",
+      "purpose" : "宽高比：正方形"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 400,
+          "width" : 600
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/aspect/landscape-3x2.jpg",
+      "purpose" : "宽高比：横图"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 600,
+          "width" : 400
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/aspect/portrait-2x3.jpg",
+      "purpose" : "宽高比：竖图，写真图集的常见比例"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 360,
+          "width" : 640
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/aspect/wide-16x9.jpg",
+      "purpose" : "宽高比：宽屏横图"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 640,
+          "width" : 360
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/aspect/tall-9x16.jpg",
+      "purpose" : "宽高比：手机竖屏截图"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 300,
+          "width" : 2400
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/aspect/panorama-8x1.jpg",
+      "purpose" : "宽高比：超宽全景"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 3600,
+          "width" : 300
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/aspect/strip-1x12.jpg",
+      "purpose" : "宽高比：超长条漫"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 1,
+          "width" : 1
+        },
+        "type" : "public.png"
+      },
+      "path" : "image/size/1x1.png",
+      "purpose" : "尺寸：最小的图"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 64,
+          "width" : 64
+        },
+        "type" : "public.png"
+      },
+      "path" : "image/size/64x64.png",
+      "purpose" : "尺寸：小图标"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 5400,
+          "width" : 3600
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/size/3600x5400.jpg",
+      "purpose" : "尺寸：写真图集的典型尺寸"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 20000,
+          "width" : 20000
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "local/generated/image/20000x20000.jpg",
+      "purpose" : "尺寸：超过 GPU 纹理上限（16384）和显示解码上限的大图"
+    },
+    {
+      "image" : {
+        "colorModel" : "RGB",
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 450,
+          "width" : 300
+        },
+        "profileName" : "Display P3",
+        "type" : "public.jpeg"
+      },
+      "path" : "image/color/display-p3.jpg",
+      "purpose" : "Display P3 色域，内嵌配置文件"
+    },
+    {
+      "image" : {
+        "colorModel" : "Gray",
+        "depth" : 8,
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 450,
+          "width" : 300
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/color/gray.jpg",
+      "purpose" : "灰度 JPEG，扫描的漫画常见"
+    },
+    {
+      "image" : {
+        "colorModel" : "CMYK",
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 450,
+          "width" : 300
+        },
+        "type" : "public.jpeg"
+      },
+      "path" : "image/color/cmyk.jpg",
+      "purpose" : "CMYK JPEG，印刷用的扫描件常见"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "hasAlpha" : true,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 450,
+          "width" : 300
+        },
+        "type" : "public.png"
+      },
+      "path" : "image/color/alpha.png",
+      "purpose" : "带透明通道，四周透明"
+    },
+    {
+      "image" : {
+        "depth" : 16,
+        "frameCount" : 1,
+        "hasAlpha" : false,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 450,
+          "width" : 300
+        },
+        "type" : "public.png"
+      },
+      "path" : "image/color/16bit.png",
+      "purpose" : "每个分量 16 位"
+    },
+    {
+      "image" : {
+        "frameCount" : 12,
+        "frameDelays" : [
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ],
+        "loopCount" : 0,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "type" : "com.compuserve.gif"
+      },
+      "path" : "animated/loop.gif",
+      "purpose" : "GIF 动图，12 帧，无限循环"
+    },
+    {
+      "image" : {
+        "frameCount" : 4,
+        "frameDelays" : [
+          0.05,
+          0.2,
+          0.5,
+          1
+        ],
+        "loopCount" : 3,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "type" : "com.compuserve.gif"
+      },
+      "path" : "animated/uneven.gif",
+      "purpose" : "GIF 动图，各帧时长不同，循环 3 次"
+    },
+    {
+      "image" : {
+        "frameCount" : 1,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "type" : "com.compuserve.gif"
+      },
+      "path" : "animated/single.gif",
+      "purpose" : "只有一帧的 GIF"
+    },
+    {
+      "image" : {
+        "frameCount" : 12,
+        "frameDelays" : [
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ],
+        "loopCount" : 0,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "type" : "public.png"
+      },
+      "path" : "animated/loop.png",
+      "purpose" : "APNG 动图，12 帧，无限循环"
+    },
+    {
+      "image" : {
+        "frameCount" : 12,
+        "frameDelays" : [
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ],
+        "loopCount" : 0,
+        "orientation" : 1,
+        "pixelSize" : {
+          "height" : 160,
+          "width" : 240
+        },
+        "type" : "org.webmproject.webp"
+      },
+      "path" : "animated/loop.webp",
+      "purpose" : "WebP 动图，12 帧，无限循环，用 img2webp 生成"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "compression" : "stored",
+            "path" : "001.jpg",
+            "sha256" : "ca8e653b36ec5e4015c363ad5325ae32f239a787c6e525e3932cdef8500e1f23",
+            "size" : 27389
+          },
+          {
+            "compression" : "stored",
+            "path" : "002.jpg",
+            "sha256" : "ea851088ba6fab1fa6ee0850483b4c3655c7501c6e946b736035eeacef7e1812",
+            "size" : 27544
+          },
+          {
+            "path" : "sub/",
+            "size" : 0
+          },
+          {
+            "compression" : "stored",
+            "path" : "sub/003.jpg",
+            "sha256" : "e3c37fbcf2bf2f495c7614edb936624f342b2cea546a8574a3cc77f8364884d5",
+            "size" : 28361
+          }
+        ],
+        "features" : [
+
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/stored.zip",
+      "purpose" : "stored 条目；子目录有目录条目"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "compression" : "deflate",
+            "path" : "chapter/001.jpg",
+            "sha256" : "a81607794c7cf3ff6737648f21d3b493ab19e26e765cff822a97a23f6272b8fa",
+            "size" : 28585
+          },
+          {
+            "compression" : "deflate",
+            "path" : "chapter/002.jpg",
+            "sha256" : "5d50aa747f11a6381d6a4f5cfeb6677612e72b1b9f31895a2873cffbc0a04884",
+            "size" : 28707
+          },
+          {
+            "compression" : "deflate",
+            "path" : "chapter/003.jpg",
+            "sha256" : "2cd69f70a47bfc15e666d5c7b773add88e15ac12178a402a1b35813639f18bf2",
+            "size" : 28243
+          }
+        ],
+        "features" : [
+
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/deflate.zip",
+      "purpose" : "deflate 条目；子目录没有目录条目"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "compression" : "deflate",
+            "path" : "001.jpg",
+            "sha256" : "84241c458c17d49e23f8b766c2b613439707e97a5d247276697349cac043e2e3",
+            "size" : 26877
+          },
+          {
+            "compression" : "deflate",
+            "path" : "002.jpg",
+            "sha256" : "d08c2496584d1ffdda37c898b3ba4e7ea47b29e99536ab8d02ee2eb97e0266f9",
+            "size" : 27566
+          },
+          {
+            "compression" : "deflate",
+            "path" : "003.jpg",
+            "sha256" : "641cbce527708a1221696c7d4b4b9219306d3cc1890e28375fe1478396bd41d1",
+            "size" : 27073
+          }
+        ],
+        "features" : [
+
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/book.cbz",
+      "purpose" : "扩展名为 cbz 的 zip"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "compression" : "deflate",
+            "path" : "封面.jpg",
+            "sha256" : "d328aaa67365400ad0dea8fc81cac0d6b529f78988904b86d6a38d0e16f4c55d",
+            "size" : 28620
+          },
+          {
+            "path" : "第1话/",
+            "size" : 0
+          },
+          {
+            "compression" : "deflate",
+            "path" : "第1话/001.jpg",
+            "sha256" : "98b9beb55e1055cbab8efbc1d21c3f49c7a18173d9b337ade83ae10e5fe5e2df",
+            "size" : 28389
+          },
+          {
+            "compression" : "deflate",
+            "path" : "第1话/002.jpg",
+            "sha256" : "4b107b214108b8dcd041c434d8512678296793b7e5b51055cd8c6bbc91cf0d13",
+            "size" : 28187
+          }
+        ],
+        "features" : [
+          "utf8Names"
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/utf8-names.zip",
+      "purpose" : "中文文件名，带 UTF-8 标志"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "compression" : "deflate",
+            "path" : "封面.jpg",
+            "sha256" : "3148247bcd4fdc17f5dcb0b7fb818efcaeee714c3e3b59f4df25e77072841b91",
+            "size" : 28431
+          },
+          {
+            "path" : "第1话/",
+            "size" : 0
+          },
+          {
+            "compression" : "deflate",
+            "path" : "第1话/001.jpg",
+            "sha256" : "6a318a09ef579fc908821229ab33711e514928d3266a1b4d7bed66bc3a0b1e74",
+            "size" : 28528
+          },
+          {
+            "compression" : "deflate",
+            "path" : "第1话/002.jpg",
+            "sha256" : "8bb693aa622e4fc7725a38c4ff8fef8150aa43d79cb6b19aa2406cea5b6e6d78",
+            "size" : 28283
+          }
+        ],
+        "features" : [
+          "gbkNames"
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/gbk-names.zip",
+      "purpose" : "中文文件名用 GBK 编码、不带 UTF-8 标志，制作方为 MS-DOS，与中文 Windows 上的旧压缩工具一致"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "compression" : "stored",
+            "path" : "001.jpg",
+            "sha256" : "2679810a7e54f5b5b167c3e63ef60d2d7606aa269aae46083ef3beee6d8ca958",
+            "size" : 27152
+          },
+          {
+            "compression" : "deflate",
+            "path" : "002.jpg",
+            "sha256" : "3bb60fcb117b84fb90bb4626649e4dba7a7223814d2405849f9ff839085fa1ce",
+            "size" : 27303
+          }
+        ],
+        "features" : [
+          "zip64"
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/zip64.zip",
+      "purpose" : "小文件也用 ZIP64：条目的大小与偏移在 ZIP64 扩展字段里，目录结尾用 ZIP64 记录"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "compression" : "deflate",
+            "path" : "001.jpg",
+            "sha256" : "5e1b84849a7a6dc332ed4ad6f5b05ee90748d1ab07035de7b97ff7082204d9aa",
+            "size" : 28073
+          },
+          {
+            "compression" : "deflate",
+            "path" : "002.jpg",
+            "sha256" : "864635474544a417cf9aa0e308181624ae6aa451df0e8436347722517f773f61",
+            "size" : 28545
+          }
+        ],
+        "features" : [
+          "dataDescriptor"
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/data-descriptor.zip",
+      "purpose" : "CRC 与大小写在数据之后的数据描述符里，本地头中为 0"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "compression" : "deflate",
+            "path" : "001.jpg",
+            "sha256" : "2ee317a2b651d9841c8b198e4bc87ce739e3a4135f6b9a95831979adace4209e",
+            "size" : 28149
+          },
+          {
+            "compression" : "deflate",
+            "path" : "002.jpg",
+            "sha256" : "f700d9202ff0b25326df13bc403a9fa2cc663c3cf3aa6ed42d59d83364bc126a",
+            "size" : 28421
+          }
+        ],
+        "features" : [
+          "zip64",
+          "dataDescriptor"
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/zip64-data-descriptor.zip",
+      "purpose" : "ZIP64 加数据描述符，描述符中的大小为 8 字节"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "archive" : {
+              "entries" : [
+                {
+                  "compression" : "deflate",
+                  "path" : "001.jpg",
+                  "sha256" : "16a5a648a52f18cecdcfa742fb04988bab5668dfa1f18e4585cb11f42daea5fd",
+                  "size" : 28179
+                },
+                {
+                  "compression" : "deflate",
+                  "path" : "002.jpg",
+                  "sha256" : "ba1f44349d4230b81e16100c67220bfa988f3a11b498f960b51c1c8d156904a3",
+                  "size" : 28011
+                }
+              ],
+              "features" : [
+
+              ],
+              "format" : "zip"
+            },
+            "compression" : "stored",
+            "path" : "inner-stored.zip",
+            "sha256" : "4da427e9e06d2dde70156def702de3a2301bbf339c9df3be8cfe8284995686cf",
+            "size" : 42386
+          },
+          {
+            "archive" : {
+              "entries" : [
+                {
+                  "compression" : "stored",
+                  "path" : "001.jpg",
+                  "sha256" : "d11da1a81e0c0b54244b34019468726c14357194c3810b4a51600ea2f2ebfcec",
+                  "size" : 28185
+                },
+                {
+                  "compression" : "stored",
+                  "path" : "002.jpg",
+                  "sha256" : "830513d870a2643b69d0a636d89535c41a64ffbf9d9e6934fb9e16653b6232ad",
+                  "size" : 28362
+                }
+              ],
+              "features" : [
+
+              ],
+              "format" : "zip"
+            },
+            "compression" : "deflate",
+            "path" : "inner-deflate.zip",
+            "sha256" : "92fda099d1a390b6a380fdd2d13fee8199375b5806f69261416a63b48eccf4d8",
+            "size" : 56749
+          }
+        ],
+        "features" : [
+
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/nested.zip",
+      "purpose" : "zip 套 zip：inner-stored.zip 以 stored 存放，可以直接映射偏移；inner-deflate.zip 以 deflate 存放"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "path" : "book/",
+            "size" : 0
+          },
+          {
+            "compression" : "deflate",
+            "path" : "book/001.jpg",
+            "sha256" : "d4b18cbfe4ffc30d9349380cbc0f36d8aef17543ce9bb4388f2cc0a71ca78ffb",
+            "size" : 28167
+          },
+          {
+            "compression" : "deflate",
+            "path" : "book/002.jpg",
+            "sha256" : "f1bb538152cc8531e060ed5a552bc010a69f6122fb6860100ba153a6681d29af",
+            "size" : 27952
+          },
+          {
+            "path" : "__MACOSX/",
+            "size" : 0
+          },
+          {
+            "path" : "__MACOSX/book/",
+            "size" : 0
+          },
+          {
+            "compression" : "deflate",
+            "path" : "__MACOSX/book/._001.jpg",
+            "sha256" : "34d3d96eb05355cac4a18e988044bb1ac1932aafbd47e534791aedf9ce5e598b",
+            "size" : 70
+          },
+          {
+            "compression" : "deflate",
+            "path" : "__MACOSX/book/._002.jpg",
+            "sha256" : "34d3d96eb05355cac4a18e988044bb1ac1932aafbd47e534791aedf9ce5e598b",
+            "size" : 70
+          }
+        ],
+        "features" : [
+          "dataDescriptor"
+        ],
+        "format" : "zip"
+      },
+      "path" : "archive/zip/macos-metadata.zip",
+      "purpose" : "访达“压缩”生成的结构：__MACOSX 下有 AppleDouble 元数据，用数据描述符"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "path" : "book/",
+            "size" : 0
+          },
+          {
+            "path" : "book/001.jpg",
+            "sha256" : "e87c84269767a68b66f6d129fbe6f8100cbb7ceb9dedd762238589c01488f51a",
+            "size" : 26586
+          },
+          {
+            "path" : "book/002.jpg",
+            "sha256" : "b61e62ad3008ea3b7be6125b636b8e65b3b1f6f026df1ce4d402a7f5367d9f8a",
+            "size" : 26762
+          },
+          {
+            "path" : "book/a-directory-name-long-enough-to-need-the-ustar-prefix-field/and-a-second-directory-to-pass-one-hundred-bytes/003.jpg",
+            "sha256" : "c0a4396c27d541d8fef8327d8b6e44093a65ba54e35e3df66ace5424be2b9f41",
+            "size" : 27269
+          }
+        ],
+        "features" : [
+          "ustarPrefix"
+        ],
+        "format" : "tar"
+      },
+      "path" : "archive/tar/ustar.tar",
+      "purpose" : "POSIX ustar：目录条目，以及超过 100 字节、拆进 prefix 字段的路径"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "path" : "001.jpg",
+            "sha256" : "b51e4c01caf75d4fd1d00d88aa8b6862b07e34f3bd4456c98e563985ab579966",
+            "size" : 26622
+          },
+          {
+            "path" : "封面.jpg",
+            "sha256" : "222e05eed4b0a3e99c9c98ddc40fb7602992b742f689b613c647e086eba19475",
+            "size" : 26788
+          },
+          {
+            "path" : "level-1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/level-2-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/level-3-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/level-4-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/level-5-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/level-6-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/002.jpg",
+            "sha256" : "84f39bdb45b4f57e84d2c663bc3397a613a9be67551f7c648e0daac77e1db9f9",
+            "size" : 26813
+          }
+        ],
+        "features" : [
+          "pax"
+        ],
+        "format" : "tar"
+      },
+      "path" : "archive/tar/pax.tar",
+      "purpose" : "pax 扩展头：中文文件名，以及超过 255 字节的路径"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "path" : "001.jpg",
+            "sha256" : "7f326f38cf8b0fd05f5cb59991ba79fa37b9783229528e9b7d047ea04055337c",
+            "size" : 28265
+          },
+          {
+            "path" : "chapter-with-a-rather-long-directory-name/and-an-even-longer-file-name-so-the-whole-path-exceeds-100-bytes.jpg",
+            "sha256" : "9f7172ba3ac605baa28818327ce06bc45ceb9484e5223cb1d0e29b1b9523e8a8",
+            "size" : 27844
+          }
+        ],
+        "features" : [
+          "gnuLongName"
+        ],
+        "format" : "tar"
+      },
+      "path" : "archive/tar/gnu-longname.tar",
+      "purpose" : "GNU 格式：超过 100 字节的路径写在 ././@LongLink 条目里"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "path" : "001.jpg",
+            "sha256" : "9c3d7c226e929a92389fc1ed925fb7eef7cab373e989687306554fdf54a27874",
+            "size" : 28045
+          },
+          {
+            "path" : "002.jpg",
+            "sha256" : "ce88c6b253b70313bc848ddbf20dce1888400ce79900317eec675c699a15a377",
+            "size" : 27555
+          },
+          {
+            "path" : "003.jpg",
+            "sha256" : "f5e6858f6af6340ab85c116d84d54e6dde713443ac7a0feb7c668853fddaadb4",
+            "size" : 27662
+          }
+        ],
+        "features" : [
+
+        ],
+        "format" : "tarGzip"
+      },
+      "path" : "archive/tar/book.tar.gz",
+      "purpose" : "gzip 压缩的 tar"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "path" : "image.jpg",
+            "sha256" : "b67ae7beff8f0596bb58086d02fabd96945c31d42fda2f9cf8b365d5311fd9b6",
+            "size" : 27635
+          }
+        ],
+        "features" : [
+          "originalName"
+        ],
+        "format" : "gzip"
+      },
+      "path" : "archive/gzip/image.jpg.gz",
+      "purpose" : "单个文件的 gzip，头部记有原文件名"
+    },
+    {
+      "archive" : {
+        "entries" : [
+          {
+            "path" : "001.jpg",
+            "sha256" : "d1fe1256c8a8ab21acbfcef566d278ed6a6ad5e525765fda1e037bab84764473",
+            "size" : 27253
+          },
+          {
+            "path" : "002.jpg",
+            "sha256" : "9824bb73b819b06001adee4c379aa4c946bc0750f0817bf1f58cf13d75237efe",
+            "size" : 27585
+          }
+        ],
+        "features" : [
+          "tarContent"
+        ],
+        "format" : "gzip"
+      },
+      "path" : "archive/gzip/pages.gz",
+      "purpose" : "扩展名只有 .gz、内容是 tar，要按内容识别"
+    },
+    {
+      "directory" : {
+        "entries" : [
+          "第1层/",
+          "第1层/001.jpg",
+          "第1层/第2层/",
+          "第1层/第2层/第3层/",
+          "第1层/第2层/第3层/第4层/",
+          "第1层/第2层/第3层/第4层/002.jpg",
+          "第1层/第2层/第3层/第4层/第5层/",
+          "第1层/第2层/第3层/第4层/第5层/第6层/",
+          "第1层/第2层/第3层/第4层/第5层/第6层/第7层/",
+          "第1层/第2层/第3层/第4层/第5层/第6层/第7层/第8层/",
+          "第1层/第2层/第3层/第4层/第5层/第6层/第7层/第8层/003.jpg"
+        ]
+      },
+      "path" : "tree/deep",
+      "purpose" : "8 层嵌套的目录，第 1、4、8 层各有一张图"
+    },
+    {
+      "directory" : {
+        "entries" : [
+          "一层/",
+          "一层/.DS_Store",
+          "一层/二层/",
+          "一层/二层/书/",
+          "一层/二层/书/001.jpg",
+          "一层/二层/书/002.jpg",
+          "不穿透/",
+          "不穿透/子目录/",
+          "不穿透/子目录/001.jpg",
+          "不穿透/封面.jpg"
+        ]
+      },
+      "path" : "tree/pass-through",
+      "purpose" : "单层穿透：“一层”只含子目录和 .DS_Store、没有媒体，应一路进入“一层/二层/书”；“不穿透”有图，留在原地"
+    },
+    {
+      "directory" : {
+        "entries" : [
+          ".DS_Store",
+          "._001.jpg",
+          "001.jpg",
+          "002.jpg",
+          "Thumbs.db",
+          "说明.url"
+        ]
+      },
+      "path" : "tree/hidden",
+      "purpose" : "隐藏文件与系统文件：._*（AppleDouble）、.DS_Store、Thumbs.db、.url 快捷方式，都不是页面"
+    },
+    {
+      "path" : "local/generated/video/h264.mp4",
+      "purpose" : "视频：H.264，mp4；2 秒，30 帧/秒",
+      "video" : {
+        "codec" : "avc1",
+        "duration" : 2,
+        "frameRate" : 30,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 1280
+        },
+        "rotation" : 0
+      }
+    },
+    {
+      "path" : "local/generated/video/hevc.mp4",
+      "purpose" : "视频：HEVC，mp4；2 秒，30 帧/秒",
+      "video" : {
+        "codec" : "hvc1",
+        "duration" : 2,
+        "frameRate" : 30,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 1280
+        },
+        "rotation" : 0
+      }
+    },
+    {
+      "path" : "local/generated/video/h264.mov",
+      "purpose" : "视频：H.264，mov；2 秒，30 帧/秒",
+      "video" : {
+        "codec" : "avc1",
+        "duration" : 2,
+        "frameRate" : 30,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 1280
+        },
+        "rotation" : 0
+      }
+    },
+    {
+      "path" : "local/generated/video/hevc.mov",
+      "purpose" : "视频：HEVC，mov；2 秒，30 帧/秒",
+      "video" : {
+        "codec" : "hvc1",
+        "duration" : 2,
+        "frameRate" : 30,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 1280
+        },
+        "rotation" : 0
+      }
+    },
+    {
+      "path" : "local/generated/video/h264.m4v",
+      "purpose" : "视频：H.264，m4v；2 秒，30 帧/秒",
+      "video" : {
+        "codec" : "avc1",
+        "duration" : 2,
+        "frameRate" : 30,
+        "pixelSize" : {
+          "height" : 720,
+          "width" : 1280
+        },
+        "rotation" : 0
+      }
+    },
+    {
+      "path" : "local/generated/video/rotated.mov",
+      "purpose" : "视频：H.264，轨道变换旋转 90°、显示为竖屏，与竖着拍的手机视频一样；2 秒，30 帧/秒",
+      "video" : {
+        "codec" : "avc1",
+        "duration" : 2,
+        "frameRate" : 30,
+        "pixelSize" : {
+          "height" : 1280,
+          "width" : 720
+        },
+        "rotation" : 90
+      }
+    },
+    {
+      "directory" : {
+        "count" : 10000
+      },
+      "path" : "local/generated/tree/10000",
+      "purpose" : "1 万项的目录：page1.jpg 到 page10000.jpg，编号不补零，自然排序与字节序不同"
+    }
+  ]
+}
