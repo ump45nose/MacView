@@ -6,6 +6,6 @@ struct MVBench: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "mvbench",
         abstract: "MacView 的基准测试与夹具生成工具。",
-        subcommands: [EnvCommand.self]
+        subcommands: [EnvCommand.self, IOCommand.self]
     )
 }

@@ -217,7 +217,8 @@ private func statVolume(at path: String) -> BenchEnvironment.Volume {
     )
 }
 
-private func cString<T>(of tuple: inout T) -> String {
+/// 把 C 结构里定长的字符数组字段转成字符串。
+func cString<T>(of tuple: inout T) -> String {
     withUnsafeBytes(of: &tuple) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
 }
 
