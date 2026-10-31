@@ -11,7 +11,7 @@ let modules: [(name: String, dependencies: [String])] = [
     ("MVPipeline", ["MVFoundation", "MVIO", "MVMedia", "MVCache"]),
     ("MVSettings", ["MVFoundation"]),
     ("MVCommands", ["MVFoundation"]),
-    ("MVReading", ["MVFoundation", "MVIO", "MVPipeline", "MVSettings"]),
+    ("MVReading", ["MVFoundation", "MVIO", "MVMedia", "MVPipeline", "MVSettings"]),
     ("MVServices", ["MVFoundation", "MVIO", "MVArchive", "MVMedia", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading"]),
     ("MVTestSupport", ["MVFoundation", "MVIO", "MVMedia", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVServices"]),
 ]
