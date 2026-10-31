@@ -1,0 +1,140 @@
+{
+  "environment": {
+    "collectedAt": "2026-10-31T14:42:06Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 432,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "127.0.0.1:64554",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "~/MacViewBench/smb-hard",
+        "path": "~/MacViewBench/smb-hard/YY/秀人/5001-6000",
+        "source": "//127.0.0.1:64554/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "~/MacViewBench/smb-hard",
+        "path": "~/MacViewBench/smb-hard/YY/秀人/5001-6000/No.5133",
+        "source": "//127.0.0.1:64554/Picture"
+      }
+    ]
+  },
+  "finishedAt": "2026-10-31T14:42:06Z",
+  "label": "smbd",
+  "result": {
+    "series": [
+      {
+        "attempts": 100,
+        "directory": "5001-6000",
+        "entries": {
+          "392": 100
+        },
+        "errors": {},
+        "firstMilliseconds": 136.342,
+        "method": "bulk",
+        "milliseconds": {
+          "count": 100,
+          "max": 136.342,
+          "mean": 1.9964870300000002,
+          "min": 0.470125,
+          "p50": 0.6359375,
+          "p95": 0.8831899,
+          "p99": 2.429691580000692
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 100,
+        "directory": "5001-6000",
+        "entries": {
+          "392": 100
+        },
+        "errors": {},
+        "firstMilliseconds": 1.000833,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 100,
+          "max": 1.331625,
+          "mean": 0.6594583000000002,
+          "min": 0.484375,
+          "p50": 0.6102704999999999,
+          "p95": 0.8963630999999999,
+          "p99": 1.1079255900000011
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 100,
+        "directory": "No.5133",
+        "entries": {
+          "85": 100
+        },
+        "errors": {},
+        "firstMilliseconds": 0.2375,
+        "method": "bulk",
+        "milliseconds": {
+          "count": 100,
+          "max": 0.276625,
+          "mean": 0.16580044000000002,
+          "min": 0.102125,
+          "p50": 0.1582915,
+          "p95": 0.23952944999999998,
+          "p99": 0.26833375000000004
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 100,
+        "directory": "No.5133",
+        "entries": {
+          "85": 100
+        },
+        "errors": {},
+        "firstMilliseconds": 0.212,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 100,
+          "max": 0.311417,
+          "mean": 0.14855539000000004,
+          "min": 0.108167,
+          "p50": 0.1257705,
+          "p95": 0.24481039999999998,
+          "p99": 0.29796983000000005
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      }
+    ],
+    "timeoutSeconds": 10
+  },
+  "transport": "posix"
+}

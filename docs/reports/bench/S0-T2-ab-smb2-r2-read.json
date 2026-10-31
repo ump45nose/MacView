@@ -1,0 +1,136 @@
+{
+  "environment": {
+    "collectedAt": "2026-10-31T14:26:07Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 408,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5133",
+        "source": "//192.168.31.201/Picture"
+      }
+    ]
+  },
+  "finishedAt": "2026-10-31T14:26:07Z",
+  "label": "ab-smb2-r2",
+  "result": {
+    "cold": false,
+    "directories": [
+      {
+        "bytes": 397528480,
+        "files": 40,
+        "name": "No.5133"
+      }
+    ],
+    "noCache": true,
+    "runs": [
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 4,
+        "connections": 1,
+        "depth": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1181.7855,
+          "mean": 943.1877041999999,
+          "min": 684.182375,
+          "p50": 955.2658960000001,
+          "p95": 1140.6665521,
+          "p99": 1178.98283013
+        },
+        "files": 40,
+        "filesPerSecond": 4.234347081014466,
+        "megabytesPerSecond": 42.08183897270294,
+        "pass": 0,
+        "receivedBytes": {
+          "en0": 453793792,
+          "lo0": 21016576
+        },
+        "seconds": 9.44655675
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 1,
+        "connections": 1,
+        "depth": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 445.486708,
+          "mean": 249.75958752499997,
+          "min": 138.198417,
+          "p50": 251.968771,
+          "p95": 326.75401694999977,
+          "p99": 434.24211412
+        },
+        "files": 40,
+        "filesPerSecond": 4.003658660190514,
+        "megabytesPerSecond": 39.789208540609295,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 445357056,
+          "lo0": 6870016
+        },
+        "seconds": 9.990861708
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 4,
+        "connections": 1,
+        "depth": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1211.293333,
+          "mean": 1038.903846925,
+          "min": 914.460042,
+          "p50": 1038.533708,
+          "p95": 1116.2804809499996,
+          "p99": 1210.7355195100001
+        },
+        "files": 40,
+        "filesPerSecond": 3.828126865464166,
+        "megabytesPerSecond": 38.044736351878356,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 478681088,
+          "lo0": 34907136
+        },
+        "seconds": 10.4489745
+      }
+    ]
+  },
+  "transport": "smb2"
+}

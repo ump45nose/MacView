@@ -1,0 +1,98 @@
+{
+  "environment": {
+    "collectedAt": "2026-10-31T14:21:24Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 432,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5133",
+        "source": "//192.168.31.201/Picture"
+      }
+    ]
+  },
+  "finishedAt": "2026-10-31T14:21:24Z",
+  "label": "smb2",
+  "result": {
+    "series": [
+      {
+        "attempts": 100,
+        "directory": "5001-6000",
+        "entries": {
+          "392": 100
+        },
+        "errors": {},
+        "firstMilliseconds": 36.167333,
+        "method": "smb2",
+        "milliseconds": {
+          "count": 100,
+          "max": 61.777083,
+          "mean": 32.31103169000001,
+          "min": 24.301583,
+          "p50": 31.623958000000002,
+          "p95": 39.1796577,
+          "p99": 40.27395333000011
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 100,
+        "directory": "No.5133",
+        "entries": {
+          "85": 100
+        },
+        "errors": {},
+        "firstMilliseconds": 18.665417,
+        "method": "smb2",
+        "milliseconds": {
+          "count": 100,
+          "max": 34.958833,
+          "mean": 17.77603331,
+          "min": 13.476833,
+          "p50": 17.1178335,
+          "p95": 23.0435,
+          "p99": 31.971673330000016
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      }
+    ],
+    "timeoutSeconds": 10
+  },
+  "transport": "smb2"
+}

@@ -1,0 +1,583 @@
+{
+  "environment": {
+    "collectedAt": "2026-10-31T13:32:30Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 960,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5133",
+        "source": "//192.168.31.201/Picture"
+      }
+    ]
+  },
+  "finishedAt": "2026-10-31T13:32:30Z",
+  "label": "smb",
+  "result": {
+    "cold": false,
+    "directories": [
+      {
+        "bytes": 397528480,
+        "files": 40,
+        "name": "No.5133"
+      }
+    ],
+    "noCache": true,
+    "runs": [
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 911.404125,
+          "mean": 684.8846907250002,
+          "min": 550.11425,
+          "p50": 663.0432920000001,
+          "p95": 875.49323095,
+          "p99": 897.80196513
+        },
+        "files": 40,
+        "filesPerSecond": 5.763631802172403,
+        "megabytesPerSecond": 57.28019473993141,
+        "pass": 0,
+        "receivedBytes": {
+          "en0": 449867776,
+          "lo0": 1154048,
+          "utun4": 414461952
+        },
+        "seconds": 6.940068584
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 65536,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 3444.891792,
+          "mean": 2303.6726562249996,
+          "min": 1828.081667,
+          "p50": 2212.2603129999998,
+          "p95": 2940.2219499999987,
+          "p99": 3397.33351812
+        },
+        "files": 40,
+        "filesPerSecond": 0.43408626944244255,
+        "megabytesPerSecond": 4.314041372008115,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 666588160,
+          "lo0": 34088960,
+          "utun4": 415312896
+        },
+        "seconds": 92.14758175
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 262144,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1436.303375,
+          "mean": 827.748062425,
+          "min": 580.090375,
+          "p50": 776.906708,
+          "p95": 1357.5666228999999,
+          "p99": 1432.71014237
+        },
+        "files": 40,
+        "filesPerSecond": 1.2080836622781577,
+        "megabytesPerSecond": 12.006191549456736,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 499561472,
+          "lo0": 6038528,
+          "utun4": 414654464
+        },
+        "seconds": 33.110289666999996
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 645.659166,
+          "mean": 447.4420375000001,
+          "min": 241.690125,
+          "p50": 450.95245850000003,
+          "p95": 569.4394351,
+          "p99": 619.8337400099999
+        },
+        "files": 40,
+        "filesPerSecond": 2.2348733279734088,
+        "megabytesPerSecond": 22.210644926545267,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 486380544,
+          "lo0": 5422080,
+          "utun4": 414478336
+        },
+        "seconds": 17.898106124999998
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 4194304,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 397.733875,
+          "mean": 258.03053662499997,
+          "min": 156.137917,
+          "p50": 253.931583,
+          "p95": 364.26063189999996,
+          "p99": 392.85845263
+        },
+        "files": 40,
+        "filesPerSecond": 3.8753477443387077,
+        "megabytesPerSecond": 38.51402745695987,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 464923648,
+          "lo0": 1825792,
+          "utun4": 414564352
+        },
+        "seconds": 10.321654375
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 8388608,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 412.670292,
+          "mean": 227.94059270000008,
+          "min": 152.185542,
+          "p50": 197.5664795,
+          "p95": 329.64401814999985,
+          "p99": 395.42943213
+        },
+        "files": 40,
+        "filesPerSecond": 4.386938063576587,
+        "megabytesPerSecond": 43.598320506693604,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 450332672,
+          "lo0": 1479680,
+          "utun4": 414563328
+        },
+        "seconds": 9.117976917
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 65536,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 3445.998208,
+          "mean": 2309.8955834,
+          "min": 1699.412542,
+          "p50": 2215.3536665,
+          "p95": 2876.7586604499998,
+          "p99": 3242.3320183899996
+        },
+        "files": 40,
+        "filesPerSecond": 1.6736711839924603,
+        "megabytesPerSecond": 16.633299044808076,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 487433216,
+          "lo0": 6117376,
+          "utun4": 415200256
+        },
+        "seconds": 23.899557083
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 262144,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 2111.217541,
+          "mean": 1113.4139332749996,
+          "min": 692.36375,
+          "p50": 1043.3482079999999,
+          "p95": 1634.9807746999998,
+          "p99": 1956.5373013899998
+        },
+        "files": 40,
+        "filesPerSecond": 3.545465633092525,
+        "megabytesPerSecond": 35.23558910038773,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 462183424,
+          "lo0": 1853440,
+          "utun4": 414583808
+        },
+        "seconds": 11.282016
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1282.007083,
+          "mean": 796.4813363749998,
+          "min": 533.625291,
+          "p50": 767.8378955000001,
+          "p95": 1067.9720583499995,
+          "p99": 1269.13263076
+        },
+        "files": 40,
+        "filesPerSecond": 4.934463488786559,
+        "megabytesPerSecond": 49.039744257820445,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 472344576,
+          "lo0": 1587200,
+          "utun4": 414456832
+        },
+        "seconds": 8.106251083
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 4194304,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1158.88375,
+          "mean": 811.0877384750003,
+          "min": 671.300375,
+          "p50": 802.6950420000001,
+          "p95": 1156.0832625,
+          "p99": 1157.986165
+        },
+        "files": 40,
+        "filesPerSecond": 4.928719295448665,
+        "megabytesPerSecond": 48.98265724665947,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 464776192,
+          "lo0": 1276928,
+          "utun4": 414552064
+        },
+        "seconds": 8.115698542
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 8388608,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 981.576958,
+          "mean": 841.630622875,
+          "min": 670.313708,
+          "p50": 852.785667,
+          "p95": 979.1513625,
+          "p99": 980.71239313
+        },
+        "files": 40,
+        "filesPerSecond": 4.745830661702567,
+        "megabytesPerSecond": 47.165071232100395,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 460238848,
+          "lo0": 1609728,
+          "utun4": 414557184
+        },
+        "seconds": 8.42845075
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 65536,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 3014.769708,
+          "mean": 2327.110477025,
+          "min": 1901.50275,
+          "p50": 2297.5194165000003,
+          "p95": 2829.3561038499997,
+          "p99": 2956.7061343799996
+        },
+        "files": 40,
+        "filesPerSecond": 0.4297154748500566,
+        "megabytesPerSecond": 4.270603488740531,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 704523264,
+          "lo0": 16930816,
+          "utun4": 415673344
+        },
+        "seconds": 93.084848792
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 262144,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1560.362416,
+          "mean": 854.458848925,
+          "min": 619.206583,
+          "p50": 809.6377915,
+          "p95": 1193.690545849999,
+          "p99": 1560.2653551399999
+        },
+        "files": 40,
+        "filesPerSecond": 1.1700927453652077,
+        "megabytesPerSecond": 11.62862976310145,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 551153664,
+          "lo0": 47582208,
+          "utun4": 414672896
+        },
+        "seconds": 34.185324333
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 919.76725,
+          "mean": 419.54692294999995,
+          "min": 234.8315,
+          "p50": 401.680125,
+          "p95": 606.1624309499999,
+          "p99": 804.1690726299998
+        },
+        "files": 40,
+        "filesPerSecond": 2.383472288159882,
+        "megabytesPerSecond": 23.687452895857998,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 484637696,
+          "lo0": 10826752,
+          "utun4": 414480384
+        },
+        "seconds": 16.782238333000002
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 4194304,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 382.005,
+          "mean": 249.21408022499995,
+          "min": 161.703125,
+          "p50": 245.8905835,
+          "p95": 329.52265385,
+          "p99": 364.07811375
+        },
+        "files": 40,
+        "filesPerSecond": 4.01239713673627,
+        "megabytesPerSecond": 39.87605337307804,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 463386624,
+          "lo0": 2094080,
+          "utun4": 414559232
+        },
+        "seconds": 9.969102917
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 8388608,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 408.592166,
+          "mean": 245.82808127500002,
+          "min": 162.325875,
+          "p50": 247.94789550000002,
+          "p95": 324.9128229499999,
+          "p99": 387.81654152
+        },
+        "files": 40,
+        "filesPerSecond": 4.067694417965237,
+        "megabytesPerSecond": 40.42560947695513,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 468332544,
+          "lo0": 1903616,
+          "utun4": 414946304
+        },
+        "seconds": 9.833580375
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 65536,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 3138.557417,
+          "mean": 2189.3946593000005,
+          "min": 1713.6206670000001,
+          "p50": 2147.8503755,
+          "p95": 2660.2716937499995,
+          "p99": 3012.74496062
+        },
+        "files": 40,
+        "filesPerSecond": 1.7634788673980335,
+        "megabytesPerSecond": 17.525826841721546,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 493716480,
+          "lo0": 4204544,
+          "utun4": 415323136
+        },
+        "seconds": 22.682437957999998
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 262144,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1946.9251669999999,
+          "mean": 926.6619291500001,
+          "min": 639.920292,
+          "p50": 835.9667919999999,
+          "p95": 1606.0916784999997,
+          "p99": 1875.3855653599999
+        },
+        "files": 40,
+        "filesPerSecond": 4.263291087371904,
+        "megabytesPerSecond": 42.36949064401251,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 468807680,
+          "lo0": 1731584,
+          "utun4": 414774272
+        },
+        "seconds": 9.382422917
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1008.99175,
+          "mean": 704.9856134999999,
+          "min": 436.494209,
+          "p50": 686.9660205,
+          "p95": 892.422658,
+          "p99": 969.91036987
+        },
+        "files": 40,
+        "filesPerSecond": 5.5285820261721,
+        "megabytesPerSecond": 54.94422023548788,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 459207680,
+          "lo0": 2597888,
+          "utun4": 414550016
+        },
+        "seconds": 7.23512825
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 4194304,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 897.880583,
+          "mean": 721.0158093749999,
+          "min": 463.607125,
+          "p50": 738.999,
+          "p95": 843.5124916499999,
+          "p99": 894.9833705
+        },
+        "files": 40,
+        "filesPerSecond": 5.491235675616328,
+        "megabytesPerSecond": 54.5730642862383,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 453402624,
+          "lo0": 1170432,
+          "utun4": 414686208
+        },
+        "seconds": 7.284334959
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 8388608,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 947.543542,
+          "mean": 678.7125813,
+          "min": 189.034667,
+          "p50": 691.5844165,
+          "p95": 839.3244526999998,
+          "p99": 929.82902674
+        },
+        "files": 40,
+        "filesPerSecond": 5.842356924319807,
+        "megabytesPerSecond": 58.0625816935582,
+        "pass": 2,
+        "receivedBytes": {
+          "en0": 459148288,
+          "lo0": 2206720,
+          "utun4": 414667776
+        },
+        "seconds": 6.846551917
+      }
+    ]
+  },
+  "transport": "posix"
+}

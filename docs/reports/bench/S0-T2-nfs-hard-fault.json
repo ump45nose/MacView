@@ -1,0 +1,516 @@
+{
+  "environment": {
+    "collectedAt": "2026-10-31T14:01:07Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 324,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "127.0.0.1",
+      "interface": "lo0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "nfs",
+        "mountPoint": "~/MacViewBench/nfs-hard",
+        "path": "~/MacViewBench/nfs-hard/Picture/YY/秀人/5001-6000",
+        "source": "127.0.0.1:/fs/1000/nfs"
+      }
+    ]
+  },
+  "finishedAt": "2026-10-31T14:01:08Z",
+  "label": "nfs-hard-fault",
+  "result": {
+    "exitTests": [
+      {
+        "exitMilliseconds": 6.152959,
+        "mode": "forward"
+      },
+      {
+        "exitMilliseconds": 6.290416,
+        "mode": "pause"
+      },
+      {
+        "exitMilliseconds": 2002.66375,
+        "mode": "drop"
+      }
+    ],
+    "proxy": {
+      "accepted": 8,
+      "connections": 0,
+      "mode": "forward"
+    },
+    "scenarios": [
+      {
+        "durationSeconds": 5,
+        "faultEnd": 8.023444083000001,
+        "faultStart": 3.0101452920000002,
+        "loops": [
+          {
+            "baseline": {
+              "count": 37,
+              "max": 75.420875,
+              "mean": 24.938186972972975,
+              "min": 10.37025,
+              "p50": 22.071333,
+              "p95": 51.8983084,
+              "p99": 67.10583512000001
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "probe",
+            "longestBlockMilliseconds": 5065.520208,
+            "operations": 41,
+            "recoveryAfterEnd": 0.12879129199999895
+          },
+          {
+            "baseline": {
+              "count": 44,
+              "max": 32.7935,
+              "mean": 11.67726509090909,
+              "min": 0.080292,
+              "p50": 9.931688000000001,
+              "p95": 26.206774950000003,
+              "p99": 31.155450690000002
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "list",
+            "longestBlockMilliseconds": 5034.052917,
+            "operations": 49,
+            "recoveryAfterEnd": 0.09966912500000014
+          }
+        ],
+        "mode": "pause",
+        "mountedAfter": true,
+        "notable": [
+          {
+            "kind": "list",
+            "milliseconds": 5034.052917,
+            "start": 3.0027270830000004
+          },
+          {
+            "kind": "probe",
+            "milliseconds": 5065.520208,
+            "start": 3.011928417
+          }
+        ],
+        "stuck": []
+      },
+      {
+        "durationSeconds": 15,
+        "faultEnd": 18.020146541,
+        "faultStart": 3.0044959159999998,
+        "loops": [
+          {
+            "baseline": {
+              "count": 46,
+              "max": 23.233625,
+              "mean": 8.759482782608695,
+              "min": 4.178084,
+              "p50": 6.6975,
+              "p95": 20.26546875,
+              "p99": 22.772806099999997
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "probe",
+            "longestBlockMilliseconds": 15039.069083,
+            "operations": 50,
+            "recoveryAfterEnd": 0.12331845900000005
+          },
+          {
+            "baseline": {
+              "count": 50,
+              "max": 49.925667,
+              "mean": 3.8109191799999995,
+              "min": 0.15125,
+              "p50": 1.7830415,
+              "p95": 14.182995649999999,
+              "p99": 32.74818583999993
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "list",
+            "longestBlockMilliseconds": 14990.6375,
+            "operations": 55,
+            "recoveryAfterEnd": 0.09246433400000242
+          }
+        ],
+        "mode": "pause",
+        "mountedAfter": true,
+        "notable": [
+          {
+            "kind": "list",
+            "milliseconds": 14990.6375,
+            "start": 3.0496620830000003
+          },
+          {
+            "kind": "probe",
+            "milliseconds": 15039.069083,
+            "start": 3.023399208
+          }
+        ],
+        "stuck": []
+      },
+      {
+        "durationSeconds": 30,
+        "faultEnd": 33.026073458,
+        "faultStart": 3.0100800829999996,
+        "loops": [
+          {
+            "baseline": {
+              "count": 47,
+              "max": 54.278542,
+              "mean": 7.856766914893617,
+              "min": 4.76,
+              "p50": 6.204417,
+              "p95": 10.41960419999999,
+              "p99": 42.86630631999998
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "probe",
+            "longestBlockMilliseconds": 29987.283458,
+            "operations": 51,
+            "recoveryAfterEnd": 0.1025296249999954
+          },
+          {
+            "baseline": {
+              "count": 50,
+              "max": 74.498333,
+              "mean": 3.4644041600000004,
+              "min": 0.176042,
+              "p50": 1.6086665,
+              "p95": 5.214492149999997,
+              "p99": 43.152747329999876
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "list",
+            "longestBlockMilliseconds": 29772.091334,
+            "operations": 59,
+            "recoveryAfterEnd": 0.1224174999999974
+          }
+        ],
+        "mode": "pause",
+        "mountedAfter": true,
+        "notable": [
+          {
+            "kind": "probe",
+            "milliseconds": 29987.283458,
+            "start": 3.065220542
+          },
+          {
+            "kind": "list",
+            "milliseconds": 29772.091334,
+            "start": 3.300032583
+          }
+        ],
+        "stuck": []
+      },
+      {
+        "durationSeconds": 60,
+        "faultEnd": 63.013870666,
+        "faultStart": 3.001228083,
+        "loops": [
+          {
+            "baseline": {
+              "count": 45,
+              "max": 43.684208,
+              "mean": 10.761234266666666,
+              "min": 4.112709,
+              "p50": 9.542209,
+              "p95": 18.71676639999999,
+              "p99": 33.240386480000055
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "probe",
+            "longestBlockMilliseconds": 59985.6045,
+            "operations": 49,
+            "recoveryAfterEnd": 0.13558220899999895
+          },
+          {
+            "baseline": {
+              "count": 40,
+              "max": 49.875209,
+              "mean": 17.943006225,
+              "min": 0.100208,
+              "p50": 15.546604,
+              "p95": 47.790369049999995,
+              "p99": 49.23126986
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "list",
+            "longestBlockMilliseconds": 60061.484917,
+            "operations": 44,
+            "recoveryAfterEnd": 0.13003933400000278
+          }
+        ],
+        "mode": "pause",
+        "mountedAfter": true,
+        "notable": [
+          {
+            "kind": "probe",
+            "milliseconds": 59985.6045,
+            "start": 3.059016083
+          },
+          {
+            "kind": "list",
+            "milliseconds": 60061.484917,
+            "start": 2.993230458
+          }
+        ],
+        "stuck": []
+      },
+      {
+        "durationSeconds": 5,
+        "faultEnd": 8.022760416,
+        "faultStart": 3.008867458,
+        "loops": [
+          {
+            "baseline": {
+              "count": 45,
+              "max": 20.825667,
+              "mean": 11.02857126666667,
+              "min": 7.664542,
+              "p50": 9.859625,
+              "p95": 16.836016400000002,
+              "p99": 20.386932
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "probe",
+            "longestBlockMilliseconds": 6998.787083,
+            "operations": 50,
+            "recoveryAfterEnd": 2.097597167
+          },
+          {
+            "baseline": {
+              "count": 43,
+              "max": 27.905708,
+              "mean": 14.315533906976746,
+              "min": 0.621541,
+              "p50": 14.188625,
+              "p95": 22.413291700000002,
+              "p99": 26.144823139999993
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "list",
+            "longestBlockMilliseconds": 6957.316416,
+            "operations": 49,
+            "recoveryAfterEnd": 2.108195499999999
+          }
+        ],
+        "mode": "drop",
+        "mountedAfter": true,
+        "notable": [
+          {
+            "kind": "probe",
+            "milliseconds": 6998.787083,
+            "start": 3.0529725830000003
+          },
+          {
+            "kind": "list",
+            "milliseconds": 6957.316416,
+            "start": 3.099018375
+          }
+        ],
+        "stuck": []
+      },
+      {
+        "durationSeconds": 15,
+        "faultEnd": 18.016355792,
+        "faultStart": 3.001754375,
+        "loops": [
+          {
+            "baseline": {
+              "count": 47,
+              "max": 60.340958,
+              "mean": 8.097918404255319,
+              "min": 4.396,
+              "p50": 5.844792,
+              "p95": 11.283841899999993,
+              "p99": 51.633790959999985
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "probe",
+            "longestBlockMilliseconds": 16024.743125,
+            "operations": 53,
+            "recoveryAfterEnd": 1.107747125000003
+          },
+          {
+            "baseline": {
+              "count": 51,
+              "max": 63.520834,
+              "mean": 3.102852137254902,
+              "min": 0.417083,
+              "p50": 1.202167,
+              "p95": 9.8977085,
+              "p99": 38.829750000000004
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "list",
+            "longestBlockMilliseconds": 16015.134584,
+            "operations": 56,
+            "recoveryAfterEnd": 1.1324698329999983
+          }
+        ],
+        "mode": "drop",
+        "mountedAfter": true,
+        "notable": [
+          {
+            "kind": "probe",
+            "milliseconds": 16024.743125,
+            "start": 3.032689333
+          },
+          {
+            "kind": "list",
+            "milliseconds": 16015.134584,
+            "start": 3.051804583
+          }
+        ],
+        "stuck": []
+      },
+      {
+        "durationSeconds": 30,
+        "faultEnd": 33.021016583999995,
+        "faultStart": 3.007019084,
+        "loops": [
+          {
+            "baseline": {
+              "count": 47,
+              "max": 56.66675,
+              "mean": 8.283913127659572,
+              "min": 4.127583,
+              "p50": 6.13475,
+              "p95": 15.852458199999974,
+              "p99": 47.644693639999986
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "probe",
+            "longestBlockMilliseconds": 31050.553959,
+            "operations": 52,
+            "recoveryAfterEnd": 1.1609211250000087
+          },
+          {
+            "baseline": {
+              "count": 51,
+              "max": 54.295541,
+              "mean": 2.8227924705882357,
+              "min": 0.078625,
+              "p50": 1.302916,
+              "p95": 4.5487705,
+              "p99": 30.272083000000002
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "list",
+            "longestBlockMilliseconds": 30738.481958,
+            "operations": 61,
+            "recoveryAfterEnd": 1.1671230410000035
+          }
+        ],
+        "mode": "drop",
+        "mountedAfter": true,
+        "notable": [
+          {
+            "kind": "probe",
+            "milliseconds": 31050.553959,
+            "start": 3.032974375
+          },
+          {
+            "kind": "list",
+            "milliseconds": 30738.481958,
+            "start": 3.350588084
+          }
+        ],
+        "stuck": []
+      },
+      {
+        "durationSeconds": 60,
+        "faultEnd": 63.022344667,
+        "faultStart": 3.000142042,
+        "loops": [
+          {
+            "baseline": {
+              "count": 42,
+              "max": 218.8985,
+              "mean": 15.614926547619044,
+              "min": 7.479625,
+              "p50": 9.583936999999999,
+              "p95": 16.631271449999993,
+              "p99": 142.88771152999934
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "probe",
+            "longestBlockMilliseconds": 61139.227541,
+            "operations": 47,
+            "recoveryAfterEnd": 1.3389965000000075
+          },
+          {
+            "baseline": {
+              "count": 40,
+              "max": 228.446167,
+              "mean": 19.682769875,
+              "min": 2.785125,
+              "p50": 13.404188000000001,
+              "p95": 21.993097899999913,
+              "p99": 158.9516442399999
+            },
+            "errorsAfterFault": {},
+            "errorsDuringFault": {},
+            "kind": "list",
+            "longestBlockMilliseconds": 61135.616958,
+            "operations": 45,
+            "recoveryAfterEnd": 1.3345981660000064
+          }
+        ],
+        "mode": "drop",
+        "mountedAfter": true,
+        "notable": [
+          {
+            "kind": "probe",
+            "milliseconds": 61139.227541,
+            "start": 3.033881667
+          },
+          {
+            "kind": "list",
+            "milliseconds": 61135.616958,
+            "start": 3.0434993749999997
+          }
+        ],
+        "stuck": []
+      }
+    ]
+  },
+  "transport": "posix"
+}

@@ -1,0 +1,178 @@
+{
+  "environment": {
+    "collectedAt": "2026-10-31T15:10:12Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 288,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "nfs",
+        "mountPoint": "~/MacViewBench/nfs",
+        "path": "~/MacViewBench/nfs/Picture/YY/秀人/5001-6000/No.5133",
+        "source": "192.168.31.201:/fs/1000/nfs"
+      }
+    ]
+  },
+  "finishedAt": "2026-10-31T15:10:12Z",
+  "label": "tune-nfs-r1",
+  "result": {
+    "cold": false,
+    "directories": [
+      {
+        "bytes": 397528480,
+        "files": 40,
+        "name": "No.5133"
+      }
+    ],
+    "noCache": true,
+    "runs": [
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1540.2893749999998,
+          "mean": 1076.958260375,
+          "min": 796.182917,
+          "p50": 1056.0067915,
+          "p95": 1422.0826586499998,
+          "p99": 1523.322035
+        },
+        "files": 40,
+        "filesPerSecond": 3.6344738751519152,
+        "megabytesPerSecond": 36.12017187972127,
+        "pass": 0,
+        "receivedBytes": {
+          "en0": 442986496,
+          "lo0": 2900992
+        },
+        "seconds": 11.0057195
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 571.185208,
+          "mean": 382.0189531250001,
+          "min": 235.542583,
+          "p50": 387.358646,
+          "p95": 495.7250125,
+          "p99": 541.90772938
+        },
+        "files": 40,
+        "filesPerSecond": 2.6176317776531572,
+        "megabytesPerSecond": 26.014579544253937,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 469654528,
+          "lo0": 6097920
+        },
+        "seconds": 15.280988083
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 8388608,
+        "concurrency": 1,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 516.068667,
+          "mean": 314.9575269999999,
+          "min": 160.499959,
+          "p50": 315.89374999999995,
+          "p95": 422.88976184999996,
+          "p99": 484.12836548999996
+        },
+        "files": 40,
+        "filesPerSecond": 3.1749098829927664,
+        "megabytesPerSecond": 31.55292749807731,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 450037760,
+          "lo0": 5493760
+        },
+        "seconds": 12.598782792
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 1048576,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1485.96075,
+          "mean": 1084.1983718249999,
+          "min": 665.283333,
+          "p50": 1074.856771,
+          "p95": 1419.6312874999999,
+          "p99": 1460.4065362499998
+        },
+        "files": 40,
+        "filesPerSecond": 3.6286046352750296,
+        "megabytesPerSecond": 36.06184212954592,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 434999296,
+          "lo0": 4620288
+        },
+        "seconds": 11.023521166
+      },
+      {
+        "bytes": 397528480,
+        "chunkBytes": 8388608,
+        "concurrency": 4,
+        "errors": {},
+        "fileMilliseconds": {
+          "count": 40,
+          "max": 1540.265375,
+          "mean": 1051.821471875,
+          "min": 635.968083,
+          "p50": 1032.6857295,
+          "p95": 1361.15739825,
+          "p99": 1475.53158263
+        },
+        "files": 40,
+        "filesPerSecond": 3.760527729349333,
+        "megabytesPerSecond": 37.3729218061523,
+        "pass": 1,
+        "receivedBytes": {
+          "en0": 434611200,
+          "lo0": 4316160
+        },
+        "seconds": 10.636804959000001
+      }
+    ]
+  },
+  "transport": "posix"
+}

@@ -1,0 +1,80 @@
+{
+  "environment": {
+    "collectedAt": "2026-10-31T15:04:00Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 432,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "127.0.0.1",
+      "interface": "lo0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "nfs",
+        "mountPoint": "~/MacViewBench/nfs-hard",
+        "path": "~/MacViewBench/nfs-hard/Picture/YY/秀人/5001-6000",
+        "source": "127.0.0.1:/fs/1000/nfs"
+      }
+    ]
+  },
+  "finishedAt": "2026-10-31T15:04:00Z",
+  "label": "nfs-hard-exit",
+  "result": {
+    "exitTests": [
+      {
+        "delaySeconds": 2,
+        "exitMilliseconds": 89.631458,
+        "mode": "forward"
+      },
+      {
+        "delaySeconds": 2,
+        "exitAfterResumeMilliseconds": 26.654625,
+        "mode": "pause"
+      },
+      {
+        "delaySeconds": 20,
+        "exitMilliseconds": 4024.243792,
+        "mode": "pause"
+      },
+      {
+        "delaySeconds": 2,
+        "exitAfterResumeMilliseconds": 2137.2852080000002,
+        "mode": "drop"
+      },
+      {
+        "delaySeconds": 20,
+        "exitAfterResumeMilliseconds": 2041.615083,
+        "mode": "drop"
+      }
+    ],
+    "proxy": {
+      "accepted": 11,
+      "connections": 1,
+      "mode": "forward"
+    },
+    "scenarios": []
+  },
+  "transport": "posix"
+}

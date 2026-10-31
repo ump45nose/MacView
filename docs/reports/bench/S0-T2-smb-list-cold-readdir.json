@@ -1,0 +1,314 @@
+{
+  "environment": {
+    "collectedAt": "2026-10-31T14:21:25Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 432,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5006",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5048",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5093",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5171",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5194",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5232",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5264",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5322",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5373",
+        "source": "//192.168.31.201/Picture"
+      },
+      {
+        "fileSystem": "smbfs",
+        "mountPoint": "/Volumes/Picture",
+        "path": "/Volumes/Picture/YY/秀人/5001-6000/No.5756",
+        "source": "//192.168.31.201/Picture"
+      }
+    ]
+  },
+  "finishedAt": "2026-10-31T14:21:25Z",
+  "label": "smb",
+  "result": {
+    "series": [
+      {
+        "attempts": 1,
+        "directory": "No.5006",
+        "entries": {
+          "91": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 38.575375,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 38.575375,
+          "mean": 38.575375,
+          "min": 38.575375,
+          "p50": 38.575375,
+          "p95": 38.575375,
+          "p99": 38.575375
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 1,
+        "directory": "No.5048",
+        "entries": {
+          "82": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 53.811125,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 53.811125,
+          "mean": 53.811125,
+          "min": 53.811125,
+          "p50": 53.811125,
+          "p95": 53.811125,
+          "p99": 53.811125
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 1,
+        "directory": "No.5093",
+        "entries": {
+          "80": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 22.300833,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 22.300833,
+          "mean": 22.300833,
+          "min": 22.300833,
+          "p50": 22.300833,
+          "p95": 22.300833,
+          "p99": 22.300833
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 1,
+        "directory": "No.5171",
+        "entries": {
+          "82": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 30.678416,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 30.678416,
+          "mean": 30.678416,
+          "min": 30.678416,
+          "p50": 30.678416,
+          "p95": 30.678416,
+          "p99": 30.678416
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 1,
+        "directory": "No.5194",
+        "entries": {
+          "91": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 48.950292,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 48.950292,
+          "mean": 48.950292,
+          "min": 48.950292,
+          "p50": 48.950292,
+          "p95": 48.950292,
+          "p99": 48.950292
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 1,
+        "directory": "No.5232",
+        "entries": {
+          "83": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 68.252625,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 68.252625,
+          "mean": 68.252625,
+          "min": 68.252625,
+          "p50": 68.252625,
+          "p95": 68.252625,
+          "p99": 68.252625
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 1,
+        "directory": "No.5264",
+        "entries": {
+          "85": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 20.64625,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 20.64625,
+          "mean": 20.64625,
+          "min": 20.64625,
+          "p50": 20.64625,
+          "p95": 20.64625,
+          "p99": 20.64625
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 1,
+        "directory": "No.5322",
+        "entries": {
+          "79": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 22.238833,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 22.238833,
+          "mean": 22.238833,
+          "min": 22.238833,
+          "p50": 22.238833,
+          "p95": 22.238833,
+          "p99": 22.238833
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 1,
+        "directory": "No.5373",
+        "entries": {
+          "78": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 39.371375,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 39.371375,
+          "mean": 39.371375,
+          "min": 39.371375,
+          "p50": 39.371375,
+          "p95": 39.371375,
+          "p99": 39.371375
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      },
+      {
+        "attempts": 1,
+        "directory": "No.5756",
+        "entries": {
+          "80": 1
+        },
+        "errors": {},
+        "firstMilliseconds": 47.230458,
+        "method": "readdir",
+        "milliseconds": {
+          "count": 1,
+          "max": 47.230458,
+          "mean": 47.230458,
+          "min": 47.230458,
+          "p50": 47.230458,
+          "p95": 47.230458,
+          "p99": 47.230458
+        },
+        "timedOutMilliseconds": [],
+        "timeouts": 0
+      }
+    ],
+    "timeoutSeconds": 10
+  },
+  "transport": "posix"
+}
