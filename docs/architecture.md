@@ -212,6 +212,8 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 
 ### 3.8 前端架构
 
+界面的视觉和交互以设计稿为准，见 [docs/design/README.md](design/README.md)。
+
 - 生命周期用 AppKit（AppDelegate）。SwiftUI 只用于设置窗口和小型弹出层。
 - 窗口：
   - 每个窗口或标签一个 `ReaderWindowController`，持有自己的 ReaderSession 和停靠布局。
