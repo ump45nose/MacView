@@ -55,6 +55,7 @@
   | 依赖 | 用途 | 许可证 | 引入任务 |
   |---|---|---|---|
   | swift-argument-parser 1.8.2 | mvbench 的子命令与参数解析 | Apache-2.0 | S0-T1 |
+  | libsmb2 6.3.1 | mvbench 的 SMB 直连原型（`io --transport smb2`）。由 `scripts/build-libsmb2.sh` 构建成动态库，运行时 dlopen，不链接、不入库 | LGPL-2.1 | S0-T2 |
 
 仓库布局：
 
