@@ -1,0 +1,52 @@
+# 由 `make project` 生成 MacView.xcodeproj（不入库）。
+name: MacView
+options:
+  bundleIdPrefix: io.github.ump45nose
+  deploymentTarget:
+    macOS: "27.0"
+  developmentLanguage: zh-Hans
+packages:
+  MacViewKit:
+    path: Packages/MacViewKit
+targets:
+  MacView:
+    type: application
+    platform: macOS
+    sources:
+      - App
+    dependencies:
+      - package: MacViewKit
+        product: MVFoundation
+      - package: MacViewKit
+        product: MVIO
+      - package: MacViewKit
+        product: MVMedia
+      - package: MacViewKit
+        product: MVPipeline
+      - package: MacViewKit
+        product: MVSettings
+      - package: MacViewKit
+        product: MVCommands
+      - package: MacViewKit
+        product: MVReading
+      - package: MacViewKit
+        product: MVServices
+      - package: MacViewKit
+        product: MVTestSupport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.ump45nose.MacView
+        PRODUCT_NAME: MacView
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: MacView
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.photography
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: NO
+    scheme: {}

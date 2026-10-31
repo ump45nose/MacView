@@ -50,12 +50,17 @@
 - 任务 ID 中，T 表示 Core 任务，F 表示 App 任务。
 - P1 的新模块到对应阶段再建：MVLibraryData（书签、播放列表、历史）、MVFileOps、MVSearch、MVMetadata（评分与标签）、MVEffects、MVScripting、MVPlugins。
 - 依赖选型：SQLite 统一用 GRDB.swift（MIT 许可），由第一个用到它的任务引入，MVCache 与 MVSettings 共用。其余依赖由各任务按需选用。
+- 已引入的依赖（版本以 `Packages/MacViewKit/Package.resolved` 为准）：
+
+  | 依赖 | 用途 | 许可证 | 引入任务 |
+  |---|---|---|---|
+  | swift-argument-parser 1.8.2 | mvbench 的子命令与参数解析 | Apache-2.0 | S0-T1 |
 
 仓库布局：
 
 ```
 AGENTS.md  project.yml(XcodeGen)  Makefile
-App/                      # App target 源码 + Resources（xcstrings、assets、Info.plist）
+App/                      # App target 源码 + Resources（xcstrings、assets）；Info.plist 由 project.yml 生成
 Packages/MacViewKit/      # Package.swift，Sources/<模块>，Tests/<模块>Tests
 Fixtures/                 # 提交的小夹具；Fixtures/local/ 放生成的大夹具和 NAS 样本副本（不入库）
 docs/architecture.md  docs/plans/{requirements,roadmap}.md  docs/plans/tasks/  docs/reports/{<任务>.md,bench/}

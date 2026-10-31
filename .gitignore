@@ -1,0 +1,8 @@
+.worktree/
+*.xcodeproj
+build/
+DerivedData/
+.build/
+.swiftpm/
+Fixtures/local/
+.DS_Store
