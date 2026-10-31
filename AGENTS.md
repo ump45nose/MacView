@@ -44,14 +44,12 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 
 ## 构建与测试
 
-S0-T1 完成后可用：
-
 | 命令 | 作用 |
 |---|---|
 | `make project` | 用 XcodeGen 从 `project.yml` 生成 `MacView.xcodeproj`（不入库） |
-| `make build`、`make run` | 构建、运行 App |
+| `make build`、`make run` | 构建、运行 App；`build` 每次先重新生成工程 |
 | `make test` | 运行全部测试 |
-| `make bench` | 以 release 构建运行 mvbench，参数原样传入 |
+| `make bench ARGS="…"` | 以 release 构建运行 mvbench，`ARGS` 原样传入，例如 `ARGS="env --path /Volumes/Picture"` |
 
 - Swift 6 语言模式，完整并发检查，零警告。
 - 单元测试用 Swift Testing。
