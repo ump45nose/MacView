@@ -1,0 +1,102 @@
+{
+  "afterAllTestMountsRemoved": [
+    {
+      "error": "volumeUnavailable",
+      "location": {
+        "layers": [
+          [
+            "Picture",
+            "YY"
+          ]
+        ],
+        "root": {
+          "network": {
+            "host": "nas.example",
+            "scheme": "nfs",
+            "share": "export"
+          }
+        }
+      },
+      "mountURL": "nfs://nas.example/export"
+    }
+  ],
+  "afterProxyMountRemoved": [
+    {
+      "error": "volumeUnavailable",
+      "location": {
+        "layers": [
+          [
+            "Picture",
+            "YY"
+          ]
+        ],
+        "root": {
+          "network": {
+            "host": "127.0.0.1",
+            "scheme": "nfs",
+            "share": "export"
+          }
+        }
+      },
+      "mountURL": "nfs://127.0.0.1/export"
+    },
+    {
+      "location": {
+        "layers": [
+          [
+            "Picture",
+            "YY"
+          ]
+        ],
+        "root": {
+          "network": {
+            "host": "nas.example",
+            "scheme": "nfs",
+            "share": "export"
+          }
+        }
+      },
+      "resolvedPath": "/Users/yuwk/MacViewBench/nfs/Picture/Samples"
+    }
+  ],
+  "beforeUnmount": [
+    {
+      "location": {
+        "layers": [
+          [
+            "Picture",
+            "YY"
+          ]
+        ],
+        "root": {
+          "network": {
+            "host": "127.0.0.1",
+            "scheme": "nfs",
+            "share": "export"
+          }
+        }
+      },
+      "path": "/Users/yuwk/MacViewBench/nfs-hard/Picture/Samples",
+      "resolvedPath": "/Users/yuwk/MacViewBench/nfs-hard/Picture/Samples"
+    },
+    {
+      "location": {
+        "layers": [
+          [
+            "Picture",
+            "YY"
+          ]
+        ],
+        "root": {
+          "network": {
+            "host": "nas.example",
+            "scheme": "nfs",
+            "share": "export"
+          }
+        }
+      },
+      "path": "/Users/yuwk/MacViewBench/nfs/Picture/Samples",
+      "resolvedPath": "/Users/yuwk/MacViewBench/nfs/Picture/Samples"
+    }
+  ]
+}

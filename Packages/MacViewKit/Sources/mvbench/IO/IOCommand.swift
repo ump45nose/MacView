@@ -4,7 +4,7 @@ import Foundation
 import Synchronization
 
 /// `mvbench io`：比较 NAS 访问方式的吞吐、小读延迟、目录枚举，以及 NAS 卡住或断线时的行为。
-struct IOCommand: ParsableCommand {
+struct IOCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "io",
         abstract: "测量读取吞吐、小读延迟、目录枚举和 NAS 故障时的行为。",
@@ -16,6 +16,9 @@ struct IOCommand: ParsableCommand {
             FaultCommand.self,
             HoldCommand.self,
             BatchCommand.self,
+            SchedulerFaultCommand.self,
+            SchedulerHoldCommand.self,
+            LocateCommand.self,
         ]
     )
 }
@@ -26,11 +29,13 @@ enum Transport: String, Codable, Sendable, ExpressibleByArgument {
     case posix
     /// 用 libsmb2 直连路径所在的 SMB 共享，凭据取自钥匙串。
     case smb2
+    /// 经 MVIO 的调度器；网络卷上的调用在辅助进程中执行。只用于 read。
+    case scheduler
 }
 
 /// 读取、小读和枚举共用的访问方式选项。
 struct TransportOptions: ParsableArguments {
-    @Option(help: "访问方式：posix 走系统挂载；smb2 用 libsmb2 直连路径所在的 SMB 共享。")
+    @Option(help: "访问方式：posix 走系统挂载；smb2 用 libsmb2 直连路径所在的 SMB 共享；scheduler 经 MVIO 的调度器（只用于 read）。")
     var transport: Transport = .posix
 
     @Option(help: "libsmb2 动态库的路径，由 scripts/build-libsmb2.sh 生成。")

@@ -61,6 +61,8 @@ public enum IOError: Error, Sendable, Equatable {
     case timeout
     case cancelled
     case volumeUnavailable(Location.Root)
+    /// 卷连续超时，暂停访问；健康探测成功后恢复。
+    case volumeDegraded(Location.Root)
     case notFound(Location)
     case unsupported(Location)
     case corrupted(Location, String)

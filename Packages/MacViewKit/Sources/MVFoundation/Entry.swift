@@ -97,3 +97,29 @@ public struct Entry: Hashable, Sendable {
     public var size: Int64 { identity.size }
     public var modified: Date { Date(timeIntervalSince1970: Double(identity.modificationNanos) / 1e9) }
 }
+
+extension EntryKind {
+    /// 按扩展名判断文件的种类，不读内容；目录由调用方判断。`.gz` 先当作 gzip，是否为 tar 由 MVArchive 按内容判断。
+    public init(fileName: String) {
+        let lowered = fileName.lowercased()
+        if lowered.hasSuffix(".tar.gz") {
+            self = .archive(.tarGzip)
+            return
+        }
+        guard let dot = lowered.lastIndex(of: "."), dot != lowered.startIndex else {
+            self = .other
+            return
+        }
+        switch lowered[lowered.index(after: dot)...] {
+        case "zip", "cbz": self = .archive(.zip)
+        case "tar": self = .archive(.tar)
+        case "tgz": self = .archive(.tarGzip)
+        case "gz": self = .archive(.gzip)
+        case "mp4", "mov", "m4v": self = .video
+        case "jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif", "jxl", "tif", "tiff", "bmp", "psd",
+             "dng", "cr2", "cr3", "nef", "arw", "raf", "orf", "rw2":
+            self = .image
+        default: self = .other
+        }
+    }
+}
