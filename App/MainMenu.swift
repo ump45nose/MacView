@@ -48,6 +48,16 @@ enum MainMenu {
             main.addItem(holder)
         }
 
+        #if DEBUG
+        // 只在 Debug 构建中出现，放在“窗口”之前。
+        let debug = menu(String(localized: "调试"), [
+            item(String(localized: "画布测试"), #selector(AppDelegate.showCanvasTest(_:))),
+        ])
+        let debugHolder = NSMenuItem(title: debug.title, action: nil, keyEquivalent: "")
+        debugHolder.submenu = debug
+        main.insertItem(debugHolder, at: main.numberOfItems - 1)
+        #endif
+
         app.mainMenu = main
         app.servicesMenu = services
         // 系统会往窗口菜单里加入窗口列表；标签页命令和窗口布局命令在菜单打开时加入。
