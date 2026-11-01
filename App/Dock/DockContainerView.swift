@@ -1,0 +1,431 @@
+import AppKit
+import MVLayout
+
+/// 一个窗口的停靠容器：NSSplitView 分出左、中、右三栏，底部区在中间栏下方，中间是主视图。
+///
+/// - 左右区与底部区的尺寸由用户拖动分隔线改变；窗口缩放时只改变主视图。拖到边缘时区折叠。
+/// - 拖动面板时整个容器是放置目标：落在区内是区里的位置，落在没有显示的区所在的边缘是那个区。
+/// - 全屏时区自动隐藏，鼠标到左、右、下边缘时浮在主视图上，离开后收回。
+@MainActor
+final class DockContainerView: NSView, NSSplitViewDelegate {
+    static let minimumSize: [DockEdge: CGFloat] = [.left: 160, .right: 160, .bottom: 90]
+    static let minimumMain = CGSize(width: 240, height: 160)
+    /// 没有显示的区在边缘的放置范围。
+    static let edgeZone: CGFloat = 48
+    /// 全屏时鼠标离边缘多近浮出。
+    static let revealDistance: CGFloat = 4
+
+    weak var dock: WindowDock?
+    let mainView: NSView
+    private(set) var areas: [DockEdge: DockAreaView] = [:]
+    private var hosts: [DockEdge: NSView] = [:]
+    private let outer = DockSplitView()
+    private let center = DockSplitView()
+    private let indicator = DropIndicatorView()
+    private var banner: FileErrorBanner?
+    private var layoutState: DockLayout?
+    private var needsSizes = false
+    /// 程序设置分隔线位置时，通知里也带分隔线序号，不能当作用户拖动。
+    private var isApplyingSizes = false
+    private var dropTarget: DockTarget?
+    private(set) var isAutoHiding = false
+    private(set) var revealed: Set<DockEdge> = []
+    private var monitor: Any?
+
+    init(mainView: NSView) {
+        self.mainView = mainView
+        super.init(frame: .zero)
+        outer.isVertical = true
+        center.isVertical = false
+        for split in [outer, center] {
+            split.dividerStyle = .thin
+            split.delegate = self
+        }
+        for edge in DockEdge.allCases {
+            let host = NSView()
+            let area = DockAreaView(edge: edge)
+            area.autoresizingMask = [.width, .height]
+            host.addSubview(area)
+            host.isHidden = true
+            hosts[edge] = host
+            areas[edge] = area
+        }
+        mainView.translatesAutoresizingMaskIntoConstraints = true
+        outer.addSubview(hosts[.left]!)
+        outer.addSubview(center)
+        outer.addSubview(hosts[.right]!)
+        center.addSubview(mainView)
+        center.addSubview(hosts[.bottom]!)
+        addSubview(outer)
+        addSubview(indicator)
+        indicator.isHidden = true
+        registerForDraggedTypes([.dockPanel])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var isFlipped: Bool { true }
+
+    // MARK: 显示布局
+
+    func render(_ layout: DockLayout, items: [DockEdge: [DockAreaView.Item]]) {
+        layoutState = layout
+        for edge in DockEdge.allCases {
+            let area = layout[edge]
+            areas[edge]!.render(items[edge] ?? [], style: area.style, current: layout.currentTab(in: edge), weights: area.weights)
+            if revealed.contains(edge), !layout.isShowing(edge) { conceal(edge) }
+        }
+        updateVisibility()
+    }
+
+    /// 界面已经是这个布局（拖动分隔线、改视图设置），只记下数值。
+    func noteLayout(_ layout: DockLayout) {
+        layoutState = layout
+    }
+
+    /// 区是否占据分栏：显示中，并且不在全屏自动隐藏状态。
+    private func updateVisibility() {
+        guard let layout = layoutState else { return }
+        for edge in DockEdge.allCases {
+            hosts[edge]!.isHidden = isAutoHiding || !layout.isShowing(edge)
+        }
+        isApplyingSizes = true
+        outer.adjustSubviews()
+        center.adjustSubviews()
+        isApplyingSizes = false
+        needsSizes = true
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        let top = banner?.frame.maxY ?? 0
+        outer.frame = CGRect(x: 0, y: top, width: bounds.width, height: max(bounds.height - top, 0))
+        if needsSizes, outer.bounds.width > 0 {
+            needsSizes = false
+            applySizes()
+        }
+        for edge in revealed {
+            areas[edge]!.frame = revealFrame(edge)
+        }
+    }
+
+    /// 按布局设置分隔线位置；主视图至少保留最小尺寸。
+    private func applySizes() {
+        isApplyingSizes = true
+        defer { isApplyingSizes = false }
+        guard let layout = layoutState else { return }
+        outer.layoutSubtreeIfNeeded()
+        let thickness = outer.dividerThickness
+        let width = outer.bounds.width
+        let left = hosts[.left]!.isHidden ? 0 : layout.left.size
+        let right = hosts[.right]!.isHidden ? 0 : layout.right.size
+        let room = max(width - Self.minimumMain.width - 2 * thickness, 0)
+        let scale = left + right > room && left + right > 0 ? room / (left + right) : 1
+        if !hosts[.left]!.isHidden {
+            outer.setPosition(floor(left * scale), ofDividerAt: 0)
+        }
+        if !hosts[.right]!.isHidden {
+            outer.setPosition(width - floor(right * scale) - thickness, ofDividerAt: 1)
+        }
+        if !hosts[.bottom]!.isHidden {
+            let height = center.bounds.height
+            let bottom = min(layout.bottom.size, max(height - Self.minimumMain.height - thickness, 0))
+            center.setPosition(height - floor(bottom) - thickness, ofDividerAt: 0)
+        }
+    }
+
+    // MARK: 错误提示
+
+    func setBanner(_ banner: FileErrorBanner?) {
+        self.banner?.removeFromSuperview()
+        self.banner = banner
+        if let banner {
+            banner.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(banner)
+            NSLayoutConstraint.activate([
+                banner.leadingAnchor.constraint(equalTo: leadingAnchor),
+                banner.trailingAnchor.constraint(equalTo: trailingAnchor),
+                banner.topAnchor.constraint(equalTo: topAnchor),
+            ])
+        }
+        needsLayout = true
+    }
+
+    // MARK: NSSplitViewDelegate
+
+    func splitView(_ splitView: NSSplitView, shouldAdjustSizeOfSubview view: NSView) -> Bool {
+        // 窗口缩放时只改变中间栏（和其中的主视图）。
+        view === center || view === mainView
+    }
+
+    func splitView(_ splitView: NSSplitView, canCollapseSubview subview: NSView) -> Bool {
+        hosts.values.contains(subview)
+    }
+
+    func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposed: CGFloat, ofSubviewAt index: Int) -> CGFloat {
+        if splitView === center { return Self.minimumMain.height }
+        if index == 0 { return Self.minimumSize[.left]! }
+        let left = hosts[.left]!.isHidden ? 0 : hosts[.left]!.frame.width + outer.dividerThickness
+        return left + Self.minimumMain.width
+    }
+
+    func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposed: CGFloat, ofSubviewAt index: Int) -> CGFloat {
+        let thickness = splitView.dividerThickness
+        if splitView === center { return splitView.bounds.height - Self.minimumSize[.bottom]! - thickness }
+        if index == 1 { return splitView.bounds.width - Self.minimumSize[.right]! - thickness }
+        let right = hosts[.right]!.isHidden ? 0 : hosts[.right]!.frame.width + thickness
+        return splitView.bounds.width - right - Self.minimumMain.width - thickness
+    }
+
+    func splitViewDidResizeSubviews(_ notification: Notification) {
+        // 只记录用户拖动分隔线；程序设置位置时由标志排除。
+        guard !isApplyingSizes, !isAutoHiding, DockSplitView.isUserDrag(notification), let layout = layoutState,
+              let splitView = notification.object as? NSSplitView else { return }
+        let edges: [DockEdge] = splitView === center ? [.bottom] : [.left, .right]
+        for edge in edges where layout.isShowing(edge) {
+            let host = hosts[edge]!
+            if splitView.isSubviewCollapsed(host) {
+                dock?.collapse(edge)
+            } else {
+                dock?.resize(edge, to: Double(edge == .bottom ? host.frame.height : host.frame.width))
+            }
+        }
+    }
+
+    // MARK: 放置
+
+    /// 容器坐标中一点对应的放置位置与指示范围。
+    func dropTarget(at point: NSPoint) -> (target: DockTarget, indicator: NSRect, label: String?)? {
+        guard let layout = layoutState else { return nil }
+        for edge in DockEdge.allCases {
+            let area = areas[edge]!
+            guard isOnScreen(edge) else { continue }
+            let frame = area.convert(area.bounds, to: self)
+            guard frame.contains(point) else { continue }
+            let result = area.dropTarget(at: area.convert(point, from: self))
+            return (.area(edge, index: result.index), area.convert(result.indicator, to: self),
+                    result.isZone ? Self.dropLabel(edge) : nil)
+        }
+        let content = outer.frame
+        let centerFrame = center.convert(center.bounds, to: self)
+        for edge in DockEdge.allCases where !isOnScreen(edge) {
+            let size = CGFloat(layout[edge].size)
+            let zone: NSRect
+            let shown: NSRect
+            switch edge {
+            case .left:
+                zone = CGRect(x: content.minX, y: content.minY, width: Self.edgeZone, height: content.height)
+                shown = CGRect(x: content.minX, y: content.minY, width: min(size, content.width / 3), height: content.height)
+            case .right:
+                zone = CGRect(x: content.maxX - Self.edgeZone, y: content.minY, width: Self.edgeZone, height: content.height)
+                let width = min(size, content.width / 3)
+                shown = CGRect(x: content.maxX - width, y: content.minY, width: width, height: content.height)
+            case .bottom:
+                zone = CGRect(x: centerFrame.minX, y: content.maxY - Self.edgeZone, width: centerFrame.width, height: Self.edgeZone)
+                let height = min(size, content.height / 3)
+                shown = CGRect(x: centerFrame.minX, y: content.maxY - height, width: centerFrame.width, height: height)
+            }
+            if zone.contains(point) {
+                return (.area(edge, index: layout.visiblePanels(in: edge).count), shown, Self.dropLabel(edge))
+            }
+        }
+        return nil
+    }
+
+    /// 区是否在屏幕上：在分栏中显示，或者全屏时浮出。
+    func isOnScreen(_ edge: DockEdge) -> Bool {
+        revealed.contains(edge) || (!isAutoHiding && !hosts[edge]!.isHidden)
+    }
+
+    static func dropLabel(_ edge: DockEdge) -> String {
+        switch edge {
+        case .left: String(localized: "放到左侧")
+        case .right: String(localized: "放到右侧")
+        case .bottom: String(localized: "放到底部")
+        }
+    }
+
+    /// 显示放置指示；自检也用它。
+    @discardableResult
+    func showDropIndicator(at point: NSPoint) -> DockTarget? {
+        guard let result = dropTarget(at: point) else {
+            indicator.isHidden = true
+            dropTarget = nil
+            return nil
+        }
+        indicator.show(result.indicator, label: result.label)
+        dropTarget = result.target
+        return result.target
+    }
+
+    func hideDropIndicator() {
+        indicator.isHidden = true
+        dropTarget = nil
+    }
+
+    private func dragOperation(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        guard dock?.draggedPanel != nil else { return [] }
+        return showDropIndicator(at: convert(sender.draggingLocation, from: nil)) == nil ? [] : .move
+    }
+
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        dragOperation(sender)
+    }
+
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        dragOperation(sender)
+    }
+
+    override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+        hideDropIndicator()
+    }
+
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        guard let target = dropTarget else { return false }
+        hideDropIndicator()
+        dock?.drop(at: target)
+        return true
+    }
+
+    override func concludeDragOperation(_ sender: (any NSDraggingInfo)?) {
+        hideDropIndicator()
+    }
+
+    // MARK: 全屏自动隐藏
+
+    func setAutoHide(_ enabled: Bool) {
+        guard enabled != isAutoHiding else { return }
+        isAutoHiding = enabled
+        if enabled {
+            window?.acceptsMouseMovedEvents = true
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+                if let self, event.window === self.window { self.autoHideMouseMoved(to: event.locationInWindow) }
+                return event
+            }
+        } else {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+            revealed.forEach(conceal)
+        }
+        updateVisibility()
+    }
+
+    /// 全屏时鼠标移动（窗口坐标）：到边缘时浮出对应的区，离开浮出的区后收回。
+    func autoHideMouseMoved(to windowPoint: NSPoint) {
+        guard isAutoHiding, let layout = layoutState else { return }
+        let point = convert(windowPoint, from: nil)
+        for edge in revealed where !concealRegion(edge).contains(point) && NSEvent.pressedMouseButtons == 0 {
+            conceal(edge)
+        }
+        for edge in DockEdge.allCases where layout.isShowing(edge) && !revealed.contains(edge) {
+            let near = switch edge {
+            case .left: point.x <= Self.revealDistance
+            case .right: point.x >= bounds.width - Self.revealDistance
+            // 底边是窗口底边（状态栏下沿），不是容器底边。
+            case .bottom: windowPoint.y <= Self.revealDistance
+            }
+            if near { reveal(edge) }
+        }
+    }
+
+    private func revealFrame(_ edge: DockEdge) -> NSRect {
+        guard let layout = layoutState else { return .zero }
+        let content = outer.frame
+        let size = CGFloat(layout[edge].size)
+        switch edge {
+        case .left: return CGRect(x: 0, y: content.minY, width: min(size, content.width / 2), height: content.height)
+        case .right:
+            let width = min(size, content.width / 2)
+            return CGRect(x: content.maxX - width, y: content.minY, width: width, height: content.height)
+        case .bottom:
+            let height = min(size, content.height / 2)
+            return CGRect(x: 0, y: content.maxY - height, width: content.width, height: height)
+        }
+    }
+
+    /// 浮出的区连同它到窗口边缘的部分，外加一点余量；鼠标离开这里才收回。
+    private func concealRegion(_ edge: DockEdge) -> NSRect {
+        let frame = revealFrame(edge).insetBy(dx: -16, dy: -16)
+        let far: CGFloat = 1_000_000
+        switch edge {
+        case .left: return CGRect(x: -far, y: frame.minY, width: frame.maxX + far, height: frame.height)
+        case .right: return CGRect(x: frame.minX, y: frame.minY, width: far, height: frame.height)
+        case .bottom: return CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: far)
+        }
+    }
+
+    private func reveal(_ edge: DockEdge) {
+        let area = areas[edge]!
+        revealed.insert(edge)
+        area.autoresizingMask = []
+        addSubview(area, positioned: .below, relativeTo: indicator)
+        area.frame = revealFrame(edge)
+        let shadow = NSShadow()
+        shadow.shadowBlurRadius = 18
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.18)
+        area.shadow = shadow
+    }
+
+    private func conceal(_ edge: DockEdge) {
+        let area = areas[edge]!
+        let host = hosts[edge]!
+        revealed.remove(edge)
+        area.shadow = nil
+        host.addSubview(area)
+        area.frame = host.bounds
+        area.autoresizingMask = [.width, .height]
+    }
+}
+
+/// 放置指示：区或边缘是浅 Clay 底加描边和文字，标签与分割位置是一条 Clay 色的线。不接收鼠标。
+@MainActor
+final class DropIndicatorView: NSView {
+    private let label = NSTextField(labelWithString: "")
+    private var isZone = false
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        label.font = .systemFont(ofSize: 12, weight: .semibold)
+        label.textColor = Theme.text
+        label.alignment = .center
+        addSubview(label)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var isFlipped: Bool { true }
+    override var wantsUpdateLayer: Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    func show(_ frame: NSRect, label text: String?) {
+        isZone = text != nil
+        label.stringValue = text ?? ""
+        label.isHidden = text == nil
+        self.frame = frame
+        isHidden = false
+        needsDisplay = true
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        let height = label.intrinsicContentSize.height
+        label.frame = CGRect(x: 4, y: (bounds.height - height) / 2, width: max(bounds.width - 8, 0), height: height)
+    }
+
+    override func updateLayer() {
+        layer?.cornerRadius = isZone ? 6 : 1
+        layer?.backgroundColor = (isZone ? Theme.accentSoft : Theme.accent).cgColor
+        layer?.borderWidth = isZone ? 1.5 : 0
+        layer?.borderColor = Theme.accent.cgColor
+    }
+}

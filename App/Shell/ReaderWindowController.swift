@@ -19,7 +19,7 @@ final class ReaderWindow: NSWindow {
     }
 }
 
-/// 一个窗口或标签页：持有自己的 ReaderSession、按键路由、页面视图和状态栏。
+/// 一个窗口或标签页：持有自己的 ReaderSession、按键路由、停靠布局、页面视图和状态栏。
 @MainActor
 final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate,
     NSToolbarItemValidation, NSOpenSavePanelDelegate {
@@ -29,6 +29,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     let router: InputRouter
     let pageView: PageView
     let content: ReaderContentView
+    /// 本窗口的停靠区；页面视图在中间栏。
+    let dock: WindowDock
+    private let dockCoordinator: DockCoordinator
     private let services: CoreServices
     private let dispatcher: CommandDispatcher
     private let catalog: CommandCatalog
@@ -39,8 +42,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     var onOpenExtra: (([URL]) -> Void)?
     var onClose: ((ReaderWindowController) -> Void)?
 
-    init(services: CoreServices, catalog: CommandCatalog, dispatcher: CommandDispatcher, isMock: Bool) {
+    init(services: CoreServices, catalog: CommandCatalog, dispatcher: CommandDispatcher, dock dockCoordinator: DockCoordinator, isMock: Bool) {
         self.services = services
+        self.dockCoordinator = dockCoordinator
         self.dispatcher = dispatcher
         self.isMock = isMock
         session = services.makeSession()
@@ -49,7 +53,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             serviceBadge: isMock ? String(localized: "Mock 服务") : "",
             badgeToolTip: String(localized: "尚未接入真实服务，书和图片来自内存中的模拟目录（/Volumes/Mock）。")
         )
-        content = ReaderContentView(mainView: pageView, statusBar: statusBar)
+        dock = dockCoordinator.makeDock(mainView: pageView)
+        content = ReaderContentView(mainView: dock.container, statusBar: statusBar)
         self.catalog = catalog
         router = InputRouter(catalog: catalog)
 
@@ -87,6 +92,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             guard let self else { return }
             window.makeFirstResponder(pageView)
         }
+        dockCoordinator.attach(dock, to: self)
         observeSession()
     }
 
@@ -196,7 +202,20 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     // MARK: 窗口
 
+    func windowDidBecomeMain(_ notification: Notification) {
+        dockCoordinator.activate(dock)
+    }
+
+    func windowWillEnterFullScreen(_ notification: Notification) {
+        dock.container.setAutoHide(true)
+    }
+
+    func windowWillExitFullScreen(_ notification: Notification) {
+        dock.container.setAutoHide(false)
+    }
+
     func windowWillClose(_ notification: Notification) {
+        dockCoordinator.detach(dock)
         openTask?.cancel()
         pageView.cancelLoads()
         services.pipeline.cancelAll(session: session.id)

@@ -11,6 +11,26 @@
         }
       }
     },
+    "layout.json 中“%@”的视图设置无效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The view settings of “%@” in layout.json are invalid"
+          }
+        }
+      }
+    },
+    "layout.json 无法解析，已改用默认布局": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t read layout.json; using the default layout"
+          }
+        }
+      }
+    },
     "“%@”已损坏：%@": {
       "localizations": {
         "en": {
@@ -125,6 +145,76 @@
         }
       }
     },
+    "书架": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bookshelf"
+          }
+        }
+      }
+    },
+    "作用于：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies to: %@"
+          }
+        }
+      }
+    },
+    "停靠到右侧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dock on Right"
+          }
+        }
+      }
+    },
+    "停靠到左侧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dock on Left"
+          }
+        }
+      }
+    },
+    "停靠到底部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dock at Bottom"
+          }
+        }
+      }
+    },
+    "停靠回窗口": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dock Back to Window"
+          }
+        }
+      }
+    },
+    "停靠布局不会保存。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The dock layout won’t be saved."
+          }
+        }
+      }
+    },
     "允许放大小图": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -177,6 +267,16 @@
         }
       }
     },
+    "关闭提示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dismiss"
+          }
+        }
+      }
+    },
     "分页": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -225,6 +325,16 @@
         }
       }
     },
+    "列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "List"
+          }
+        }
+      }
+    },
     "前置全部窗口": {
       "localizations": {
         "en": {
@@ -253,6 +363,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ascending"
+          }
+        }
+      }
+    },
+    "占位面板，S2-F2 接入正式内容": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Placeholder panel; real content arrives in S2-F2"
+          }
+        }
+      }
+    },
+    "右侧停靠区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right Dock"
           }
         }
       }
@@ -363,6 +493,16 @@
         }
       }
     },
+    "左侧停靠区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left Dock"
+          }
+        }
+      }
+    },
     "已取消": {
       "localizations": {
         "en": {
@@ -379,6 +519,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld pages found"
+          }
+        }
+      }
+    },
+    "已改用默认设置。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using the default settings."
+          }
+        }
+      }
+    },
+    "底部停靠区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bottom Dock"
           }
         }
       }
@@ -439,6 +599,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open a Folder or Archive"
+          }
+        }
+      }
+    },
+    "打开文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open File"
           }
         }
       }
@@ -557,6 +727,56 @@
         }
       }
     },
+    "改为上下分割": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Split Vertically"
+          }
+        }
+      }
+    },
+    "改为标签页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show as Tabs"
+          }
+        }
+      }
+    },
+    "放到右侧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop on Right"
+          }
+        }
+      }
+    },
+    "放到左侧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop on Left"
+          }
+        }
+      }
+    },
+    "放到底部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop at Bottom"
+          }
+        }
+      }
+    },
     "放大": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -629,6 +849,16 @@
         }
       }
     },
+    "无法保存 layout.json": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t save layout.json"
+          }
+        }
+      }
+    },
     "无法启动 MacView": {
       "localizations": {
         "en": {
@@ -645,6 +875,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The Operation Couldn’t Be Completed"
+          }
+        }
+      }
+    },
+    "无法打开 layout.json": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t open layout.json"
           }
         }
       }
@@ -701,6 +941,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show or Hide Docks"
+          }
+        }
+      }
+    },
+    "显示或隐藏右侧停靠区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide Right Dock"
+          }
+        }
+      }
+    },
+    "显示或隐藏左侧停靠区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide Left Dock"
+          }
+        }
+      }
+    },
+    "显示或隐藏底部停靠区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide Bottom Dock"
           }
         }
       }
@@ -791,6 +1061,16 @@
         }
       }
     },
+    "没有活动窗口": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No active window"
+          }
+        }
+      }
+    },
     "浏览方式": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -799,6 +1079,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Browse Mode"
+          }
+        }
+      }
+    },
+    "浮动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float"
           }
         }
       }
@@ -821,6 +1111,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Canvas Test"
+          }
+        }
+      }
+    },
+    "移到右侧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Right"
+          }
+        }
+      }
+    },
+    "移到左侧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Left"
+          }
+        }
+      }
+    },
+    "移到底部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Bottom"
           }
         }
       }
@@ -931,6 +1251,16 @@
         }
       }
     },
+    "网格": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid"
+          }
+        }
+      }
+    },
     "翻页": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -985,6 +1315,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Read timed out"
+          }
+        }
+      }
+    },
+    "调整布局后会覆盖这个文件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing the layout will overwrite this file."
           }
         }
       }
@@ -1155,12 +1495,32 @@
         }
       }
     },
+    "隐藏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide"
+          }
+        }
+      }
+    },
     "隐藏 %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Hide %@"
+          }
+        }
+      }
+    },
+    "隐藏停靠区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide Dock"
           }
         }
       }
@@ -1191,6 +1551,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Page Number"
+          }
+        }
+      }
+    },
+    "页面列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page List"
           }
         }
       }

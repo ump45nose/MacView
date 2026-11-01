@@ -1,5 +1,6 @@
 import AppKit
 import MVCommands
+import MVLayout
 import MVReading
 
 /// App 侧登记的命令处理器：窗口、标签页、全屏、打开、关闭等界面命令，以及最简页面视图用到的翻页、跳页与切书。
@@ -55,6 +56,26 @@ extension AppDelegate {
             self?.controller(for: context.session)?.session.frames.isEmpty == false
         }) { [weak self] context in
             self?.controller(for: context.session)?.beginPageJump()
+        }
+
+        // 停靠区与面板：作用于命令所在的窗口；浮动面板全应用切换。
+        let hasWindow: @MainActor (CommandContext) -> Bool = { [weak self] context in self?.controller(for: context.session) != nil }
+        let areas: [(CommandID, DockEdge)] = [(.dockLeftToggle, .left), (.dockRightToggle, .right), (.dockBottomToggle, .bottom)]
+        for (id, edge) in areas {
+            register(id, isEnabled: hasWindow) { [weak self] context in
+                guard let self, let controller = controller(for: context.session) else { return }
+                dock?.toggleArea(edge, in: controller.dock)
+            }
+        }
+        register(.docksToggle, isEnabled: hasWindow) { [weak self] context in
+            guard let self, let controller = controller(for: context.session) else { return }
+            dock?.toggleAllAreas(in: controller.dock)
+        }
+        for type in DockPanels.all {
+            register(type.toggleCommand, isEnabled: hasWindow) { [weak self] context in
+                guard let self else { return }
+                dock?.togglePanel(type, in: controller(for: context.session)?.dock)
+            }
         }
 
         for (id, direction) in [(CommandID.bookNext, NavigationDirection.forward), (.bookPrevious, .backward)] {

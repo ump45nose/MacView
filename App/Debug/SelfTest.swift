@@ -319,9 +319,14 @@ final class SelfTest {
         return text + (names[scalar] ?? key.uppercased())
     }
 
-    /// 把窗口（含标题栏）的图层树渲染成 PNG；不需要屏幕录制权限。
     private func snapshot(_ window: NSWindow, _ name: String) {
-        guard let output, let view = window.contentView?.superview, let layer = view.layer else { return }
+        guard let output else { return }
+        Self.snapshot(window, to: output.appendingPathComponent("\(name).png"))
+    }
+
+    /// 把窗口（含标题栏）的图层树渲染成 PNG；不需要屏幕录制权限。停靠自检也用它。
+    static func snapshot(_ window: NSWindow, to url: URL) {
+        guard let view = window.contentView?.superview, let layer = view.layer else { return }
         view.layoutSubtreeIfNeeded()
         view.displayIfNeeded()
         let scale = window.backingScaleFactor
@@ -338,7 +343,7 @@ final class SelfTest {
         layer.render(in: context)
         guard let image = context.makeImage() else { return }
         let rep = NSBitmapImageRep(cgImage: image)
-        try? rep.representation(using: .png, properties: [:])?.write(to: output.appendingPathComponent("\(name).png"))
+        try? rep.representation(using: .png, properties: [:])?.write(to: url)
     }
 }
 #endif
