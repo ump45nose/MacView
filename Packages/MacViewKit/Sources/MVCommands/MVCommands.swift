@@ -65,26 +65,6 @@ public enum ResolveResult: Sendable, Equatable {
     case unmatched
 }
 
-/// 把按键解析成命令。
-///
-/// 目前只解析单键绑定：先找当前作用域的绑定，再找 global 的；文本输入作用域不回退到 global。
-/// 多键序列与 `sequenceTimeout` 在 S1-T7 实现。
-public struct BindingResolver: Sendable {
-    private let bindings: [KeyBinding]
-
-    public init(bindings: [KeyBinding], sequenceTimeout: Duration) {
-        self.bindings = bindings.filter { $0.sequence.count == 1 }
-    }
-
-    public mutating func feed(_ chord: KeyChord, scope: InputScope, at time: ContinuousClock.Instant) -> ResolveResult {
-        let matches = bindings.filter { $0.sequence[0] == chord }
-        let binding = matches.first { $0.scope == scope }
-            ?? (scope == .textInput ? nil : matches.first { $0.scope == .global })
-        guard let binding else { return .unmatched }
-        return .command(binding.command, binding.arguments)
-    }
-}
-
 public struct CommandDescriptor: Sendable {
     public var id: CommandID
     public var title: LocalizedStringResource
