@@ -1,31 +1,36 @@
+import Foundation
 import MVFoundation
 import MVPipeline
 import MVSettings
 import Observation
 
-/// 一个窗口或标签中的阅读会话：当前的书、页帧、位置和设置。
-///
-/// 目前实现打开书、导航与读取设置。书层设置的持久化、预取计划和可见范围的处理在 S1-T6 实现。
+/// 一个窗口或标签中的阅读会话；加载、设置订阅和预取均按会话取消。
 @MainActor @Observable
 public final class ReaderSession {
     public let id: SessionID
     public private(set) var book: Book?
     public private(set) var frames: [PageFrame] = []
     public private(set) var currentFrame = 0
-    public private(set) var settings: ResolvedBookSettings
+    public private(set) var settings: ResolvedBookSettings = .default
     public private(set) var loadError: (any Error)?
 
     private let loader: any BookLoader
     private let store: any SettingsStore
     private let bookshelf: any Bookshelf
     private let pipeline: any ImagePipeline
-    /// 打开书时解析出的设置，书层的改动叠加在它上面。
-    @ObservationIgnored private var resolved: ResolvedBookSettings
+    @ObservationIgnored private var resolved: ResolvedBookSettings = .default
     @ObservationIgnored private var bookLayer = BookSettings()
-    /// 页帧重算时要保持可见的页。
+    @ObservationIgnored private var global: GlobalSettings = .default
     @ObservationIgnored private var anchor: Location?
-    /// 每次 open 加一；旧的加载发现自己过期后停止。
+    @ObservationIgnored private var anchorIndex = 0
+    @ObservationIgnored private var anchorPart: PagePart = .whole
+    @ObservationIgnored private var visiblePages: Range<Int>?
     @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var openedAt = Date()
+    @ObservationIgnored private var memory: BookMemory?
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var settingsTask: Task<Void, Never>?
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
 
     public init(id: SessionID = SessionID(), loader: any BookLoader, settings: any SettingsStore, bookshelf: any Bookshelf, pipeline: any ImagePipeline) {
         self.id = id
@@ -33,109 +38,257 @@ public final class ReaderSession {
         self.store = settings
         self.bookshelf = bookshelf
         self.pipeline = pipeline
-        self.settings = .default
-        self.resolved = .default
+        let changes = settings.changes()
+        settingsTask = Task { [weak self] in
+            for await change in changes {
+                guard !Task.isCancelled else { return }
+                switch change {
+                case .global, .pathRules: await self?.settingsChanged()
+                case .fileError: break // SettingsStore 保留上一份可用配置。
+                }
+            }
+        }
     }
 
-    /// 打开一本书并定位到 `page`（为 nil 时到第一页）。加载全部完成后返回；期间各属性随事件更新。
+    deinit {
+        loadTask?.cancel()
+        settingsTask?.cancel()
+        saveTask?.cancel()
+        pipeline.cancelAll(session: id)
+        if let memory {
+            let store = store
+            Task { await store.saveBookMemory(memory) }
+        }
+    }
+
+    /// 加载结束后返回；枚举、排序和元数据的中间结果会持续更新可观察属性。
     public func open(_ location: Location, at page: Location?) async {
         generation += 1
         let current = generation
+        loadTask?.cancel()
+        saveTask?.cancel()
+        pipeline.cancelAll(session: id)
+        if let memory { await store.saveBookMemory(memory) }
+        let remembered = await store.bookMemory(for: location)
         let resolved = await store.resolve(for: location)
+        let global = await store.global()
         guard current == generation else { return }
         self.resolved = resolved
-        bookLayer = BookSettings()
+        self.global = global
+        bookLayer = remembered?.settings ?? BookSettings()
         settings = resolved
+        seedRandomOrder()
+        openedAt = Date()
         book = Book(location: location)
         frames = []
         currentFrame = 0
-        anchor = page
+        anchor = page ?? remembered?.lastPage
+        anchorIndex = page == nil ? remembered?.lastPageIndex ?? 0 : 0
+        anchorPart = .whole
+        visiblePages = nil
         loadError = nil
-        do {
-            for try await event in loader.load(location, settings: resolved, startingAt: page) {
-                guard current == generation else { return }
-                apply(event)
-            }
-        } catch {
-            if current == generation {
-                loadError = error
-            }
-        }
+        memory = nil
+        let stream = loader.load(location, settings: settings, startingAt: anchor)
+        let task = loading(stream, generation: current)
+        loadTask = task
+        await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        if current == generation { loadTask = nil }
     }
 
     public func go(_ move: PageMove) {
-        guard !frames.isEmpty else { return }
+        guard !frames.isEmpty, let book else { return }
         let target: Int?
+        var pageTarget: Int?
         switch move {
         case .nextFrame: target = currentFrame + 1
         case .previousFrame: target = currentFrame - 1
-        case .nextPage: target = frameIndex(containing: (frames[currentFrame].elements.map(\.page).max() ?? 0) + 1)
-        case .previousPage: target = frameIndex(containing: (frames[currentFrame].elements.map(\.page).min() ?? 0) - 1)
-        case .first: target = 0
-        case .last: target = frames.count - 1
-        case let .index(page): target = frameIndex(containing: min(max(page, 0), (book?.pages.count ?? 1) - 1))
+        case .nextPage:
+            pageTarget = (frames[currentFrame].elements.map(\.page).max() ?? anchorIndex) + 1
+            target = frameIndex(containing: pageTarget!)
+        case .previousPage:
+            pageTarget = (frames[currentFrame].elements.map(\.page).min() ?? anchorIndex) - 1
+            target = frameIndex(containing: pageTarget!)
+        case .first: pageTarget = 0; target = 0
+        case .last: pageTarget = book.pages.count - 1; target = frames.count - 1
+        case let .index(page):
+            pageTarget = min(max(page, 0), book.pages.count - 1)
+            target = frameIndex(containing: pageTarget!)
         }
         guard let target else { return }
         currentFrame = min(max(target, 0), frames.count - 1)
-        anchor = frames[currentFrame].elements.first.flatMap { book?.pages[$0.page].id }
+        let element = frames[currentFrame].elements.first { $0.page == pageTarget } ?? readingFirst(in: frames[currentFrame])
+        if let element {
+            anchorIndex = element.page
+            anchor = book.pages[element.page].id
+            anchorPart = element.part
+        }
+        remember()
+        prefetch()
     }
 
-    /// 打开书架顺序中的相邻书。`sort` 是书架面板当前的排序，与书内页面的排序无关。
     public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async {
         guard let location = book?.location else { return }
         do {
-            if let neighbor = try await bookshelf.neighbor(of: location, direction, sort: sort) {
-                await open(neighbor, at: nil)
-            }
-        } catch {
-            loadError = error
-        }
+            if let neighbor = try await bookshelf.neighbor(of: location, direction, sort: sort) { await open(neighbor, at: nil) }
+        } catch { loadError = error }
     }
 
-    /// 修改书层设置。
     public func update(_ change: (inout BookSettings) -> Void) {
+        let previous = settings
         change(&bookLayer)
         settings = resolved.applying(bookLayer)
+        seedRandomOrder()
         layoutFrames()
+        remember()
+        prefetch()
+        if previous.sort != settings.sort || previous.recursion != settings.recursion { reload() }
     }
 
-    /// 连续与瀑布模式由前端回报可见范围，用于生成预取计划（S1-T6）。
-    public func visibleRangeChanged(_ pages: Range<Int>) {}
+    public func visibleRangeChanged(_ pages: Range<Int>) {
+        visiblePages = pages
+        prefetch()
+    }
 
     private func apply(_ event: BookLoadEvent) {
         switch event {
-        case let .appended(pages):
-            book?.pages.append(contentsOf: pages)
+        case let .appended(pages): book?.pages.append(contentsOf: pages)
         case let .sorted(pages):
-            book?.pages = pages
+            // 缓存后的第二次排序也先按位置身份定位；身份消失再回退到原序号。
+            let known = Dictionary((book?.pages ?? []).compactMap { page in page.metadata.map { (page.entry.identity, $0) } }, uniquingKeysWith: { _, last in last })
+            book?.pages = pages.map { page in var value = page; value.metadata = value.metadata ?? known[page.entry.identity]; return value }
             book?.isEnumerated = true
         case let .metadata(values):
             guard var pages = book?.pages else { return }
-            for index in pages.indices {
-                if let metadata = values[pages[index].id] {
-                    pages[index].metadata = metadata
-                }
-            }
+            for index in pages.indices { if let value = values[pages[index].id] { pages[index].metadata = value } }
             book?.pages = pages
         }
         layoutFrames()
+        remember()
+        prefetch()
     }
 
     private func layoutFrames() {
-        let pages = book?.pages ?? []
-        let layout = PageLayout(pageMode: settings.pageMode, direction: settings.direction, firstPageSingle: settings.firstPageSingle, widePage: settings.widePage)
-        frames = PageFrameEngine.frames(
-            aspectRatios: pages.map { page in page.metadata.map { Double($0.pixelSize.width) / Double($0.pixelSize.height) } },
-            layout: layout
-        )
-        if let anchor, let page = pages.firstIndex(where: { $0.id == anchor }), let frame = frameIndex(containing: page) {
-            currentFrame = frame
-        } else {
-            currentFrame = min(currentFrame, max(frames.count - 1, 0))
+        let allPages = book?.pages ?? []
+        let paged = settings.browseMode == .paged
+        let pages = paged ? allPages : Array(allPages.prefix { $0.metadata != nil })
+        let layout = PageLayout(pageMode: paged ? settings.pageMode : .single, direction: settings.direction, firstPageSingle: paged && settings.firstPageSingle, widePage: paged ? settings.widePage : .asIs)
+        frames = PageFrameEngine.frames(aspectRatios: pages.map { page in
+            page.metadata.map { Double($0.pixelSize.width) / Double($0.pixelSize.height) }
+        }, layout: layout)
+        guard !allPages.isEmpty else { currentFrame = 0; return }
+        let found = anchor.flatMap { location in allPages.firstIndex { $0.id == location } }
+        let index = found ?? min(max(anchorIndex, 0), allPages.count - 1)
+        currentFrame = frameIndex(containing: index, part: anchorPart) ?? frameIndex(containing: index) ?? min(currentFrame, max(0, frames.count - 1))
+        if found != nil || book?.isEnumerated == true {
+            anchorIndex = index
+            anchor = allPages[index].id
         }
     }
 
-    private func frameIndex(containing page: Int) -> Int? {
-        frames.firstIndex { frame in frame.elements.contains { $0.page == page } }
+    private func frameIndex(containing page: Int, part: PagePart? = nil) -> Int? {
+        frames.firstIndex { frame in frame.elements.contains { $0.page == page && (part == nil || $0.part == part) } }
+    }
+
+    private func readingFirst(in frame: PageFrame) -> PageFrameElement? {
+        settings.direction == .leftToRight ? frame.elements.first : frame.elements.last
+    }
+
+    private func remember() {
+        guard let book, !book.pages.isEmpty else { return }
+        let snapshot = BookMemory(book: book.location, settings: bookLayer, lastPage: anchor, lastPageIndex: anchorIndex, openedAt: openedAt)
+        memory = snapshot
+        saveTask?.cancel()
+        let current = generation
+        saveTask = Task { [weak self, store] in
+            do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            await store.saveBookMemory(snapshot)
+            let resolved = await store.resolve(for: snapshot.book)
+            guard !Task.isCancelled, let self, current == self.generation, self.memory == snapshot else { return }
+            let previous = self.settings
+            self.resolved = resolved
+            self.settings = resolved.applying(self.bookLayer)
+            self.layoutFrames()
+            self.prefetch()
+            if previous.sort != self.settings.sort || previous.recursion != self.settings.recursion { self.reload() }
+        }
+    }
+
+    private func reload() {
+        guard let location = book?.location else { return }
+        generation += 1
+        loadTask?.cancel()
+        pipeline.cancelAll(session: id)
+        remember()
+        book = Book(location: location)
+        frames = []
+        currentFrame = 0
+        loadError = nil
+        loadTask = loading(loader.load(location, settings: settings, startingAt: anchor), generation: generation)
+    }
+
+    private func loading(_ stream: AsyncThrowingStream<BookLoadEvent, any Error>, generation current: Int) -> Task<Void, Never> {
+        Task { [weak self] in
+            do {
+                for try await event in stream {
+                    guard !Task.isCancelled, let self, current == self.generation else { return }
+                    self.apply(event)
+                }
+            } catch {
+                guard let self, current == self.generation, !Task.isCancelled else { return }
+                self.loadError = error
+            }
+        }
+    }
+
+    private func seedRandomOrder() {
+        if settings.sort.key == .random && settings.sort.randomSeed == nil {
+            settings.sort.randomSeed = UInt64.random(in: .min ... .max)
+            bookLayer.sort = settings.sort
+        }
+    }
+
+    private func settingsChanged() async {
+        guard let location = book?.location else { global = await store.global(); return }
+        let current = generation
+        let resolved = await store.resolve(for: location)
+        let global = await store.global()
+        guard current == generation else { return }
+        let previous = settings
+        self.resolved = resolved
+        self.global = global
+        settings = resolved.applying(bookLayer)
+        seedRandomOrder()
+        layoutFrames()
+        remember()
+        prefetch()
+        if previous.sort != settings.sort || previous.recursion != settings.recursion { reload() }
+    }
+
+    private func prefetch() {
+        guard let pages = book?.pages, !pages.isEmpty else { pipeline.setPrefetchPlan(PrefetchPlan(), session: id); return }
+        var items: [PrefetchItem] = []
+        if settings.browseMode == .paged {
+            if global.prefetch.currentBookPages {
+                items = pages.map { PrefetchItem(identity: $0.entry.identity, renditions: [.thumbnail, .metadata], priority: .book) }
+            }
+            let last = min(pages.count, anchorIndex + 1 + max(0, global.prefetch.viewerReadAheadPages))
+            if anchorIndex + 1 < last {
+                for index in (anchorIndex + 1)..<last { items.append(PrefetchItem(identity: pages[index].entry.identity, renditions: [], priority: .near)) }
+            }
+        } else {
+            let visible = visiblePages ?? anchorIndex..<(anchorIndex + 1)
+            let lower = min(max(visible.lowerBound, 0), pages.count)
+            let upper = min(max(visible.upperBound, lower), pages.count)
+            let margin = Int((Double(upper - lower) * max(0, global.prefetch.galleryMarginScreens)).rounded(.up))
+            let nearby = max(0, lower - margin)..<min(pages.count, upper + margin)
+            for index in pages.indices {
+                if nearby.contains(index) {
+                    items.append(PrefetchItem(identity: pages[index].entry.identity, renditions: [.thumbnail, .browse, .metadata], priority: index >= lower && index < upper ? .visible : .near))
+                } else if global.prefetch.currentBookPages {
+                    items.append(PrefetchItem(identity: pages[index].entry.identity, renditions: [.thumbnail, .metadata], priority: .book))
+                }
+            }
+        }
+        pipeline.setPrefetchPlan(PrefetchPlan(items: items), session: id)
     }
 }

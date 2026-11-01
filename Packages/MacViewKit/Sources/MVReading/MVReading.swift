@@ -29,7 +29,8 @@ public struct Book: Sendable, Hashable {
     }
 }
 
-/// 先按到达顺序 appended，枚举完成后发一次 sorted；metadata 按阅读顺序分批到达；流结束表示全部完成。
+/// 首访按到达顺序 appended，枚举完成后 sorted；缓存命中先 sorted，后台发现差异再 sorted。
+/// 命中的元数据立即交付，其余按阅读顺序分批 metadata；流结束表示全部完成。
 public enum BookLoadEvent: Sendable {
     case appended([Page])
     case sorted([Page])
@@ -40,7 +41,7 @@ public protocol BookLoader: Sendable {
     func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error>
 }
 
-/// 先按到达顺序 appended，枚举完成后发一次 sorted。
+/// 首访 appended 后 sorted；缓存命中先 sorted，后台发现差异再 sorted。
 public enum ShelfEvent: Sendable {
     case appended([Entry])
     case sorted([Entry])
@@ -74,7 +75,7 @@ public struct PageFrameElement: Sendable, Hashable {
     }
 }
 
-/// 分页模式下一次显示的内容，元素已按阅读方向排列。
+/// 分页模式下一次显示的内容；元素按画面从左到右排列，页帧序列按逻辑阅读顺序排列。
 public struct PageFrame: Sendable, Hashable {
     public var elements: [PageFrameElement]
 
