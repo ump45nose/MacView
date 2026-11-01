@@ -19,7 +19,8 @@
   - 网络卷上的阻塞调用放进辅助进程，视频经 AVAssetResourceLoader 读取（§3.2、§3.3）。
   - S0-T4 的契约差异已并入 §4；S0-F1 的结论已写入 §3.8。
 - S1-T1 已完成（2026-11-01）：MVIO 与网络卷辅助进程，故障与退出测试达标，见[报告](../reports/S1-T1.md)。
-- 下一步：S1-T3，任务文档见下表。顺序开发时按关键路径：S1-T1 → S1-T3 → S1-T4 → S1-T5；S1-T7 → S1-T6；S1-T2；然后 S1-T8。F 系列在 Mock 上穿插：S1-F1 → S1-F3 → S1-F2。
+- S1-T3 已完成（2026-11-01）：MVMedia，显示解码 P95 70 ms，20000² 夹具首块 ≤ 454 ms，输出为带色彩标记的 IOSurface，渲染件用 JPEG 0.8，见[报告](../reports/S1-T3.md)。
+- 下一步：S1-T4，任务文档见下表。顺序开发时按关键路径：S1-T1 → S1-T3 → S1-T4 → S1-T5；S1-T7 → S1-T6；S1-T2；然后 S1-T8。F 系列在 Mock 上穿插：S1-F1 → S1-F3 → S1-F2。
 
 ## 关口
 
@@ -50,7 +51,7 @@ S1 的任务都在 G0 之后开始，前置列只列阶段内的依赖。
 |---|---|---|---|---|
 | S1-T1 | MVIO：调度器、卷通道与健康状态、FileSystemProvider、Location 归一、SourceRegistry；网络卷 I/O 的辅助进程隔离 | — | [S1-T1](tasks/S1-T1.md)、[报告](../reports/S1-T1.md) | 已完成 |
 | S1-T2 | MVArchive：zip/cbz、tar、tar.gz/gz，嵌套，读取经 ByteSource | — | [S1-T2](tasks/S1-T2.md) | 未开始 |
-| S1-T3 | MVMedia：探测、显示解码与重采样、原图与分块、动图帧、视频封面；选定渲染件的编码格式 | — | [S1-T3](tasks/S1-T3.md) | 未开始 |
+| S1-T3 | MVMedia：探测、显示解码与重采样、原图与分块、动图帧、视频封面；选定渲染件的编码格式 | — | [S1-T3](tasks/S1-T3.md)、[报告](../reports/S1-T3.md) | 已完成 |
 | S1-T4 | MVCache：L0–L3、预算与内存压力、SQLite 索引、原子写入与崩溃安全、目录缓存 | — | [S1-T4](tasks/S1-T4.md) | 未开始 |
 | S1-T5 | MVPipeline：串联各缓存层、一次读取产出多种渲染件、渐进交付、预取计划的差异应用与取消 | S1-T1、S1-T3、S1-T4 | [S1-T5](tasks/S1-T5.md) | 未开始 |
 | S1-T6 | MVReading：BookLoader（渐进、过滤、排序、递归、穿透、探测顺序）、Bookshelf、PageFrameEngine、ReaderSession | S1-T7 | [S1-T6](tasks/S1-T6.md) | 未开始 |

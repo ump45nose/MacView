@@ -1,0 +1,71 @@
+{
+  "directory" : "../../Fixtures/local/sample-set",
+  "environment" : {
+    "collectedAt" : "2026-11-01T04:27:04Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 960,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun1234"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "system" : {
+      "build" : "26A434",
+      "version" : "27.0.1"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "apfs",
+        "mountPoint" : "/System/Volumes/Data",
+        "path" : "../../Fixtures/local/sample-set",
+        "source" : "/dev/disk3s5"
+      }
+    ]
+  },
+  "files" : 30,
+  "finishedAt" : "2026-11-01T04:27:04Z",
+  "result" : {
+    "decodedImage" : {
+      "count" : 29,
+      "max" : 26.87975,
+      "mean" : 18.251022931034484,
+      "min" : 14.079792,
+      "p50" : 16.272708,
+      "p95" : 24.2990832,
+      "p99" : 26.2151
+    },
+    "lazyImage" : {
+      "count" : 29,
+      "max" : 52.78175,
+      "mean" : 40.13494968965518,
+      "min" : 26.28675,
+      "p50" : 39.954625,
+      "p95" : 44.9359914,
+      "p99" : 50.81030499999999
+    },
+    "longSide" : 2560,
+    "surface" : {
+      "count" : 29,
+      "max" : 0.475958,
+      "mean" : 0.25658920689655174,
+      "min" : 0.125292,
+      "p50" : 0.220333,
+      "p95" : 0.430467,
+      "p99" : 0.46383652
+    }
+  }
+}

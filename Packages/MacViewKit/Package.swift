@@ -16,9 +16,10 @@ let modules: [(name: String, dependencies: [String])] = [
     ("MVTestSupport", ["MVFoundation", "MVIO", "MVMedia", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVServices"]),
 ]
 
-/// 测试另外需要的目标：MVIO 的测试要启动辅助进程。
+/// 测试另外需要的目标：MVIO 的测试要启动辅助进程，MVMedia 的测试要读夹具。
 let testExtras: [String: [Target.Dependency]] = [
     "MVIO": ["mvio-helper"],
+    "MVMedia": ["MVTestSupport"],
 ]
 
 let package = Package(
@@ -42,6 +43,7 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 "MVFoundation",
                 "MVIO",
+                "MVMedia",
                 "MVTestSupport",
             ]
         ),
