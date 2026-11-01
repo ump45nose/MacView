@@ -155,7 +155,7 @@ final class FileByteSource: ByteSource {
     }
 }
 
-/// 来源注册表：一层的 Location 交给文件系统，压缩包内的交给登记进来的 provider（MVArchive 在组合根中登记）。
+/// 来源注册表：先问登记的 provider；压缩包文件也能作为容器，未认领的位置交给文件系统。
 public final class FileSourceRegistry: SourceRegistry {
     public let scheduler: IOScheduler
     public let fileSystem: FileSystemProvider
@@ -171,9 +171,9 @@ public final class FileSourceRegistry: SourceRegistry {
     }
 
     public func provider(for location: Location) throws -> any ContainerProvider {
+        if let provider = providers.withLock({ $0.first { $0.canHandle(location) } }) { return provider }
         if fileSystem.canHandle(location) { return fileSystem }
-        guard let provider = providers.withLock({ $0.first { $0.canHandle(location) } }) else { throw IOError.unsupported(location) }
-        return provider
+        throw IOError.unsupported(location)
     }
 
     /// 只查挂载表，不访问文件，网络卷卡住时也立即返回。路径不解析符号链接。
