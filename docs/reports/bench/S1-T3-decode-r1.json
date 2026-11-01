@@ -1,0 +1,91 @@
+{
+  "directory" : "/Users/yuwk/WorkSpace/Code/Github/MacView/Fixtures/local/sample-set",
+  "environment" : {
+    "collectedAt" : "2026-11-01T04:12:16Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 960,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun1234"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "system" : {
+      "build" : "26A434",
+      "version" : "27.0.1"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "apfs",
+        "mountPoint" : "/System/Volumes/Data",
+        "path" : "/Users/yuwk/WorkSpace/Code/Github/MacView/Fixtures/local/sample-set",
+        "source" : "/dev/disk3s5"
+      }
+    ]
+  },
+  "files" : 85,
+  "finishedAt" : "2026-11-01T04:12:16Z",
+  "result" : {
+    "concurrency" : 8,
+    "decode" : {
+      "count" : 255,
+      "max" : 177.129125,
+      "mean" : 49.17822413725494,
+      "min" : 39.788292,
+      "p50" : 45.807083,
+      "p95" : 63.310795499999976,
+      "p99" : 124.54380400000018
+    },
+    "filesPerSecond" : 56.255028335025735,
+    "longSide" : 2560,
+    "probe" : {
+      "count" : 255,
+      "max" : 13.042875,
+      "mean" : 3.3771862862745077,
+      "min" : 2.724167,
+      "p50" : 3.089458,
+      "p95" : 4.9394830999999995,
+      "p99" : 7.085637500000001
+    },
+    "probeHeaderBytes" : {
+      "count" : 255,
+      "max" : 65536,
+      "mean" : 65536,
+      "min" : 65536,
+      "p50" : 65536,
+      "p95" : 65536,
+      "p99" : 65536
+    },
+    "resample" : {
+      "count" : 255,
+      "max" : 41.908583,
+      "mean" : 16.066866999999995,
+      "min" : 12.37875,
+      "p50" : 14.464833,
+      "p95" : 26.9784877,
+      "p99" : 35.41875968000001
+    },
+    "total" : {
+      "count" : 255,
+      "max" : 186.591,
+      "mean" : 67.02615900000005,
+      "min" : 54.573333,
+      "p50" : 61.221709,
+      "p95" : 94.95434549999997,
+      "p99" : 160.7900882800001
+    }
+  }
+}

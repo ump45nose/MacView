@@ -1,0 +1,91 @@
+{
+  "directory" : "../../Fixtures/local/sample-set",
+  "environment" : {
+    "collectedAt" : "2026-11-01T04:27:45Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 1080,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun1234"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "system" : {
+      "build" : "26A434",
+      "version" : "27.0.1"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "apfs",
+        "mountPoint" : "/System/Volumes/Data",
+        "path" : "../../Fixtures/local/sample-set",
+        "source" : "/dev/disk3s5"
+      }
+    ]
+  },
+  "files" : 85,
+  "finishedAt" : "2026-11-01T04:27:45Z",
+  "result" : {
+    "concurrency" : 8,
+    "decode" : {
+      "count" : 255,
+      "max" : 76.800042,
+      "mean" : 46.14315555686274,
+      "min" : 39.627542,
+      "p50" : 45.106875,
+      "p95" : 51.7693706,
+      "p99" : 72.73732550000001
+    },
+    "filesPerSecond" : 65.05071546633994,
+    "longSide" : 2560,
+    "probe" : {
+      "count" : 255,
+      "max" : 5.041125,
+      "mean" : 3.032719749019609,
+      "min" : 2.7285,
+      "p50" : 3.00525,
+      "p95" : 3.3118249,
+      "p99" : 3.9274098200000007
+    },
+    "probeHeaderBytes" : {
+      "count" : 255,
+      "max" : 65536,
+      "mean" : 65536,
+      "min" : 65536,
+      "p50" : 65536,
+      "p95" : 65536,
+      "p99" : 65536
+    },
+    "resample" : {
+      "count" : 255,
+      "max" : 41.766708,
+      "mean" : 15.799306239215685,
+      "min" : 13.856958,
+      "p50" : 15.519541,
+      "p95" : 17.2235965,
+      "p99" : 21.345370180000018
+    },
+    "total" : {
+      "count" : 255,
+      "max" : 90.837042,
+      "mean" : 62.997411407843174,
+      "min" : 54.997958,
+      "p50" : 62.089084,
+      "p95" : 69.97626679999999,
+      "p99" : 84.38244364000008
+    }
+  }
+}

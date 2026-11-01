@@ -1,0 +1,71 @@
+{
+  "directory" : "/private/tmp/claude-501/-Users-yuwk-WorkSpace-Code-Github-MacView/7d9d0d32-3ef5-4d58-91b0-475acb8ebe74/scratchpad/media/big-photo.jpg",
+  "environment" : {
+    "collectedAt" : "2026-11-01T04:28:12Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 960,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun1234"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "system" : {
+      "build" : "26A434",
+      "version" : "27.0.1"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "apfs",
+        "mountPoint" : "/System/Volumes/Data",
+        "path" : "/private/tmp/claude-501/-Users-yuwk-WorkSpace-Code-Github-MacView/7d9d0d32-3ef5-4d58-91b0-475acb8ebe74/scratchpad/media/big-photo.jpg",
+        "source" : "/dev/disk3s5"
+      }
+    ]
+  },
+  "files" : 1,
+  "finishedAt" : "2026-11-01T04:28:12Z",
+  "result" : {
+    "firstFullResolutionTileMilliseconds" : 8.31875,
+    "firstTileMilliseconds" : 659.662375,
+    "fullResolutionTiles" : {
+      "count" : 30,
+      "max" : 7.914833,
+      "mean" : 4.4315001333333335,
+      "min" : 3.28725,
+      "p50" : 4.3658125000000005,
+      "p95" : 5.661158849999999,
+      "p99" : 7.329867040000002
+    },
+    "halfScaleTiles" : {
+      "count" : 30,
+      "max" : 498.724292,
+      "mean" : 26.637968066666666,
+      "min" : 6.951916,
+      "p50" : 10.30125,
+      "p95" : 13.638668449999999,
+      "p99" : 358.05637232000043
+    },
+    "idleSeconds" : 2,
+    "longSide" : 2560,
+    "peakFootprintMegabytes" : 143.28209686279297,
+    "pixelSize" : {
+      "height" : 20000,
+      "width" : 20000
+    },
+    "startFootprintMegabytes" : 66.23497009277344
+  }
+}

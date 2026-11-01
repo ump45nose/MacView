@@ -135,6 +135,7 @@ public final class MockImagePipeline: ImagePipeline {
 struct MockAnimatedFrames: AnimatedFrameSource {
     let title: String
     let frameCount: Int
+    let loopCount = 0
     let size: PixelSize
     let seed: UInt64
 

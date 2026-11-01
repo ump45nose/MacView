@@ -121,15 +121,19 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 增量读取文件头：从 64 KB 开始，不够再扩大，上限 1 MB。
   - 用 `CGImageSourceCreateIncremental` 获取尺寸（按 EXIF 方向换算后）、帧数、拍摄时间和色彩信息。
   - 视频用 AVURLAsset 获取时长和尺寸。
-- 显示尺寸解码：
-  - 用 `CGImageSourceCreateThumbnailAtIndex` 降采样解码，参数为 MaxPixelSize、WithTransform 和 `ShouldCacheImmediately=true`。
-  - 再用选定的滤镜精确缩放到目标尺寸（Lanczos 用 MPS 或 vImage），缩小后可以选择锐化。
-  - 输出已解码、由 IOSurface 支撑的图像，主线程不会再触发解码。保留 Display P3 色域。
-  - 解码在有并发上限的专用队列上执行。
+  - 动图（GIF、带 acTL 的 APNG、带动画标志的 WebP）要整个文件才能得到帧数和时长，探测返回 `needsMoreData(nil)`；静态图只要文件头。
+- 显示尺寸解码（依据见 [S1-T3 报告](reports/S1-T3.md)）：
+  - 用 `CGImageSourceCreateThumbnailAtIndex` 降采样解码，参数为 MaxPixelSize、WithTransform 和 `ShouldCacheImmediately=true`。MaxPixelSize 只取原图的 1、1/2、1/4、1/8，JPEG 因此直接在 DCT 域缩小，不经 ImageIO 自己的重采样；级别可以比目标小 10%。
+  - 再用 vImage 的 Lanczos 精确缩放到目标尺寸，缩小后可以选择锐化。MPS 用时相同（含上传和读回），但要和渲染争 GPU，所以用 vImage。
+  - 输出是已解码的 32 位 BGRA 位图，写在 IOSurface 里，再用直接访问的 CGDataProvider 把同一块内存包成 CGImage，供绘制和编码使用。
+  - 前端把 `RenderedImage.surface` 设为 `CALayer.contents`。在窗口里提交一张长边 2560 的图，主线程用时：惰性图像 40 ms（解码并复制），已解码的 CGImage 16 ms（复制给窗口服务器），IOSurface 0.2 ms。
+  - IOSurface 用 `kIOSurfaceColorSpace` 标记色彩空间，CA 按标记做色彩匹配；没有标记时按 sRGB 处理。
+  - RGB 图保留自己的色彩空间（Display P3 等），灰度、CMYK 转为 sRGB，16 位转为 8 位。
+  - 解码在并发上限为性能核心数的专用队列上执行，等待中的按调用方任务的优先级出队。
 - 原图与大图：
   - 放大到超过解码上限时，解码原图。
-  - 超过纹理上限或内存门限的超大图提供分块源（TiledImageSource），具体实现由 S1-T3 实测确定。
-- 渲染件：一次完整读取产出以下几种，编码用 HEIC 还是 JPEG 由 S1-T3 实测决定。
+  - 长边超过 `maxDecodeLongSide` 或纹理上限（16384）的图用分块源。每个缩小级别一张不缓存像素的 CGImage，分块时裁出区域绘制，ImageIO 只解码需要的部分，不预先切块落盘。每个级别第一次取块时 ImageIO 要扫描一遍压缩数据，所以首块之后在后台预热原尺寸级别。
+- 渲染件：一次完整读取产出以下几种，编码用 JPEG（质量 0.8）：解码比 HEIC 快 4–6 倍，文件约大一倍。
   - 缩略图：暂定长边 1024 px。
   - 浏览图：等比缩放到能放进最大显示器的像素尺寸。
   - 元数据。
@@ -327,9 +331,29 @@ public final class ByteSourceAsset: Sendable { public let asset: AVURLAsset; pub
 public struct ImageMetadata: Sendable, Codable, Hashable { public var pixelSize: PixelSize; public var frameCount: Int; public var duration: Double?; public var capturedAt: Date?; public var colorSpace: String? }   // pixelSize 已按 EXIF 方向换算
 public struct DisplayTarget: Sendable, Hashable { public var pixelSize: PixelSize; public var filter: ResampleFilter; public var sharpen: Float }
 public enum RenditionQuality: Int, Sendable, Comparable { case placeholder, browse, exact, original }
-public struct RenderedImage: @unchecked Sendable { public let image: CGImage; public let quality: RenditionQuality }
-public protocol AnimatedFrameSource: Sendable { var frameCount: Int { get }; func duration(at index: Int) -> Double; func frame(at index: Int) async throws -> RenderedImage }
-public protocol TiledImageSource: Sendable { var pixelSize: PixelSize { get }; func tile(_ rect: CGRect, scale: Double) async throws -> RenderedImage }
+public struct RenderedImage: @unchecked Sendable { public let image: CGImage; public let quality: RenditionQuality; public let surface: IOSurface? }   // surface 与 image 共用像素、带色彩空间标记，设为 CALayer.contents 时用它；Mock 的图像没有
+public protocol AnimatedFrameSource: Sendable { var frameCount: Int { get }; var loopCount: Int { get }; func duration(at index: Int) -> Double; func frame(at index: Int) async throws -> RenderedImage }   // loopCount 为文件记录的循环次数，0 为无限
+public protocol TiledImageSource: Sendable { var pixelSize: PixelSize { get }; func tile(_ rect: CGRect, scale: Double) async throws -> RenderedImage }   // rect 为显示方向下原图的像素坐标
+public enum MediaError: Error, Sendable, Equatable { case unsupported, decodeFailed(String), requiresTiling(PixelSize) }
+public enum ProbeResult: Sendable, Equatable { case metadata(ImageMetadata), needsMoreData(Int?) }   // nil：需要整个文件（动图）
+public enum MediaProbe {
+    public static let initialHeaderLength: Int   // 64 KB
+    public static let headerLimit: Int           // 1 MB，超过后改要整个文件
+    public static func image(_ data: Data, isComplete: Bool) throws(MediaError) -> ProbeResult
+    public static func video(_ asset: AVAsset) async throws -> ImageMetadata
+}
+public final class ImageDecoder: Sendable {   // 不做 I/O；解码在并发上限为性能核心数的专用队列上，等待中的按调用方任务的优先级出队
+    public static let defaultConcurrency: Int; public static let maxTextureSide: Int
+    public init(maxConcurrentDecodes: Int = ImageDecoder.defaultConcurrency)
+    public static func needsTiling(_ size: PixelSize, maxDecodeLongSide: Int) -> Bool
+    public func image(_ data: Data, target: DisplayTarget, quality: RenditionQuality = .exact) async throws -> RenderedImage   // 也用来解码缓存的渲染件
+    public func original(_ data: Data, maxDecodeLongSide: Int) async throws -> RenderedImage   // 超限抛出 requiresTiling
+    public func tiledSource(_ data: Data) throws(MediaError) -> any TiledImageSource
+    public func animatedFrames(_ data: Data, target: DisplayTarget) throws(MediaError) -> any AnimatedFrameSource
+    public func videoPoster(_ asset: AVAsset, maxPixel: Int) async throws -> RenderedImage
+}
+extension PixelSize { public func fitting(longSide: Int) -> PixelSize; public func fitting(within bounds: PixelSize) -> PixelSize }   // 等比缩小，不放大
+public enum RenditionEncoding: String, Sendable, Codable, CaseIterable { case heic, jpeg; public static let `default`: RenditionEncoding /* jpeg */; public static let defaultQuality: Double /* 0.8 */; public func encode(_ image: CGImage, quality: Double = defaultQuality) throws(MediaError) -> Data }
 
 // MVPipeline
 public enum RenditionSpec: Sendable, Hashable { case metadata, thumbnail, browse, display(DisplayTarget) }
