@@ -13,16 +13,18 @@
 
 ## 当前
 
-- 下一步：S0-F1 画布引擎技术验证。
-- S0 剩余顺序：S0-F1 → G0。
-- G0 的传输部分已有结论，见 [S0-T2 报告](../reports/S0-T2.md)：用系统挂载，网络卷上的阻塞调用放进辅助进程。用户已确认协议用 NFS（2026-10-31），G0 时并入架构。
-- 契约已落成代码，与 §4 的差异见 [S0-T4 报告](../reports/S0-T4.md)，G0 时并入 §4。
+- S0 与关口 G0 已完成（2026-11-01）。
+- G0 的决定已并入架构：
+  - NAS 走系统挂载，协议用 NFS（§3.2）。
+  - 网络卷上的阻塞调用放进辅助进程，视频经 AVAssetResourceLoader 读取（§3.2、§3.3）。
+  - S0-T4 的契约差异已并入 §4；S0-F1 的结论已写入 §3.8。
+- 下一步：S1，任务文档见下表。顺序开发时按关键路径：S1-T1 → S1-T3 → S1-T4 → S1-T5；S1-T7 → S1-T6；S1-T2；然后 S1-T8。F 系列在 Mock 上穿插：S1-F1 → S1-F3 → S1-F2。
 
 ## 关口
 
 | 关口 | 时机 | 状态 |
 |---|---|---|
-| G0 | S0 完成 | 未开始 |
+| G0 | S0 完成 | 已完成（2026-11-01） |
 | G1 | S1 完成 | 未开始 |
 | G2 | S2 完成（P0 完成） | 未开始 |
 | G3–G5 | S3–S5 各阶段末 | 未开始 |
@@ -36,34 +38,26 @@
 | S0-T2 | 挂载与传输基准：SMB、NFS 和 libsmb2 原型，加上故障注入 | S0-T1 | [S0-T2](tasks/S0-T2.md)、[报告](../reports/S0-T2.md) | 已完成 |
 | S0-T3 | 测试夹具生成器与本地样本 | S0-T1 | [S0-T3](tasks/S0-T3.md)、[报告](../reports/S0-T3.md) | 已完成 |
 | S0-T4 | 契约代码与 Mock | S0-T1 | [S0-T4](tasks/S0-T4.md)、[报告](../reports/S0-T4.md) | 已完成 |
-| S0-F1 | 画布引擎技术验证：图层虚拟化，1 万项，120 Hz | S0-T4 | [S0-F1](tasks/S0-F1.md) | 未开始 |
+| S0-F1 | 画布引擎技术验证：图层虚拟化，1 万项，120 Hz | S0-T4 | [S0-F1](tasks/S0-F1.md)、[报告](../reports/S0-F1.md) | 已完成 |
 | S0-F2 | 界面设计稿：7 张画板，覆盖主窗口、阅读模式、集合视图与停靠、状态、设置窗口 | — | [设计说明](../design/README.md) | 已完成 |
 
 ## S1 内核与前端外壳（关口 G1）
 
 S1 的任务都在 G0 之后开始，前置列只列阶段内的依赖。
 
-| ID | 内容 | 前置 | 状态 |
-|---|---|---|---|
-| S1-T1 | MVIO：调度器、卷通道与健康状态、FileSystemProvider、Location 归一、SourceRegistry；按 G0 结论加 XPC 隔离或 SMB 来源 | — | 未开始 |
-| S1-T2 | MVArchive，要求见表下 | — | 未开始 |
-| S1-T3 | MVMedia：探测、显示解码与重采样、原图与分块、动图帧、视频封面；选定渲染件的编码格式 | — | 未开始 |
-| S1-T4 | MVCache：L0–L3、预算与内存压力、SQLite 索引、原子写入与崩溃安全、目录缓存 | — | 未开始 |
-| S1-T5 | MVPipeline：串联各缓存层、一次读取产出多种渲染件、渐进交付、预取计划的差异应用与取消 | S1-T1、S1-T3、S1-T4 | 未开始 |
-| S1-T6 | MVReading：BookLoader（渐进、过滤、排序、递归、穿透、探测顺序）、Bookshelf、PageFrameEngine、ReaderSession | S1-T7 | 未开始 |
-| S1-T7 | MVSettings 与 MVCommands：JSON 存储与重载、分层解析、路径规则、书记忆、命令登记、按键序列解析，以及 P0 的默认命令、绑定和菜单 | — | 未开始 |
-| S1-T8 | MVServices 组合根，加跨模块集成测试：打开 zip 书、翻页、生成缩略图、设置落盘 | S1-T1、S1-T2、S1-T5、S1-T6 | 未开始 |
-| S1-F1 | App 外壳：生命周期、窗口与标签、服务容器（先接 Mock）、MenuBuilder、InputRouter、String Catalog（开发语言为简体中文，补英文） | — | 未开始 |
-| S1-F2 | 停靠面板框架：三个停靠区、面板栈、拖动换区、浮动面板、全屏自动隐藏、布局持久化 | S1-F1 | 未开始 |
-| S1-F3 | 画布引擎正式版：四种 LayoutModel、锚点保持、可见范围回报 | S0-F1 | 未开始 |
-
-S1-T2（MVArchive）的要求，编写任务文档时展开：
-- zip：支持 ZIP64 和 data descriptor。文件名带 UTF-8 标志时按 UTF-8 解码，不带时回退到 GBK。
-- tar：支持 ustar、pax 和长文件名。
-- gz/tgz：流式解出；.gz 解压后按内容判断是不是 tar。
-- 嵌套：内层压缩包是 stored 时直接映射偏移，否则先解出到临时目录。
-- 临时目录有容量预算。
-- 读取必须通过 ByteSource 走 I/O 调度，不能直接按路径打开文件；现有的库做不到这一点就自己实现。
+| ID | 内容 | 前置 | 文档 | 状态 |
+|---|---|---|---|---|
+| S1-T1 | MVIO：调度器、卷通道与健康状态、FileSystemProvider、Location 归一、SourceRegistry；网络卷 I/O 的辅助进程隔离 | — | [S1-T1](tasks/S1-T1.md) | 未开始 |
+| S1-T2 | MVArchive：zip/cbz、tar、tar.gz/gz，嵌套，读取经 ByteSource | — | [S1-T2](tasks/S1-T2.md) | 未开始 |
+| S1-T3 | MVMedia：探测、显示解码与重采样、原图与分块、动图帧、视频封面；选定渲染件的编码格式 | — | [S1-T3](tasks/S1-T3.md) | 未开始 |
+| S1-T4 | MVCache：L0–L3、预算与内存压力、SQLite 索引、原子写入与崩溃安全、目录缓存 | — | [S1-T4](tasks/S1-T4.md) | 未开始 |
+| S1-T5 | MVPipeline：串联各缓存层、一次读取产出多种渲染件、渐进交付、预取计划的差异应用与取消 | S1-T1、S1-T3、S1-T4 | [S1-T5](tasks/S1-T5.md) | 未开始 |
+| S1-T6 | MVReading：BookLoader（渐进、过滤、排序、递归、穿透、探测顺序）、Bookshelf、PageFrameEngine、ReaderSession | S1-T7 | [S1-T6](tasks/S1-T6.md) | 未开始 |
+| S1-T7 | MVSettings 与 MVCommands：JSON 存储与重载、分层解析、路径规则、书记忆、命令登记、按键序列解析，以及 P0 的默认命令、绑定和菜单 | — | [S1-T7](tasks/S1-T7.md) | 未开始 |
+| S1-T8 | MVServices 组合根，加跨模块集成测试：打开 zip 书、翻页、生成缩略图、设置落盘 | S1-T1、S1-T2、S1-T5、S1-T6 | [S1-T8](tasks/S1-T8.md) | 未开始 |
+| S1-F1 | App 外壳：生命周期、窗口与标签、服务容器（先接 Mock）、MenuBuilder、InputRouter、String Catalog（开发语言为简体中文，补英文） | — | [S1-F1](tasks/S1-F1.md) | 未开始 |
+| S1-F2 | 停靠面板框架：三个停靠区、面板栈、拖动换区、浮动面板、全屏自动隐藏、布局持久化 | S1-F1 | [S1-F2](tasks/S1-F2.md) | 未开始 |
+| S1-F3 | 画布引擎正式版：四种 LayoutModel、锚点保持、可见范围回报 | S0-F1 | [S1-F3](tasks/S1-F3.md) | 未开始 |
 
 排序原则：按关键路径和风险排序。性能链（S1-T1、S1-T3、S1-T4 → S1-T5）优先，F 系列在 Mock 上穿插进行。
 
