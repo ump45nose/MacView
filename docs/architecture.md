@@ -1,6 +1,6 @@
 # MacView 架构
 
-状态：2026-10-31 定稿。
+状态：2026-10-31 定稿；2026-11-01 并入关口 G0 的决定。
 
 相关文档：
 - 需求：[requirements.md](plans/requirements.md)
@@ -41,9 +41,9 @@
 | MVPipeline | ImagePipeline：串联各缓存层，一次读取产出多种渲染件，渐进交付，按会话管理预取计划 | MVIO、MVMedia、MVCache |
 | MVSettings | 设置模式、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation |
 | MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型 | MVFoundation |
-| MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVPipeline、MVSettings |
+| MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVPipeline、MVSettings |
 | MVServices | 组合根：创建并连接各服务，负责启动、退出和内存压力处理 | 以上全部 |
-| MVTestSupport | Mock 与夹具加载。App 的 Debug 构建可以用启动参数 `-MVMockServices YES` 切换到 Mock | 契约 |
+| MVTestSupport | Mock 与夹具清单（`Fixtures/manifest.json`）的读取。App 的 Debug 构建可以用启动参数 `-MVMockServices YES` 切换到 Mock | 契约 |
 | mvbench | 基准测试与夹具生成的命令行工具 | 全部 |
 | App（`MacView` target） | 窗口与标签页、停靠面板、集合视图、查看器、输入、菜单、设置界面、本地化 | MVServices 等 |
 
@@ -87,21 +87,27 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 
 ### 3.2 I/O 模型
 
+- 访问方式（G0 决定，依据见 [S0-T2 报告](reports/S0-T2.md)）：
+  - NAS 走系统挂载，不内置 SMB。推荐 NFS（`nfs://192.168.31.201/fs/1000/nfs`），小读延迟和冷枚举都优于 SMB。
+  - NFS 和 SMB 用同一套代码。协议定下后不要再换：Location 的根随协议而变，换了以后书记忆、历史和缓存键都对不上。
 - 通道：
   - 每个卷一条通道，内分两个子通道：元数据（枚举、stat、文件头探测）和大块读取。小请求因此不会排在 20 MB 的读取后面。
-  - 每个子通道有并发上限，NAS 的取值由 S0-T2 实测确定。
+  - NAS 的取值：大块读取 4 并发、每次读 4 MB；元数据 4 并发。NFS 保持默认挂载参数，不调大 rsize（吞吐只高 4–14%，64 KB 小读却慢 4 倍）。
 - 优先级：visible > near > book > adjacent > background。请求带 `IORequestGroup`，预取计划变更时可以整批取消或重排。
-- 取消：排队中的请求直接移除；执行中的读取按 1–4 MB 分块，在块与块之间检查取消。
+- 取消：排队中的请求直接移除；执行中的读取按 4 MB 分块，在块与块之间检查取消。
 - 超时与卷健康：
-  - 每次调用都有期限，最长 10 秒，超时后向调用方抛出 `.timeout`。底层被卡住的线程仍占着槽位，计为 stuck。
+  - 每次调用都有期限，默认 10 秒，不短于 5 秒。硬挂载在故障期间一直阻塞、不报错，所以期限是唯一的超时来源。
+  - 超时后向调用方抛出 `.timeout`。底层被卡住的调用仍占着槽位，计为 stuck。
   - stuck 或超时次数超过阈值时，卷标为 degraded：新请求立即失败，只保留定期的健康探测，探测成功即恢复。
   - 卷状态以流的形式提供给界面显示。
+  - 网络卷上的读失败时，重新打开文件再试一次：断开较久（实测 60 秒）后恢复时，故障中的那次读会返回错误。
 - 枚举优先用 `getattrlistbulk` 分批返回，书和书架因此能渐进显示。
-- 退出不等待 I/O 线程。如果 S0-T2 测得被卡住的 smbfs 调用会让进程退出超过 3 秒，就把网络卷上的调用移到 XPC 辅助进程执行，对外接口不变。
-- 若 G0 选用内置 SMB（libsmb2），它作为另一个 ContainerProvider 接入，并带来以下影响：
-  - libsmb2 使用 LGPL-2.1，只能动态链接。
-  - 视频要改用 AVAssetResourceLoader 流式读取。
-  - Finder、外部命令和 P1 的文件操作仍然需要系统挂载路径。
+- 进程隔离（G0 决定）：
+  - 网络卷（statfs 不带 `MNT_LOCAL`）上的阻塞调用都在辅助进程中执行，本机卷仍在进程内，对外接口不变。
+  - 原因：SMB 和 NFS 硬挂载上卡住的调用会让进程无法退出，exit(0) 和 SIGKILL 都无效，直到网络恢复。MacView 不能决定用户怎样挂载。
+  - 卡住的辅助进程整体弃用，健康探测时换新的；主进程退出时不等它，它在网络恢复后自行消失。
+  - 视频也要隔离：用 AVAssetResourceLoader 从辅助进程按范围取数据，不让 AVFoundation 在进程内读网络卷。
+  - S1-T1 先验证：辅助进程卡住时退出并重新打开 App，新进程能否立即得到新的辅助进程。如果 launchd 要等旧实例结束，就改用 posix_spawn 起同一个可执行文件作子进程。
 
 ### 3.3 媒体与渲染件
 
@@ -124,7 +130,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 动图通过帧源按需逐帧解码，播放节奏由前端的显示链接驱动。
 - 视频：
   - 封面用 AVAssetImageGenerator 生成，取 1 秒处和 10% 处中较早的一帧。
-  - AVFoundation 自己读文件，管线为它占用该卷大块读取通道的一个槽位，使并发上限和卷健康统计保持一致。
+  - 本机卷上 AVFoundation 自己读文件；网络卷上经 AVAssetResourceLoader 走 I/O 调度的大块读取通道（§3.2 进程隔离），并发上限和卷健康统计因此保持一致。
 
 ### 3.4 缓存与图像管线
 
@@ -235,6 +241,11 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - LayoutModel 有砌体、网格、纵向条、横向条四种，布局变化时保持可见锚点。
   - 把可见范围和余量回报给预取计划。
   - 同一个引擎服务连续模式、主区瀑布流和画廊面板。
+  - S0-F1 的结论（[报告](reports/S0-F1.md)）：
+    - 1 万项、120 Hz 下，真实触控板滚动的帧时间 P99 为 8.33 ms。图层数由可见区决定（约 55 个）。
+    - 图层内容只用已解码、IOSurface 支撑的图像，避免在提交时复制。
+    - 图片突发到达时，每帧设置图层内容的数量有限额。
+    - 滚动走 NSScrollView 自己的路径，不在显示链接回调里改滚动位置；卡顿验收用真实的滚动输入。
 - 集合组件：列表和详情表格用 NSTableView，网格和瀑布流用画布引擎。
 - 查看器：
   - 分页渲染器负责页帧图层、缩放模式计算、设备像素 1:1、放大镜、翻页时保持缩放与位置，以及以光标为中心缩放。
@@ -252,7 +263,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 
 ## 4. Core 协议契约
 
-S0-T4 按下面的签名落成代码。实现时的调整记入 S0-T4 报告，并在 G0 时并入本节。
+契约已由 S0-T4 落成代码，实现时的调整已在 G0 并入本节。字段与默认值、行为约定等细节以代码和文档注释为准，说明见 [S0-T4 报告](reports/S0-T4.md)。修改公开接口时同步更新本节。
 
 ```swift
 // MVFoundation
@@ -268,6 +279,7 @@ public enum EntryKind: Hashable, Sendable, Codable { case directory, archive(Arc
 public struct Entry: Hashable, Sendable { public var identity: ContentIdentity; public var name: String; public var kind: EntryKind; public var created: Date? }   // location、size、modified 由 identity 计算
 public struct SessionID: Hashable, Sendable { public let raw: UUID }
 public enum JSONValue: Hashable, Sendable, Codable { case null, bool(Bool), number(Double), string(String), array([JSONValue]), object([String: JSONValue]) }
+public enum ResampleFilter: String, Sendable, Codable { case lanczos, nearest }   // MVSettings 也要用，所以放在这里
 
 // MVIO
 public enum IOPriority: Int, Sendable, Comparable { case visible, near, book, adjacent, background }   // 按声明顺序，visible 最高
@@ -294,7 +306,6 @@ public protocol SourceRegistry: Sendable {
 
 // MVMedia
 public struct ImageMetadata: Sendable, Codable, Hashable { public var pixelSize: PixelSize; public var frameCount: Int; public var duration: Double?; public var capturedAt: Date?; public var colorSpace: String? }   // pixelSize 已按 EXIF 方向换算
-public enum ResampleFilter: String, Sendable, Codable { case lanczos, nearest }
 public struct DisplayTarget: Sendable, Hashable { public var pixelSize: PixelSize; public var filter: ResampleFilter; public var sharpen: Float }
 public enum RenditionQuality: Int, Sendable, Comparable { case placeholder, browse, exact, original }
 public struct RenderedImage: @unchecked Sendable { public let image: CGImage; public let quality: RenditionQuality }
@@ -347,7 +358,7 @@ public protocol SettingsStore: Sendable {
 }
 
 // MVCommands
-public struct CommandID: Hashable, Codable, Sendable { public var rawValue: String }   // 例如 "page.next"
+public struct CommandID: RawRepresentable, Hashable, Codable, Sendable { public var rawValue: String; public init(_ rawValue: String) }   // 例如 "page.next"，JSON 中为字符串
 public enum InputScope: String, Codable, Sendable { case global, viewer, list, textInput }
 public struct KeyModifiers: OptionSet, Hashable, Codable, Sendable { public let rawValue: UInt8 /* command, option, control, shift, function */ }
 public struct KeyChord: Hashable, Codable, Sendable { public var key: String; public var modifiers: KeyModifiers }   // key 为逻辑键名，如 "Right"、"a"
@@ -356,9 +367,12 @@ public enum ResolveResult: Sendable { case command(CommandID, [String: JSONValue
 public struct BindingResolver: Sendable { public init(bindings: [KeyBinding], sequenceTimeout: Duration); public mutating func feed(_ chord: KeyChord, scope: InputScope, at time: ContinuousClock.Instant) -> ResolveResult }
 public struct CommandDescriptor: Sendable { public var id: CommandID; public var title: LocalizedStringResource; public var category: String; public var defaultBindings: [KeyBinding] }
 public struct CommandContext: Sendable { public var session: SessionID?; public var scope: InputScope; public var selection: [Location] }
+public enum CommandError: Error, Sendable, Equatable { case unknownCommand(CommandID), disabled(CommandID) }
 @MainActor public final class CommandRegistry {
+    public init()
     public func register(_ d: CommandDescriptor, isEnabled: @escaping @MainActor (CommandContext) -> Bool, perform: @escaping @MainActor (CommandContext, [String: JSONValue]?) async throws -> Void)
-    public func perform(_ id: CommandID, arguments: [String: JSONValue]?, context: CommandContext) async throws
+    public func isEnabled(_ id: CommandID, context: CommandContext) -> Bool   // 菜单项和工具栏按钮用
+    public func perform(_ id: CommandID, arguments: [String: JSONValue]?, context: CommandContext) async throws   // 没登记或不可用时抛出 CommandError
     public func descriptors() -> [CommandDescriptor]
 }
 public indirect enum MenuNode: Codable, Sendable { case command(CommandID), submenu(titleKey: String, children: [MenuNode]), separator }
@@ -386,11 +400,12 @@ public enum PageFrameEngine { public static func frames(aspectRatios: [Double?],
 public enum PageMove: Sendable { case nextFrame, previousFrame, nextPage, previousPage, first, last, index(Int) }
 @MainActor @Observable public final class ReaderSession {
     public let id: SessionID
+    public init(id: SessionID = SessionID(), loader: any BookLoader, settings: any SettingsStore, bookshelf: any Bookshelf)   // 由 CoreServices.makeSession() 调用
     public private(set) var book: Book?; public private(set) var frames: [PageFrame]; public private(set) var currentFrame: Int
     public private(set) var settings: ResolvedBookSettings; public private(set) var loadError: (any Error)?
     public func open(_ location: Location, at page: Location?) async
     public func go(_ move: PageMove)
-    public func openNeighborBook(_ direction: NavigationDirection) async
+    public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async   // sort 是书架面板当前的排序，与书内页面的排序无关
     public func update(_ change: (inout BookSettings) -> Void)   // 写入书层，去抖后持久化
     public func visibleRangeChanged(_ pages: Range<Int>)        // 连续和瀑布模式由前端回报
 }
@@ -398,13 +413,14 @@ public enum PageMove: Sendable { case nextFrame, previousFrame, nextPage, previo
 // MVServices
 public struct CoreConfiguration: Sendable { public var supportDirectory: URL; public var cacheDirectory: URL }
 @MainActor public final class CoreServices {
-    public static func make(configuration: CoreConfiguration) async throws -> CoreServices
+    public static func make(configuration: CoreConfiguration) async throws -> CoreServices   // S1-T8 实现
+    public init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader)   // BookLoader 私有持有，供 makeSession() 使用
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
     public let commands: CommandRegistry; public let bookshelf: any Bookshelf
     public func makeSession() -> ReaderSession
     public func shutdown() async   // 有时限地等待，不等被卡住的 I/O 线程
 }
-// MVTestSupport：extension CoreServices { static func makeMock(_ options: MockOptions) -> CoreServices }
+// MVTestSupport：extension CoreServices { static func makeMock(_ options: MockOptions = MockOptions()) -> CoreServices }
 ```
 
 ## 5. 关口
@@ -427,5 +443,11 @@ G0 的依据：
 - S0-T2 的实测数据和复杂度估算。
 - 用户的规则：只有在系统挂载上解决延迟的复杂度明显高于内置 SMB 时，才改用内置 SMB。
 - 内置 SMB 会牵涉凭据管理、LGPL 动态链接和视频的读取方式，选它之前先征求用户同意。
+
+G0 已于 2026-11-01 完成：
+- 用系统挂载，协议用 NFS，不内置 SMB（§3.2）。
+- 网络卷上的阻塞调用放进辅助进程（§3.2）。
+- §4 已并入 S0-T4 的差异，§3.8 已写入 S0-F1 的结论。
+- S1 的任务文档见 `docs/plans/tasks/S1-*.md`。
 
 在每个关口，向用户汇报结论与证据；需要用户决定的事项先询问。必要时更新本文，再编写下一阶段的任务文档。
