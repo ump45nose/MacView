@@ -16,7 +16,10 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 
 ## 分工
 
-- 2026-10-31 起暂停 Codex 派发，全部开发由 Claude 完成。
+- 2026-11-01 起恢复 Codex，按规格目录分阶段执行：
+  - T 任务由 Codex 的阶段主控执行，工作范围是规格目录里的 `stage-<n>.md`。
+  - Claude 是设计侧主控：写阶段详细设计、审核阶段总结，负责 F 任务的设计；F 任务的执行方按额度另定。
+  - 当前需求 s1-core 的规格目录是 `.worktree/s1-core/.spec/`（不入库），需求 worktree 为 `.worktree/s1-core`，分支 `feat/s1-core`。
 - 任务 ID 中，T 表示 Core 任务（`Packages/`、`Fixtures/`、mvbench、脚本），F 表示 App 任务（`App/`）。
 - 修改公开接口时，同步更新 architecture.md §4。
 
@@ -26,6 +29,7 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 2. 选工作区：
    - 顺序开发时，直接在 main 上进行。
    - 与其他会话并行时，在 `.worktree/<ID>` 建分支 `task/<ID>`。
+   - 按规格目录执行时，在需求 worktree 中进行，按阶段合入 main。
 3. 实现，补齐测试与基准。大任务按可验证的步骤分次提交。
 4. 任务文档要求写报告时，写 `docs/reports/<ID>.md`，内容包括：
    - 做了什么。
@@ -73,10 +77,3 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 - 只包含当前任务的改动；不覆盖、回退或提交别人的改动。
 - 格式为 `<type>(<scope>): <中文描述>`。scope 可以省略，type 取 feat/fix/perf/test/docs/build/refactor/chore。
 - 文档、报告和提交信息用简体中文。
-
-## 恢复 Codex 派发时
-
-- Codex 负责 T 任务；Claude 负责 F 任务和各关口的审核，只审结论和方向。
-- Codex 最多同时执行 3 个任务，各在 `.worktree/<ID>` 中进行，自测通过即合入 main。
-- Codex 只在契约迁移需要时机械地修改 `App/`。如果要修改任务文档之外的公开接口，先停下，在报告中给出差异，等 Claude 审核。
-- 派发通过 codexhost 进行，也可以由用户在 Codex 中按任务文档启动。

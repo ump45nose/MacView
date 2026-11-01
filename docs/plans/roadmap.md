@@ -4,7 +4,7 @@
 - 架构与关口：[architecture.md](../architecture.md)
 - 工作约定：[AGENTS.md](../../AGENTS.md)
 
-任务 ID 中，T 表示 Core 任务，F 表示 App 任务；2026-10-31 起全部由 Claude 开发。
+任务 ID 中，T 表示 Core 任务，F 表示 App 任务；2026-11-01 起 T 任务由 Codex 按规格目录分阶段执行，分工见 [AGENTS.md](../../AGENTS.md)。
 
 进度记录方式：
 - 状态取值：未开始、进行中、已完成、阻塞（注明原因）。
