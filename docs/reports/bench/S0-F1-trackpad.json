@@ -1,0 +1,36 @@
+{
+  "app": {},
+  "appPhases": [
+    {
+      "end": null,
+      "name": "手动滚动",
+      "start": null
+    }
+  ],
+  "displays": [
+    {
+      "builtIn": "Yes",
+      "maxRefreshRate": 120,
+      "name": "Built-In Display 1"
+    }
+  ],
+  "phases": [
+    {
+      "frameTimeMax": 16.667,
+      "frameTimeP50": 8.333,
+      "frameTimeP99": 8.333,
+      "frames": 1629,
+      "framesPerSecond": 41.0,
+      "hitchMilliseconds": 58.333,
+      "hitchRatioMsPerSecond": 1.47,
+      "hitches": 7,
+      "name": "手动滚动",
+      "renderP50": 2.954,
+      "renderP99": 4.231,
+      "seconds": 39.7,
+      "updateP50": 0.014,
+      "updateP99": 3.462
+    }
+  ],
+  "trace": "manual.trace"
+}

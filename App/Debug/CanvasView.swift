@@ -62,6 +62,13 @@ final class CanvasView: NSView {
         var aspectRatio: CGFloat
     }
 
+    /// 对照用的变体：`empty` 不分配项的图层，只剩滚动本身；`noImages` 分配图层但不加载缩略图。
+    enum Variant: String {
+        case full
+        case noImages
+        case empty
+    }
+
     struct Counters {
         var activeLayers = 0
         var peakLayers = 0
@@ -71,6 +78,7 @@ final class CanvasView: NSView {
     }
 
     private let items: [Item]
+    private let variant: Variant
     private let aspectRatios: [CGFloat]
     private var pipeline: any ImagePipeline
     private var layout: MasonryLayout?
@@ -89,8 +97,9 @@ final class CanvasView: NSView {
         case relayout
     }
 
-    init(items: [Item], pipeline: any ImagePipeline) {
+    init(items: [Item], pipeline: any ImagePipeline, variant: Variant) {
         self.items = items
+        self.variant = variant
         aspectRatios = items.map(\.aspectRatio)
         self.pipeline = pipeline
         super.init(frame: .zero)
@@ -139,7 +148,7 @@ final class CanvasView: NSView {
 
     /// 按当前可见区分配图层。滚动时每帧调用。
     func updateVisible() {
-        guard let layout, let clip = enclosingScrollView?.contentView else { return }
+        guard let layout, let clip = enclosingScrollView?.contentView, variant != .empty else { return }
         let start = ContinuousClock.now
         let state = signposter.beginInterval("updateVisible")
         let visible = clip.bounds
@@ -156,7 +165,7 @@ final class CanvasView: NSView {
             layer.contents = cache.object(forKey: index as NSNumber)
             layer.isHidden = false
             active[index] = layer
-            if layer.contents == nil, loads[index] == nil {
+            if variant == .full, layer.contents == nil, loads[index] == nil {
                 load(index, maxPixel: Int((max(frame.width, frame.height) * (window?.backingScaleFactor ?? 2)).rounded(.up)), priority: visible.intersects(frame) ? .visible : .near)
             }
         }
