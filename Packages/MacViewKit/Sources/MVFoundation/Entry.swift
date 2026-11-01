@@ -80,7 +80,7 @@ public enum EntryKind: Hashable, Sendable, Codable {
 }
 
 /// 目录或压缩包中的一项。位置、大小和修改时间来自 `identity`。
-public struct Entry: Hashable, Sendable {
+public struct Entry: Hashable, Sendable, Codable {
     public var identity: ContentIdentity
     public var name: String
     public var kind: EntryKind
