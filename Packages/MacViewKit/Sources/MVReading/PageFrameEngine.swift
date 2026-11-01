@@ -1,9 +1,31 @@
-/// 把页面排成页帧的纯函数。
-///
-/// 输入页面宽高比（未知为 nil，按非宽页处理）和布局设置，输出按阅读顺序排好的页帧。
-/// 目前一页一帧；双页拼合、首页单页和宽页处理在 S1-T6 实现。
+import MVSettings
+
+/// 输入按阅读顺序排列的页面；双页帧中的元素按画面从左到右排列。
 public enum PageFrameEngine {
     public static func frames(aspectRatios: [Double?], layout: PageLayout) -> [PageFrame] {
-        aspectRatios.indices.map { PageFrame(elements: [PageFrameElement(page: $0)]) }
+        var result: [PageFrame] = []
+        var pending: [PageFrameElement] = []
+        func emit() {
+            guard !pending.isEmpty else { return }
+            let elements = layout.direction == .rightToLeft ? Array(pending.reversed()) : pending
+            result.append(PageFrame(elements: elements))
+            pending.removeAll(keepingCapacity: true)
+        }
+        for index in aspectRatios.indices {
+            let wide = (aspectRatios[index] ?? 0) > 1
+            if wide, layout.widePage == .split {
+                emit()
+                let parts: [PagePart] = layout.direction == .leftToRight ? [.leftHalf, .rightHalf] : [.rightHalf, .leftHalf]
+                for part in parts { result.append(PageFrame(elements: [PageFrameElement(page: index, part: part)])) }
+            } else if layout.pageMode == .single || (wide && layout.widePage == .single) || (index == 0 && layout.firstPageSingle) {
+                emit()
+                result.append(PageFrame(elements: [PageFrameElement(page: index)]))
+            } else {
+                pending.append(PageFrameElement(page: index))
+                if pending.count == 2 { emit() }
+            }
+        }
+        emit()
+        return result
     }
 }
