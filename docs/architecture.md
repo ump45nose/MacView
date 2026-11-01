@@ -292,6 +292,7 @@ public struct Entry: Hashable, Sendable, Codable { public var identity: ContentI
 public struct SessionID: Hashable, Sendable { public let raw: UUID }
 public enum JSONValue: Hashable, Sendable, Codable { case null, bool(Bool), number(Double), string(String), array([JSONValue]), object([String: JSONValue]) }
 public enum ResampleFilter: String, Sendable, Codable { case lanczos, nearest }   // MVSettings 也要用，所以放在这里
+public enum NameOrder { public static func compare(_ lhs: String, _ rhs: String) -> ComparisonResult }   // 数字感知与中文拼音排序
 
 // MVIO
 public enum IOPriority: Int, Sendable, Comparable { case visible, near, book, adjacent, background }   // 按声明顺序，visible 最高
@@ -397,8 +398,8 @@ public enum RenditionEncoding: String, Sendable, Codable, CaseIterable { case he
 
 // MVPipeline
 public enum RenditionSpec: Sendable, Hashable { case metadata, thumbnail, browse, display(DisplayTarget) }
-public struct PrefetchItem: Sendable, Hashable { public var identity: ContentIdentity; public var renditions: Set<RenditionSpec>; public var priority: IOPriority }
-public struct PrefetchPlan: Sendable { public var items: [PrefetchItem] }
+public struct PrefetchItem: Sendable, Hashable { public var identity: ContentIdentity; public var renditions: Set<RenditionSpec>; public var priority: IOPriority; public init(identity: ContentIdentity, renditions: Set<RenditionSpec>, priority: IOPriority) }   // renditions 为空表示仅读取原始字节
+public struct PrefetchPlan: Sendable, Equatable { public var items: [PrefetchItem]; public init(items: [PrefetchItem] = []) }
 public protocol ImagePipeline: Sendable {
     func metadata(for identity: ContentIdentity, priority: IOPriority) async throws -> ImageMetadata
     func thumbnail(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
@@ -409,6 +410,18 @@ public protocol ImagePipeline: Sendable {
     func videoPoster(for identity: ContentIdentity, maxPixel: Int) async throws -> RenderedImage
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID)
     func cancelAll(session: SessionID)
+}
+public struct PipelineCaches: Sendable {
+    public var raw: MemoryCache<String, Data>; public var decoded: MemoryCache<String, RenderedImage>
+    public var thumbnails: DiskCache; public var browse: DiskCache?; public var metadata: MetadataIndex
+    public init(raw: MemoryCache<String, Data>, decoded: MemoryCache<String, RenderedImage>, thumbnails: DiskCache, browse: DiskCache?, metadata: MetadataIndex)
+}   // 生命周期、预算与 flush 由组合根管理
+public struct PipelineConfiguration: Sendable {
+    public var thumbnailLongSide: Int; public var browseBounds: PixelSize; public var maxDecodeLongSide: Int
+    public init(thumbnailLongSide: Int = 1024, browseBounds: PixelSize, maxDecodeLongSide: Int = 16384)
+}
+public final class FileImagePipeline: ImagePipeline {
+    public init(sources: any SourceRegistry, decoder: ImageDecoder, caches: PipelineCaches, configuration: PipelineConfiguration)
 }
 
 // MVSettings
@@ -485,11 +498,15 @@ extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources
 }
 
 // MVReading
-public struct Page: Sendable, Identifiable { public var entry: Entry; public var metadata: ImageMetadata?; public var id: Location { get } }
-public struct Book: Sendable { public var location: Location; public var pages: [Page]; public var isEnumerated: Bool }
+public struct Page: Sendable, Identifiable, Hashable { public var entry: Entry; public var metadata: ImageMetadata?; public var id: Location { get }; public init(entry: Entry, metadata: ImageMetadata? = nil) }
+public struct Book: Sendable, Hashable { public var location: Location; public var pages: [Page]; public var isEnumerated: Bool; public init(location: Location, pages: [Page] = [], isEnumerated: Bool = false) }
 public enum BookLoadEvent: Sendable { case appended([Page]), sorted([Page]), metadata([Location: ImageMetadata]) }
-// 先按到达顺序 appended，枚举完成后发一次 sorted；metadata 按阅读顺序分批到达；流结束表示全部完成
-public protocol BookLoader: Sendable { func load(_ location: Location, settings: ResolvedBookSettings) -> AsyncThrowingStream<BookLoadEvent, any Error> }
+// 缓存未命中时按到达顺序 appended，枚举完成后发 sorted；缓存命中时先发缓存的 sorted，不发 appended，后台刷新有差异时再发 sorted。
+// metadata 先交付缓存，再从 startingAt 开始探测；流结束表示全部完成。ReaderSession 收到 sorted 时按页身份保持当前页。
+public protocol BookLoader: Sendable { func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> }
+public final class FileBookLoader: BookLoader {
+    public init(sources: any SourceRegistry, directories: DirectoryCache, metadata: MetadataIndex, pipeline: any ImagePipeline)
+}
 public enum ShelfEvent: Sendable { case appended([Entry]), sorted([Entry]) }
 public enum NavigationDirection: Sendable { case forward, backward }
 public protocol Bookshelf: Sendable {
@@ -498,12 +515,13 @@ public protocol Bookshelf: Sendable {
     func neighbor(of book: Location, _ direction: NavigationDirection, sort: SortSpec) async throws -> Location?
     func passThrough(_ location: Location) async throws -> Location
 }
+public final class FileBookshelf: Bookshelf { public init(sources: any SourceRegistry, directories: DirectoryCache) }
 public enum PagePart: Sendable, Hashable { case whole, leftHalf, rightHalf }
-public struct PageFrameElement: Sendable, Hashable { public var page: Int; public var part: PagePart }
-public struct PageFrame: Sendable, Hashable { public var elements: [PageFrameElement] }   // 已按阅读方向排列
-public struct PageLayout: Sendable, Hashable { public var pageMode: PageMode; public var direction: ReadingDirection; public var firstPageSingle: Bool; public var widePage: WidePagePolicy }
+public struct PageFrameElement: Sendable, Hashable { public var page: Int; public var part: PagePart; public init(page: Int, part: PagePart = .whole) }
+public struct PageFrame: Sendable, Hashable { public var elements: [PageFrameElement]; public init(elements: [PageFrameElement]) }   // 元素按画面从左到右，页帧序列按阅读顺序
+public struct PageLayout: Sendable, Hashable { public var pageMode: PageMode; public var direction: ReadingDirection; public var firstPageSingle: Bool; public var widePage: WidePagePolicy; public init(pageMode: PageMode, direction: ReadingDirection, firstPageSingle: Bool, widePage: WidePagePolicy) }
 public enum PageFrameEngine { public static func frames(aspectRatios: [Double?], layout: PageLayout) -> [PageFrame] }
-public enum PageMove: Sendable { case nextFrame, previousFrame, nextPage, previousPage, first, last, index(Int) }
+public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextPage, previousPage, first, last, index(Int) }
 @MainActor @Observable public final class ReaderSession {
     public let id: SessionID
     public init(id: SessionID = SessionID(), loader: any BookLoader, settings: any SettingsStore, bookshelf: any Bookshelf, pipeline: any ImagePipeline)   // 由 CoreServices.makeSession() 调用
@@ -515,6 +533,7 @@ public enum PageMove: Sendable { case nextFrame, previousFrame, nextPage, previo
     public func update(_ change: (inout BookSettings) -> Void)   // 写入书层，去抖后持久化
     public func visibleRangeChanged(_ pages: Range<Int>)        // 连续和瀑布模式由前端回报
 }
+// 分页模式预读阅读方向上的原始字节，以及全书缩略图和元数据；本阶段不按视口尺寸预解码。
 
 // MVServices
 public struct CoreConfiguration: Sendable { public var supportDirectory: URL; public var cacheDirectory: URL }
