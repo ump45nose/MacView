@@ -52,7 +52,7 @@ public final class ReaderSession {
         anchor = page
         loadError = nil
         do {
-            for try await event in loader.load(location, settings: resolved) {
+            for try await event in loader.load(location, settings: resolved, startingAt: page) {
                 guard current == generation else { return }
                 apply(event)
             }

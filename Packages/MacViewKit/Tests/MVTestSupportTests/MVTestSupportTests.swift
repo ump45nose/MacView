@@ -315,7 +315,7 @@ struct MockReadingTests {
         var appended: [Page] = []
         var sorted: [Page]?
         var metadata: [Location: ImageMetadata] = [:]
-        for try await event in loader.load(tree.location("书"), settings: .default) {
+        for try await event in loader.load(tree.location("书"), settings: .default, startingAt: nil) {
             switch event {
             case let .appended(pages):
                 #expect(sorted == nil)
@@ -340,7 +340,7 @@ struct MockReadingTests {
         func order(_ sort: SortSpec) async throws -> [String] {
             var settings = ResolvedBookSettings.default
             settings.sort = sort
-            for try await event in loader.load(tree.location("书"), settings: settings) {
+            for try await event in loader.load(tree.location("书"), settings: settings, startingAt: nil) {
                 if case let .sorted(pages) = event {
                     return pages.map(\.entry.name)
                 }
