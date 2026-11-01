@@ -31,7 +31,8 @@ public final class CacheIndex: Sendable {
         }
         pool = try DatabasePool(path: databaseURL.path, configuration: configuration)
         var migrator = DatabaseMigrator()
-        migrator.registerMigration("cache-v1") { database in
+        migrator.eraseDatabaseOnSchemaChange = true
+        migrator.registerMigration("cache-v2") { database in
             try database.execute(sql: """
                 CREATE TABLE disk_entries (
                     tier TEXT NOT NULL, key TEXT NOT NULL, filename TEXT NOT NULL,
@@ -39,7 +40,12 @@ public final class CacheIndex: Sendable {
                     PRIMARY KEY (tier, key)
                 ) WITHOUT ROWID;
                 CREATE INDEX disk_entries_lru ON disk_entries(tier, accessed);
-                CREATE TABLE metadata (key TEXT PRIMARY KEY NOT NULL, value BLOB NOT NULL) WITHOUT ROWID;
+                CREATE TABLE metadata (
+                    key TEXT PRIMARY KEY NOT NULL, container BLOB NOT NULL,
+                    width INTEGER NOT NULL, height INTEGER NOT NULL, frameCount INTEGER NOT NULL,
+                    duration REAL, capturedAt REAL, colorSpace TEXT
+                ) WITHOUT ROWID;
+                CREATE INDEX metadata_container ON metadata(container);
                 CREATE TABLE directory_listings (location BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL) WITHOUT ROWID;
                 """)
         }

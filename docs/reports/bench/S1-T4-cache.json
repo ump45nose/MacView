@@ -2,7 +2,7 @@
   "cacheCondition" : "重新打开 CacheIndex 后测首查和重复查；操作系统文件页缓存未清空。60 图计时仅含索引查询及并发文件读取，不含图片解码。",
   "entries" : 10000,
   "environment" : {
-    "collectedAt" : "2026-11-01T09:55:01Z",
+    "collectedAt" : "2026-11-01T11:18:51Z",
     "machine" : {
       "chip" : "Apple M1 Pro",
       "efficiencyCores" : 2,
@@ -12,7 +12,7 @@
     },
     "network" : [
       {
-        "linkSpeedMbps" : 960,
+        "linkSpeedMbps" : 576,
         "name" : "en0",
         "type" : "IEEE80211",
         "wifiPHYMode" : "802.11ax"
@@ -32,38 +32,38 @@
       {
         "fileSystem" : "apfs",
         "mountPoint" : "/System/Volumes/Data",
-        "path" : "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s1-core/build/stage-1-work/cache-bench/34F1C32F-A383-494F-8826-FADE64C43851",
+        "path" : "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s1-core/build/w16-accept/cache-bench/2576C9B7-0B0B-4F55-91E6-916BB7C31243",
         "source" : "/dev/disk3s5"
       }
     ]
   },
-  "finishedAt" : "2026-11-01T09:55:01Z",
-  "firstQueryAfterReopenMilliseconds" : 31.499041,
+  "finishedAt" : "2026-11-01T11:18:51Z",
+  "firstQueryAfterReopenMilliseconds" : 11.647,
   "firstScreenFiles" : 60,
   "firstScreenReadLimitMilliseconds" : 30,
   "firstScreenReadMilliseconds" : {
     "count" : 10,
-    "max" : 2.593708,
-    "mean" : 1.3961624000000001,
-    "min" : 1.178333,
-    "p50" : 1.2752915,
-    "p95" : 2.0280584499999987,
-    "p99" : 2.48057809
+    "max" : 2.444958,
+    "mean" : 1.3215246,
+    "min" : 1.073916,
+    "p50" : 1.209604,
+    "p95" : 1.9571953499999988,
+    "p99" : 2.3474054700000004
   },
   "firstScreenReadPassed" : true,
   "listingAndMetadataLimitMilliseconds" : 20,
   "listingAndMetadataMilliseconds" : {
     "count" : 10,
-    "max" : 30.29025,
-    "mean" : 29.7267417,
-    "min" : 29.020834,
-    "p50" : 29.8154375,
-    "p95" : 30.18840015,
-    "p99" : 30.26988003
+    "max" : 10.704833,
+    "mean" : 10.2029915,
+    "min" : 9.789333,
+    "p50" : 10.1710415,
+    "p95" : 10.58117705,
+    "p99" : 10.68010181
   },
-  "listingAndMetadataPassed" : false,
-  "queryDescription" : "每次依次从 SQLite 读取并解码完整 DirectoryListing 和全部 10000 条 ImageMetadata；查询键预先计算，计时含 SQL、值解码与完整性计数检查。无查询结果内存缓存。",
-  "sampleDescription" : "8 个确定性合成图案，ImageIO 编码为有效 320×480 sRGB JPEG，循环写入不同 cacheKey 的独立文件；元数据使用 MVMedia.ImageMetadata。",
+  "listingAndMetadataPassed" : true,
+  "queryDescription" : "每次依次从 SQLite 读取并解码完整 DirectoryListing 和全部 10000 条 ImageMetadata；按容器范围查询元数据，计时含 SQL、值解码与完整性计数检查。无查询结果内存缓存。",
+  "sampleDescription" : "8 个确定性合成图案，ImageIO 编码为有效 320×480 sRGB JPEG，循环写入不同 cacheKey 的独立文件；元数据使用 MVFoundation.ImageMetadata。",
   "thumbnailBytes" : {
     "count" : 8,
     "max" : 46369,

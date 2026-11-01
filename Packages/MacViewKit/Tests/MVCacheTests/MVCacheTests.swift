@@ -82,7 +82,7 @@ import Testing
     let directory = try CacheTestDirectory()
     defer { directory.remove() }
     let key = "0123456789abcdef0123456789abcdef"
-    let metadata = TestMetadata(width: 800, height: 600, format: "jpeg")
+    let metadata = ImageMetadata(pixelSize: PixelSize(width: 800, height: 600))
     let container = Location(root: .local).appending("书.zip")
     let listing = DirectoryListing(entries: [testEntry("001.jpg", in: container.appendingLayer([]))], directoryModificationNanos: 123)
     do {
@@ -92,7 +92,7 @@ import Testing
         let browse = try DiskCache(tier: .browse, cacheDirectory: directory.url, budget: 100, index: index)
         try await thumbnail.store(Data([1, 2, 3]), for: key)
         try await browse.store(Data([4, 5]), for: key)
-        try await MetadataIndex<TestMetadata>(index: index).store([key: metadata])
+        try await MetadataIndex(index: index).store([key: metadata], in: container)
         _ = try await DirectoryCache(index: index).update(container, listing: listing)
         try await index.flush()
     }
@@ -101,7 +101,7 @@ import Testing
     let browse = try DiskCache(tier: .browse, cacheDirectory: directory.url, budget: 100, index: reopened)
     #expect(try await thumbnail.data(for: key) == Data([1, 2, 3]))
     #expect(try await browse.data(for: key) == Data([4, 5]))
-    #expect(try await MetadataIndex<TestMetadata>(index: reopened).values(for: [key, "missing", key]) == [key: metadata])
+    #expect(try await MetadataIndex(index: reopened).values(for: [key, "missing", key]) == [key: metadata])
     #expect(try await DirectoryCache(index: reopened).cachedChildren(of: container) == listing)
     #expect(FileManager.default.fileExists(atPath: directory.url.appendingPathComponent("thumbnails/01/" + key).path))
 }
@@ -254,15 +254,47 @@ import Testing
 @Test func metadataBatchIsCompleteAndUpdatesPersist() async throws {
     let directory = try CacheTestDirectory()
     defer { directory.remove() }
+    // 真实旧版迁移记录与 JSON 表；新版打开后整库重建。
+    do {
+        let old = try DatabaseQueue(path: directory.database.path)
+        var migrator = DatabaseMigrator()
+        migrator.registerMigration("cache-v1") { database in
+            try database.execute(sql: """
+                CREATE TABLE disk_entries (
+                    tier TEXT NOT NULL, key TEXT NOT NULL, filename TEXT NOT NULL,
+                    size INTEGER NOT NULL, accessed REAL NOT NULL,
+                    PRIMARY KEY (tier, key)
+                ) WITHOUT ROWID;
+                CREATE INDEX disk_entries_lru ON disk_entries(tier, accessed);
+                CREATE TABLE metadata (key TEXT PRIMARY KEY NOT NULL, value BLOB NOT NULL) WITHOUT ROWID;
+                CREATE TABLE directory_listings (location BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL) WITHOUT ROWID;
+                """)
+            try database.execute(sql: "INSERT INTO metadata VALUES ('legacy', X'7B7D')")
+        }
+        try migrator.migrate(old)
+    }
     let index = try CacheIndex(databaseURL: directory.database)
-    let metadata = MetadataIndex<TestMetadata>(index: index)
-    let values = Dictionary(uniqueKeysWithValues: (0..<1_200).map { ("key-\($0)", TestMetadata(width: $0, height: 600, format: "jpeg")) })
-    try await metadata.store(values)
+    let columns = try await index.pool.read { try $0.columns(in: "metadata").map(\.name) }
+    #expect(!columns.contains("value"))
+    let container = Location(root: .local).appending("metadata")
+    let metadata = MetadataIndex(index: index)
+    let values = Dictionary(uniqueKeysWithValues: (0..<1_200).map { ("key-\($0)", ImageMetadata(pixelSize: PixelSize(width: $0, height: 600))) })
+    try await metadata.store(values, in: container)
     #expect(try await metadata.values(for: Array(values.keys)) == values)
-    let changed = TestMetadata(width: 5, height: 7, format: "png")
-    try await metadata.store(["key-1": changed])
-    let reopened = MetadataIndex<TestMetadata>(index: try CacheIndex(databaseURL: directory.database))
+    #expect(try await metadata.values(in: container) == values)
+    #expect(try await metadata.values(in: container.appending("other")).isEmpty)
+    let changed = ImageMetadata(pixelSize: PixelSize(width: 5, height: 7), frameCount: 3, duration: 1.25, capturedAt: Date(timeIntervalSince1970: 123.5), colorSpace: "sRGB")
+    try await metadata.store(["key-1": changed], in: container)
+    let reopened = MetadataIndex(index: try CacheIndex(databaseURL: directory.database))
     #expect(try await reopened.values(for: ["key-1", "missing"]) == ["key-1": changed])
+    let secondContainer = container.appending("second")
+    try await reopened.store(["second-only": changed, "key-1": changed], in: secondContainer)
+    let moved = MetadataIndex(index: try CacheIndex(databaseURL: directory.database))
+    #expect(try await moved.values(in: secondContainer) == ["second-only": changed, "key-1": changed])
+    var remaining = values
+    remaining.removeValue(forKey: "key-1")
+    #expect(try await moved.values(in: container) == remaining)
+    #expect(try await moved.values(for: ["key-0", "key-1", "second-only", "legacy"]) == ["key-0": values["key-0"]!, "key-1": changed, "second-only": changed])
 }
 
 // MARK: 崩溃、启动与并发淘汰
@@ -270,7 +302,7 @@ import Testing
 @Test(arguments: [0, 23, 67]) func killedWriterLeavesOnlyCompleteIndexedFiles(delayMilliseconds: Int) async throws {
     let directory = try CacheTestDirectory()
     defer { directory.remove() }
-    let executable = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../.build/debug/mvtest-writer").standardizedFileURL
+    let executable = Bundle(for: CacheBundleMarker.self).bundleURL.deletingLastPathComponent().appending(path: "mvtest-writer")
     let process = Process()
     let output = Pipe()
     let ready = Mutex(false)
@@ -367,12 +399,6 @@ import Testing
     #expect(try await cache.data(for: keys).count == keys.count)
 }
 
-private struct TestMetadata: Codable, Sendable, Equatable {
-    var width: Int
-    var height: Int
-    var format: String
-}
-
 private func testEntry(_ name: String, in container: Location) -> Entry {
     Entry(identity: ContentIdentity(location: container.appending(name), size: 42, modificationNanos: 100), name: name, kind: .image)
 }
@@ -414,3 +440,5 @@ private struct CacheTestDirectory {
 
     func remove() { try? FileManager.default.removeItem(at: url) }
 }
+
+private final class CacheBundleMarker: NSObject {}

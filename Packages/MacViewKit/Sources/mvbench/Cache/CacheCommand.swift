@@ -73,12 +73,12 @@ struct CacheCommand: AsyncParsableCommand {
             }
             _ = try await DirectoryCache(index: index).update(location, listing: DirectoryListing(entries: entries, directoryModificationNanos: 1))
             let metadata = ImageMetadata(pixelSize: PixelSize(width: 320, height: 480), colorSpace: "sRGB")
-            try await MetadataIndex<ImageMetadata>(index: index).store(Dictionary(uniqueKeysWithValues: keys.map { ($0, metadata) }))
+            try await MetadataIndex(index: index).store(Dictionary(uniqueKeysWithValues: keys.map { ($0, metadata) }), in: location)
             try await index.flush()
         }
         let index = try CacheIndex(databaseURL: database)
         let listings = DirectoryCache(index: index)
-        let metadata = MetadataIndex<ImageMetadata>(index: index)
+        let metadata = MetadataIndex(index: index)
         let cache = try DiskCache(tier: .thumbnails, cacheDirectory: runDirectory, budget: budget, index: index)
         let clock = ContinuousClock()
         let firstStart = clock.now
@@ -100,9 +100,9 @@ struct CacheCommand: AsyncParsableCommand {
         let result = Result(
             environment: .collect(paths: [runDirectory.path], host: nil), finishedAt: Date(), entries: count,
             firstScreenFiles: 60,
-            sampleDescription: "8 个确定性合成图案，ImageIO 编码为有效 320×480 sRGB JPEG，循环写入不同 cacheKey 的独立文件；元数据使用 MVMedia.ImageMetadata。",
+            sampleDescription: "8 个确定性合成图案，ImageIO 编码为有效 320×480 sRGB JPEG，循环写入不同 cacheKey 的独立文件；元数据使用 MVFoundation.ImageMetadata。",
             thumbnailPixelSize: PixelSize(width: 320, height: 480), thumbnailBytes: Summary(images.map { Double($0.count) }), totalThumbnailBytes: totalBytes,
-            queryDescription: "每次依次从 SQLite 读取并解码完整 DirectoryListing 和全部 10000 条 ImageMetadata；查询键预先计算，计时含 SQL、值解码与完整性计数检查。无查询结果内存缓存。",
+            queryDescription: "每次依次从 SQLite 读取并解码完整 DirectoryListing 和全部 10000 条 ImageMetadata；按容器范围查询元数据，计时含 SQL、值解码与完整性计数检查。无查询结果内存缓存。",
             cacheCondition: "重新打开 CacheIndex 后测首查和重复查；操作系统文件页缓存未清空。60 图计时仅含索引查询及并发文件读取，不含图片解码。",
             firstQueryAfterReopenMilliseconds: firstQuery, listingAndMetadataMilliseconds: querySummary, firstScreenReadMilliseconds: readSummary,
             listingAndMetadataLimitMilliseconds: 20, firstScreenReadLimitMilliseconds: 30,
@@ -113,9 +113,9 @@ struct CacheCommand: AsyncParsableCommand {
         try JSONReport.write(result, to: output)
     }
 
-    private static func query(listings: DirectoryCache, metadata: MetadataIndex<ImageMetadata>, location: Location, keys: [String]) async throws {
+    private static func query(listings: DirectoryCache, metadata: MetadataIndex, location: Location, keys: [String]) async throws {
         let listing = try await listings.cachedChildren(of: location)
-        let values = try await metadata.values(for: keys)
+        let values = try await metadata.values(in: location)
         guard listing?.entries.count == keys.count, values.count == keys.count else { throw CacheBenchmarkError.incompleteRead }
     }
 
