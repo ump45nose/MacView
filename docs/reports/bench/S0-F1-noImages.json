@@ -1,0 +1,121 @@
+{
+  "app": {
+    "activeLayersAtEnd": 43,
+    "createdLayers": 56,
+    "items": 10000,
+    "loadedImages": 0,
+    "maximumFramesPerSecond": 120,
+    "peakLayers": 56,
+    "screen": "内建视网膜显示器",
+    "timing": "快速：400 张/秒，延迟 20 ms",
+    "variant": "noImages"
+  },
+  "appPhases": [
+    {
+      "end": 3031.5347929166674,
+      "frames": 719,
+      "intervalMax": 24.3399999999383,
+      "intervalP50": 8.333333333212067,
+      "intervalP99": 8.333333333666815,
+      "longIntervals": 1,
+      "name": "快速拖动",
+      "relayoutMax": 0,
+      "relayoutP99": 0,
+      "relayouts": 0,
+      "scrollUpdateMax": 0.6076670000000001,
+      "scrollUpdateP99": 0.08883300000000001,
+      "scrollUpdates": 719,
+      "start": 3025.526492208334
+    },
+    {
+      "end": 3042.034695250001,
+      "frames": 1243,
+      "intervalMax": 123.90137500005949,
+      "intervalP50": 8.333333333212067,
+      "intervalP99": 8.333333333666815,
+      "longIntervals": 2,
+      "name": "惯性滚动",
+      "relayoutMax": 0,
+      "relayoutP99": 0,
+      "relayouts": 0,
+      "scrollUpdateMax": 1.0576670000000001,
+      "scrollUpdateP99": 0.0815,
+      "scrollUpdates": 1243,
+      "start": 3031.5347929166674
+    },
+    {
+      "end": 3048.034662708334,
+      "frames": 715,
+      "intervalMax": 22.231916666896723,
+      "intervalP50": 8.333333333212067,
+      "intervalP99": 8.333333333666815,
+      "longIntervals": 3,
+      "name": "改变窗口尺寸",
+      "relayoutMax": 0.8174170000000001,
+      "relayoutP99": 0.46804100000000004,
+      "relayouts": 691,
+      "scrollUpdateMax": 0.34325,
+      "scrollUpdateP99": 0.10616600000000001,
+      "scrollUpdates": 692,
+      "start": 3042.034695250001
+    }
+  ],
+  "displays": [
+    {
+      "builtIn": "Yes",
+      "maxRefreshRate": 120,
+      "name": "Built-In Display 1"
+    }
+  ],
+  "phases": [
+    {
+      "frameTimeMax": 16.667,
+      "frameTimeP50": 8.333,
+      "frameTimeP99": 8.333,
+      "frames": 710,
+      "framesPerSecond": 118.2,
+      "hitchMilliseconds": 41.666,
+      "hitchRatioMsPerSecond": 6.93,
+      "hitches": 5,
+      "name": "快速拖动",
+      "renderP50": 3.524,
+      "renderP99": 5.245,
+      "seconds": 6.008,
+      "updateP50": 0.319,
+      "updateP99": 1.78
+    },
+    {
+      "frameTimeMax": 124.999,
+      "frameTimeP50": 8.333,
+      "frameTimeP99": 16.667,
+      "frames": 1201,
+      "framesPerSecond": 114.4,
+      "hitchMilliseconds": 441.665,
+      "hitchRatioMsPerSecond": 42.06,
+      "hitches": 28,
+      "name": "惯性滚动",
+      "renderP50": 3.927,
+      "renderP99": 6.014,
+      "seconds": 10.5,
+      "updateP50": 0.311,
+      "updateP99": 1.622
+    },
+    {
+      "frameTimeMax": 25.0,
+      "frameTimeP50": 8.333,
+      "frameTimeP99": 16.667,
+      "frames": 648,
+      "framesPerSecond": 108.0,
+      "hitchMilliseconds": 708.339,
+      "hitchRatioMsPerSecond": 118.06,
+      "hitches": 84,
+      "name": "改变窗口尺寸",
+      "renderP50": 4.824,
+      "renderP99": 6.601,
+      "seconds": 6.0,
+      "updateP50": 3.185,
+      "updateP99": 11.326
+    }
+  ],
+  "trace": "noImages.trace"
+}

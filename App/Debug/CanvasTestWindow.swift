@@ -9,11 +9,12 @@ import QuartzCore
 ///
 /// “运行场景”按显示链接逐帧驱动快速拖动、惯性滚动和改变窗口尺寸，并统计帧间隔与主线程用时。
 /// 启动参数 `-MVCanvasTest YES` 直接打开本窗口，`-MVCanvasTestAutorun YES` 打开后运行场景并退出，
-/// `-MVCanvasTestReport <路径>` 把结果写成 JSON。
+/// `-MVCanvasTestReport <路径>` 把结果写成 JSON，`-MVCanvasTestVariant noImages|empty` 选择对照变体。
 final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
     static let launchKey = "MVCanvasTest"
     static let autorunKey = "MVCanvasTestAutorun"
     static let reportKey = "MVCanvasTestReport"
+    static let variantKey = "MVCanvasTestVariant"
     static let pageCount = 10_000
 
     private static var current: CanvasTestWindowController?
@@ -52,6 +53,7 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private let tree: MockTree
+    private let variant: CanvasView.Variant
     private let canvas: CanvasView
     private let scrollView = NSScrollView()
     private let hud = NSTextField(labelWithString: "")
@@ -67,14 +69,18 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
     private init() {
         let (tree, items) = Self.makeLibrary()
         self.tree = tree
-        canvas = CanvasView(items: items, pipeline: MockImagePipeline(environment: MockEnvironment(MockOptions(tree: tree, timing: Timing.fast.mock))))
+        let variant = UserDefaults.standard.string(forKey: Self.variantKey).flatMap(CanvasView.Variant.init(rawValue:)) ?? .full
+        self.variant = variant
+        canvas = CanvasView(
+            items: items, pipeline: MockImagePipeline(environment: MockEnvironment(MockOptions(tree: tree, timing: Timing.fast.mock))), variant: variant
+        )
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
-        window.title = "画布测试（\(Self.pageCount) 项）"
+        window.title = "画布测试（\(Self.pageCount) 项，\(variant.rawValue)）"
         window.minSize = NSSize(width: 480, height: 320)
         window.isReleasedWhenClosed = false
         window.tabbingMode = .disallowed
@@ -255,8 +261,12 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
         let elapsed = now - (run.start ?? now)
         guard let (index, phaseTime) = run.phase(at: elapsed) else {
             scenario = nil
+            run.phaseStarts.append(now)
             finish(run)
             return
+        }
+        if run.phaseStarts.count <= index {
+            run.phaseStarts.append(now)
         }
         run.currentIndex = index
         run.recordInterval(interval)
@@ -306,6 +316,7 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
             screen: window?.screen?.localizedName ?? "",
             maximumFramesPerSecond: window?.screen?.maximumFramesPerSecond ?? 0,
             timing: timing.title,
+            variant: variant.rawValue,
             items: Self.pageCount,
             peakLayers: counters.peakLayers,
             createdLayers: counters.createdLayers,
@@ -363,6 +374,8 @@ private struct ScenarioRun {
     /// 屏幕的最短刷新周期，毫秒。
     let refreshInterval: Double
     var start: CFTimeInterval?
+    /// 各阶段开始时的显示链接时间戳，最后一项是结束时间；与 mach_absolute_time 同一时基，用来对齐 Instruments 的录制。
+    var phaseStarts: [CFTimeInterval] = []
     var currentIndex = 0
     private var intervals: [[Double]]
     private var scrollUpdates: [[Double]]
@@ -408,6 +421,8 @@ private struct ScenarioRun {
             let frames = intervals[index]
             return CanvasTestSummary.Phase(
                 name: phases[index].name,
+                start: phaseStarts.indices.contains(index) ? phaseStarts[index] : 0,
+                end: phaseStarts.indices.contains(index + 1) ? phaseStarts[index + 1] : 0,
                 frames: frames.count,
                 intervalP50: percentile(frames, 0.5),
                 intervalP99: percentile(frames, 0.99),
@@ -435,6 +450,9 @@ private struct ScenarioRun {
 struct CanvasTestSummary: Codable {
     struct Phase: Codable {
         var name: String
+        /// 显示链接时间戳，秒。
+        var start: Double
+        var end: Double
         var frames: Int
         var intervalP50: Double
         var intervalP99: Double
@@ -451,6 +469,7 @@ struct CanvasTestSummary: Codable {
     var screen: String
     var maximumFramesPerSecond: Int
     var timing: String
+    var variant: String
     var items: Int
     var peakLayers: Int
     var createdLayers: Int
