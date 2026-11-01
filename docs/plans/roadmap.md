@@ -20,7 +20,8 @@
   - S0-T4 的契约差异已并入 §4；S0-F1 的结论已写入 §3.8。
 - S1-T1 已完成（2026-11-01）：MVIO 与网络卷辅助进程，故障与退出测试达标，见[报告](../reports/S1-T1.md)。
 - S1-T3 已完成（2026-11-01）：MVMedia，显示解码 P95 70 ms，20000² 夹具首块 ≤ 454 ms，输出为带色彩标记的 IOSurface，渲染件用 JPEG 0.8，见[报告](../reports/S1-T3.md)。
-- 下一步：S1-T4，任务文档见下表。顺序开发时按关键路径：S1-T1 → S1-T3 → S1-T4 → S1-T5；S1-T7 → S1-T6；S1-T2；然后 S1-T8。F 系列在 Mock 上穿插：S1-F1 → S1-F3 → S1-F2。
+- 阶段 1 统一验收：S1-T2、S1-T7 已完成；S1-T4 的 C1.3 查询性能未达标，阶段结论交回设计侧，不合入 main。NAS 压缩包吞吐 C1.10 因 NFS 未在线而未验证。
+- 下一步：先由设计侧处理 C1.3，再推进阶段 2 的 S1-T5（图像管线）与 S1-T6（阅读模型），然后 S1-T8。F 系列在 Mock 上穿插：S1-F1 → S1-F3 → S1-F2。
 
 ## 关口
 
@@ -50,12 +51,12 @@ S1 的任务都在 G0 之后开始，前置列只列阶段内的依赖。
 | ID | 内容 | 前置 | 文档 | 状态 |
 |---|---|---|---|---|
 | S1-T1 | MVIO：调度器、卷通道与健康状态、FileSystemProvider、Location 归一、SourceRegistry；网络卷 I/O 的辅助进程隔离 | — | [S1-T1](tasks/S1-T1.md)、[报告](../reports/S1-T1.md) | 已完成 |
-| S1-T2 | MVArchive：zip/cbz、tar、tar.gz/gz，嵌套，读取经 ByteSource | — | [S1-T2](tasks/S1-T2.md) | 未开始 |
+| S1-T2 | MVArchive：zip/cbz、tar、tar.gz/gz，嵌套，读取经 ByteSource | — | [S1-T2](tasks/S1-T2.md)、[报告](../reports/S1-T2.md) | 已完成（NAS 吞吐未验证） |
 | S1-T3 | MVMedia：探测、显示解码与重采样、原图与分块、动图帧、视频封面；选定渲染件的编码格式 | — | [S1-T3](tasks/S1-T3.md)、[报告](../reports/S1-T3.md) | 已完成 |
-| S1-T4 | MVCache：L0–L3、预算与内存压力、SQLite 索引、原子写入与崩溃安全、目录缓存 | — | [S1-T4](tasks/S1-T4.md) | 未开始 |
+| S1-T4 | MVCache：L0–L3、预算与内存压力、SQLite 索引、原子写入与崩溃安全、目录缓存 | — | [S1-T4](tasks/S1-T4.md)、[报告](../reports/S1-T4.md) | 进行中（C1.3 未达标，交设计侧） |
 | S1-T5 | MVPipeline：串联各缓存层、一次读取产出多种渲染件、渐进交付、预取计划的差异应用与取消 | S1-T1、S1-T3、S1-T4 | [S1-T5](tasks/S1-T5.md) | 未开始 |
 | S1-T6 | MVReading：BookLoader（渐进、过滤、排序、递归、穿透、探测顺序）、Bookshelf、PageFrameEngine、ReaderSession | S1-T7 | [S1-T6](tasks/S1-T6.md) | 未开始 |
-| S1-T7 | MVSettings 与 MVCommands：JSON 存储与重载、分层解析、路径规则、书记忆、命令登记、按键序列解析，以及 P0 的默认命令、绑定和菜单 | — | [S1-T7](tasks/S1-T7.md) | 未开始 |
+| S1-T7 | MVSettings 与 MVCommands：JSON 存储与重载、分层解析、路径规则、书记忆、命令登记、按键序列解析，以及 P0 的默认命令、绑定和菜单 | — | [S1-T7](tasks/S1-T7.md)、[报告](../reports/S1-T7.md) | 已完成 |
 | S1-T8 | MVServices 组合根，加跨模块集成测试：打开 zip 书、翻页、生成缩略图、设置落盘 | S1-T1、S1-T2、S1-T5、S1-T6 | [S1-T8](tasks/S1-T8.md) | 未开始 |
 | S1-F1 | App 外壳：生命周期、窗口与标签、服务容器（先接 Mock）、MenuBuilder、InputRouter、String Catalog（开发语言为简体中文，补英文） | — | [S1-F1](tasks/S1-F1.md) | 未开始 |
 | S1-F2 | 停靠面板框架：三个停靠区、面板栈、拖动换区、浮动面板、全屏自动隐藏、布局持久化 | S1-F1 | [S1-F2](tasks/S1-F2.md) | 未开始 |

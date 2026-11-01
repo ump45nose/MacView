@@ -37,9 +37,9 @@
 | MVIO | IOScheduler、卷通道与健康状态、FileSystemProvider、SourceRegistry、ByteSource，以及 URL 与 Location 的互转 | MVFoundation |
 | MVArchive | zip/cbz、tar、tar.gz/gz，嵌套，ArchiveProvider，临时解出目录 | MVIO |
 | MVMedia | 探测、显示尺寸解码与重采样、原图与分块、动图帧、视频封面与元数据、渲染件编码 | MVFoundation |
-| MVCache | 内存缓存 L0/L1、磁盘缓存 L2/L3、元数据索引、目录缓存。存储是泛型的，具体类型由 MVPipeline 指定 | MVFoundation |
+| MVCache | 内存缓存 L0/L1、磁盘缓存 L2/L3、元数据索引、目录缓存。存储是泛型的，具体类型由 MVPipeline 指定 | MVFoundation、GRDB.swift |
 | MVPipeline | ImagePipeline：串联各缓存层，一次读取产出多种渲染件，渐进交付，按会话管理预取计划 | MVIO、MVMedia、MVCache |
-| MVSettings | 设置模式、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation |
+| MVSettings | 设置模式、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
 | MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型 | MVFoundation |
 | MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVPipeline、MVSettings |
 | MVServices | 组合根：创建并连接各服务，负责启动、退出和内存压力处理 | 以上全部 |
@@ -55,6 +55,7 @@
   | 依赖 | 用途 | 许可证 | 引入任务 |
   |---|---|---|---|
   | swift-argument-parser 1.8.2 | mvbench 的子命令与参数解析 | Apache-2.0 | S0-T1 |
+  | GRDB.swift 7.11.1 | MVCache 的 `index.sqlite` 与 MVSettings 的 `state.sqlite`，各自使用 WAL 数据库 | MIT | S1-T4、S1-T7 |
   | libsmb2 6.3.1 | mvbench 的 SMB 直连原型（`io --transport smb2`）。由 `scripts/build-libsmb2.sh` 构建成动态库，运行时 dlopen，不链接、不入库 | LGPL-2.1 | S0-T2 |
 
 仓库布局：
@@ -286,7 +287,7 @@ public struct ContentIdentity: Hashable, Sendable, Codable { public var location
 public struct PixelSize: Hashable, Sendable, Codable { public var width: Int; public var height: Int }
 public enum ArchiveFormat: String, Sendable, Codable { case zip, tar, tarGzip, gzip }
 public enum EntryKind: Hashable, Sendable, Codable { case directory, archive(ArchiveFormat), image, video, other; public init(fileName: String) }   // init 按扩展名判断，不读内容
-public struct Entry: Hashable, Sendable { public var identity: ContentIdentity; public var name: String; public var kind: EntryKind; public var created: Date? }   // location、size、modified 由 identity 计算
+public struct Entry: Hashable, Sendable, Codable { public var identity: ContentIdentity; public var name: String; public var kind: EntryKind; public var created: Date? }   // location、size、modified 由 identity 计算
 public struct SessionID: Hashable, Sendable { public let raw: UUID }
 public enum JSONValue: Hashable, Sendable, Codable { case null, bool(Bool), number(Double), string(String), array([JSONValue]), object([String: JSONValue]) }
 public enum ResampleFilter: String, Sendable, Codable { case lanczos, nearest }   // MVSettings 也要用，所以放在这里
@@ -323,9 +324,47 @@ public final class IOScheduler: Sendable {
     public func shutdown()                                            // 杀掉辅助进程，不等卡住的调用
 }
 public final class FileSystemProvider: ContainerProvider { public init(scheduler: IOScheduler) }   // 一层的 Location：本机与系统挂载
-public final class FileSourceRegistry: SourceRegistry { public init(scheduler: IOScheduler); public let scheduler: IOScheduler; public let fileSystem: FileSystemProvider; public func register(_ provider: any ContainerProvider) }   // 压缩包 provider 由组合根登记
+public final class FileSourceRegistry: SourceRegistry { public init(scheduler: IOScheduler); public let scheduler: IOScheduler; public let fileSystem: FileSystemProvider; public func register(_ provider: any ContainerProvider) }   // provider(for:) 先问登记的 provider，再交给 fileSystem；压缩包 provider 由组合根登记
 public enum IOHelper { public static func runIfRequested() }   // 宿主 main 开头调用：作为辅助进程启动时进入请求循环，不返回
 public final class ByteSourceAsset: Sendable { public let asset: AVURLAsset; public init(source: any ByteSource, priority: IOPriority = .visible) }   // 网络卷视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
+
+// MVArchive
+public final class ArchiveProvider: ContainerProvider {
+    public init(fileSystem: FileSystemProvider, extractDirectory: URL, extractBudget: Int64 = 10 << 30) throws
+}   // 启动清空 extractDirectory；认领压缩包与多层位置，不持有 registry。压缩包自身的 entry/open/fileURL 交给所在层，children 列出包内条目
+// fileURL 最近一次返回的临时路径保留到下一次 fileURL 交付或 provider 释放；ByteSource 存活期间保留对应解出文件
+
+// MVCache：键由调用方用 ContentIdentity.cacheKey 生成；本模块不决定预取策略
+public final class MemoryCache<Key: Hashable & Sendable, Value: Sendable>: Sendable {
+    public init(budget: Int64)
+    public func value(for key: Key) -> Value?                         // 命中后移到最近使用
+    public func insert(_ value: Value, for key: Key, cost: Int64)     // 单项超过预算不存
+    public func removeValue(for key: Key)
+    public var budget: Int64 { get }; public var totalCost: Int64 { get }
+    public func setBudget(_ budget: Int64)                            // 缩小时立即淘汰
+    public func trim(toFraction fraction: Double)                     // warning 0.5 / critical 0.25，预算不变；MVServices 统一订阅压力
+}
+public final class CacheIndex: Sendable { public init(databaseURL: URL) throws; public func flush() async throws }   // 单 DatabasePool/WAL，访问时间批量写回；shutdown 调用 flush
+public enum DiskTier: String, Sendable { case thumbnails, browse }
+public final class DiskCache: Sendable {
+    public init(tier: DiskTier, cacheDirectory: URL, budget: Int64, index: CacheIndex) throws
+    public func data(for key: String) async throws -> Data?
+    public func data(for keys: [String]) async throws -> [String: Data]   // 先查索引，并发读文件
+    public func store(_ data: Data, for key: String) async throws       // 临时文件 → 改名 → 索引，超预算按访问时间淘汰
+    public func setBudget(_ budget: Int64) async throws
+}   // 文件位于 cacheDirectory/<tier>/<键前两位>/；启动只清 tmp/，不扫描其余分目录；淘汰时抽查孤儿
+public final class MetadataIndex<Value: Codable & Sendable>: Sendable {
+    public init(index: CacheIndex)
+    public func values(for keys: [String]) async throws -> [String: Value]
+    public func store(_ values: [String: Value]) async throws
+}
+public struct DirectoryListing: Codable, Sendable, Hashable { public var entries: [Entry]; public var directoryModificationNanos: Int64?; public init(entries: [Entry], directoryModificationNanos: Int64? = nil) }
+public struct ListingDiff: Sendable, Hashable { public var added: [Entry]; public var removed: [Location]; public var changed: [Entry]; public init(added: [Entry], removed: [Location], changed: [Entry]) }   // changed：同一位置的 identity 变了
+public final class DirectoryCache: Sendable {
+    public init(index: CacheIndex)
+    public func cachedChildren(of container: Location) async throws -> DirectoryListing?
+    public func update(_ container: Location, listing: DirectoryListing) async throws -> ListingDiff
+}
 
 // MVMedia
 public struct ImageMetadata: Sendable, Codable, Hashable { public var pixelSize: PixelSize; public var frameCount: Int; public var duration: Double?; public var capturedAt: Date?; public var colorSpace: String? }   // pixelSize 已按 EXIF 方向换算
@@ -390,7 +429,7 @@ public struct ResolvedBookSettings: Codable, Sendable, Hashable { /* 与 BookSet
 public struct GlobalSettings: Codable, Sendable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int }   // CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
 public struct PathRule: Codable, Sendable { public var id: UUID; public var name: String; public var prefix: Location; public var settings: BookSettings }
 public struct BookMemory: Codable, Sendable { public var book: Location; public var settings: BookSettings; public var lastPage: Location?; public var lastPageIndex: Int?; public var openedAt: Date }
-public enum SettingsChange: Sendable { case global, pathRules, keyBindings, fileError(file: String, message: String) }
+public enum SettingsChange: Sendable, Equatable { case global, pathRules, fileError(file: String, message: String) }
 public protocol SettingsStore: Sendable {
     func resolve(for book: Location) async -> ResolvedBookSettings
     func bookMemory(for book: Location) async -> BookMemory?
@@ -399,15 +438,27 @@ public protocol SettingsStore: Sendable {
     func updateGlobal(_ change: @Sendable (inout GlobalSettings) -> Void) async throws
     func changes() -> AsyncStream<SettingsChange>
 }
+public enum DocumentChange: Sendable, Equatable { case reloaded, fileError(message: String) }   // 解析错误带行列号，保留上一份可用值
+public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
+    public convenience init(fileURL: URL, version: Int, defaultValue: Value) throws
+    public func value() -> Value
+    public func update(_ change: @Sendable (inout Value) -> Void) async throws
+    public func changes() -> AsyncStream<DocumentChange>
+}   // 顶层 {"version": Int, "value": Value}；原子写入并监听外部修改，未来版本报 fileError；缺文件时首次 update 才写出
+public final class FileSettingsStore: SettingsStore { public init(directory: URL) throws; public func flush() async throws }   // settings.json、path-rules.json 与 state.sqlite（书记忆），shutdown 调用 flush
+// keybindings.json 由 MVServices 用 JSONDocumentStore<KeyBindingsFile> 管理；App 可用同一存储管理 layout.json
 
 // MVCommands
 public struct CommandID: RawRepresentable, Hashable, Codable, Sendable { public var rawValue: String; public init(_ rawValue: String) }   // 例如 "page.next"，JSON 中为字符串
 public enum InputScope: String, Codable, Sendable { case global, viewer, list, textInput }
 public struct KeyModifiers: OptionSet, Hashable, Codable, Sendable { public let rawValue: UInt8 /* command, option, control, shift, function */ }
 public struct KeyChord: Hashable, Codable, Sendable { public var key: String; public var modifiers: KeyModifiers }   // key 为逻辑键名，如 "Right"、"a"
-public struct KeyBinding: Codable, Sendable { public var sequence: [KeyChord]; public var command: CommandID; public var arguments: [String: JSONValue]?; public var scope: InputScope }
-public enum ResolveResult: Sendable { case command(CommandID, [String: JSONValue]?), pending([KeyChord]), unmatched }
-public struct BindingResolver: Sendable { public init(bindings: [KeyBinding], sequenceTimeout: Duration); public mutating func feed(_ chord: KeyChord, scope: InputScope, at time: ContinuousClock.Instant) -> ResolveResult }
+public struct KeyBinding: Codable, Sendable, Hashable { public var sequence: [KeyChord]; public var command: CommandID; public var arguments: [String: JSONValue]?; public var scope: InputScope }
+public enum ResolveResult: Sendable, Equatable { case command(CommandID, [String: JSONValue]?), pending([KeyChord]), unmatched }
+public struct BindingResolver: Sendable { public init(bindings: [KeyBinding], sequenceTimeout: Duration = .seconds(1)); public mutating func feed(_ chord: KeyChord, scope: InputScope, at time: ContinuousClock.Instant) -> ResolveResult; public static func conflicts(in bindings: [KeyBinding]) -> [BindingConflict] }   // 同作用域的相同序列或前缀冲突；textInput 不回退全局
+public struct KeyBindingsFile: Codable, Sendable, Hashable { public var bindings: [KeyBinding]; public init(bindings: [KeyBinding] = []) }
+public struct BindingConflict: Sendable, Hashable { public var scope: InputScope; public var first: KeyBinding; public var second: KeyBinding; public init(scope: InputScope, first: KeyBinding, second: KeyBinding) }
+extension KeyBinding { public static func effective(defaults: [CommandDescriptor], user: [KeyBinding]) -> [KeyBinding] }   // 用户按命令覆盖全部默认绑定；空序列可取消默认绑定
 public struct CommandDescriptor: Sendable { public var id: CommandID; public var title: LocalizedStringResource; public var category: String; public var defaultBindings: [KeyBinding] }
 public struct CommandContext: Sendable { public var session: SessionID?; public var scope: InputScope; public var selection: [Location] }
 public enum CommandError: Error, Sendable, Equatable { case unknownCommand(CommandID), disabled(CommandID) }
@@ -418,8 +469,19 @@ public enum CommandError: Error, Sendable, Equatable { case unknownCommand(Comma
     public func perform(_ id: CommandID, arguments: [String: JSONValue]?, context: CommandContext) async throws   // 没登记或不可用时抛出 CommandError
     public func descriptors() -> [CommandDescriptor]
 }
-public indirect enum MenuNode: Codable, Sendable { case command(CommandID), submenu(titleKey: String, children: [MenuNode]), separator }
-public struct MenuModel: Codable, Sendable { public var roots: [MenuNode] }
+public indirect enum MenuNode: Codable, Sendable, Hashable { case command(CommandID), submenu(titleKey: String, children: [MenuNode]), separator }
+public struct MenuModel: Codable, Sendable, Hashable { public var roots: [MenuNode] }
+public enum CoreCommands { public static let all: [CommandDescriptor]; public static let defaultMenu: MenuModel }   // P0 命令；文件、显示、翻页、书、窗口；标题用中文键与 .main bundle
+extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources/MVCommands/CoreCommands.swift
+    public static let frameNext, framePrevious, pageNext, pagePrevious, pageFirst, pageLast, pageJump: CommandID
+    public static let bookNext, bookPrevious, fileOpen, bookReveal: CommandID
+    public static let browsePaged, browseWaterfall, browseVerticalStrip, browseHorizontalStrip: CommandID
+    public static let pageModeToggle, readingDirectionToggle, firstPageSingleToggle, widePageAsIs, widePageSingle, widePageSplit: CommandID
+    public static let zoomOriginal, zoomFitWindow, zoomFitWidth, zoomFitHeight, zoomFill, zoomFixed, zoomDevicePixel, zoomIn, zoomOut: CommandID
+    public static let zoomAllowUpscaleToggle, magnifierToggle, keepZoomOnPageTurnToggle: CommandID
+    public static let sortName, sortModified, sortCreated, sortSize, sortType, sortRandom, sortAscending, sortDescending, sortFoldersFirstToggle, recursionToggle: CommandID
+    public static let windowNew, windowNewTab, fullScreenToggle, bookshelfToggle, pageListToggle, docksToggle, retryFailed, settingsOpen: CommandID
+}
 
 // MVReading
 public struct Page: Sendable, Identifiable { public var entry: Entry; public var metadata: ImageMetadata?; public var id: Location { get } }
