@@ -251,7 +251,6 @@ public struct BookMemory: Codable, Sendable, Hashable {
 public enum SettingsChange: Sendable, Equatable {
     case global
     case pathRules
-    case keyBindings
     /// 设置文件解析失败；仍沿用上一份可用的配置。
     case fileError(file: String, message: String)
 }
