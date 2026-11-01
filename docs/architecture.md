@@ -37,7 +37,7 @@
 | MVIO | IOScheduler、卷通道与健康状态、FileSystemProvider、SourceRegistry、ByteSource，以及 URL 与 Location 的互转 | MVFoundation |
 | MVArchive | zip/cbz、tar、tar.gz/gz，嵌套，ArchiveProvider，临时解出目录 | MVIO |
 | MVMedia | 探测、显示尺寸解码与重采样、原图与分块、动图帧、视频封面与元数据、渲染件编码 | MVFoundation |
-| MVCache | 内存缓存 L0/L1、磁盘缓存 L2/L3、元数据索引、目录缓存。存储是泛型的，具体类型由 MVPipeline 指定 | MVFoundation、GRDB.swift |
+| MVCache | 泛型内存缓存 L0/L1、字节磁盘缓存 L2/L3、按容器查询的图像元数据索引、目录缓存 | MVFoundation、GRDB.swift |
 | MVPipeline | ImagePipeline：串联各缓存层，一次读取产出多种渲染件，渐进交付，按会话管理预取计划 | MVIO、MVMedia、MVCache |
 | MVSettings | 设置模式、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
 | MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型 | MVFoundation |
@@ -285,6 +285,7 @@ public struct Location: Hashable, Sendable, Codable {
 }
 public struct ContentIdentity: Hashable, Sendable, Codable { public var location: Location; public var size: Int64; public var modificationNanos: Int64; public var checksum: UInt32?; public var cacheKey: String { get } }
 public struct PixelSize: Hashable, Sendable, Codable { public var width: Int; public var height: Int }
+public struct ImageMetadata: Sendable, Codable, Hashable { public var pixelSize: PixelSize; public var frameCount: Int; public var duration: Double?; public var capturedAt: Date?; public var colorSpace: String? }   // pixelSize 已按 EXIF 方向换算
 public enum ArchiveFormat: String, Sendable, Codable { case zip, tar, tarGzip, gzip }
 public enum EntryKind: Hashable, Sendable, Codable { case directory, archive(ArchiveFormat), image, video, other; public init(fileName: String) }   // init 按扩展名判断，不读内容
 public struct Entry: Hashable, Sendable, Codable { public var identity: ContentIdentity; public var name: String; public var kind: EntryKind; public var created: Date? }   // location、size、modified 由 identity 计算
@@ -353,10 +354,11 @@ public final class DiskCache: Sendable {
     public func store(_ data: Data, for key: String) async throws       // 临时文件 → 改名 → 索引，超预算按访问时间淘汰
     public func setBudget(_ budget: Int64) async throws
 }   // 文件位于 cacheDirectory/<tier>/<键前两位>/；启动只清 tmp/，不扫描其余分目录；淘汰时抽查孤儿
-public final class MetadataIndex<Value: Codable & Sendable>: Sendable {
+public final class MetadataIndex: Sendable {
     public init(index: CacheIndex)
-    public func values(for keys: [String]) async throws -> [String: Value]
-    public func store(_ values: [String: Value]) async throws
+    public func values(in container: Location) async throws -> [String: ImageMetadata]   // 一次按容器的索引范围查询，取回该容器内全部条目
+    public func values(for keys: [String]) async throws -> [String: ImageMetadata]
+    public func store(_ values: [String: ImageMetadata], in container: Location) async throws   // container 为条目所在的容器，即 location.parent
 }
 public struct DirectoryListing: Codable, Sendable, Hashable { public var entries: [Entry]; public var directoryModificationNanos: Int64?; public init(entries: [Entry], directoryModificationNanos: Int64? = nil) }
 public struct ListingDiff: Sendable, Hashable { public var added: [Entry]; public var removed: [Location]; public var changed: [Entry]; public init(added: [Entry], removed: [Location], changed: [Entry]) }   // changed：同一位置的 identity 变了
@@ -367,7 +369,6 @@ public final class DirectoryCache: Sendable {
 }
 
 // MVMedia
-public struct ImageMetadata: Sendable, Codable, Hashable { public var pixelSize: PixelSize; public var frameCount: Int; public var duration: Double?; public var capturedAt: Date?; public var colorSpace: String? }   // pixelSize 已按 EXIF 方向换算
 public struct DisplayTarget: Sendable, Hashable { public var pixelSize: PixelSize; public var filter: ResampleFilter; public var sharpen: Float }
 public enum RenditionQuality: Int, Sendable, Comparable { case placeholder, browse, exact, original }
 public struct RenderedImage: @unchecked Sendable { public let image: CGImage; public let quality: RenditionQuality; public let surface: IOSurface? }   // surface 与 image 共用像素、带色彩空间标记，设为 CALayer.contents 时用它；Mock 的图像没有
