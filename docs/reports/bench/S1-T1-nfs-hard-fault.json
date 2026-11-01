@@ -1,0 +1,292 @@
+{
+  "environment" : {
+    "collectedAt" : "2026-11-01T03:50:45Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 1080,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun1234"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "route" : {
+      "host" : "127.0.0.1",
+      "interface" : "lo0"
+    },
+    "system" : {
+      "build" : "26A434",
+      "version" : "27.0.1"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "nfs",
+        "mountPoint" : "/Users/yuwk/MacViewBench/nfs-hard",
+        "path" : "/Users/yuwk/MacViewBench/nfs-hard/Picture/YY/秀人/5001-6000",
+        "source" : "127.0.0.1:/fs/1000/nfs"
+      }
+    ]
+  },
+  "finishedAt" : "2026-11-01T03:50:45Z",
+  "label" : "nfs-hard-scheduler",
+  "result" : {
+    "exitTest" : {
+      "delaySeconds" : 12,
+      "exitMilliseconds" : 6.288,
+      "helpersLeftAfterRecovery" : 0,
+      "relaunchLocalMilliseconds" : 11.528292,
+      "relaunchNetworkAfterResumeMilliseconds" : 70.571833
+    },
+    "scenarios" : [
+      {
+        "baseline" : {
+          "count" : 15,
+          "max" : 464.250708,
+          "mean" : 312.1374890666666,
+          "min" : 49.634709,
+          "p50" : 420.442916,
+          "p95" : 459.6586499,
+          "p99" : 463.33229638
+        },
+        "durationSeconds" : 5,
+        "errorsAfterFault" : {
+
+        },
+        "errorsDuringFault" : {
+
+        },
+        "faultEnd" : 8.255121458,
+        "faultStart" : 3.035233541,
+        "firstSuccessAfterEnd" : 0.48984450000000024,
+        "longestDuringFaultMilliseconds" : 5654.051,
+        "mode" : "pause",
+        "transitions" : [
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 0.000470791
+          }
+        ]
+      },
+      {
+        "baseline" : {
+          "count" : 16,
+          "max" : 450.9,
+          "mean" : 306.815580625,
+          "min" : 38.786041,
+          "p50" : 412.8535,
+          "p95" : 445.62253125,
+          "p99" : 449.84450625
+        },
+        "degradedAfterStart" : 10.294128,
+        "durationSeconds" : 30,
+        "errorsAfterFault" : {
+          "volumeDegraded(MVFoundation.Location.Root.network(scheme: \"nfs\", host: \"127.0.0.1\", share: \"fs/1000/nfs\"))" : 2
+        },
+        "errorsDuringFault" : {
+          "timeout" : 2,
+          "volumeDegraded(MVFoundation.Location.Root.network(scheme: \"nfs\", host: \"127.0.0.1\", share: \"fs/1000/nfs\"))" : 728
+        },
+        "faultEnd" : 33.045460833,
+        "faultStart" : 3.0110889579999998,
+        "firstSuccessAfterEnd" : 0.1434748339999956,
+        "firstTimeoutAfterStart" : 10.294076584,
+        "healthyAfterEnd" : 0.02153350000000387,
+        "longestDuringFaultMilliseconds" : 10557.470584,
+        "mode" : "pause",
+        "transitions" : [
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 0.00017975
+          },
+          {
+            "state" : "degraded(\"连续 2 次调用超过 10.0 seconds 没有返回\")",
+            "stuck" : 2,
+            "time" : 13.305216958
+          },
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 33.066994333000004
+          }
+        ]
+      },
+      {
+        "baseline" : {
+          "count" : 17,
+          "max" : 424.556333,
+          "mean" : 299.1001813529412,
+          "min" : 36.851709,
+          "p50" : 371.615875,
+          "p95" : 423.7483002,
+          "p99" : 424.39472644
+        },
+        "degradedAfterStart" : 10.149407416999999,
+        "durationSeconds" : 60,
+        "errorsAfterFault" : {
+          "volumeDegraded(MVFoundation.Location.Root.network(scheme: \"nfs\", host: \"127.0.0.1\", share: \"fs/1000/nfs\"))" : 2
+        },
+        "errorsDuringFault" : {
+          "timeout" : 2,
+          "volumeDegraded(MVFoundation.Location.Root.network(scheme: \"nfs\", host: \"127.0.0.1\", share: \"fs/1000/nfs\"))" : 1836
+        },
+        "faultEnd" : 63.046639916,
+        "faultStart" : 3.0170199579999997,
+        "firstSuccessAfterEnd" : 0.20164125000000155,
+        "firstTimeoutAfterStart" : 10.149385000000002,
+        "healthyAfterEnd" : 0.07336820900000163,
+        "longestDuringFaultMilliseconds" : 10196.778292,
+        "mode" : "pause",
+        "transitions" : [
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 0.001969541
+          },
+          {
+            "state" : "degraded(\"连续 2 次调用超过 10.0 seconds 没有返回\")",
+            "stuck" : 2,
+            "time" : 13.166427375
+          },
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 63.120008125
+          }
+        ]
+      },
+      {
+        "baseline" : {
+          "count" : 16,
+          "max" : 458.47375,
+          "mean" : 298.5871196875,
+          "min" : 51.533708,
+          "p50" : 391.6270005,
+          "p95" : 434.33187475,
+          "p99" : 453.64537494999996
+        },
+        "durationSeconds" : 5,
+        "errorsAfterFault" : {
+
+        },
+        "errorsDuringFault" : {
+
+        },
+        "faultEnd" : 8.074332792,
+        "faultStart" : 3.010456209,
+        "firstSuccessAfterEnd" : 2.479345208,
+        "longestDuringFaultMilliseconds" : 7432.406625,
+        "mode" : "drop",
+        "transitions" : [
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 0.0001515
+          }
+        ]
+      },
+      {
+        "baseline" : {
+          "count" : 15,
+          "max" : 449.373375,
+          "mean" : 309.2986168,
+          "min" : 36.466292,
+          "p50" : 414.419167,
+          "p95" : 440.9410875,
+          "p99" : 447.6869175
+        },
+        "degradedAfterStart" : 9.819690917,
+        "durationSeconds" : 30,
+        "errorsAfterFault" : {
+          "volumeDegraded(MVFoundation.Location.Root.network(scheme: \"nfs\", host: \"127.0.0.1\", share: \"fs/1000/nfs\"))" : 36
+        },
+        "errorsDuringFault" : {
+          "timeout" : 2,
+          "volumeDegraded(MVFoundation.Location.Root.network(scheme: \"nfs\", host: \"127.0.0.1\", share: \"fs/1000/nfs\"))" : 738
+        },
+        "faultEnd" : 33.051830708000004,
+        "faultStart" : 3.028658083,
+        "firstSuccessAfterEnd" : 1.1503768749999992,
+        "firstTimeoutAfterStart" : 9.819718417,
+        "healthyAfterEnd" : 1.010265916999991,
+        "longestDuringFaultMilliseconds" : 10181.82175,
+        "mode" : "drop",
+        "transitions" : [
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 0.0008285
+          },
+          {
+            "state" : "degraded(\"连续 2 次调用超过 10.0 seconds 没有返回\")",
+            "stuck" : 2,
+            "time" : 12.848349
+          },
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 34.062096624999995
+          }
+        ]
+      },
+      {
+        "baseline" : {
+          "count" : 16,
+          "max" : 435.402292,
+          "mean" : 305.98435943749996,
+          "min" : 37.002917,
+          "p50" : 384.420812,
+          "p95" : 428.4985105,
+          "p99" : 434.02153569999996
+        },
+        "degradedAfterStart" : 10.214279292,
+        "durationSeconds" : 60,
+        "errorsAfterFault" : {
+          "volumeDegraded(MVFoundation.Location.Root.network(scheme: \"nfs\", host: \"127.0.0.1\", share: \"fs/1000/nfs\"))" : 40
+        },
+        "errorsDuringFault" : {
+          "timeout" : 2,
+          "volumeDegraded(MVFoundation.Location.Root.network(scheme: \"nfs\", host: \"127.0.0.1\", share: \"fs/1000/nfs\"))" : 1824
+        },
+        "faultEnd" : 63.030037582999995,
+        "faultStart" : 3.019754958,
+        "firstSuccessAfterEnd" : 1.2351698330000005,
+        "firstTimeoutAfterStart" : 10.214343042,
+        "healthyAfterEnd" : 1.0802051670000026,
+        "longestDuringFaultMilliseconds" : 10510.863834,
+        "mode" : "drop",
+        "transitions" : [
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 0.00018704100000000001
+          },
+          {
+            "state" : "degraded(\"连续 2 次调用超过 10.0 seconds 没有返回\")",
+            "stuck" : 2,
+            "time" : 13.23403425
+          },
+          {
+            "state" : "healthy",
+            "stuck" : 0,
+            "time" : 64.11024275
+          }
+        ]
+      }
+    ]
+  },
+  "transport" : "scheduler"
+}

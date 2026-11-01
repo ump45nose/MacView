@@ -1,5 +1,6 @@
 import AppKit
 import MVFoundation
+import MVIO
 import os
 
 /// 最小骨架：启动后打开一个空窗口，支持新建窗口和原生标签页。S1-F1 会重写。
@@ -12,6 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var cascadePoint = NSPoint.zero
 
     static func main() {
+        // 作为 MVIO 的辅助进程启动时，在这里进入请求循环，不启动界面。
+        IOHelper.runIfRequested()
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate

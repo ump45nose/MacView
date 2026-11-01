@@ -162,5 +162,7 @@ func makeBackend(_ options: TransportOptions, noCache: Bool) throws -> any IOBac
         PosixBackend(noCache: noCache)
     case .smb2:
         try SMB2Backend(libraryPath: options.libsmb2, timeout: options.smb2Timeout)
+    case .scheduler:
+        SchedulerBackend()
     }
 }

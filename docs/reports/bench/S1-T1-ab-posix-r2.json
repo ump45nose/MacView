@@ -1,0 +1,109 @@
+{
+  "environment" : {
+    "collectedAt" : "2026-11-01T03:23:31Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 960,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun1234"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "route" : {
+      "host" : "192.168.31.201",
+      "interface" : "en0"
+    },
+    "system" : {
+      "build" : "26A434",
+      "version" : "27.0.1"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "nfs",
+        "mountPoint" : "/Users/yuwk/MacViewBench/nfs",
+        "path" : "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/5001-6000/No.5133",
+        "source" : "192.168.31.201:/fs/1000/nfs"
+      }
+    ]
+  },
+  "finishedAt" : "2026-11-01T03:23:32Z",
+  "label" : "nfs-posix-r2",
+  "result" : {
+    "cold" : false,
+    "directories" : [
+      {
+        "bytes" : 397528480,
+        "files" : 40,
+        "name" : "No.5133"
+      }
+    ],
+    "noCache" : true,
+    "runs" : [
+      {
+        "bytes" : 397528480,
+        "chunkBytes" : 1048576,
+        "concurrency" : 4,
+        "errors" : {
+
+        },
+        "fileMilliseconds" : {
+          "count" : 40,
+          "max" : 696.367875,
+          "mean" : 509.44662397499997,
+          "min" : 385.969875,
+          "p50" : 495.8768335,
+          "p95" : 638.9739645999999,
+          "p99" : 675.04083888
+        },
+        "files" : 40,
+        "filesPerSecond" : 7.722328492327165,
+        "megabytesPerSecond" : 76.74613769038774,
+        "pass" : 0,
+        "receivedBytes" : {
+          "en0" : 418563072,
+          "lo0" : 1064960
+        },
+        "seconds" : 5.179784832999999
+      },
+      {
+        "bytes" : 397528480,
+        "chunkBytes" : 4194304,
+        "concurrency" : 4,
+        "errors" : {
+
+        },
+        "fileMilliseconds" : {
+          "count" : 40,
+          "max" : 646.041333,
+          "mean" : 494.87800212499997,
+          "min" : 374.856167,
+          "p50" : 487.31106250000005,
+          "p95" : 592.4885277,
+          "p99" : 634.64567925
+        },
+        "files" : 40,
+        "filesPerSecond" : 7.885835057796407,
+        "megabytesPerSecond" : 78.37110060141295,
+        "pass" : 1,
+        "receivedBytes" : {
+          "en0" : 418701312
+        },
+        "seconds" : 5.0723860830000005
+      }
+    ]
+  },
+  "transport" : "posix"
+}

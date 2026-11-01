@@ -80,7 +80,10 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - `layers[0]` 是根下的路径；之后每层是上一层末端压缩包内的路径。
   - 例：`Picture/a.zip!/inner/b.zip!/001.jpg` 的根是 `network(smb, 192.168.31.201, Picture)`，层是 `[["a.zip"], ["inner","b.zip"], ["001.jpg"]]`。
 - 挂载路径归一：
-  - SMB/NFS 挂载路径通过 `volumeURLForRemountingKey` 归一成 network 根，书记忆和历史因此不依赖 `/Volumes/xxx` 这个挂载名。
+  - SMB/NFS 挂载路径按挂载来源（statfs 的 `f_mntfromname`）归一成 network 根，书记忆和历史因此不依赖 `/Volumes/xxx` 这个挂载名：
+    - smbfs 的 `//user@server/share` → `network(smb, server, share)`。
+    - nfs 的 `server:/export/path` → `network(nfs, server, export/path)`。
+    - 挂载表用 `getfsstat(MNT_NOWAIT)` 读取，不访问卷本身，网络卷卡住时也不阻塞。不用 `volumeURLForRemountingKey`，它要查询卷。
   - 持久化时存结构化 JSON，字符串形式只用于显示。
   - 根没有挂载时返回 `volumeUnavailable`，界面提供“连接”按钮：用 NSWorkspace 打开 `smb://` 或 `nfs://` URL，由系统挂载。
 - `ContentIdentity` 由位置、大小、修改时间（纳秒整数）和可选的校验值（如 zip 条目的 CRC32）组成，其稳定哈希就是缓存键。文件一变，缓存自然失效，不需要另做失效逻辑。
@@ -102,12 +105,15 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 卷状态以流的形式提供给界面显示。
   - 网络卷上的读失败时，重新打开文件再试一次：断开较久（实测 60 秒）后恢复时，故障中的那次读会返回错误。
 - 枚举优先用 `getattrlistbulk` 分批返回，书和书架因此能渐进显示。
+- 路径与 URL 的互转不能访问文件系统：用 `URL(filePath:directoryHint:)`，不用不带 `isDirectory` 的 `URL(fileURLWithPath:)`，后者会在调用线程上 stat 该路径，网络卷卡住时调用方跟着卡住（S1-T1 实测）。
 - 进程隔离（G0 决定）：
   - 网络卷（statfs 不带 `MNT_LOCAL`）上的阻塞调用都在辅助进程中执行，本机卷仍在进程内，对外接口不变。
   - 原因：SMB 和 NFS 硬挂载上卡住的调用会让进程无法退出，exit(0) 和 SIGKILL 都无效，直到网络恢复。MacView 不能决定用户怎样挂载。
   - 卡住的辅助进程整体弃用，健康探测时换新的；主进程退出时不等它，它在网络恢复后自行消失。
   - 视频也要隔离：用 AVAssetResourceLoader 从辅助进程按范围取数据，不让 AVFoundation 在进程内读网络卷。
-  - S1-T1 先验证：辅助进程卡住时退出并重新打开 App，新进程能否立即得到新的辅助进程。如果 launchd 要等旧实例结束，就改用 posix_spawn 起同一个可执行文件作子进程。
+  - 辅助进程由 posix_spawn 起宿主自己的可执行文件（环境变量 `MVIO_HELPER=1`），经 socketpair 收发二进制帧，读到 EOF 即退出（S1-T1）。不用 launchd 托管的 XPC 服务：同一 App 域内只有一个实例，卡住的实例活着时无法换新的。
+  - 卡住的辅助进程被弃用时发 SIGKILL 并关闭 socket，下一个请求起新的辅助进程。
+- 健康探测在挂载点下查找一个随机的、不存在的名字，得到 ENOENT 即恢复。新名字不在缓存里，查找必须问服务器。不用 stat 挂载点或 statfs：服务器不可达时，前者由属性缓存回答，后者约 10 秒后返回缓存的值，都报成功，卷会在 healthy 与 degraded 之间反复切换（S1-T1 实测）。
 
 ### 3.3 媒体与渲染件
 
@@ -275,7 +281,7 @@ public struct Location: Hashable, Sendable, Codable {
 public struct ContentIdentity: Hashable, Sendable, Codable { public var location: Location; public var size: Int64; public var modificationNanos: Int64; public var checksum: UInt32?; public var cacheKey: String { get } }
 public struct PixelSize: Hashable, Sendable, Codable { public var width: Int; public var height: Int }
 public enum ArchiveFormat: String, Sendable, Codable { case zip, tar, tarGzip, gzip }
-public enum EntryKind: Hashable, Sendable, Codable { case directory, archive(ArchiveFormat), image, video, other }
+public enum EntryKind: Hashable, Sendable, Codable { case directory, archive(ArchiveFormat), image, video, other; public init(fileName: String) }   // init 按扩展名判断，不读内容
 public struct Entry: Hashable, Sendable { public var identity: ContentIdentity; public var name: String; public var kind: EntryKind; public var created: Date? }   // location、size、modified 由 identity 计算
 public struct SessionID: Hashable, Sendable { public let raw: UUID }
 public enum JSONValue: Hashable, Sendable, Codable { case null, bool(Bool), number(Double), string(String), array([JSONValue]), object([String: JSONValue]) }
@@ -297,12 +303,25 @@ public protocol ContainerProvider: Sendable {
 }
 public enum VolumeState: Sendable, Equatable { case healthy, degraded(String), unavailable }
 public struct VolumeHealth: Sendable { public var root: Location.Root; public var state: VolumeState; public var inFlight: Int; public var stuck: Int }
-public enum IOError: Error, Sendable { case timeout, cancelled, volumeUnavailable(Location.Root), notFound(Location), unsupported(Location), corrupted(Location, String), underlying(String) }
+public enum IOError: Error, Sendable { case timeout, cancelled, volumeUnavailable(Location.Root), volumeDegraded(Location.Root), notFound(Location), unsupported(Location), corrupted(Location, String), underlying(String) }   // volumeDegraded：卷连续超时，暂停访问
 public protocol SourceRegistry: Sendable {
     func provider(for location: Location) throws -> any ContainerProvider
     func location(for fileURL: URL) async throws -> Location   // 打开面板与拖放的入口；要查询卷信息，所以是异步的
     func volumeHealth() -> AsyncStream<[VolumeHealth]>
 }
+extension Location.Root { public var mountURL: URL? { get } }   // “连接”按钮交给 NSWorkspace 打开的 smb:// 或 nfs:// URL
+public struct IOConfiguration: Sendable { public var local, network: Channels; public var smallReadLimit: Int; public var deadline: Duration; public var degradeAfterTimeouts: Int; public var probeInterval: Duration; public var helperExecutable: URL?; public init(helperExecutable: URL?) }   // Channels：metadata、bulk 并发与 chunk
+public final class IOScheduler: Sendable {
+    public init(configuration: IOConfiguration)
+    public func cancel(_ group: IORequestGroup)                       // 排队中的出队，之后的新请求立即失败
+    public func setPriority(_ priority: IOPriority, for group: IORequestGroup)
+    public func volumeHealth() -> AsyncStream<[VolumeHealth]>
+    public func shutdown()                                            // 杀掉辅助进程，不等卡住的调用
+}
+public final class FileSystemProvider: ContainerProvider { public init(scheduler: IOScheduler) }   // 一层的 Location：本机与系统挂载
+public final class FileSourceRegistry: SourceRegistry { public init(scheduler: IOScheduler); public let scheduler: IOScheduler; public let fileSystem: FileSystemProvider; public func register(_ provider: any ContainerProvider) }   // 压缩包 provider 由组合根登记
+public enum IOHelper { public static func runIfRequested() }   // 宿主 main 开头调用：作为辅助进程启动时进入请求循环，不返回
+public final class ByteSourceAsset: Sendable { public let asset: AVURLAsset; public init(source: any ByteSource, priority: IOPriority = .visible) }   // 网络卷视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
 
 // MVMedia
 public struct ImageMetadata: Sendable, Codable, Hashable { public var pixelSize: PixelSize; public var frameCount: Int; public var duration: Double?; public var capturedAt: Date?; public var colorSpace: String? }   // pixelSize 已按 EXIF 方向换算
