@@ -24,6 +24,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: CanvasTestWindowController.launchKey) {
+            CanvasTestWindowController.show(autorun: UserDefaults.standard.bool(forKey: CanvasTestWindowController.autorunKey))
+            logger.info("启动完成，打开画布测试")
+            return
+        }
+        #endif
         newWindow(nil)
         logger.info("启动完成")
     }
