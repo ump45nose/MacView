@@ -1,0 +1,81 @@
+{
+  "cacheCondition" : "重新打开 CacheIndex 后测首查和重复查；操作系统文件页缓存未清空。60 图计时仅含索引查询及并发文件读取，不含图片解码。",
+  "entries" : 10000,
+  "environment" : {
+    "collectedAt" : "2026-11-01T09:55:01Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 960,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun1234"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "system" : {
+      "build" : "26A434",
+      "version" : "27.0.1"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "apfs",
+        "mountPoint" : "/System/Volumes/Data",
+        "path" : "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s1-core/build/stage-1-work/cache-bench/34F1C32F-A383-494F-8826-FADE64C43851",
+        "source" : "/dev/disk3s5"
+      }
+    ]
+  },
+  "finishedAt" : "2026-11-01T09:55:01Z",
+  "firstQueryAfterReopenMilliseconds" : 31.499041,
+  "firstScreenFiles" : 60,
+  "firstScreenReadLimitMilliseconds" : 30,
+  "firstScreenReadMilliseconds" : {
+    "count" : 10,
+    "max" : 2.593708,
+    "mean" : 1.3961624000000001,
+    "min" : 1.178333,
+    "p50" : 1.2752915,
+    "p95" : 2.0280584499999987,
+    "p99" : 2.48057809
+  },
+  "firstScreenReadPassed" : true,
+  "listingAndMetadataLimitMilliseconds" : 20,
+  "listingAndMetadataMilliseconds" : {
+    "count" : 10,
+    "max" : 30.29025,
+    "mean" : 29.7267417,
+    "min" : 29.020834,
+    "p50" : 29.8154375,
+    "p95" : 30.18840015,
+    "p99" : 30.26988003
+  },
+  "listingAndMetadataPassed" : false,
+  "queryDescription" : "每次依次从 SQLite 读取并解码完整 DirectoryListing 和全部 10000 条 ImageMetadata；查询键预先计算，计时含 SQL、值解码与完整性计数检查。无查询结果内存缓存。",
+  "sampleDescription" : "8 个确定性合成图案，ImageIO 编码为有效 320×480 sRGB JPEG，循环写入不同 cacheKey 的独立文件；元数据使用 MVMedia.ImageMetadata。",
+  "thumbnailBytes" : {
+    "count" : 8,
+    "max" : 46369,
+    "mean" : 43663.625,
+    "min" : 38913,
+    "p50" : 43994,
+    "p95" : 46201.35,
+    "p99" : 46335.47
+  },
+  "thumbnailPixelSize" : {
+    "height" : 480,
+    "width" : 320
+  },
+  "totalThumbnailBytes" : 436636250
+}
