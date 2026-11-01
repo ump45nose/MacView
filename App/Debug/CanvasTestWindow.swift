@@ -1,21 +1,28 @@
 #if DEBUG
 import AppKit
 import MVFoundation
+import MVIO
+import MVLayout
+import MVSettings
 import MVTestSupport
 import os
 import QuartzCore
 
-/// S0-F1 画布引擎技术验证的测试窗口：1 万项的砌体布局，缩略图来自 MockImagePipeline。
+/// 画布引擎的回归测试窗口：1 万项，缩略图来自 MockImagePipeline，四种布局可切换。
 ///
-/// “运行场景”按显示链接逐帧驱动快速拖动、惯性滚动和改变窗口尺寸，并统计帧间隔与主线程用时。
-/// 启动参数 `-MVCanvasTest YES` 直接打开本窗口，`-MVCanvasTestAutorun YES` 打开后运行场景并退出，
-/// `-MVCanvasTestReport <路径>` 把结果写成 JSON，`-MVCanvasTestVariant noImages|empty` 选择对照变体。
+/// “运行场景”按显示链接逐帧驱动快速拖动、惯性滚动、停走和改变窗口尺寸，并统计帧间隔与主线程用时。
+/// 启动参数：
+/// - `-MVCanvasTest YES` 直接打开本窗口，`-MVCanvasTestAutorun YES` 打开后运行场景并退出；
+/// - `-MVCanvasTestLayout masonry|grid|verticalStrip|horizontalStrip` 选择布局，默认砌体；
+/// - `-MVCanvasTestReport <路径>` 把结果写成 JSON。
 final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
     static let launchKey = "MVCanvasTest"
     static let autorunKey = "MVCanvasTestAutorun"
     static let reportKey = "MVCanvasTestReport"
-    static let variantKey = "MVCanvasTestVariant"
+    static let layoutKey = "MVCanvasTestLayout"
     static let pageCount = 10_000
+    /// 每 1000 项注入一个读取失败，用来检查错误标记。
+    static let failureEvery = 1000
 
     private static var current: CanvasTestWindowController?
 
@@ -52,41 +59,56 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
+    private static let kindTitles: [(CollectionLayoutKind, String)] = [
+        (.masonry, "砌体"), (.grid, "网格"), (.verticalStrip, "纵向条"), (.horizontalStrip, "横向条"),
+    ]
+    private static let sourceTitles: [(CanvasImageSource, String)] = [(.thumbnail, "缩略图"), (.display, "显示图（渐进）")]
+
     private let tree: MockTree
-    private let variant: CanvasView.Variant
+    private let failures: [Location: IOError]
+    private var items: [CanvasItem]
     private let canvas: CanvasView
-    private let scrollView = NSScrollView()
     private let hud = NSTextField(labelWithString: "")
+    private let kindPopup = NSPopUpButton()
+    private let directionPopup = NSPopUpButton()
+    private let sourcePopup = NSPopUpButton()
     private let timingPopup = NSPopUpButton()
+    private let extentSlider = NSSlider()
     private let runButton = NSButton()
     private var timing = Timing.fast
     private var link: CADisplayLink?
     private var lastTimestamp: CFTimeInterval?
     private var scenario: ScenarioRun?
+    private var arrival: Timer?
+    /// 宽高比重新到达时，还没到达的项（乱序）和各项是否已知。
+    private var arrivalOrder: [Int] = []
+    private var known: [Bool] = []
     private var hudTimer: Timer?
+    private var lastRange = CanvasVisibleRange(visible: 0..<0, margin: 0..<0)
     private let logger = Logger(category: "canvas-test")
 
     private init() {
         let (tree, items) = Self.makeLibrary()
         self.tree = tree
-        let variant = UserDefaults.standard.string(forKey: Self.variantKey).flatMap(CanvasView.Variant.init(rawValue:)) ?? .full
-        self.variant = variant
-        canvas = CanvasView(
-            items: items, pipeline: MockImagePipeline(environment: MockEnvironment(MockOptions(tree: tree, timing: Timing.fast.mock))), variant: variant
-        )
+        self.items = items
+        failures = Dictionary(uniqueKeysWithValues: stride(from: Self.failureEvery - 1, to: items.count, by: Self.failureEvery).map {
+            (items[$0].identity.location, IOError.notFound(items[$0].identity.location))
+        })
+        let kind = UserDefaults.standard.string(forKey: Self.layoutKey).flatMap(CollectionLayoutKind.init(rawValue:)) ?? .masonry
+        canvas = CanvasView(pipeline: MockImagePipeline(environment: MockEnvironment(MockOptions(tree: tree, timing: Timing.fast.mock, failures: failures))), kind: kind, imageSource: .thumbnail)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
-        window.title = "画布测试（\(Self.pageCount) 项，\(variant.rawValue)）"
         window.minSize = NSSize(width: 480, height: 320)
         window.isReleasedWhenClosed = false
         window.tabbingMode = .disallowed
         super.init(window: window)
         window.delegate = self
         buildContent(in: window)
+        updateTitle()
         // 验收要在 ProMotion 屏幕上进行：放到刷新率最高的屏幕中央。
         if let screen = NSScreen.screens.max(by: { $0.maximumFramesPerSecond < $1.maximumFramesPerSecond }) {
             let visible = screen.visibleFrame
@@ -104,7 +126,7 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
     // MARK: - 数据
 
     /// 1 万张图，尺寸按序号确定性地取自几种常见比例，含横图、方图和长条。
-    private static func makeLibrary() -> (MockTree, [CanvasView.Item]) {
+    private static func makeLibrary() -> (MockTree, [CanvasItem]) {
         let shapes = [
             PixelSize(width: 3600, height: 5400), PixelSize(width: 5400, height: 3600), PixelSize(width: 4000, height: 4000),
             PixelSize(width: 3000, height: 4000), PixelSize(width: 4000, height: 3000), PixelSize(width: 1080, height: 1920),
@@ -119,9 +141,13 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
         let tree = MockTree(nodes: [.directory("瀑布流", nodes)])
         let items = zip(pages, nodes).map { page, node in
             let identity = ContentIdentity(location: tree.location("瀑布流/\(node.name)"), size: node.size, modificationNanos: node.modificationNanos)
-            return CanvasView.Item(identity: identity, aspectRatio: CGFloat(page.1.width) / CGFloat(page.1.height))
+            return CanvasItem(identity: identity, aspectRatio: Double(page.1.width) / Double(page.1.height))
         }
         return (tree, items)
+    }
+
+    private func makePipeline() -> MockImagePipeline {
+        MockImagePipeline(environment: MockEnvironment(MockOptions(tree: tree, timing: timing.mock, failures: failures)))
     }
 
     // MARK: - 界面
@@ -130,27 +156,36 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
         let content = NSView()
         window.contentView = content
 
+        for (kind, title) in Self.kindTitles {
+            kindPopup.addItem(withTitle: title)
+            if kind == canvas.kind { kindPopup.selectItem(at: kindPopup.numberOfItems - 1) }
+        }
+        directionPopup.addItems(withTitles: ["左开", "右开"])
+        for (_, title) in Self.sourceTitles {
+            sourcePopup.addItem(withTitle: title)
+        }
         for timing in Timing.allCases {
             timingPopup.addItem(withTitle: timing.title)
         }
-        timingPopup.target = self
-        timingPopup.action = #selector(timingChanged(_:))
+        extentSlider.minValue = canvas.itemExtentRange.lowerBound
+        extentSlider.maxValue = canvas.itemExtentRange.upperBound
+        extentSlider.doubleValue = canvas.itemExtent
+        extentSlider.isContinuous = true
+        extentSlider.widthAnchor.constraint(equalToConstant: 140).isActive = true
         runButton.title = "运行场景"
         runButton.bezelStyle = .push
-        runButton.target = self
-        runButton.action = #selector(runScenarioAction(_:))
-        let bar = NSStackView(views: [timingPopup, runButton])
+        let reverseButton = NSButton(title: "倒序", target: self, action: #selector(reverseItems(_:)))
+        let arrivalButton = NSButton(title: "宽高比重新到达", target: self, action: #selector(replayArrival(_:)))
+        for (control, action) in [
+            (kindPopup, #selector(kindChanged(_:))), (directionPopup, #selector(directionChanged(_:))), (sourcePopup, #selector(sourceChanged(_:))),
+            (timingPopup, #selector(timingChanged(_:))), (extentSlider, #selector(extentChanged(_:))), (runButton, #selector(runScenarioAction(_:))),
+        ] as [(NSControl, Selector)] {
+            control.target = self
+            control.action = action
+        }
+        let bar = NSStackView(views: [kindPopup, directionPopup, extentSlider, sourcePopup, timingPopup, reverseButton, arrivalButton, runButton])
         bar.orientation = .horizontal
         bar.spacing = 8
-
-        scrollView.hasVerticalScroller = true
-        scrollView.drawsBackground = false
-        scrollView.documentView = canvas
-        let clip = scrollView.contentView
-        clip.postsBoundsChangedNotifications = true
-        clip.postsFrameChangedNotifications = true
-        NotificationCenter.default.addObserver(self, selector: #selector(clipBoundsChanged(_:)), name: NSView.boundsDidChangeNotification, object: clip)
-        NotificationCenter.default.addObserver(self, selector: #selector(clipFrameChanged(_:)), name: NSView.frameDidChangeNotification, object: clip)
 
         hud.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         hud.textColor = .white
@@ -158,31 +193,42 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
         hud.backgroundColor = NSColor.black.withAlphaComponent(0.6)
         hud.maximumNumberOfLines = 0
 
-        for view in [bar, scrollView, hud] {
+        for view in [bar, canvas, hud] {
             view.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(view)
         }
         NSLayoutConstraint.activate([
             bar.topAnchor.constraint(equalTo: content.topAnchor, constant: 8),
             bar.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 12),
-            scrollView.topAnchor.constraint(equalTo: bar.bottomAnchor, constant: 8),
-            scrollView.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            hud.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 8),
-            hud.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -24),
+            bar.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor, constant: -12),
+            canvas.topAnchor.constraint(equalTo: bar.bottomAnchor, constant: 8),
+            canvas.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            canvas.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            canvas.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            hud.topAnchor.constraint(equalTo: canvas.topAnchor, constant: 8),
+            hud.trailingAnchor.constraint(equalTo: canvas.trailingAnchor, constant: -24),
         ])
 
-        canvas.onUpdate = { [weak self] kind, duration in
-            self?.scenario?.recordUpdate(kind, duration)
+        canvas.onMeasure = { [weak self] measure in
+            self?.scenario?.record(measure)
         }
-        content.layoutSubtreeIfNeeded()
-        canvas.relayout(width: clip.bounds.width)
+        canvas.onVisibleRangeChange = { [weak self] range in
+            self?.lastRange = range
+        }
+        canvas.onItemExtentChange = { [weak self] extent in
+            self?.extentSlider.doubleValue = extent
+        }
+        canvas.setItems(items)
 
         hudTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.updateHUD() }
         }
         updateHUD()
+    }
+
+    private func updateTitle() {
+        let kind = Self.kindTitles.first { $0.0 == canvas.kind }?.1 ?? ""
+        window?.title = "画布测试（\(Self.pageCount) 项，\(kind)）"
     }
 
     /// 显示链接跟随创建时窗口所在的屏幕，窗口换屏后要重新创建。
@@ -205,8 +251,10 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
     private func updateHUD() {
         let counters = canvas.counters
         var lines = [
-            "项 \(Self.pageCount) · 图层 \(counters.activeLayers)（峰值 \(counters.peakLayers)，共创建 \(counters.createdLayers)）",
-            "已加载 \(counters.loadedImages) · 请求中 \(counters.inFlight)",
+            "项 \(items.count) · 图层 \(counters.activeLayers)（峰值 \(counters.peakLayers)，共创建 \(counters.createdLayers)）",
+            "已加载 \(counters.loadedImages) · 请求中 \(counters.inFlight) · 选中 \(canvas.selection.count)",
+            "回报：可见 \(lastRange.visible.lowerBound)..<\(lastRange.visible.upperBound) · 余量 \(lastRange.margin.lowerBound)..<\(lastRange.margin.upperBound)",
+            "锚点：\(counters.anchoredRelayouts) 次重排，离开视口 \(counters.anchorMisses) 次",
         ]
         if let scenario {
             lines.append("场景：\(scenario.currentPhase.name)")
@@ -214,18 +262,55 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
         hud.stringValue = lines.joined(separator: "\n")
     }
 
-    @objc private func clipBoundsChanged(_ notification: Notification) {
-        canvas.updateVisible()
+    @objc private func kindChanged(_ sender: NSPopUpButton) {
+        canvas.kind = Self.kindTitles[sender.indexOfSelectedItem].0
+        updateTitle()
     }
 
-    @objc private func clipFrameChanged(_ notification: Notification) {
-        canvas.relayout(width: scrollView.contentView.bounds.width)
+    @objc private func directionChanged(_ sender: NSPopUpButton) {
+        canvas.direction = sender.indexOfSelectedItem == 0 ? .leftToRight : .rightToLeft
+    }
+
+    @objc private func sourceChanged(_ sender: NSPopUpButton) {
+        canvas.imageSource = Self.sourceTitles[sender.indexOfSelectedItem].0
+    }
+
+    @objc private func extentChanged(_ sender: NSSlider) {
+        canvas.itemExtent = sender.doubleValue.rounded()
     }
 
     @objc private func timingChanged(_ sender: NSPopUpButton) {
         guard let timing = Timing(rawValue: sender.indexOfSelectedItem), timing != self.timing else { return }
         self.timing = timing
-        canvas.reset(pipeline: MockImagePipeline(environment: MockEnvironment(MockOptions(tree: tree, timing: timing.mock))))
+        canvas.replacePipeline(makePipeline())
+    }
+
+    /// 整体重排：选中项（没有时为中心项）保持在视口中的位置。
+    @objc private func reverseItems(_ sender: Any?) {
+        items.reverse()
+        canvas.setItems(items)
+    }
+
+    /// 宽高比全部清空后按乱序分批到达：只排已知的最长前缀，已排的项不动。
+    @objc private func replayArrival(_ sender: Any?) {
+        arrival?.invalidate()
+        arrivalOrder = items.indices.shuffled()
+        known = Array(repeating: false, count: items.count)
+        canvas.setItems(items.map { CanvasItem(identity: $0.identity, aspectRatio: nil) })
+        arrival = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.arriveBatch() }
+        }
+    }
+
+    private func arriveBatch() {
+        for index in arrivalOrder.suffix(500) {
+            known[index] = true
+        }
+        arrivalOrder.removeLast(min(500, arrivalOrder.count))
+        canvas.setItems(items.indices.map { CanvasItem(identity: items[$0].identity, aspectRatio: known[$0] ? items[$0].aspectRatio : nil) })
+        if arrivalOrder.isEmpty {
+            arrival?.invalidate()
+        }
     }
 
     @objc private func runScenarioAction(_ sender: Any?) {
@@ -235,18 +320,21 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         link?.invalidate()
         hudTimer?.invalidate()
-        canvas.cancelAll()
+        arrival?.invalidate()
         Self.current = nil
     }
 
     // MARK: - 场景
 
+    private var horizontal: Bool {
+        canvas.kind.isHorizontal
+    }
+
     private func runScenario(terminateWhenDone: Bool) {
         guard scenario == nil, let window else { return }
-        let clip = scrollView.contentView
-        scroll(to: (canvas.frame.height - clip.bounds.height) / 2)
+        scroll(to: (contentLength - viewportLength) / 2)
         scenario = ScenarioRun(
-            phases: ScenarioRun.standard, originalFrame: window.frame, terminateWhenDone: terminateWhenDone,
+            phases: ScenarioRun.phases(horizontal: horizontal), originalFrame: window.frame, terminateWhenDone: terminateWhenDone,
             refreshInterval: 1000 / Double(max(window.screen?.maximumFramesPerSecond ?? 60, 1))
         )
         runButton.isEnabled = false
@@ -263,13 +351,11 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
         let elapsed = now - (run.start ?? now)
         guard let (index, phaseTime) = run.phase(at: elapsed) else {
             scenario = nil
-            run.phaseStarts.append(now)
+            run.enter(run.phases.count, at: now, counters: canvas.counters)
             finish(run)
             return
         }
-        if run.phaseStarts.count <= index {
-            run.phaseStarts.append(now)
-        }
+        run.enter(index, at: now, counters: canvas.counters)
         run.currentIndex = index
         run.recordInterval(interval)
         // 先写回：下面的滚动会同步触发图层更新，用时记进 `scenario`。
@@ -285,28 +371,48 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
             let flick = Int(phaseTime / each)
             let velocity = initial * (flick.isMultiple(of: 2) ? 1 : -1) * pow(0.998, (phaseTime - Double(flick) * each) * 1000)
             scroll(by: velocity * dt)
-        case let .resize(minWidth, maxWidth, period):
-            let width = (minWidth + maxWidth) / 2 + (maxWidth - minWidth) / 2 * sin(2 * .pi * phaseTime / period)
-            resizeWindow(width: width, from: run.originalFrame)
+        case let .stopAndGo(speed, move, rest):
+            let cycle = Int(phaseTime / (move + rest))
+            if phaseTime - Double(cycle) * (move + rest) < move {
+                scroll(by: speed * (cycle.isMultiple(of: 2) ? 1 : -1) * dt)
+            }
+        case let .resize(minimum, maximum, period):
+            let length = (minimum + maximum) / 2 + (maximum - minimum) / 2 * sin(2 * .pi * phaseTime / period)
+            resizeWindow(crossLength: length, from: run.originalFrame)
         }
     }
 
+    private var contentLength: CGFloat {
+        horizontal ? canvas.documentView?.frame.width ?? 0 : canvas.documentView?.frame.height ?? 0
+    }
+
+    private var viewportLength: CGFloat {
+        horizontal ? canvas.contentView.bounds.width : canvas.contentView.bounds.height
+    }
+
     private func scroll(by delta: CGFloat) {
-        scroll(to: scrollView.contentView.bounds.origin.y + delta)
+        let origin = canvas.contentView.bounds.origin
+        scroll(to: (horizontal ? origin.x : origin.y) + delta)
     }
 
-    private func scroll(to y: CGFloat) {
-        let clip = scrollView.contentView
-        let limit = max(0, canvas.frame.height - clip.bounds.height)
-        clip.scroll(to: NSPoint(x: 0, y: min(max(y, 0), limit)))
-        scrollView.reflectScrolledClipView(clip)
+    private func scroll(to position: CGFloat) {
+        let clip = canvas.contentView
+        let clamped = min(max(position, 0), max(0, contentLength - viewportLength))
+        clip.scroll(to: horizontal ? NSPoint(x: clamped, y: 0) : NSPoint(x: 0, y: clamped))
+        canvas.reflectScrolledClipView(clip)
     }
 
-    private func resizeWindow(width: CGFloat, from original: NSRect) {
+    /// 改变横截方向的窗口尺寸（横向条改高度，其余改宽度），保持窗口中心不动。
+    private func resizeWindow(crossLength: CGFloat, from original: NSRect) {
         guard let window else { return }
         var frame = window.frame
-        frame.size.width = width.rounded()
-        frame.origin.x = original.midX - frame.width / 2
+        if horizontal {
+            frame.size.height = crossLength.rounded()
+            frame.origin.y = original.midY - frame.height / 2
+        } else {
+            frame.size.width = crossLength.rounded()
+            frame.origin.x = original.midX - frame.width / 2
+        }
         window.setFrame(frame, display: true)
     }
 
@@ -318,13 +424,16 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
             screen: window?.screen?.localizedName ?? "",
             maximumFramesPerSecond: window?.screen?.maximumFramesPerSecond ?? 0,
             timing: timing.title,
-            variant: variant.rawValue,
-            items: Self.pageCount,
+            layout: canvas.kind.rawValue,
+            direction: canvas.direction.rawValue,
+            imageSource: canvas.imageSource.rawValue,
+            itemExtent: canvas.itemExtent,
+            items: items.count,
             peakLayers: counters.peakLayers,
             createdLayers: counters.createdLayers,
             activeLayersAtEnd: counters.activeLayers,
             loadedImages: counters.loadedImages,
-            phases: run.results()
+            phases: run.results(endCounters: counters)
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -344,7 +453,7 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
     }
 }
 
-/// 一次场景运行：各阶段的帧间隔与主线程用时。
+/// 一次场景运行：各阶段的帧间隔、主线程用时、滚动停止后请求的发出时间和锚点检查。
 private struct ScenarioRun {
     enum Motion {
         case pause
@@ -352,8 +461,10 @@ private struct ScenarioRun {
         case drag(speed: CGFloat, flipEvery: Double)
         /// 松手后的惯性：初速 `initial`，每毫秒衰减为 0.998 倍，与系统的默认减速度相当；方向交替。
         case flick(initial: CGFloat, count: Int)
-        /// 窗口宽度按正弦在两个值之间变化。
-        case resize(minWidth: CGFloat, maxWidth: CGFloat, period: Double)
+        /// 匀速移动 `move` 秒后停 `rest` 秒，方向交替；用来测滚动停止后可见项的请求。
+        case stopAndGo(speed: CGFloat, move: Double, rest: Double)
+        /// 窗口横截方向的尺寸按正弦在两个值之间变化。
+        case resize(minimum: CGFloat, maximum: CGFloat, period: Double)
     }
 
     struct Phase {
@@ -363,12 +474,16 @@ private struct ScenarioRun {
         var measured = true
     }
 
-    static let standard = [
-        Phase(name: "准备", duration: 1, motion: .pause, measured: false),
-        Phase(name: "快速拖动", duration: 6, motion: .drag(speed: 6000, flipEvery: 1.5)),
-        Phase(name: "惯性滚动", duration: 10.5, motion: .flick(initial: 15000, count: 3)),
-        Phase(name: "改变窗口尺寸", duration: 6, motion: .resize(minWidth: 800, maxWidth: 1400, period: 2)),
-    ]
+    /// 与 S0-F1 相同的三个阶段，加上停走。横向条改窗口高度，其余改宽度。
+    static func phases(horizontal: Bool) -> [Phase] {
+        [
+            Phase(name: "准备", duration: 1, motion: .pause, measured: false),
+            Phase(name: "快速拖动", duration: 6, motion: .drag(speed: 6000, flipEvery: 1.5)),
+            Phase(name: "惯性滚动", duration: 10.5, motion: .flick(initial: 15000, count: 3)),
+            Phase(name: "停走", duration: 6, motion: .stopAndGo(speed: 3000, move: 0.35, rest: 0.4)),
+            Phase(name: "改变窗口尺寸", duration: 6, motion: horizontal ? .resize(minimum: 500, maximum: 900, period: 2) : .resize(minimum: 800, maximum: 1400, period: 2)),
+        ]
+    }
 
     let phases: [Phase]
     let originalFrame: NSRect
@@ -377,20 +492,27 @@ private struct ScenarioRun {
     let refreshInterval: Double
     var start: CFTimeInterval?
     /// 各阶段开始时的显示链接时间戳，最后一项是结束时间；与 mach_absolute_time 同一时基，用来对齐 Instruments 的录制。
-    var phaseStarts: [CFTimeInterval] = []
+    private var phaseStarts: [CFTimeInterval?]
+    /// 各阶段开始时画布的计数，用来算每个阶段的锚点检查。
+    private var countersAtPhaseStart: [CanvasCounters?]
     var currentIndex = 0
     private var intervals: [[Double]]
     private var scrollUpdates: [[Double]]
     private var relayouts: [[Double]]
+    private var settles: [[Double]]
 
     init(phases: [Phase], originalFrame: NSRect, terminateWhenDone: Bool, refreshInterval: Double) {
         self.phases = phases
         self.originalFrame = originalFrame
         self.terminateWhenDone = terminateWhenDone
         self.refreshInterval = refreshInterval
+        // 多一项记结束时刻。
+        phaseStarts = Array(repeating: nil, count: phases.count + 1)
+        countersAtPhaseStart = Array(repeating: nil, count: phases.count + 1)
         intervals = Array(repeating: [], count: phases.count)
         scrollUpdates = Array(repeating: [], count: phases.count)
         relayouts = Array(repeating: [], count: phases.count)
+        settles = Array(repeating: [], count: phases.count)
     }
 
     var currentPhase: Phase {
@@ -406,25 +528,40 @@ private struct ScenarioRun {
         return nil
     }
 
+    /// 进入第 `index` 个阶段（`phases.count` 表示结束）。显示链接停顿跨过整个阶段时，被跳过的阶段与它同时开始，记为空阶段。
+    mutating func enter(_ index: Int, at time: CFTimeInterval, counters: CanvasCounters) {
+        for phase in 0...index where phaseStarts[phase] == nil {
+            phaseStarts[phase] = time
+            countersAtPhaseStart[phase] = counters
+        }
+    }
+
     mutating func recordInterval(_ interval: Double) {
         intervals[currentIndex].append(interval * 1000)
     }
 
-    mutating func recordUpdate(_ kind: CanvasView.UpdateKind, _ duration: Duration) {
-        let milliseconds = Double(duration.components.attoseconds) * 1e-15 + Double(duration.components.seconds) * 1000
-        switch kind {
-        case .scroll: scrollUpdates[currentIndex].append(milliseconds)
-        case .relayout: relayouts[currentIndex].append(milliseconds)
+    mutating func record(_ measure: CanvasMeasure) {
+        switch measure {
+        case let .scroll(duration): scrollUpdates[currentIndex].append(Self.milliseconds(duration))
+        case let .relayout(duration): relayouts[currentIndex].append(Self.milliseconds(duration))
+        case let .settled(latency, visible) where visible > 0: settles[currentIndex].append(Self.milliseconds(latency))
+        case .settled: break
         }
     }
 
-    func results() -> [CanvasTestSummary.Phase] {
+    private static func milliseconds(_ duration: Duration) -> Double {
+        Double(duration.components.attoseconds) * 1e-15 + Double(duration.components.seconds) * 1000
+    }
+
+    func results(endCounters: CanvasCounters) -> [CanvasTestSummary.Phase] {
         phases.indices.filter { phases[$0].measured }.map { index in
             let frames = intervals[index]
+            let before = countersAtPhaseStart[index] ?? endCounters
+            let after = countersAtPhaseStart[index + 1] ?? endCounters
             return CanvasTestSummary.Phase(
                 name: phases[index].name,
-                start: phaseStarts.indices.contains(index) ? phaseStarts[index] : 0,
-                end: phaseStarts.indices.contains(index + 1) ? phaseStarts[index + 1] : 0,
+                start: phaseStarts[index] ?? 0,
+                end: phaseStarts[index + 1] ?? 0,
                 frames: frames.count,
                 intervalP50: percentile(frames, 0.5),
                 intervalP99: percentile(frames, 0.99),
@@ -436,7 +573,11 @@ private struct ScenarioRun {
                 scrollUpdateMax: scrollUpdates[index].max() ?? 0,
                 relayouts: relayouts[index].count,
                 relayoutP99: percentile(relayouts[index], 0.99),
-                relayoutMax: relayouts[index].max() ?? 0
+                relayoutMax: relayouts[index].max() ?? 0,
+                settles: settles[index].count,
+                settleLatencyMax: settles[index].max() ?? 0,
+                anchoredRelayouts: after.anchoredRelayouts - before.anchoredRelayouts,
+                anchorMisses: after.anchorMisses - before.anchorMisses
             )
         }
     }
@@ -466,12 +607,20 @@ struct CanvasTestSummary: Codable {
         var relayouts: Int
         var relayoutP99: Double
         var relayoutMax: Double
+        /// 有可见项的滚动停止次数，以及停止后可见项的请求全部发出的最长用时。
+        var settles: Int
+        var settleLatencyMax: Double
+        var anchoredRelayouts: Int
+        var anchorMisses: Int
     }
 
     var screen: String
     var maximumFramesPerSecond: Int
     var timing: String
-    var variant: String
+    var layout: String
+    var direction: String
+    var imageSource: String
+    var itemExtent: Double
     var items: Int
     var peakLayers: Int
     var createdLayers: Int

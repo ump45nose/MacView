@@ -1,11 +1,12 @@
 #!/bin/sh
-# S0-F1 画布测试：用 Instruments（Animation Hitches）录制自动场景，再按阶段汇总。
-# 用法：scripts/canvas-test.sh <结果目录> [变体…]；变体默认依次为 full noImages empty。
+# 画布测试：用 Instruments（Animation Hitches，加 os_signpost）录制自动场景，再按阶段汇总。
+# 用法：scripts/canvas-test.sh <结果目录> [布局…]；布局默认依次为 masonry grid verticalStrip horizontalStrip。
+# 结果写到 <结果目录>/S1-F3-<布局>.json。
 # 要在 ProMotion 屏幕上测，并断开刷新率较低的外接显示器（否则显示链接只有 60 Hz）。
 set -eu
 out=$1
 shift
-variants=${*:-full noImages empty}
+layouts=${*:-masonry grid verticalStrip horizontalStrip}
 derived=build/DerivedData-profile
 work=$(mktemp -d)
 
@@ -16,11 +17,12 @@ xcodebuild -quiet -project MacView.xcodeproj -scheme MacView -configuration Debu
 app="$derived/Build/Products/Debug/MacView.app/Contents/MacOS/MacView"
 mkdir -p "$out"
 
-for variant in $variants; do
-	xcrun xctrace record --template 'Animation Hitches' --time-limit 60s --output "$work/$variant.trace" \
-		--launch -- "$app" -MVCanvasTest YES -MVCanvasTestAutorun YES -MVCanvasTestVariant "$variant" \
-		-MVCanvasTestReport "$work/$variant.json"
-	python3 -I scripts/canvas-hitches.py "$work/$variant.trace" "$work/$variant.json" "$out/S0-F1-$variant.json" >/dev/null
-	echo "$variant：$out/S0-F1-$variant.json"
+for layout in $layouts; do
+	# 显示器睡眠时显示链接停止，场景会停住：录制期间唤醒并保持显示器。
+	caffeinate -d -u xcrun xctrace record --template 'Animation Hitches' --instrument os_signpost --time-limit 60s --output "$work/$layout.trace" \
+		--launch -- "$app" -MVCanvasTest YES -MVCanvasTestAutorun YES -MVCanvasTestLayout "$layout" \
+		-MVCanvasTestReport "$work/$layout.json"
+	python3 -I scripts/canvas-hitches.py "$work/$layout.trace" "$work/$layout.json" "$out/S1-F3-$layout.json" >/dev/null
+	echo "$layout：$out/S1-F3-$layout.json"
 done
 echo "录制保留在 $work"
