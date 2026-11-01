@@ -7,9 +7,9 @@ let modules: [(name: String, dependencies: [String])] = [
     ("MVIO", ["MVFoundation"]),
     ("MVArchive", ["MVFoundation", "MVIO"]),
     ("MVMedia", ["MVFoundation"]),
-    ("MVCache", ["MVFoundation"]),
+    ("MVCache", ["MVFoundation", "GRDB"]),
     ("MVPipeline", ["MVFoundation", "MVIO", "MVMedia", "MVCache"]),
-    ("MVSettings", ["MVFoundation"]),
+    ("MVSettings", ["MVFoundation", "GRDB"]),
     ("MVCommands", ["MVFoundation"]),
     ("MVReading", ["MVFoundation", "MVIO", "MVMedia", "MVPipeline", "MVSettings"]),
     ("MVServices", ["MVFoundation", "MVIO", "MVArchive", "MVMedia", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading"]),
@@ -20,6 +20,9 @@ let modules: [(name: String, dependencies: [String])] = [
 let testExtras: [String: [Target.Dependency]] = [
     "MVIO": ["mvio-helper"],
     "MVMedia": ["MVTestSupport"],
+    "MVCache": ["mvtest-writer"],
+    "MVSettings": ["mvtest-writer"],
+    "MVArchive": ["MVTestSupport"],
 ]
 
 let package = Package(
@@ -29,14 +32,18 @@ let package = Package(
         + [.executable(name: "mvbench", targets: ["mvbench"])],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
+        .package(url: "https://github.com/groue/GRDB.swift", from: "7.11.1"),
     ],
     targets: modules.flatMap { module -> [Target] in
         [
-            .target(name: module.name, dependencies: module.dependencies.map { .target(name: $0) }),
+            .target(name: module.name, dependencies: module.dependencies.map {
+                $0 == "GRDB" ? .product(name: "GRDB", package: "GRDB.swift") : .target(name: $0)
+            }),
             .testTarget(name: "\(module.name)Tests", dependencies: [.target(name: module.name)] + (testExtras[module.name] ?? [])),
         ]
     } + [
         .executableTarget(name: "mvio-helper", dependencies: ["MVIO"]),
+        .executableTarget(name: "mvtest-writer", dependencies: ["MVCache", "MVSettings"]),
         .executableTarget(
             name: "mvbench",
             dependencies: [
@@ -44,6 +51,8 @@ let package = Package(
                 "MVFoundation",
                 "MVIO",
                 "MVMedia",
+                "MVCache",
+                "MVArchive",
                 "MVTestSupport",
             ]
         ),
