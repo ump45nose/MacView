@@ -115,9 +115,11 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
             mixed = (mixed ^ (mixed >> 31)) &* 0xBF58_476D_1CE4_E5B9
             return (String(format: "%05d.jpg", number), shapes[Int((mixed ^ (mixed >> 29)) % UInt64(shapes.count))])
         }
-        let tree = MockTree(nodes: [.directory("瀑布流", pages.map { MockNode.image($0.0, $0.1) })])
-        let items = pages.map { name, size in
-            CanvasView.Item(location: tree.location("瀑布流/\(name)"), aspectRatio: CGFloat(size.width) / CGFloat(size.height))
+        let nodes = pages.map { MockNode.image($0.0, $0.1) }
+        let tree = MockTree(nodes: [.directory("瀑布流", nodes)])
+        let items = zip(pages, nodes).map { page, node in
+            let identity = ContentIdentity(location: tree.location("瀑布流/\(node.name)"), size: node.size, modificationNanos: node.modificationNanos)
+            return CanvasView.Item(identity: identity, aspectRatio: CGFloat(page.1.width) / CGFloat(page.1.height))
         }
         return (tree, items)
     }

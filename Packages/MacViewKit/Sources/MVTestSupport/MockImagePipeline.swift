@@ -26,36 +26,38 @@ public final class MockImagePipeline: ImagePipeline {
         self.environment = environment
     }
 
-    public func metadata(for location: Location, priority: IOPriority) async throws -> ImageMetadata {
+    public func metadata(for identity: ContentIdentity, priority: IOPriority) async throws -> ImageMetadata {
+        let location = identity.location
         try await environment.access(location)
         return try environment.media(at: location).metadata
     }
 
-    public func thumbnail(for location: Location, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage {
+    public func thumbnail(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage {
+        let location = identity.location
         let media = try await environment.readMedia(location, priority: priority)
         return render(location, media, size: media.pixelSize.fitted(longSide: maxPixel), quality: .exact)
     }
 
-    public func thumbnails(for locations: [Location], maxPixel: Int, priority: IOPriority) -> AsyncStream<(Location, Result<RenderedImage, any Error>)> {
+    public func thumbnails(for identities: [ContentIdentity], maxPixel: Int, priority: IOPriority) -> AsyncStream<(ContentIdentity, Result<RenderedImage, any Error>)> {
         AsyncStream { continuation in
             let task = Task {
-                let work: @Sendable (Location) async -> (Location, Result<RenderedImage, any Error>) = { location in
+                let work: @Sendable (ContentIdentity) async -> (ContentIdentity, Result<RenderedImage, any Error>) = { identity in
                     do {
-                        return (location, .success(try await self.thumbnail(for: location, maxPixel: maxPixel, priority: priority)))
+                        return (identity, .success(try await self.thumbnail(for: identity, maxPixel: maxPixel, priority: priority)))
                     } catch {
-                        return (location, .failure(error))
+                        return (identity, .failure(error))
                     }
                 }
-                await withTaskGroup(of: (Location, Result<RenderedImage, any Error>).self) { group in
-                    var pending = locations.makeIterator()
+                await withTaskGroup(of: (ContentIdentity, Result<RenderedImage, any Error>).self) { group in
+                    var pending = identities.makeIterator()
                     for _ in 0..<Self.thumbnailConcurrency {
-                        guard let location = pending.next() else { break }
-                        group.addTask { await work(location) }
+                        guard let identity = pending.next() else { break }
+                        group.addTask { await work(identity) }
                     }
                     while let result = await group.next() {
                         continuation.yield(result)
-                        if let location = pending.next() {
-                            group.addTask { await work(location) }
+                        if let identity = pending.next() {
+                            group.addTask { await work(identity) }
                         }
                     }
                 }
@@ -65,8 +67,9 @@ public final class MockImagePipeline: ImagePipeline {
         }
     }
 
-    public func image(for location: Location, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error> {
-        AsyncThrowingStream { continuation in
+    public func image(for identity: ContentIdentity, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error> {
+        let location = identity.location
+        return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     let media = try await environment.readMedia(location, priority: priority)
@@ -89,18 +92,21 @@ public final class MockImagePipeline: ImagePipeline {
         }
     }
 
-    public func tiledSource(for location: Location) async throws -> any TiledImageSource {
+    public func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource {
+        let location = identity.location
         let media = try await environment.readMedia(location, priority: .visible)
         return MockTiledSource(pixelSize: media.pixelSize, seed: MockRandom.fnv1a(location.description))
     }
 
-    public func animatedFrames(for location: Location, target: DisplayTarget) async throws -> any AnimatedFrameSource {
+    public func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource {
+        let location = identity.location
         let media = try await environment.readMedia(location, priority: .visible)
         guard media.frameCount > 1 else { throw IOError.unsupported(location) }
         return MockAnimatedFrames(title: Self.title(of: location), frameCount: media.frameCount, size: target.pixelSize, seed: MockRandom.fnv1a(location.description))
     }
 
-    public func videoPoster(for location: Location, maxPixel: Int) async throws -> RenderedImage {
+    public func videoPoster(for identity: ContentIdentity, maxPixel: Int) async throws -> RenderedImage {
+        let location = identity.location
         let media = try await environment.readMedia(location, priority: .near)
         guard media.duration != nil else { throw IOError.unsupported(location) }
         return render(location, media, size: media.pixelSize.fitted(longSide: maxPixel), quality: .exact)

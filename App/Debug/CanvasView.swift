@@ -58,7 +58,7 @@ struct MasonryLayout {
 /// 缩略图在后台向管线请求，回到主线程后只设置图层的 contents，不做 I/O 和解码。
 final class CanvasView: NSView {
     struct Item {
-        var location: Location
+        var identity: ContentIdentity
         var aspectRatio: CGFloat
     }
 
@@ -203,11 +203,11 @@ final class CanvasView: NSView {
     }
 
     private func load(_ index: Int, maxPixel: Int, priority: IOPriority) {
-        let location = items[index].location
+        let identity = items[index].identity
         let pipeline = pipeline
         // 管线调用放在主线程之外；取消会传进管线，排队中的请求直接出队。
         loads[index] = Task.detached(priority: .userInitiated) { [weak self] in
-            guard let rendered = try? await pipeline.thumbnail(for: location, maxPixel: min(maxPixel, 1024), priority: priority),
+            guard let rendered = try? await pipeline.thumbnail(for: identity, maxPixel: min(maxPixel, 1024), priority: priority),
                   !Task.isCancelled
             else { return }
             await self?.apply(rendered, to: index)

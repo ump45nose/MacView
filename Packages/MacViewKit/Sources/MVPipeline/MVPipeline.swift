@@ -9,12 +9,12 @@ public enum RenditionSpec: Sendable, Hashable {
 }
 
 public struct PrefetchItem: Sendable, Hashable {
-    public var location: Location
+    public var identity: ContentIdentity
     public var renditions: Set<RenditionSpec>
     public var priority: IOPriority
 
-    public init(location: Location, renditions: Set<RenditionSpec>, priority: IOPriority) {
-        self.location = location
+    public init(identity: ContentIdentity, renditions: Set<RenditionSpec>, priority: IOPriority) {
+        self.identity = identity
         self.renditions = renditions
         self.priority = priority
     }
@@ -30,15 +30,15 @@ public struct PrefetchPlan: Sendable, Equatable {
 }
 
 public protocol ImagePipeline: Sendable {
-    func metadata(for location: Location, priority: IOPriority) async throws -> ImageMetadata
-    func thumbnail(for location: Location, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
+    func metadata(for identity: ContentIdentity, priority: IOPriority) async throws -> ImageMetadata
+    func thumbnail(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
     /// 按完成顺序给出各项的结果。
-    func thumbnails(for locations: [Location], maxPixel: Int, priority: IOPriority) -> AsyncStream<(Location, Result<RenderedImage, any Error>)>
+    func thumbnails(for identities: [ContentIdentity], maxPixel: Int, priority: IOPriority) -> AsyncStream<(ContentIdentity, Result<RenderedImage, any Error>)>
     /// 依次交付占位图、浏览图和精确尺寸图（允许且需要时为原图）。
-    func image(for location: Location, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error>
-    func tiledSource(for location: Location) async throws -> any TiledImageSource
-    func animatedFrames(for location: Location, target: DisplayTarget) async throws -> any AnimatedFrameSource
-    func videoPoster(for location: Location, maxPixel: Int) async throws -> RenderedImage
+    func image(for identity: ContentIdentity, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error>
+    func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource
+    func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource
+    func videoPoster(for identity: ContentIdentity, maxPixel: Int) async throws -> RenderedImage
     /// 整体替换会话的预取计划：移除的取消，保留的重排，新增的入队。
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID)
     func cancelAll(session: SessionID)
