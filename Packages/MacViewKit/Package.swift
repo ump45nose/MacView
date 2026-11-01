@@ -23,6 +23,8 @@ let testExtras: [String: [Target.Dependency]] = [
     "MVCache": ["mvtest-writer"],
     "MVSettings": ["mvtest-writer"],
     "MVArchive": ["MVTestSupport"],
+    "MVPipeline": ["MVTestSupport"],
+    "MVReading": ["MVTestSupport"],
 ]
 
 let package = Package(
@@ -52,6 +54,7 @@ let package = Package(
                 "MVIO",
                 "MVMedia",
                 "MVCache",
+                "MVPipeline",
                 "MVArchive",
                 "MVTestSupport",
             ]

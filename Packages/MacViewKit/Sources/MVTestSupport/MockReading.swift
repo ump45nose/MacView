@@ -13,7 +13,7 @@ public struct MockBookLoader: BookLoader {
         self.environment = environment
     }
 
-    public func load(_ location: Location, settings: ResolvedBookSettings) -> AsyncThrowingStream<BookLoadEvent, any Error> {
+    public func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> {
         let environment = environment
         let arrivals = environment.batches(of: location) { MockOrder.isPage($0.entry) ? $0.entry : nil }
         return AsyncThrowingStream { continuation in

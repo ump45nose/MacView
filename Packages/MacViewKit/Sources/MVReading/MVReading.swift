@@ -37,7 +37,7 @@ public enum BookLoadEvent: Sendable {
 }
 
 public protocol BookLoader: Sendable {
-    func load(_ location: Location, settings: ResolvedBookSettings) -> AsyncThrowingStream<BookLoadEvent, any Error>
+    func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error>
 }
 
 /// 先按到达顺序 appended，枚举完成后发一次 sorted。
