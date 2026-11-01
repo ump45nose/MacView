@@ -1,0 +1,123 @@
+{
+  "cacheCondition" : "首图每次不同 ContentIdentity，L0/L1/L2/L3 为空；计时从 image 调用到 exact 交付，含 I/O、解码、缩放。首屏为 10000 条 L2 中均匀选 60 条，L1 每轮为空，计时含 SQLite、文件读取、JPEG 解码、缩放与全部流交付；操作系统页缓存未清空。",
+  "cachedEntries" : 10000,
+  "environment" : {
+    "collectedAt" : "2026-11-01T12:12:21Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 648,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun1234"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "system" : {
+      "build" : "26A434",
+      "version" : "27.0.1"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "apfs",
+        "mountPoint" : "/System/Volumes/Data",
+        "path" : "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s1-core/build/stage3-work/cold-jpegs",
+        "source" : "/dev/disk3s5"
+      }
+    ]
+  },
+  "finishedAt" : "2026-11-01T12:12:21Z",
+  "firstImageFiles" : 10,
+  "firstImageMilliseconds" : {
+    "count" : 10,
+    "max" : 121.1505,
+    "mean" : 69.7924708,
+    "min" : 51.435209,
+    "p50" : 61.088979,
+    "p95" : 110.50404359999997,
+    "p99" : 119.02120872
+  },
+  "firstImagePassed" : true,
+  "firstImagePixelSize" : {
+    "height" : 2560,
+    "width" : 1707
+  },
+  "firstImageSourceBytes" : {
+    "count" : 10,
+    "max" : 848493,
+    "mean" : 848493,
+    "min" : 848493,
+    "p50" : 848493,
+    "p95" : 848493,
+    "p99" : 848493
+  },
+  "firstImageSourcePixelSizes" : [
+    {
+      "height" : 5400,
+      "width" : 3600
+    },
+    {
+      "height" : 5400,
+      "width" : 3600
+    },
+    {
+      "height" : 5400,
+      "width" : 3600
+    },
+    {
+      "height" : 5400,
+      "width" : 3600
+    },
+    {
+      "height" : 5400,
+      "width" : 3600
+    },
+    {
+      "height" : 5400,
+      "width" : 3600
+    },
+    {
+      "height" : 5400,
+      "width" : 3600
+    },
+    {
+      "height" : 5400,
+      "width" : 3600
+    },
+    {
+      "height" : 5400,
+      "width" : 3600
+    },
+    {
+      "height" : 5400,
+      "width" : 3600
+    }
+  ],
+  "firstScreenFiles" : 60,
+  "firstScreenMilliseconds" : {
+    "count" : 10,
+    "max" : 21.880625,
+    "mean" : 19.4645498,
+    "min" : 18.656125,
+    "p50" : 19.3871875,
+    "p95" : 20.965587349999996,
+    "p99" : 21.697617469999997
+  },
+  "firstScreenOutputLongSide" : 256,
+  "firstScreenPassed" : true,
+  "nasValidation" : "未验证：未提供在线 NFS 样本目录并启用吞吐测量。",
+  "throughput" : [
+
+  ]
+}
