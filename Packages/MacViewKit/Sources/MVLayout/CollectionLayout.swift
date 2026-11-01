@@ -1,4 +1,4 @@
-// MVLayout：App 侧的纯计算布局（画布的四种布局与锚点）。职责见 docs/architecture.md §2、§3.8。
+// MVLayout：App 侧的纯计算布局（画布的四种布局与锚点、停靠布局及其变换）。职责见 docs/architecture.md §2、§3.8。
 import Foundation
 import MVSettings
 

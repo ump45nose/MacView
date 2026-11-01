@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBuilder: MenuBuilder?
     private(set) var services: CoreServices?
     private(set) var dispatcher: CommandDispatcher?
+    private(set) var dock: DockCoordinator?
     /// 真实服务（S1-T8）接入之前一律是 Mock，窗口状态栏会标明。
     private let isMock = true
     /// NSWindow 不持有自己的控制器，由这里保留到窗口关闭。
@@ -64,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.services = services
             let dispatcher = CommandDispatcher(registry: services.commands)
             self.dispatcher = dispatcher
+            dock = DockCoordinator(fileURL: DockCoordinator.defaultFileURL())
             registerCommands(in: services.commands)
         } catch {
             logger.fault("服务启动失败：\(String(describing: error), privacy: .public)")
@@ -86,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         logger.info("启动完成")
         #if DEBUG
         SelfTest.runIfRequested(app: self)
+        DockSelfTest.runIfRequested(app: self)
         #endif
     }
 
@@ -98,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let services else { return .terminateNow }
         // shutdown 自己有时限，不等被卡住的 I/O。
         Task {
+            await dock?.flush()
             await services.shutdown()
             NSApp.reply(toApplicationShouldTerminate: true)
         }
@@ -166,8 +170,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func makeController() -> ReaderWindowController? {
-        guard let services, let dispatcher else { return nil }
-        let controller = ReaderWindowController(services: services, catalog: catalog, dispatcher: dispatcher, isMock: isMock)
+        guard let services, let dispatcher, let dock else { return nil }
+        let controller = ReaderWindowController(services: services, catalog: catalog, dispatcher: dispatcher, dock: dock, isMock: isMock)
         controller.onOpenExtra = { [weak self, weak controller] urls in
             guard let self, let controller else { return }
             for url in urls {

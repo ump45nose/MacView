@@ -15,6 +15,12 @@ enum Theme {
     static let primary = color(light: 0x141413, dark: 0xFAF9F5)
     static let onPrimary = color(light: 0xFAF9F5, dark: 0x141413)
     static let danger = color(light: 0xA33B2A, dark: 0xF09C8B)
+    static let dangerSoft = color(light: 0xA33B2A, lightAlpha: 0.08, dark: 0xF09C8B, darkAlpha: 0.12)
+    static let well = color(light: 0xF5F4ED, dark: 0x262624)
+    static let selected = color(light: 0x73726C, lightAlpha: 0.16, dark: 0xF0EEE6, darkAlpha: 0.12)
+    /// Clay：只作强调色（放置指示、焦点），浅色模式下不用作文字。
+    static let accent = color(light: 0xD97757, dark: 0xD97757)
+    static let accentSoft = color(light: 0xD97757, lightAlpha: 0.14, dark: 0xD97757, darkAlpha: 0.2)
 
     /// 衬线字体（New York / 宋体），用于标题和空状态。
     static func serif(_ size: CGFloat, weight: NSFont.Weight = .medium) -> NSFont {
