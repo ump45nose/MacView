@@ -10,7 +10,10 @@
 - 帧时间：每帧为一个刷新间隔，被判为 hitch 的帧再加上 hitch 时长。内容不变时 App 不提交新帧，
   这段空闲不算帧时间，所以不直接用相邻两帧上屏的间隔；
 - 卡顿：Instruments 判定的 hitch 次数、总时长与每秒卡顿毫秒数；
-- 提交与渲染：MacView 提交（update）和渲染服务器合成（render）的用时。
+- 提交与渲染：MacView 提交（update）和渲染服务器合成（render）的用时；
+- 滚动停止后的请求（录制含 os_signpost 时）：画布在停止 50 ms 后发出 `settled` 事件。停止时刻取它之前
+  最后一次 `updateVisible` 的开始；延迟取停止到这段时间里最后一个可见项请求（`request`，消息 visible）
+  的间隔，没有就是 0。补发和尺寸变大后的升级请求也算在内。
 """
 import json
 import math
@@ -73,6 +76,12 @@ def main():
     renders = {row['swap-id'][0]: row for row in export(trace, 'hitches-renders') if row['swap-id'][0] in swaps}
     hitches = [row for row in export(trace, 'hitches') if (row['process'][0] or '').startswith('MacView')]
     displays = export(trace, 'device-display-info')
+    signposts = [
+        (number(row['time']), row['event-type'][0], row['name'][0], row['message'][0] or '')
+        for row in export(trace, 'os-signpost')
+        if row['subsystem'][0] == 'io.github.ump45nose.MacView' and row['category'][0] == 'layout'
+    ]
+    signposts.sort()
     refresh = 1e9 / max(number(row['max-refresh-rate']) for row in displays)
 
     phases = []
@@ -91,6 +100,15 @@ def main():
         render_times = [number(renders[row['swap-id'][0]]['duration']) for row in in_phase if row['swap-id'][0] in renders]
         phase_hitches = [number(row['duration']) for row in hitches if begin <= number(row['start']) < end]
         frame_times = [refresh] * max(0, len(presented) - len(phase_hitches)) + [refresh + hitch for hitch in phase_hitches]
+        settles = []
+        stop = last_request = None
+        for time, kind, name, message in signposts:
+            if name == 'updateVisible' and kind == 'Begin':
+                stop, last_request = time, None
+            elif name == 'request' and message == 'visible' and stop is not None:
+                last_request = time
+            elif name == 'settled' and begin <= time < end and stop is not None:
+                settles.append({'latency': last_request - stop if last_request is not None else 0, 'wait': time - stop})
         seconds = (end - begin) / 1e9
         phases.append({
             'name': phase['name'],
@@ -107,6 +125,10 @@ def main():
             'updateP99': milliseconds(percentile(update_times, 0.99)),
             'renderP50': milliseconds(percentile(render_times, 0.5)),
             'renderP99': milliseconds(percentile(render_times, 0.99)),
+            'settles': len(settles),
+            'settleRequestLatencyP99': milliseconds(percentile([item['latency'] for item in settles], 0.99)),
+            'settleRequestLatencyMax': milliseconds(max((item['latency'] for item in settles), default=0)),
+            'settleEventDelayMax': milliseconds(max((item['wait'] for item in settles), default=0)),
         })
 
     result = {

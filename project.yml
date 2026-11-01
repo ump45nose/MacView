@@ -28,6 +28,8 @@ targets:
       - package: MacViewKit
         product: MVCommands
       - package: MacViewKit
+        product: MVLayout
+      - package: MacViewKit
         product: MVReading
       - package: MacViewKit
         product: MVServices
