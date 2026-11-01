@@ -1,4 +1,5 @@
 import MVFoundation
+import MVPipeline
 import MVSettings
 import Observation
 
@@ -17,6 +18,7 @@ public final class ReaderSession {
     private let loader: any BookLoader
     private let store: any SettingsStore
     private let bookshelf: any Bookshelf
+    private let pipeline: any ImagePipeline
     /// 打开书时解析出的设置，书层的改动叠加在它上面。
     @ObservationIgnored private var resolved: ResolvedBookSettings
     @ObservationIgnored private var bookLayer = BookSettings()
@@ -25,11 +27,12 @@ public final class ReaderSession {
     /// 每次 open 加一；旧的加载发现自己过期后停止。
     @ObservationIgnored private var generation = 0
 
-    public init(id: SessionID = SessionID(), loader: any BookLoader, settings: any SettingsStore, bookshelf: any Bookshelf) {
+    public init(id: SessionID = SessionID(), loader: any BookLoader, settings: any SettingsStore, bookshelf: any Bookshelf, pipeline: any ImagePipeline) {
         self.id = id
         self.loader = loader
         self.store = settings
         self.bookshelf = bookshelf
+        self.pipeline = pipeline
         self.settings = .default
         self.resolved = .default
     }

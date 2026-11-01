@@ -29,7 +29,7 @@ import Testing
 
     var stages: [RenderedImage] = []
     let target = DisplayTarget(pixelSize: PixelSize(width: 1200, height: 1800))
-    for try await image in services.pipeline.image(for: page.id, target: target, allowOriginal: false, priority: .visible) {
+    for try await image in services.pipeline.image(for: page.entry.identity, target: target, allowOriginal: false, priority: .visible) {
         stages.append(image)
     }
     #expect(stages.map(\.quality) == [.placeholder, .browse, .exact])
@@ -133,7 +133,7 @@ struct MockSourceTests {
             if states.count == 3 { break }
         }
         #expect(states == [.healthy, .degraded("NAS 响应慢"), .unavailable])
-        let cover = MockTree.sample.location("动图与视频/封面.jpg")
+        let cover = try environment.item(at: MockTree.sample.location("动图与视频/封面.jpg")).entry.identity
         let pipeline = MockImagePipeline(environment: environment)
         await #expect(throws: IOError.volumeUnavailable(MockTree.defaultRoot)) {
             try await pipeline.metadata(for: cover, priority: .visible)
@@ -144,7 +144,14 @@ struct MockSourceTests {
 }
 
 struct MockPipelineTests {
-    private let tree = MockTree(nodes: [.book("书", pages: 20, hiddenFiles: false)])
+    private let tree: MockTree
+    private let environment: MockEnvironment
+
+    init() {
+        let tree = MockTree(nodes: [.book("书", pages: 20, hiddenFiles: false)])
+        self.tree = tree
+        environment = MockEnvironment(MockOptions(tree: tree, timing: .instant))
+    }
 
     private func pipeline(readsPerSecond: Double = .infinity, failures: [Location: IOError] = [:]) -> MockImagePipeline {
         var timing = MockTiming.instant
@@ -152,8 +159,12 @@ struct MockPipelineTests {
         return MockImagePipeline(environment: MockEnvironment(MockOptions(tree: tree, timing: timing, failures: failures)))
     }
 
-    private func page(_ number: Int) -> Location {
-        tree.location(String(format: "书/%03d.jpg", number))
+    private func identity(_ location: Location) -> ContentIdentity {
+        try! environment.item(at: location).entry.identity
+    }
+
+    private func page(_ number: Int) -> ContentIdentity {
+        identity(tree.location(String(format: "书/%03d.jpg", number)))
     }
 
     @Test func firstVisitsWaitForThroughputAndRevisitsDoNot() async throws {
@@ -176,7 +187,7 @@ struct MockPipelineTests {
 
     @Test func visibleRequestsJumpAheadOfBackgroundOnes() async throws {
         let pipeline = pipeline(readsPerSecond: 50)
-        let completed = Collector<Location>()
+        let completed = Collector<ContentIdentity>()
         try await withThrowingTaskGroup(of: Void.self) { group in
             for number in 1...7 {
                 group.addTask {
@@ -210,20 +221,20 @@ struct MockPipelineTests {
 
     @Test func injectedFailuresSurfaceAsIOErrors() async throws {
         let broken = page(2)
-        let pipeline = pipeline(failures: [broken: .timeout])
+        let pipeline = pipeline(failures: [broken.location: .timeout])
         await #expect(throws: IOError.timeout) {
             try await pipeline.thumbnail(for: broken, maxPixel: 128, priority: .visible)
         }
         await #expect(throws: IOError.timeout) {
             for try await _ in pipeline.image(for: broken, target: DisplayTarget(pixelSize: PixelSize(width: 100, height: 150)), allowOriginal: false, priority: .visible) {}
         }
-        var succeeded: [Location: Bool] = [:]
-        for await (location, result) in pipeline.thumbnails(for: [page(1), broken], maxPixel: 128, priority: .visible) {
-            succeeded[location] = (try? result.get()) != nil
+        var succeeded: [ContentIdentity: Bool] = [:]
+        for await (identity, result) in pipeline.thumbnails(for: [page(1), broken], maxPixel: 128, priority: .visible) {
+            succeeded[identity] = (try? result.get()) != nil
         }
         #expect(succeeded == [page(1): true, broken: false])
         await #expect(throws: IOError.unsupported(tree.location("书"))) {
-            try await pipeline.metadata(for: tree.location("书"), priority: .visible)
+            try await pipeline.metadata(for: identity(tree.location("书")), priority: .visible)
         }
     }
 
@@ -241,13 +252,13 @@ struct MockPipelineTests {
     @Test func animatedVideoAndTiledSources() async throws {
         let sample = MockTree.sample
         let pipeline = MockImagePipeline(environment: MockEnvironment(MockOptions(tree: sample, timing: .instant)))
-        let gif = try await pipeline.animatedFrames(for: sample.location("动图与视频/循环.gif"), target: DisplayTarget(pixelSize: PixelSize(width: 240, height: 135)))
+        let gif = try await pipeline.animatedFrames(for: try pipeline.environment.item(at: sample.location("动图与视频/循环.gif")).entry.identity, target: DisplayTarget(pixelSize: PixelSize(width: 240, height: 135)))
         #expect(gif.frameCount == 24)
         #expect(try await gif.frame(at: 3).image.width == 240)
-        let poster = try await pipeline.videoPoster(for: sample.location("动图与视频/片段.mp4"), maxPixel: 320)
+        let poster = try await pipeline.videoPoster(for: try pipeline.environment.item(at: sample.location("动图与视频/片段.mp4")).entry.identity, maxPixel: 320)
         #expect(poster.image.width == 320 && poster.image.height == 180)
-        let cover = sample.location("动图与视频/封面.jpg")
-        await #expect(throws: IOError.unsupported(cover)) {
+        let cover = try pipeline.environment.item(at: sample.location("动图与视频/封面.jpg")).entry.identity
+        await #expect(throws: IOError.unsupported(cover.location)) {
             try await pipeline.videoPoster(for: cover, maxPixel: 320)
         }
         let tiles = try await pipeline.tiledSource(for: cover)
@@ -258,7 +269,7 @@ struct MockPipelineTests {
     @Test func prefetchPlansAreKeptPerSession() {
         let pipeline = pipeline()
         let session = SessionID()
-        let plan = PrefetchPlan(items: [PrefetchItem(location: page(1), renditions: [.thumbnail, .metadata], priority: .book)])
+        let plan = PrefetchPlan(items: [PrefetchItem(identity: page(1), renditions: [.thumbnail, .metadata], priority: .book)])
         pipeline.setPrefetchPlan(plan, session: session)
         #expect(pipeline.prefetchPlan(for: session) == plan)
         pipeline.cancelAll(session: session)

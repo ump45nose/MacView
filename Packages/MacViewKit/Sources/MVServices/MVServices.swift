@@ -27,7 +27,7 @@ import MVSettings
     }
 
     public func makeSession() -> ReaderSession {
-        ReaderSession(loader: loader, settings: settings, bookshelf: bookshelf)
+        ReaderSession(loader: loader, settings: settings, bookshelf: bookshelf, pipeline: pipeline)
     }
 
     /// 退出前调用。接入真实服务后在这里落盘设置并取消 I/O，有时限地等待，不等被卡住的 I/O 线程；Mock 没有要收尾的工作。

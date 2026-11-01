@@ -41,7 +41,7 @@
 | MVPipeline | ImagePipeline：串联各缓存层，一次读取产出多种渲染件，渐进交付，按会话管理预取计划 | MVIO、MVMedia、MVCache |
 | MVSettings | 设置模式、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
 | MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型 | MVFoundation |
-| MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVPipeline、MVSettings |
+| MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVCache、MVPipeline、MVSettings |
 | MVServices | 组合根：创建并连接各服务，负责启动、退出和内存压力处理 | 以上全部 |
 | MVTestSupport | Mock 与夹具清单（`Fixtures/manifest.json`）的读取。App 的 Debug 构建可以用启动参数 `-MVMockServices YES` 切换到 Mock | 契约 |
 | mvbench | 基准测试与夹具生成的命令行工具 | 全部 |
@@ -397,16 +397,16 @@ public enum RenditionEncoding: String, Sendable, Codable, CaseIterable { case he
 
 // MVPipeline
 public enum RenditionSpec: Sendable, Hashable { case metadata, thumbnail, browse, display(DisplayTarget) }
-public struct PrefetchItem: Sendable, Hashable { public var location: Location; public var renditions: Set<RenditionSpec>; public var priority: IOPriority }
+public struct PrefetchItem: Sendable, Hashable { public var identity: ContentIdentity; public var renditions: Set<RenditionSpec>; public var priority: IOPriority }
 public struct PrefetchPlan: Sendable { public var items: [PrefetchItem] }
 public protocol ImagePipeline: Sendable {
-    func metadata(for location: Location, priority: IOPriority) async throws -> ImageMetadata
-    func thumbnail(for location: Location, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
-    func thumbnails(for locations: [Location], maxPixel: Int, priority: IOPriority) -> AsyncStream<(Location, Result<RenderedImage, any Error>)>
-    func image(for location: Location, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error>
-    func tiledSource(for location: Location) async throws -> any TiledImageSource
-    func animatedFrames(for location: Location, target: DisplayTarget) async throws -> any AnimatedFrameSource
-    func videoPoster(for location: Location, maxPixel: Int) async throws -> RenderedImage
+    func metadata(for identity: ContentIdentity, priority: IOPriority) async throws -> ImageMetadata
+    func thumbnail(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
+    func thumbnails(for identities: [ContentIdentity], maxPixel: Int, priority: IOPriority) -> AsyncStream<(ContentIdentity, Result<RenderedImage, any Error>)>
+    func image(for identity: ContentIdentity, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error>
+    func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource
+    func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource
+    func videoPoster(for identity: ContentIdentity, maxPixel: Int) async throws -> RenderedImage
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID)
     func cancelAll(session: SessionID)
 }
@@ -506,7 +506,7 @@ public enum PageFrameEngine { public static func frames(aspectRatios: [Double?],
 public enum PageMove: Sendable { case nextFrame, previousFrame, nextPage, previousPage, first, last, index(Int) }
 @MainActor @Observable public final class ReaderSession {
     public let id: SessionID
-    public init(id: SessionID = SessionID(), loader: any BookLoader, settings: any SettingsStore, bookshelf: any Bookshelf)   // 由 CoreServices.makeSession() 调用
+    public init(id: SessionID = SessionID(), loader: any BookLoader, settings: any SettingsStore, bookshelf: any Bookshelf, pipeline: any ImagePipeline)   // 由 CoreServices.makeSession() 调用
     public private(set) var book: Book?; public private(set) var frames: [PageFrame]; public private(set) var currentFrame: Int
     public private(set) var settings: ResolvedBookSettings; public private(set) var loadError: (any Error)?
     public func open(_ location: Location, at page: Location?) async
