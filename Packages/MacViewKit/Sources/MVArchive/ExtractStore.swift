@@ -22,9 +22,27 @@ final class ExtractStore: Sendable {
     init(directory: URL, budget: Int64) throws {
         self.directory = directory
         self.budget = max(0, budget)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        for child in try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
-            try FileManager.default.removeItem(at: child)
+        let parent = directory.deletingLastPathComponent()
+        let recyclePrefix = ".macview-" + directory.lastPathComponent + "-recycle-"
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        if FileManager.default.fileExists(atPath: directory.path) {
+            // 同级改名不访问旧目录内容；新实例的 LRU 与预算从空目录开始。
+            try FileManager.default.moveItem(at: directory, to: parent.appending(path: recyclePrefix + UUID().uuidString))
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        ExtractIO.queue.async {
+            // 只扫描上级这一层，也回收上次进程崩溃留下的目录。
+            guard let children = try? FileManager.default.contentsOfDirectory(
+                at: parent, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]
+            ) else { return }
+            for child in children {
+                let name = child.lastPathComponent
+                guard name.hasPrefix(recyclePrefix), UUID(uuidString: String(name.dropFirst(recyclePrefix.count))) != nil,
+                      let values = try? child.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
+                      values.isDirectory == true, values.isSymbolicLink != true else { continue }
+                // 删除失败仍留在回收目录，下次启动再试。
+                try? FileManager.default.removeItem(at: child)
+            }
         }
     }
 
