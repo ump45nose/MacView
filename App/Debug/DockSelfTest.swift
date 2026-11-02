@@ -8,7 +8,7 @@ import MVLayout
 /// 与真实拖放调用的是同一组方法；拖出浮动走 `endDrag(accepted: false)`。
 ///
 /// 启动参数：
-/// - `-MVDockSelfTest main|restore|corrupt`，配合 `-MVLayoutFile <临时目录>/layout.json`；
+/// - `-MVDockSelfTest main|restore|corrupt|clicks|zero`，配合 `-MVLayoutFile <临时目录>/layout.json`；
 /// - `-MVSelfTestOutput <目录>` 写入窗口图像。
 ///
 /// 三个阶段依次运行（命令见 docs/reports/S1-F2.md）：
@@ -16,6 +16,10 @@ import MVLayout
 ///   最后改出一份特定布局，写入 `expected.json`，经 `NSApp.terminate` 退出（验证退出前保存）。
 /// - restore：重启后布局与 `expected.json` 相同。
 /// - corrupt：layout.json 被改坏时用默认布局并显示错误，文件不被覆盖。
+///
+/// 下面两个阶段单独运行，点击和拖动走真实事件（`NSApp.sendEvent`），`performClick` 不产生鼠标事件，测不到拖动判定：
+/// - clicks：启动前 layout.json 的左右区已折叠（240、260）。点开关恢复、反复点、拖动分隔线记录尺寸、拖到边缘折叠。
+/// - zero：启动前 layout.json 的左右区 `size` 为 0、未折叠。区以最小宽度显示，文件不被改写。
 @MainActor
 final class DockSelfTest {
     static let launchKey = "MVDockSelfTest"
@@ -33,6 +37,8 @@ final class DockSelfTest {
             case "main": await test.runMain()
             case "restore": await test.runRestore()
             case "corrupt": await test.runCorrupt()
+            case "clicks": await test.runClicks()
+            case "zero": await test.runZero()
             default: test.log.check(false, "未知阶段 \(phase)")
             }
             test.finish(terminate: phase == "main")
@@ -336,7 +342,151 @@ final class DockSelfTest {
         log.check(original != nil && (try? Data(contentsOf: coordinator.fileURL)) == original, "没有改动布局时不覆盖改坏的文件")
     }
 
+    // MARK: clicks
+
+    private func runClicks() async {
+        guard let first = app.controllers.first, let window = first.window,
+              let left = first.dockToggles[.left], let right = first.dockToggles[.right] else { return log.check(false, "没有窗口或开关") }
+        let dock = first.dock
+        await settle()
+        guard await activateApp(window) else { return print("SKIP 真实事件路径（App 未激活）") }
+        log.check(!dock.isOnScreen(.left) && !dock.isOnScreen(.right) && left.state == .off && right.state == .off, "启动时左右区已折叠")
+
+        let saved: [(edge: DockEdge, button: NSButton, size: Double)] = [(.left, left, 240), (.right, right, 260)]
+        for (edge, button, size) in saved {
+            await click(button, in: window)
+            log.check(button.state == .on && dock.isOnScreen(edge), "真实点击\(edge)开关：区出现，开关按下")
+            await checkSize(edge, of: dock, width: size, saved: size, "展开后")
+        }
+        for (edge, button, size) in saved {
+            for _ in 0..<5 { await click(button, in: window) }
+            log.check(button.state == .off && dock.dockLayout[edge].size == size, "\(edge)开关点 5 次：区隐藏，size 不变：\(dock.dockLayout[edge].size)")
+            await click(button, in: window)
+            await checkSize(edge, of: dock, width: size, saved: size, "反复点之后")
+        }
+
+        // 真实拖动分隔线：记录尺寸。
+        await drag(in: window, from: divider(.left, of: dock), byX: 60)
+        await checkSize(.left, of: dock, width: 300, saved: 300, "向右拖动分隔线")
+        await drag(in: window, from: divider(.right, of: dock), byX: -40)
+        await checkSize(.right, of: dock, width: 300, saved: 300, "向左拖动分隔线")
+        // 拖到边缘：折叠，尺寸保留，点开关回到原宽度。
+        for (edge, button) in [(DockEdge.left, left), (.right, right)] {
+            let start = divider(edge, of: dock)
+            await drag(in: window, from: start, byX: (edge == .left ? 2 : window.frame.width - 2) - start.x)
+            try? await Task.sleep(for: DockCoordinator.saveDelay + .milliseconds(300))
+            log.check(dock.dockLayout[edge].isCollapsed && !dock.isOnScreen(edge) && button.state == .off && savedLayout()?[edge].isCollapsed == true,
+                      "\(edge)分隔线拖到边缘：折叠并保存")
+            await click(button, in: window)
+            // 合成点击紧跟拖动时偶尔送不到按钮的动作，第二下总能送到；真实鼠标是否如此要人工确认。
+            if dock.dockLayout[edge].isCollapsed {
+                print("SKIP \(edge)分隔线拖动后的第一下合成点击没有送到开关，再点一次")
+                await click(button, in: window)
+            }
+            await checkSize(edge, of: dock, width: 300, saved: 300, "折叠后点开关")
+        }
+
+        // 上下分割：拖动记录相对高度，开关不改变它。
+        dock.perform { $0.moving(DockPanels.pageList, to: .area(.left, index: 1)).togglingStyle(.left) }
+        await settle()
+        guard let top = part(DockPanels.bookshelf, of: dock), let bottom = part(DockPanels.pageList, of: dock) else { return log.check(false, "没有分割的两格") }
+        let height = top.frame.height
+        let start = NSPoint(x: top.convert(top.bounds, to: nil).midX, y: (top.convert(top.bounds, to: nil).minY + bottom.convert(bottom.bounds, to: nil).maxY) / 2)
+        await drag(in: window, from: start, byY: 40)
+        let weight = dock.dockLayout.left.weights[DockPanels.bookshelf]
+        log.check(weight.map { abs($0 - (height - 40)) < 2 } == true, "拖动上下分隔线记录高度：\(String(describing: weight)) / \(height)")
+        let weights = dock.dockLayout.left.weights
+        await click(left, in: window)
+        await click(left, in: window)
+        log.check(dock.dockLayout.left.weights == weights, "点开关不改变上下分割的高度：\(dock.dockLayout.left.weights)")
+    }
+
+    // MARK: zero
+
+    private func runZero() async {
+        guard let first = app.controllers.first, let window = first.window,
+              let left = first.dockToggles[.left] else { return log.check(false, "没有窗口或开关") }
+        let dock = first.dock
+        await settle()
+        guard await activateApp(window) else { return print("SKIP 真实事件路径（App 未激活）") }
+        for edge in [DockEdge.left, .right] {
+            await checkSize(edge, of: dock, width: WindowDock.minimumSize[edge]!, saved: 0, "保存的 size 为 0")
+        }
+        await click(left, in: window)
+        log.check(left.state == .off && !dock.isOnScreen(.left), "真实点击隐藏：区不在屏幕上")
+        await click(left, in: window)
+        await checkSize(.left, of: dock, width: WindowDock.minimumSize[.left]!, saved: 0, "点两次开关之后")
+    }
+
     // MARK: 工具
+
+    private struct SavedLayout: Decodable { var value: DockLayout }
+
+    private func savedLayout() -> DockLayout? {
+        (try? Data(contentsOf: coordinator.fileURL)).flatMap { try? JSONDecoder().decode(SavedLayout.self, from: $0).value }
+    }
+
+    /// 区的实际宽度、内存中和磁盘上的 size。磁盘在保存的去抖之后读。
+    private func checkSize(_ edge: DockEdge, of dock: WindowDock, width: CGFloat, saved: Double, _ message: String) async {
+        try? await Task.sleep(for: DockCoordinator.saveDelay + .milliseconds(300))
+        let actual = dock.areas[edge]!.frame.width
+        let disk = savedLayout()?[edge].size
+        log.check(dock.isOnScreen(edge) && abs(actual - width) < 1 && disk == saved,
+                  "\(message)：\(edge)区在屏幕上 \(dock.isOnScreen(edge))，折叠 \(dock.dockLayout[edge].isCollapsed)，宽度 \(actual)（期望 \(width)），layout.json 的 size \(String(describing: disk))（期望 \(saved)），内存 \(dock.dockLayout[edge].size)")
+    }
+
+    /// 真实事件在前台窗口上才等同于用户操作。`NSApp.activate()` 是协作式的，别的 App 不让出时无效，所以经 LaunchServices。
+    private func activateApp(_ window: NSWindow) async -> Bool {
+        window.makeKeyAndOrderFront(nil)
+        if !NSApp.isActive {
+            let open = Process()
+            open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            open.arguments = ["-a", Bundle.main.bundlePath]
+            try? open.run()
+        }
+        for _ in 0..<50 where !NSApp.isActive {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return NSApp.isActive
+    }
+
+    private func mouseEvent(_ type: NSEvent.EventType, at point: NSPoint, in window: NSWindow) -> NSEvent {
+        NSEvent.mouseEvent(
+            with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1
+        )!
+    }
+
+    /// 视图的 `mouseDown` 会进入跟踪循环，后续事件要先放进队列。
+    private func click(_ button: NSButton, in window: NSWindow) async {
+        _ = await activateApp(window)
+        let point = button.convert(NSPoint(x: button.bounds.midX, y: button.bounds.midY), to: nil)
+        NSApp.postEvent(mouseEvent(.leftMouseUp, at: point, in: window), atStart: false)
+        NSApp.sendEvent(mouseEvent(.leftMouseDown, at: point, in: window))
+        await settle()
+    }
+
+    private func drag(in window: NSWindow, from start: NSPoint, byX x: CGFloat = 0, byY y: CGFloat = 0) async {
+        let end = NSPoint(x: start.x + x, y: start.y + y)
+        NSApp.postEvent(mouseEvent(.leftMouseDragged, at: end, in: window), atStart: false)
+        NSApp.postEvent(mouseEvent(.leftMouseUp, at: end, in: window), atStart: false)
+        NSApp.sendEvent(mouseEvent(.leftMouseDown, at: start, in: window))
+        await settle()
+    }
+
+    /// 左右区与主视图之间的分隔线中点（窗口坐标）。
+    private func divider(_ edge: DockEdge, of dock: WindowDock) -> NSPoint {
+        let area = dock.areas[edge]!
+        let frame = area.convert(area.bounds, to: nil)
+        return NSPoint(x: edge == .left ? frame.maxX + 0.5 : frame.minX - 0.5, y: frame.midY)
+    }
+
+    /// 上下分割中面板所在的那一格。
+    private func part(_ panel: PanelID, of dock: WindowDock) -> NSView? {
+        var view = dock.panels[panel]?.view
+        while let current = view, !(current is PanelFrameView) { view = current.superview }
+        return view
+    }
 
     private func finish(terminate: Bool) {
         let failures = log.summarize()
