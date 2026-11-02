@@ -149,6 +149,13 @@ public final class ReaderSession {
         prefetch()
     }
 
+    /// 退出时立即保存最新快照，不等一秒去抖；数据库落盘由组合根随后执行。
+    public func flush() async {
+        saveTask?.cancel()
+        saveTask = nil
+        if let memory { await store.saveBookMemory(memory) }
+    }
+
     private func apply(_ event: BookLoadEvent) {
         switch event {
         case let .appended(pages): book?.pages.append(contentsOf: pages)

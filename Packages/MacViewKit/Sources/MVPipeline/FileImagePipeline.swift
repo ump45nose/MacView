@@ -403,6 +403,22 @@ public final class FileImagePipeline: ImagePipeline {
         for task in tasks { task.cancel() }
     }
 
+    /// 只移除后台预取；同一内容的前台与其他优先级消费者继续工作。
+    public func cancelBackgroundPrefetch() {
+        let tasks = state.withLock { state in
+            var tasks: [Task<Void, Never>] = []
+            for session in state.sessions.keys {
+                let background = state.sessions[session]!.filter { $0.value.item.priority == .background }
+                for (key, prefetch) in background {
+                    tasks.append(prefetch.task)
+                    state.sessions[session]![key] = nil
+                }
+            }
+            return tasks
+        }
+        for task in tasks { task.cancel() }
+    }
+
     private func prefetch(_ item: PrefetchItem, context: RequestContext) async throws {
         if item.renditions.isEmpty {
             _ = try await content(item.identity, full: true, metadata: false, context: context)

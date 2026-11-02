@@ -26,6 +26,7 @@ let testExtras: [String: [Target.Dependency]] = [
     "MVArchive": ["MVTestSupport"],
     "MVPipeline": ["MVTestSupport"],
     "MVReading": ["MVTestSupport"],
+    "MVServices": ["MVTestSupport", "mvio-helper"],
 ]
 
 let package = Package(
