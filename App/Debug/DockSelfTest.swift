@@ -59,6 +59,7 @@ final class DockSelfTest {
               "书架在左侧区，页面列表在右侧区")
         log.check(dock.isOnScreen(.left) && dock.isOnScreen(.right) && !dock.isOnScreen(.bottom), "底部区为空时不占空间")
         log.snapshot(window, "dock-default")
+        await checkDockToggles(first)
 
         // 标签位置：放到左区标签行中书架之后。
         let left = dock.areas[.left]!
@@ -69,6 +70,9 @@ final class DockSelfTest {
         await drop(DockPanels.pageList, from: dock, into: dock, at: afterTab, expect: .area(.left, index: 1), "标签行：书架之后")
         log.check(dock.dockLayout.left.panels == [DockPanels.bookshelf, DockPanels.pageList], "左区为书架、页面列表两个标签：\(dock.dockLayout.left.panels.map(\.rawValue))")
         log.check(!dock.isOnScreen(.right), "右区空了，收起")
+        log.check(first.dockToggles[.right]?.isEnabled == false && first.dockToggles[.right]?.state == .off, "右区没有面板：工具栏开关不可用")
+        first.dockToggles[.right]?.performClick(nil)
+        log.check(!dock.dockLayout.right.isCollapsed, "不可用的开关点击无效")
         log.check(isShown(DockPanels.pageList, in: .left, of: dock) && dock.dockLayout.currentTab(in: .left) == DockPanels.pageList,
               "放下的标签被选中并显示")
         // 标签页形式的内容区：整个区高亮，放在最后。
@@ -132,6 +136,13 @@ final class DockSelfTest {
         await settle()
         log.check(second.dock.dockLayout.left.isCollapsed && !dock.dockLayout.left.isCollapsed, "两个窗口各有自己的布局：窗口 2 收起左区，窗口 1 不变")
         log.snapshot(secondWindow, "window2")
+        log.check(second.dockToggles[.left]?.state == .off && first.dockToggles[.left]?.state == .on, "工具栏开关的按下态各跟随自己的窗口")
+        second.dockToggles[.left]?.performClick(nil)
+        await settle()
+        log.check(!second.dock.dockLayout.left.isCollapsed && second.dockToggles[.left]?.state == .on && !dock.dockLayout.left.isCollapsed, "点窗口 2 的工具栏开关，只作用于窗口 2")
+        second.dockToggles[.left]?.performClick(nil)
+        await settle()
+        log.check(second.dock.dockLayout.left.isCollapsed && !dock.dockLayout.left.isCollapsed, "再点一次，窗口 1 仍不变")
 
         // 浮动面板跟随活动窗口。App 未激活时没有主窗口通知，直接调用通知处理的同一方法。
         await activate(second)
@@ -197,6 +208,14 @@ final class DockSelfTest {
         log.check(!dock.isOnScreen(.left) && !dock.isOnScreen(.right), "全屏时停靠区隐藏")
         // 折叠的区在边缘各留一条 1 点的分隔线。
         log.check(abs(first.pageView.frame.width - dock.bounds.width) <= 2, "主视图占满宽度：\(first.pageView.frame.width) / \(dock.bounds.width)")
+        let beforeToggle = dock.dockLayout
+        log.check(first.dockToggles[.left]?.isEnabled == true && first.dockToggles[.left]?.state == .on, "全屏自动隐藏时开关可用，按下态不变")
+        first.dockToggles[.left]?.performClick(nil)
+        await settle()
+        log.check(dock.dockLayout == beforeToggle.togglingArea(.left) && first.dockToggles[.left]?.state == .off, "全屏时点开关，结果与菜单命令相同")
+        first.run(.dockLeftToggle)
+        await settle()
+        log.check(dock.dockLayout == beforeToggle && first.dockToggles[.left]?.state == .on, "全屏时菜单命令恢复，按下态同步")
         let mid = dock.convert(NSPoint(x: dock.bounds.midX, y: dock.bounds.midY), to: nil)
         dock.autoHideMouseMoved(to: dock.convert(NSPoint(x: 1, y: dock.bounds.midY), to: nil))
         await settle()
@@ -238,6 +257,42 @@ final class DockSelfTest {
               && coordinator.current.floating.map(\.panel) == [DockPanels.pageList], "最终布局：左区分割 300，底部 222，页面列表浮动：\(describe(coordinator.current))")
     }
 
+    /// 工具栏开关与区头按钮、菜单命令、显示/隐藏面板的命令（⌥⌘1）同步。
+    private func checkDockToggles(_ controller: ReaderWindowController) async {
+        let dock = controller.dock
+        guard let left = controller.dockToggles[.left], let right = controller.dockToggles[.right] else { return log.check(false, "没有工具栏开关") }
+        let items = controller.window?.toolbar?.items.map(\.itemIdentifier.rawValue) ?? []
+        log.check(items.first == "dock.left" && items.last == "dock.right", "左侧开关在最前，右侧开关在最后：\(items)")
+        log.check(left.state == .on && right.state == .on && left.isEnabled && right.isEnabled, "默认布局：两个开关按下且可用")
+        dockHideButton(dock, .left)?.performClick(nil)
+        await settle()
+        log.check(!dock.isOnScreen(.left) && left.state == .off && left.isEnabled, "区头按钮隐藏：开关弹起，仍可用")
+        left.performClick(nil)
+        await settle()
+        log.check(dock.isOnScreen(.left) && left.state == .on, "点工具栏开关：区恢复，开关按下")
+        controller.run(.dockRightToggle)
+        await settle()
+        log.check(!dock.isOnScreen(.right) && right.state == .off, "菜单命令隐藏：开关弹起")
+        controller.run(.dockRightToggle)
+        await settle()
+        log.check(dock.isOnScreen(.right) && right.state == .on, "菜单命令显示：开关按下")
+        let bookshelf = DockPanels.type(DockPanels.bookshelf)!
+        controller.run(bookshelf.toggleCommand)
+        await settle()
+        log.check(left.state == .off && !left.isEnabled, "⌥⌘1 隐藏书架：区里没有可见面板，开关不可用")
+        controller.run(bookshelf.toggleCommand)
+        await settle()
+        log.check(dock.isOnScreen(.left) && left.state == .on && left.isEnabled, "⌥⌘1 显示书架：开关恢复")
+    }
+
+    private func dockHideButton(_ dock: WindowDock, _ edge: DockEdge) -> NSButton? {
+        func find(_ view: NSView) -> NSButton? {
+            if let button = view as? NSButton, button.toolTip == String(localized: "隐藏停靠区") { return button }
+            return view.subviews.lazy.compactMap(find).first
+        }
+        return find(dock.areas[edge]!)
+    }
+
     // MARK: restore
 
     private func runRestore() async {
@@ -256,6 +311,8 @@ final class DockSelfTest {
         log.check(placeholder(first.dock.panels[DockPanels.bookshelf])?.settings.style == .grid, "书架的视图设置恢复为网格")
         log.check(first.dock.isOnScreen(.left) && abs(first.dock.areas[.left]!.frame.width - 300) < 1,
               "左区宽度恢复为 300：\(first.dock.areas[.left]!.frame.width)")
+        log.check(first.dockToggles[.left]?.state == .on && first.dockToggles[.left]?.isEnabled == true, "重启后左侧开关按下")
+        log.check(first.dockToggles[.right]?.state == .off && first.dockToggles[.right]?.isEnabled == false, "重启后右区没有面板，右侧开关不可用")
         log.snapshot(window, "restored")
     }
 
