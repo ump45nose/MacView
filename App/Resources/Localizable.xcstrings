@@ -1598,6 +1598,54 @@
           }
         }
       }
+    },
+    "第 %lld 行，第 %lld 列：%@": {
+      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Line %1$lld, column %2$lld: %3$@"
+          }
+        }
+      }
+    },
+    "缺少字段 %@": {
+      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing field %@"
+          }
+        }
+      }
+    },
+    "缺少 value 字段": {
+      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing “value” field"
+          }
+        }
+      }
+    },
+    "文档版本 %lld 高于支持的版本 %lld": {
+      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Document version %1$lld is newer than the supported version %2$lld"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

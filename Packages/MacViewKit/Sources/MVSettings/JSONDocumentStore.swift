@@ -169,10 +169,10 @@ public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
             let object = try JSONSerialization.jsonObject(with: data)
             let header = try JSONDecoder().decode(DocumentHeader.self, from: data)
             guard header.version <= version else {
-                throw DocumentError(message: "文档版本 \(header.version) 高于支持的版本 \(version)", key: "version")
+                throw DocumentError(message: String(localized: "文档版本 \(header.version) 高于支持的版本 \(version)", bundle: .main), key: "version")
             }
             guard let dictionary = object as? [String: Any], let rawValue = dictionary["value"] else {
-                throw DocumentError(message: "缺少 value 字段", key: "value")
+                throw DocumentError(message: String(localized: "缺少 value 字段", bundle: .main), key: "value")
             }
             let valueData = try JSONSerialization.data(withJSONObject: rawValue, options: [.fragmentsAllowed])
             let (value, warning) = try valueDecoder(valueData)
@@ -198,7 +198,7 @@ public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
         switch error {
         case let DecodingError.keyNotFound(codingKey, context):
             key = context.codingPath.last?.stringValue ?? "value"
-            detail = "缺少字段 \(codingKey.stringValue)"
+            detail = String(localized: "缺少字段 \(codingKey.stringValue)", bundle: .main)
         case let DecodingError.typeMismatch(_, context), let DecodingError.valueNotFound(_, context),
              let DecodingError.dataCorrupted(context):
             key = context.codingPath.last?.stringValue ?? "value"
@@ -208,8 +208,9 @@ public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
         // JSONSerialization 的语法错误一般直接带 line/column。
         if let expression = try? NSRegularExpression(pattern: #"line (\d+), column (\d+)"#),
            let match = expression.firstMatch(in: detail, range: NSRange(detail.startIndex..., in: detail)),
-           let line = Range(match.range(at: 1), in: detail), let column = Range(match.range(at: 2), in: detail) {
-            return "第 \(detail[line]) 行，第 \(detail[column]) 列：\(detail)"
+           let lineRange = Range(match.range(at: 1), in: detail), let line = Int(detail[lineRange]),
+           let columnRange = Range(match.range(at: 2), in: detail), let column = Int(detail[columnRange]) {
+            return located(line: line, column: column, detail: detail)
         }
         let offset: String.Index
         if let key, let range = text.range(of: "\"\(key)\"") { offset = range.lowerBound }
@@ -219,6 +220,11 @@ public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
         let prefix = text[..<offset]
         let line = prefix.filter { $0 == "\n" }.count + 1
         let column = prefix.reversed().prefix(while: { $0 != "\n" }).count + 1
-        return "第 \(line) 行，第 \(column) 列：\(detail)"
+        return located(line: line, column: column, detail: detail)
+    }
+
+    /// 文字以中文为键，翻译在 App 的 String Catalog。
+    private static func located(line: Int, column: Int, detail: String) -> String {
+        String(localized: "第 \(line) 行，第 \(column) 列：\(detail)", bundle: .main)
     }
 }
