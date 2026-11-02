@@ -184,6 +184,39 @@ import Testing
     environment.pipeline.cancelAll(session: second)
 }
 
+@Test func memoryPressureCancelsOnlyBackgroundPrefetchAcrossSessions() async throws {
+    let environment = try PipelineEnvironment(browse: false)
+    defer { environment.clean() }
+    let background = try await environment.largeIdentity()
+    let sharedURL = environment.root.appending(path: "shared.jpg")
+    try FileManager.default.copyItem(at: environment.root.appending(path: "large.jpg"), to: sharedURL)
+    let sharedLocation = try await environment.registry.location(for: sharedURL)
+    let shared = try await environment.registry.provider(for: sharedLocation).entry(at: sharedLocation).identity
+    let gate = ReadGate()
+    environment.registry.control.gate = gate
+    let first = SessionID(), second = SessionID()
+    environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [
+        PrefetchItem(identity: background, renditions: [], priority: .background),
+        PrefetchItem(identity: shared, renditions: [], priority: .background),
+    ]), session: first)
+    try await eventually { environment.registry.control.reads.count == 2 }
+    environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [PrefetchItem(identity: shared, renditions: [], priority: .near)]), session: second)
+    let foreground = Task { try await environment.pipeline.metadata(for: shared, priority: .visible) }
+    try await Task.sleep(for: .milliseconds(20))
+    environment.pipeline.cancelBackgroundPrefetch()
+    try await Task.sleep(for: .milliseconds(20))
+    await gate.release()
+    #expect(try await foreground.value.pixelSize == PixelSize(width: 3600, height: 5400))
+    try await eventually { environment.caches.raw.value(for: shared.cacheKey)?.count == Int(shared.size) }
+    #expect(environment.caches.raw.value(for: background.cacheKey) == nil)
+    // 被移除的项可由后续新计划重新加入；原来的 near 消费者仍完整交付。
+    environment.registry.control.gate = nil
+    environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [PrefetchItem(identity: background, renditions: [], priority: .book)]), session: first)
+    try await eventually { environment.caches.raw.value(for: background.cacheKey)?.count == Int(background.size) }
+    environment.pipeline.cancelAll(session: first)
+    environment.pipeline.cancelAll(session: second)
+}
+
 @Test func rawAndRenditionPrefetchForTheSameIdentityBothTakeEffect() async throws {
     let environment = try PipelineEnvironment()
     defer { environment.clean() }
@@ -277,7 +310,7 @@ private final class PipelineEnvironment: Sendable {
     let caches: PipelineCaches
     let pipeline: FileImagePipeline
     init(browse: Bool = true) throws {
-        root = Fixtures.root.deletingLastPathComponent().appendingPathComponent("build/stage3-work/pipeline-tests/\(UUID().uuidString)", isDirectory: true)
+        root = Fixtures.root.deletingLastPathComponent().appendingPathComponent("build/stage4-work/pipeline-tests/\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         registry = CountingRegistry(base: FileSourceRegistry(scheduler: IOScheduler(configuration: IOConfiguration(helperExecutable: nil))))
         let index = try CacheIndex(databaseURL: root.appendingPathComponent("index.sqlite"))

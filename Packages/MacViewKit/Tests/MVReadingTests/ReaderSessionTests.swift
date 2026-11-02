@@ -76,6 +76,20 @@ import Testing
         #expect(await store.bookMemory(for: tree.location("A"))?.settings.pageMode == nil)
     }
 
+    @Test("flush 不等去抖就保存最新页和书设置，并取消旧的待保存快照")
+    func flushesLatestMemory() async throws {
+        let (session, store, _) = setup()
+        await session.open(tree.location("A"), at: nil)
+        session.go(.index(49))
+        session.update { $0.pageMode = .double }
+        await session.flush()
+        #expect(await store.bookMemory(for: tree.location("A"))?.lastPageIndex == 49)
+        #expect(await store.bookMemory(for: tree.location("A"))?.settings.pageMode == .double)
+        session.go(.index(60))
+        await session.flush()
+        #expect(await store.bookMemory(for: tree.location("A"))?.lastPageIndex == 60)
+    }
+
     @Test("元数据和第二次 sorted 改变页帧后仍按页身份保持位置")
     func anchorsDuringEvents() async {
         let book = tree.location("A"), original = pages(in: tree.location("A"), count: 6)
