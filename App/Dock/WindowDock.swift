@@ -21,7 +21,9 @@ final class WindowDock: NSView, NSSplitViewDelegate {
     /// 所在的阅读窗口，由协调者在窗口就绪时设置。
     weak var owner: ReaderWindowController?
     /// 本窗口的停靠区；`floating` 总是空的，浮动面板以 `DockCoordinator.current` 为准。
-    private(set) var dockLayout = DockPanels.defaultLayout
+    private(set) var dockLayout = DockPanels.defaultLayout { didSet { onLayoutChange?() } }
+    /// 窗口控制器用它同步工具栏的停靠区开关。
+    var onLayoutChange: (() -> Void)?
     private(set) var panels: [PanelID: any DockPanel] = [:]
     private(set) var areas: [DockEdge: DockAreaView] = [:]
     private let mainView: NSView

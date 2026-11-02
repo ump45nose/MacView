@@ -1,6 +1,7 @@
 import AppKit
 import MVCommands
 import MVFoundation
+import MVLayout
 import MVReading
 import MVServices
 import MVSettings
@@ -16,6 +17,20 @@ final class ReaderWindow: NSWindow {
         if router?.handle(event, in: self) != true {
             super.keyDown(with: event)
         }
+    }
+}
+
+/// 工具栏的停靠区开关：尺寸和按下态的底色按设计稿，系统按钮的强调色底不受令牌控制，所以自绘。
+@MainActor
+private final class DockToggleButton: NSButton {
+    override var intrinsicContentSize: NSSize { NSSize(width: 30, height: 28) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        if state == .on {
+            Theme.selected.setFill()
+            NSBezierPath(roundedRect: bounds, xRadius: 7, yRadius: 7).fill()
+        }
+        super.draw(dirtyRect)
     }
 }
 
@@ -39,6 +54,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private var openTask: Task<Void, Never>?
     private let bookTitle = NSTextField(labelWithString: "")
     private let bookPath = NSTextField(labelWithString: "")
+    /// 工具栏的停靠区开关，按下态跟随本窗口的布局。
+    private(set) var dockToggles: [DockEdge: NSButton] = [:]
     private let logger = Logger(category: "window")
     /// 打开时有多个 URL，除第一个外的交给调用方（另开标签页）。
     var onOpenExtra: (([URL]) -> Void)?
@@ -84,6 +101,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         }
         window.delegate = self
 
+        for entry in Self.dockToggleItems.values { dockToggles[entry.edge] = makeDockToggle(entry) }
+        dock.onLayoutChange = { [weak self] in self?.updateDockToggles() }
         let toolbar = NSToolbar(identifier: "MacView.reader")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
@@ -251,8 +270,15 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         .init("book.next"): (.bookNext, "chevron.right"),
     ]
 
+    private typealias DockToggleItem = (edge: DockEdge, command: CommandID, symbol: String)
+
+    private static let dockToggleItems: [NSToolbarItem.Identifier: DockToggleItem] = [
+        .init("dock.left"): (.left, .dockLeftToggle, "sidebar.left"),
+        .init("dock.right"): (.right, .dockRightToggle, "sidebar.right"),
+    ]
+
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.init("book.previous"), .init("book.next"), Self.toolbarTitle]
+        [.init("dock.left"), .init("book.previous"), .init("book.next"), Self.toolbarTitle, .flexibleSpace, .init("dock.right")]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -261,6 +287,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if identifier == Self.toolbarTitle { return makeTitleItem() }
+        if let entry = Self.dockToggleItems[identifier] { return makeDockToggleItem(identifier, entry) }
         guard let entry = Self.toolbarCommands[identifier] else { return nil }
         let title = catalog.title(of: entry.command)
         let item = NSToolbarItem(itemIdentifier: identifier)
@@ -272,6 +299,44 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         item.target = self
         item.action = #selector(toolbarCommand(_:))
         return item
+    }
+
+    private func makeDockToggle(_ entry: DockToggleItem) -> NSButton {
+        let title = catalog.title(of: entry.command)
+        let button = DockToggleButton(
+            image: NSImage(systemSymbolName: entry.symbol, accessibilityDescription: title) ?? NSImage(),
+            target: self, action: #selector(dockToggleClicked(_:))
+        )
+        button.setButtonType(.pushOnPushOff)
+        button.isBordered = false
+        button.contentTintColor = Theme.text
+        button.toolTip = title
+        return button
+    }
+
+    private func makeDockToggleItem(_ identifier: NSToolbarItem.Identifier, _ entry: DockToggleItem) -> NSToolbarItem {
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        item.label = catalog.title(of: entry.command)
+        item.view = dockToggles[entry.edge]
+        item.isBordered = false
+        item.autovalidates = false
+        // 导航项排在工具栏最前，左侧开关要在它们之前。
+        item.isNavigational = entry.edge == .left
+        return item
+    }
+
+    private func updateDockToggles() {
+        for (edge, button) in dockToggles {
+            button.state = dock.dockLayout.isShowing(edge) ? .on : .off
+            button.isEnabled = !dock.dockLayout.visiblePanels(in: edge).isEmpty
+        }
+    }
+
+    @objc private func dockToggleClicked(_ sender: NSButton) {
+        guard let entry = Self.dockToggleItems.values.first(where: { dockToggles[$0.edge] === sender }) else { return }
+        run(entry.command)
+        // 命令没有改变布局时，按钮自己翻转的状态要改回来。
+        updateDockToggles()
     }
 
     /// 书名（衬线 17/500）和它所在的路径。

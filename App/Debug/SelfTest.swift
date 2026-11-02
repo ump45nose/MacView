@@ -64,7 +64,7 @@ final class SelfTest {
         }
         target = window
         log.check(text(in: first.content.statusBar).contains(String(localized: "Mock 服务")), "显式 Mock 服务在窗口上标明")
-        log.check(window.toolbar?.items.map(\.itemIdentifier.rawValue) == ["book.previous", "book.next", "book.title"], "工具栏有上一本、下一本按钮和书名")
+        log.check(window.toolbar?.items.map(\.itemIdentifier.rawValue) == ["dock.left", "book.previous", "book.next", "book.title", "NSToolbarFlexibleSpaceItem", "dock.right"], "工具栏有停靠区开关、上一本、下一本按钮和书名")
         print("INFO 按键分派：\(NSApp.isActive ? "NSApp.sendEvent" : "App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派")")
         await settle()
         let frameNextItem = NSApp.mainMenu?.items.compactMap(\.submenu).flatMap(\.items).first { $0.title == app.catalog.title(of: .frameNext) }
