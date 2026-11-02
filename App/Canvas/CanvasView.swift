@@ -69,11 +69,6 @@ final class CanvasView: NSScrollView {
         set { if newValue != loader.source { reloadImages(pipeline: loader.pipeline, source: newValue) } }
     }
 
-    var contentsPerFrame: Int {
-        get { loader.contentsPerFrame }
-        set { loader.contentsPerFrame = newValue }
-    }
-
     private(set) var items: [CanvasItem] = []
     private(set) var selection: Set<Int> = []
     private(set) var visibleRange = CanvasVisibleRange(visible: 0..<0, margin: 0..<0)
@@ -202,6 +197,11 @@ final class CanvasView: NSScrollView {
 
     private func configurationChanged() {
         configureScrollers()
+        relayoutKeepingLeading()
+    }
+
+    /// 按当前视口和配置重排，保持可见区前沿的项；连续的重排共用最初的锚点。
+    private func relayoutKeepingLeading() {
         let anchor = stickyAnchor ?? layout.leadingAnchor(in: viewport)
         stickyAnchor = anchor
         relayout(geometry: true, anchor: anchor)
@@ -261,9 +261,7 @@ final class CanvasView: NSScrollView {
     @objc private func clipChanged(_ notification: Notification) {
         guard !isRelayingOut else { return }
         if contentView.bounds.size != layout.viewportSize {
-            let anchor = stickyAnchor ?? layout.leadingAnchor(in: viewport)
-            stickyAnchor = anchor
-            relayout(geometry: true, anchor: anchor)
+            relayoutKeepingLeading()
         } else if contentView.bounds.origin != viewport.origin {
             stickyAnchor = nil
             updateVisible(scrolled: true)
@@ -415,8 +413,7 @@ final class CanvasView: NSScrollView {
         for (index, tile) in tiles {
             request(index, frame: tile.layer.frame, priority: tile.layer.frame.intersects(viewport) ? .visible : .near)
         }
-        let milliseconds = Double(latency.components.seconds) * 1000 + Double(latency.components.attoseconds) * 1e-15
-        signposter.emitEvent("settled", "visible \(visibleCount) latency \(milliseconds, format: .fixed(precision: 3)) ms")
+        signposter.emitEvent("settled", "visible \(visibleCount) latency \(latency.milliseconds, format: .fixed(precision: 3)) ms")
         onMeasure?(.settled(latency: latency, visible: visibleCount))
         if visibleRange != reportedRange {
             reportedRange = visibleRange
@@ -517,6 +514,12 @@ final class CanvasView: NSScrollView {
         }
         var rect = NSRect(x: 0, y: 0, width: symbol.size.width * 2, height: symbol.size.height * 2)
         return symbol.cgImage(forProposedRect: &rect, context: nil, hints: nil)
+    }
+}
+
+extension Duration {
+    var milliseconds: Double {
+        Double(components.seconds) * 1000 + Double(components.attoseconds) * 1e-15
     }
 }
 

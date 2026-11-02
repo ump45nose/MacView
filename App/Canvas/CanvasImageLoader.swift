@@ -47,7 +47,7 @@ final class CanvasImageLoader: NSObject {
     private(set) var pipeline: any ImagePipeline
     private(set) var source: CanvasImageSource
     /// 每帧最多设置的图层内容数，超出的排到下一帧。
-    var contentsPerFrame = 8
+    private static let contentsPerFrame = 8
     /// 有图可以显示时调用；返回是否真的设置了图层内容（项不在画布上时返回 false，不占限额）。
     var onReady: ((ContentIdentity, CanvasImage) -> Bool)?
     var onFailure: ((ContentIdentity) -> Void)?
@@ -174,7 +174,7 @@ final class CanvasImageLoader: NSObject {
     }
 
     @objc private func applyPending(_ link: CADisplayLink) {
-        var budget = contentsPerFrame
+        var budget = Self.contentsPerFrame
         var consumed = 0
         CATransaction.begin()
         CATransaction.setDisableActions(true)

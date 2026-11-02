@@ -20,6 +20,7 @@ extension AppDelegate {
         }
 
         let noModal: @MainActor (CommandContext) -> Bool = { _ in NSApp.modalWindow == nil }
+        let hasWindow: @MainActor (CommandContext) -> Bool = { [weak self] context in self?.controller(for: context.session) != nil }
         register(.windowNew, isEnabled: noModal) { [weak self] _ in self?.newWindow() }
         register(.windowNewTab, isEnabled: noModal) { [weak self] context in
             guard let self else { return }
@@ -28,7 +29,7 @@ extension AppDelegate {
         register(.windowClose, isEnabled: { _ in NSApp.keyWindow != nil }) { _ in
             NSApp.keyWindow?.performClose(nil)
         }
-        register(.fullScreenToggle, isEnabled: { [weak self] context in self?.controller(for: context.session) != nil }) { [weak self] context in
+        register(.fullScreenToggle, isEnabled: hasWindow) { [weak self] context in
             self?.controller(for: context.session)?.window?.toggleFullScreen(nil)
         }
         register(.fileOpen, isEnabled: noModal) { [weak self] context in
@@ -59,17 +60,14 @@ extension AppDelegate {
         }
 
         // 停靠区与面板：作用于命令所在的窗口；浮动面板全应用切换。
-        let hasWindow: @MainActor (CommandContext) -> Bool = { [weak self] context in self?.controller(for: context.session) != nil }
-        let areas: [(CommandID, DockEdge)] = [(.dockLeftToggle, .left), (.dockRightToggle, .right), (.dockBottomToggle, .bottom)]
-        for (id, edge) in areas {
+        let areas: [(CommandID, (DockLayout) -> DockLayout)] = [
+            (.dockLeftToggle, { $0.togglingArea(.left) }), (.dockRightToggle, { $0.togglingArea(.right) }),
+            (.dockBottomToggle, { $0.togglingArea(.bottom) }), (.docksToggle, { $0.togglingAllAreas() }),
+        ]
+        for (id, transform) in areas {
             register(id, isEnabled: hasWindow) { [weak self] context in
-                guard let self, let controller = controller(for: context.session) else { return }
-                dock?.toggleArea(edge, in: controller.dock)
+                self?.controller(for: context.session)?.dock.perform(transform)
             }
-        }
-        register(.docksToggle, isEnabled: hasWindow) { [weak self] context in
-            guard let self, let controller = controller(for: context.session) else { return }
-            dock?.toggleAllAreas(in: controller.dock)
         }
         for type in DockPanels.all {
             register(type.toggleCommand, isEnabled: hasWindow) { [weak self] context in

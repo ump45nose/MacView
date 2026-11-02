@@ -41,7 +41,8 @@ struct DockPanelType {
     let toggleCommand: CommandID
     /// 面板不在布局中、又被要求显示时放进的区。
     let defaultEdge: DockEdge
-    private let make: @MainActor (JSONValue?) -> (panel: any DockPanel, error: (any Error)?)
+    /// 按 layout.json 中的视图设置创建面板；设置无法解码时用默认设置创建，并返回错误。
+    let instantiate: @MainActor (JSONValue?) -> (panel: any DockPanel, error: (any Error)?)
 
     init<Panel: DockPanel>(
         id: PanelID, title: String, symbol: String, toggleCommand: CommandID, defaultEdge: DockEdge,
@@ -52,7 +53,7 @@ struct DockPanelType {
         self.symbol = symbol
         self.toggleCommand = toggleCommand
         self.defaultEdge = defaultEdge
-        self.make = { json in
+        instantiate = { json in
             guard let json else { return (make(nil), nil) }
             do {
                 let settings = try JSONDecoder().decode(Panel.Settings.self, from: JSONEncoder().encode(json))
@@ -61,11 +62,6 @@ struct DockPanelType {
                 return (make(nil), error)
             }
         }
-    }
-
-    /// 按 layout.json 中的视图设置创建面板；设置无法解码时用默认设置创建，并返回错误。
-    func instantiate(settings: JSONValue?) -> (panel: any DockPanel, error: (any Error)?) {
-        make(settings)
     }
 }
 

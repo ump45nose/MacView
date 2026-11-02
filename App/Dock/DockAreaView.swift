@@ -18,26 +18,23 @@ final class DockSplitView: NSSplitView {
 /// 一个停靠区的面板栈：标签页形式是一行标签加当前面板；上下分割时每个面板一格，各有标题。
 ///
 /// 标签页行（或分割的第一格标题）右侧是两个按钮：标签页与上下分割互换、隐藏停靠区。
-/// 面板视图由 WindowDock 持有，这里只摆放；同一视图移到别处时 AppKit 会把它从这里摘下。
+/// 面板视图由 WindowDock 持有，这里按它的布局摆放；同一视图移到别处时 AppKit 会把它从这里摘下。
 @MainActor
 final class DockAreaView: NSView, NSSplitViewDelegate {
     static let headerHeight: CGFloat = 30
-    static let partHeaderHeight: CGFloat = 26
 
-    struct Item {
+    private struct Item {
         var type: DockPanelType
         var view: NSView
     }
 
     let edge: DockEdge
-    weak var dock: WindowDock?
-    private(set) var style: DockStackStyle = .tabs
-    private(set) var items: [Item] = []
-    private(set) var current: PanelID?
-    private var weights: [PanelID: Double] = [:]
+    private unowned let dock: WindowDock
+    /// 可见的面板，按显示顺序。
+    private var items: [Item] = []
     private var tabs: [PanelID: DockTabView] = [:]
     private let split = DockSplitView()
-    private var parts: [DockPartView] = []
+    private var parts: [PanelFrameView] = []
     private let controls = NSStackView()
     private let styleButton: NSButton
     private let hideButton: NSButton
@@ -46,8 +43,9 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
     /// 程序设置分隔线位置时，通知里也带分隔线序号，不能当作用户拖动。
     private var isApplyingWeights = false
 
-    init(edge: DockEdge) {
+    init(edge: DockEdge, dock: WindowDock) {
         self.edge = edge
+        self.dock = dock
         styleButton = Self.button(symbol: "rectangle.split.1x2")
         let hideSymbol = switch edge {
         case .left: "sidebar.left"
@@ -56,6 +54,7 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         }
         hideButton = Self.button(symbol: hideSymbol)
         hideButton.toolTip = String(localized: "隐藏停靠区")
+        hideButton.setAccessibilityLabel(hideButton.toolTip)
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(headerLine)
@@ -66,12 +65,19 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         controls.orientation = .horizontal
         controls.spacing = 2
         controls.setViews([styleButton, hideButton], in: .trailing)
+        controls.frame.size = CGSize(width: 48, height: 22)
         styleButton.target = self
         styleButton.action = #selector(toggleStyle(_:))
         hideButton.target = self
         hideButton.action = #selector(hide(_:))
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
+        let name = switch edge {
+        case .left: String(localized: "左侧停靠区")
+        case .right: String(localized: "右侧停靠区")
+        case .bottom: String(localized: "底部停靠区")
+        }
+        setAccessibilityLabel(name)
     }
 
     @available(*, unavailable)
@@ -103,12 +109,16 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         tabs[panel]
     }
 
-    /// 摆放可见的面板。`current` 是标签页形式下显示的面板。
-    func render(_ items: [Item], style: DockStackStyle, current: PanelID?, weights: [PanelID: Double]) {
-        self.items = items
-        self.style = style
-        self.current = current
-        self.weights = weights
+    private var area: DockArea { dock.dockLayout[edge] }
+    /// 标签页形式下显示的面板。
+    private var current: PanelID? { dock.dockLayout.currentTab(in: edge) }
+
+    /// 按布局摆放可见的面板。
+    func render() {
+        items = dock.dockLayout.visiblePanels(in: edge).compactMap { id in
+            DockPanels.type(id).flatMap { type in dock.panels[id].map { Item(type: type, view: $0.view) } }
+        }
+        let style = area.style
         let ids = Set(items.map(\.type.id))
         tabs = tabs.filter { ids.contains($0.key) }
         for item in items where tabs[item.type.id] == nil {
@@ -118,8 +128,6 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         styleButton.toolTip = label
         styleButton.setAccessibilityLabel(label)
         styleButton.image = NSImage(systemSymbolName: style == .tabs ? "rectangle.split.1x2" : "rectangle.stack", accessibilityDescription: label)
-        hideButton.setAccessibilityLabel(hideButton.toolTip)
-        setAccessibilityLabel(Self.name(of: edge))
 
         subviews.forEach { $0.removeFromSuperview() }
         split.subviews.forEach { $0.removeFromSuperview() }
@@ -144,7 +152,7 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
             for (index, item) in items.enumerated() {
                 let tab = tabs[item.type.id]!
                 tab.isSelected = false
-                let part = DockPartView(tab: tab, content: item.view, controls: index == 0 ? controls : nil)
+                let part = PanelFrameView(tab: tab, content: item.view, accessory: index == 0 ? controls : nil, isFloating: false)
                 parts.append(part)
                 split.addSubview(part)
             }
@@ -156,18 +164,24 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
     private func makeTab(_ type: DockPanelType) -> DockTabView {
         let tab = DockTabView(type: type)
         let panel = type.id
-        tab.onSelect = { [weak self] in self?.dock?.select(panel) }
-        tab.onDragBegan = { [weak self] in self?.dock?.beginDrag(panel) }
-        tab.onDragEnded = { [weak self] point, accepted, cancelled in
-            self?.dock?.endDrag(panel, at: point, accepted: accepted, cancelled: cancelled)
+        tab.onSelect = { [weak self] in self?.dock.perform { $0.selecting(panel) } }
+        tab.onDragBegan = { [weak self] in
+            guard let dock = self?.dock else { return }
+            dock.coordinator.beginDrag(panel, from: dock)
         }
-        tab.contextMenu = { [weak self] in self?.dock?.menu(for: panel) }
+        tab.onDragEnded = { [weak self] point, accepted, cancelled in
+            self?.dock.coordinator.endDrag(panel, at: point, accepted: accepted, cancelled: cancelled)
+        }
+        tab.contextMenu = { [weak self] in
+            guard let dock = self?.dock else { return nil }
+            return dock.coordinator.menu(for: panel, in: dock)
+        }
         return tab
     }
 
     override func layout() {
         super.layout()
-        switch style {
+        switch area.style {
         case .tabs:
             let height = Self.headerHeight
             controls.frame = CGRect(x: bounds.width - 52, y: (height - 22) / 2, width: 48, height: 22)
@@ -204,7 +218,7 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         defer { isApplyingWeights = false }
         guard parts.count > 1 else { return }
         split.adjustSubviews()
-        let values = items.map { weights[$0.type.id] ?? 1 }
+        let values = items.map { area.weights[$0.type.id] ?? 1 }
         let sum = values.reduce(0, +)
         let available = split.bounds.height - split.dividerThickness * CGFloat(parts.count - 1)
         var position: CGFloat = 0
@@ -220,7 +234,7 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
     /// 放到区内某一点时的位置（可见面板中的序号）与指示：标签行上是标签之间的竖线，
     /// 标签页形式的内容区是整个区（放在最后），上下分割时是格与格之间的横线。
     func dropTarget(at point: NSPoint) -> (index: Int, indicator: NSRect, isZone: Bool) {
-        switch style {
+        switch area.style {
         case .tabs:
             guard point.y < Self.headerHeight else { return (items.count, bounds, true) }
             let frames = items.map { tabs[$0.type.id]!.frame }
@@ -235,32 +249,24 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         }
     }
 
-    static func name(of edge: DockEdge) -> String {
-        switch edge {
-        case .left: String(localized: "左侧停靠区")
-        case .right: String(localized: "右侧停靠区")
-        case .bottom: String(localized: "底部停靠区")
-        }
-    }
-
     // MARK: 动作
 
     @objc private func toggleStyle(_ sender: Any?) {
-        dock?.toggleStyle(edge)
+        dock.perform { $0.togglingStyle(edge) }
     }
 
     @objc private func hide(_ sender: Any?) {
-        dock?.toggleArea(edge)
+        dock.perform { $0.togglingArea(edge) }
     }
 
     // MARK: NSSplitViewDelegate
 
     func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
-        splitView.subviews[dividerIndex].frame.minY + Self.partHeaderHeight + 40
+        splitView.subviews[dividerIndex].frame.minY + PanelFrameView.splitHeaderHeight + 40
     }
 
     func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
-        splitView.subviews[dividerIndex + 1].frame.maxY - Self.partHeaderHeight - 40 - splitView.dividerThickness
+        splitView.subviews[dividerIndex + 1].frame.maxY - PanelFrameView.splitHeaderHeight - 40 - splitView.dividerThickness
     }
 
     func splitViewDidResizeSubviews(_ notification: Notification) {
@@ -270,29 +276,37 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         for (item, part) in zip(items, parts) {
             values[item.type.id] = Double(part.frame.height)
         }
-        weights.merge(values) { _, new in new }
-        dock?.reweight(edge, values)
+        dock.perform(render: false) { $0.reweighting(edge, values) }
     }
 }
 
-/// 上下分割中的一格：标题（可拖动的标签）加面板内容；第一格的标题右侧放停靠区的按钮。
+/// 带标题条的面板：标题条上是可拖动的标签，右端可以放按钮，下方是面板内容。
+///
+/// 上下分割的每一格（标签靠左，第一格的右端是停靠区的按钮）和浮动面板（标签居中，右端是“停靠”按钮）都用它。
 @MainActor
-private final class DockPartView: NSView {
+final class PanelFrameView: NSView {
+    static let splitHeaderHeight: CGFloat = 26
+    static let floatingHeaderHeight: CGFloat = 30
+
     private let tab: DockTabView
     private let content: NSView
-    private let controls: NSView?
+    /// 按自己的 frame 宽度靠右摆放。
+    private let accessory: NSView?
+    private let isFloating: Bool
     private let line = CALayer()
 
-    init(tab: DockTabView, content: NSView, controls: NSView?) {
+    init(tab: DockTabView, content: NSView, accessory: NSView?, isFloating: Bool) {
         self.tab = tab
         self.content = content
-        self.controls = controls
+        self.accessory = accessory
+        self.isFloating = isFloating
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(line)
         addSubview(tab)
+        content.autoresizingMask = [.width, .height]
         addSubview(content)
-        if let controls { addSubview(controls) }
+        if let accessory { addSubview(accessory) }
     }
 
     @available(*, unavailable)
@@ -302,6 +316,7 @@ private final class DockPartView: NSView {
 
     override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
+    override var mouseDownCanMoveWindow: Bool { true }
 
     override func updateLayer() {
         layer?.backgroundColor = Theme.ground.cgColor
@@ -310,9 +325,19 @@ private final class DockPartView: NSView {
 
     override func layout() {
         super.layout()
-        let height = DockAreaView.partHeaderHeight
-        tab.frame = CGRect(x: 6, y: 2, width: min(tab.fittingWidth, bounds.width - 64), height: 22)
-        controls?.frame = CGRect(x: bounds.width - 52, y: 2, width: 48, height: 22)
+        let height = isFloating ? Self.floatingHeaderHeight : Self.splitHeaderHeight
+        let y = (height - 22) / 2
+        if isFloating {
+            // 左侧是窗口的关闭按钮，标签居中。
+            let width = min(tab.fittingWidth, bounds.width - 60)
+            tab.frame = CGRect(x: (bounds.width - width) / 2, y: y, width: width, height: 22)
+        } else {
+            tab.frame = CGRect(x: 6, y: y, width: min(tab.fittingWidth, bounds.width - 64), height: 22)
+        }
+        if let accessory {
+            let width = accessory.frame.width
+            accessory.frame = CGRect(x: bounds.width - width - (isFloating ? 8 : 4), y: y, width: width, height: 22)
+        }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         line.frame = CGRect(x: 0, y: height - 0.5, width: bounds.width, height: 0.5)
