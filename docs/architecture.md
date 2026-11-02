@@ -442,6 +442,7 @@ public struct PipelineConfiguration: Sendable {
 }
 public final class FileImagePipeline: ImagePipeline {
     public init(sources: any SourceRegistry, decoder: ImageDecoder, caches: PipelineCaches, configuration: PipelineConfiguration)
+    public func cancelBackgroundPrefetch()   // 只取消 background 预取，不影响其他优先级的消费者
 }
 
 // MVSettings
@@ -552,19 +553,27 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async   // sort 是书架面板当前的排序，与书内页面的排序无关
     public func update(_ change: (inout BookSettings) -> Void)   // 写入书层，去抖后持久化
     public func visibleRangeChanged(_ pages: Range<Int>)        // 连续和瀑布模式由前端回报
+    public func flush() async   // 立即把最新书记忆快照写入 SettingsStore；数据库落盘由组合根负责
 }
 // 分页模式预读阅读方向上的原始字节，以及全书缩略图和元数据；本阶段不按视口尺寸预解码。
 
 // MVServices
-public struct CoreConfiguration: Sendable { public var supportDirectory: URL; public var cacheDirectory: URL }
+public struct CoreConfiguration: Sendable {
+    public var supportDirectory: URL; public var cacheDirectory: URL
+    public var browseBounds: PixelSize; public var helperExecutable: URL?
+    public init(supportDirectory: URL, cacheDirectory: URL, browseBounds: PixelSize, helperExecutable: URL? = nil)
+}   // browseBounds 由 App 提供显示器像素尺寸；helperExecutable 为辅助进程可执行文件
 @MainActor public final class CoreServices {
-    public static func make(configuration: CoreConfiguration) async throws -> CoreServices   // S1-T8 实现
-    public init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader)   // BookLoader 私有持有，供 makeSession() 使用
+    public static func make(configuration: CoreConfiguration) async throws -> CoreServices
+    public convenience init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader)   // Mock 等消费方的构造入口
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
-    public let commands: CommandRegistry; public let bookshelf: any Bookshelf
-    public func makeSession() -> ReaderSession
-    public func shutdown() async   // 有时限地等待，不等被卡住的 I/O 线程
+    public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?   // Mock 为 nil
+    public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
+    public func shutdown() async   // 会话 flush 并取消预取 → 设置 flush → 缓存索引 flush → 调度器 shutdown；超时取消后续落盘并弃用辅助进程
 }
+// make 创建空 CommandRegistry，命令处理器由 App 登记。组合根统一订阅内存压力和全局设置变化：
+// warning/critical 将 L0/L1 收缩至预算的 50%/25% 并取消 background 预取；设置变化更新 L0–L3 预算，L3 开关下次启动生效。
+// 当前退出后独立衍生件任务仍可能写缓存，立即重建存在竞争；启动时 extract 仍同步扫描，验收待修复，见 S1-T8 报告。
 // MVTestSupport：extension CoreServices { static func makeMock(_ options: MockOptions = MockOptions()) -> CoreServices }
 
 // MVLayout：App 侧的纯计算，不依赖 AppKit
