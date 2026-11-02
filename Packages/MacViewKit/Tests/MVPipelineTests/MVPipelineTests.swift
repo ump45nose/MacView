@@ -1,6 +1,6 @@
 import AVFoundation
 import Foundation
-import MVCache
+@testable import MVCache
 import MVFoundation
 import MVIO
 import MVMedia
@@ -287,6 +287,103 @@ import Testing
     }
 }
 
+@Test func shutdownRejectsCachedRequestsAndManagedMediaSources() async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let identity = try await environment.identity("image/size/64x64.png")
+    let animation = try await environment.identity("animated/loop.gif")
+    let videoFixture = try #require(Fixtures.manifest().fixtures.first { $0.video != nil })
+    let video = try await environment.identity(videoFixture.path)
+    let target = DisplayTarget(pixelSize: PixelSize(width: 16, height: 16))
+    _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 16, priority: .visible)
+    _ = try await collect(environment.pipeline.image(for: identity, target: target, allowOriginal: false, priority: .visible))
+    let tiles = try await environment.pipeline.tiledSource(for: identity)
+    let frames = try await environment.pipeline.animatedFrames(for: animation, target: target)
+    await environment.pipeline.shutdown()
+    await environment.pipeline.shutdown()
+    environment.registry.control.reset()
+    await #expect(throws: CancellationError.self) { try await environment.pipeline.metadata(for: identity, priority: .visible) }
+    await #expect(throws: CancellationError.self) { try await environment.pipeline.thumbnail(for: identity, maxPixel: 16, priority: .visible) }
+    await #expect(throws: CancellationError.self) { try await collect(environment.pipeline.image(for: identity, target: target, allowOriginal: false, priority: .visible)) }
+    await #expect(throws: CancellationError.self) { try await environment.pipeline.tiledSource(for: identity) }
+    await #expect(throws: CancellationError.self) { try await environment.pipeline.animatedFrames(for: animation, target: target) }
+    await #expect(throws: CancellationError.self) { try await environment.pipeline.videoPoster(for: video, maxPixel: 16) }
+    await #expect(throws: CancellationError.self) { try await tiles.tile(CGRect(x: 0, y: 0, width: 16, height: 16), scale: 1) }
+    await #expect(throws: CancellationError.self) { try await frames.frame(at: 0) }
+    var failures = 0
+    for await (_, result) in environment.pipeline.thumbnails(for: [identity, animation], maxPixel: 16, priority: .visible) {
+        #expect(throws: CancellationError.self) { try result.get() }
+        failures += 1
+    }
+    #expect(failures == 2)
+    environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [PrefetchItem(identity: identity, renditions: [.thumbnail, .metadata, .browse], priority: .background)]), session: SessionID())
+    #expect(environment.registry.control.opens == 0)
+    #expect(environment.registry.control.reads.isEmpty)
+}
+
+@Test func shutdownWaitsForCancelledConsumersActualReadToEnd() async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let identity = try await environment.identity("image/size/3600x5400.jpg")
+    let gate = ReadGate()
+    environment.registry.control.gate = gate
+    let consumer = Task { try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .visible) }
+    try await eventually { environment.registry.control.reads.count == 1 }
+    consumer.cancel()
+    await #expect(throws: CancellationError.self) { try await consumer.value }
+    let finished = Atomic(false)
+    let shutdown = Task { await environment.pipeline.shutdown(); finished.store(true, ordering: .relaxed) }
+    try await Task.sleep(for: .milliseconds(30))
+    let shutdownFinished = finished.load(ordering: .relaxed)
+    #expect(!shutdownFinished)
+    await gate.release()
+    await shutdown.value
+    #expect(try await environment.caches.thumbnails.data(for: identity.cacheKey) == nil)
+    #expect(try await environment.caches.browse?.data(for: identity.cacheKey) == nil)
+    #expect(environment.pipeline.sourceDecodeCount == 0)
+}
+
+@Test func shutdownDrainsIndependentDerivativesAndQueuedDiskWrites() async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let identity = try await environment.identity("image/size/3600x5400.jpg")
+    let gate = DispatchSemaphore(value: 0), blocked = Atomic(false), finished = Atomic(false)
+    let disk = Task {
+        try await environment.index.diskOperations.perform { blocked.store(true, ordering: .relaxed); gate.wait() }
+    }
+    defer { gate.signal() }
+    try await eventually { blocked.load(ordering: .relaxed) }
+    // 取到精确图即离开消费者，衍生件仍独立持有自己的排队写入。
+    let display = Task {
+        for try await image in environment.pipeline.image(for: identity, target: DisplayTarget(pixelSize: PixelSize(width: 320, height: 480)), allowOriginal: false, priority: .visible) {
+            if image.quality == .exact { return }
+        }
+        Issue.record("应先交付精确尺寸图")
+    }
+    try await display.value
+    try await Task.sleep(for: .milliseconds(100))
+    let shutdown = Task { await environment.pipeline.shutdown(); finished.store(true, ordering: .relaxed) }
+    try await Task.sleep(for: .milliseconds(30))
+    let shutdownFinished = finished.load(ordering: .relaxed)
+    #expect(!shutdownFinished)
+    gate.signal()
+    try await disk.value
+    await shutdown.value
+    let before = try cacheTree(environment.root)
+    try await Task.sleep(for: .milliseconds(100))
+    #expect(try cacheTree(environment.root) == before)
+}
+
+private func cacheTree(_ root: URL) throws -> Set<String> {
+    var paths: Set<String> = []
+    for tier in ["thumbnails", "browse"] {
+        let directory = root.appending(path: tier)
+        let iterator = try #require(FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil))
+        for case let url as URL in iterator { paths.insert(url.path) }
+    }
+    return paths
+}
+
 private func collect(_ stream: AsyncThrowingStream<RenderedImage, any Error>) async throws -> [RenderedImage] {
     var result: [RenderedImage] = []
     for try await image in stream { result.append(image) }
@@ -308,12 +405,13 @@ private final class PipelineEnvironment: Sendable {
     let root: URL
     let registry: CountingRegistry
     let caches: PipelineCaches
+    let index: CacheIndex
     let pipeline: FileImagePipeline
     init(browse: Bool = true) throws {
-        root = Fixtures.root.deletingLastPathComponent().appendingPathComponent("build/stage4-work/pipeline-tests/\(UUID().uuidString)", isDirectory: true)
+        root = Fixtures.root.deletingLastPathComponent().appendingPathComponent("build/stage4-repair/pipeline-tests/\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         registry = CountingRegistry(base: FileSourceRegistry(scheduler: IOScheduler(configuration: IOConfiguration(helperExecutable: nil))))
-        let index = try CacheIndex(databaseURL: root.appendingPathComponent("index.sqlite"))
+        index = try CacheIndex(databaseURL: root.appendingPathComponent("index.sqlite"))
         let thumbnails = try DiskCache(tier: .thumbnails, cacheDirectory: root, budget: 128 << 20, index: index)
         let browseCache = try browse ? DiskCache(tier: .browse, cacheDirectory: root, budget: 128 << 20, index: index) : nil
         caches = PipelineCaches(raw: MemoryCache(budget: 64 << 20), decoded: MemoryCache(budget: 64 << 20), thumbnails: thumbnails, browse: browseCache, metadata: MetadataIndex(index: index))

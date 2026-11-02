@@ -443,6 +443,7 @@ public struct PipelineConfiguration: Sendable {
 public final class FileImagePipeline: ImagePipeline {
     public init(sources: any SourceRegistry, decoder: ImageDecoder, caches: PipelineCaches, configuration: PipelineConfiguration)
     public func cancelBackgroundPrefetch()   // 只取消 background 预取，不影响其他优先级的消费者
+    public func shutdown() async   // 停止接收新工作，新请求抛 CancellationError；取消并排空读取、解码和缓存写入，包括独立衍生件任务
 }
 
 // MVSettings
@@ -569,11 +570,10 @@ public struct CoreConfiguration: Sendable {
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
     public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?   // Mock 为 nil
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
-    public func shutdown() async   // 会话 flush 并取消预取 → 设置 flush → 缓存索引 flush → 调度器 shutdown；超时取消后续落盘并弃用辅助进程
+    public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
 // make 创建空 CommandRegistry，命令处理器由 App 登记。组合根统一订阅内存压力和全局设置变化：
 // warning/critical 将 L0/L1 收缩至预算的 50%/25% 并取消 background 预取；设置变化更新 L0–L3 预算，L3 开关下次启动生效。
-// 当前退出后独立衍生件任务仍可能写缓存，立即重建存在竞争；启动时 extract 仍同步扫描，验收待修复，见 S1-T8 报告。
 // MVTestSupport：extension CoreServices { static func makeMock(_ options: MockOptions = MockOptions()) -> CoreServices }
 
 // MVLayout：App 侧的纯计算，不依赖 AppKit
