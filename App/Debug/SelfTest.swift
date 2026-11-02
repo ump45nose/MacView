@@ -36,7 +36,7 @@ final class SelfTest {
             exit(log.summarize())
         }
         target = window
-        log.check(window.toolbar?.items.map(\.itemIdentifier.rawValue) == ["book.previous", "book.next"], "工具栏有上一本、下一本按钮")
+        log.check(window.toolbar?.items.map(\.itemIdentifier.rawValue) == ["book.previous", "book.next", "book.title"], "工具栏有上一本、下一本按钮和书名")
         print("INFO 按键分派：\(NSApp.isActive ? "NSApp.sendEvent" : "App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派")")
         await settle()
         let frameNextItem = NSApp.mainMenu?.items.compactMap(\.submenu).flatMap(\.items).first { $0.title == app.catalog.title(of: .frameNext) }
@@ -66,17 +66,17 @@ final class SelfTest {
 
         // 两键序列：首键显示待定提示，续键执行。
         await send(kVK_ANSI_G)
-        log.check(!first.content.pendingView.isHidden && first.router.pending?.typed == [KeyChord("g")], "按下 G 后显示待定提示")
+        log.check(!first.pendingView.isHidden && first.router.pending?.typed == [KeyChord("g")], "按下 G 后显示待定提示")
         await settle()
         log.snapshot(window, "pending")
         await send(kVK_ANSI_G)
-        log.check(first.content.pendingView.isHidden && first.session.currentFrame == 0, "G G 回到首页并收起提示：\(first.session.currentFrame)")
+        log.check(first.pendingView.isHidden && first.session.currentFrame == 0, "G G 回到首页并收起提示：\(first.session.currentFrame)")
         await send(kVK_ANSI_G)
         await send(kVK_ANSI_E)
         log.check(first.session.currentFrame == 99, "G E 到末页：\(first.session.currentFrame)")
         await send(kVK_ANSI_G)
         try? await Task.sleep(for: CommandCatalog.sequenceTimeout + .milliseconds(200))
-        log.check(first.content.pendingView.isHidden, "超时后提示消失")
+        log.check(first.pendingView.isHidden, "超时后提示消失")
         await send(kVK_Home)
         log.check(first.session.currentFrame == 0, "超时后 Home 仍按首键解析：\(first.session.currentFrame)")
 
@@ -94,7 +94,7 @@ final class SelfTest {
         }
         await settle()
         log.check(first.session.currentFrame == 0 && first.session.book?.location == book, "文本框中的按键没有翻页或切书：帧 \(first.session.currentFrame)")
-        log.check(first.content.pendingView.isHidden, "文本框中按 G 不显示待定提示")
+        log.check(first.pendingView.isHidden, "文本框中按 G 不显示待定提示")
         let editor = field.currentEditor() as? NSTextView
         if NSApp.isActive {
             log.check(editor?.string.contains("agg") == true, "字母进入了文本框：“\(editor?.string ?? "")”")
@@ -114,7 +114,7 @@ final class SelfTest {
         log.check(first.session.book?.location.name == "第 6 卷", "⌥↓ 下一本书：\(first.session.book?.location.name ?? "nil")")
         await send(kVK_UpArrow, [.option])
         await waitForBook(first) { $0.location.name == "第 5 卷" }
-        log.check(first.session.book?.location.name == "第 5 卷" && first.session.currentFrame == 0, "⌥↑ 上一本书：\(first.session.book?.location.name ?? "nil")")
+        log.check(first.session.book?.location.name == "第 5 卷" && first.session.currentFrame == 49, "⌥↑ 上一本书，回到记忆的页：\(first.session.book?.location.name ?? "nil")，\(first.session.currentFrame)")
         await jump(first, "49")
 
         // C5.7：多个标签页各自翻页；global 快捷键由菜单触发。

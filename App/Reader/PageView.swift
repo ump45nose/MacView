@@ -28,6 +28,10 @@ final class PageView: NSView, InputScoped {
     private let logger = Logger(category: "page-view")
     private var slots: [Slot] = []
     private let message = PlaceholderView()
+    /// 没有书的新窗口用 ground 底（设计稿“空状态 · 新窗口”），其余状态用 canvas。
+    private var isEmptyState = true {
+        didSet { needsDisplay = true }
+    }
 
     var inputScope: InputScope { .viewer }
     /// 空状态里的“打开…”按钮。
@@ -41,7 +45,7 @@ final class PageView: NSView, InputScoped {
         self.pipeline = pipeline
         super.init(frame: .zero)
         wantsLayer = true
-        layerContentsRedrawPolicy = .never
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         message.translatesAutoresizingMaskIntoConstraints = false
         addSubview(message)
         NSLayoutConstraint.activate([
@@ -66,7 +70,7 @@ final class PageView: NSView, InputScoped {
     override var wantsUpdateLayer: Bool { true }
 
     override func updateLayer() {
-        layer?.backgroundColor = Theme.canvas.cgColor
+        layer?.backgroundColor = (isEmptyState ? Theme.ground : Theme.canvas).cgColor
     }
 
     /// 会话状态变化后调用。
@@ -187,6 +191,7 @@ final class PageView: NSView, InputScoped {
     }
 
     private func updateMessage() {
+        isEmptyState = session.book == nil && session.loadError == nil
         if let error = session.loadError {
             message.show(title: String(localized: "无法打开这本书"), detail: ErrorText.describe(error), action: String(localized: "打开…"))
         } else if let book = session.book {
@@ -213,7 +218,9 @@ final class PageView: NSView, InputScoped {
 private final class PlaceholderView: NSStackView {
     private let title = NSTextField(labelWithString: "")
     private let detail = NSTextField(wrappingLabelWithString: "")
-    private let button = NSButton()
+    private let button = FlatButton(
+        font: .systemFont(ofSize: 13, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 8, height: 30, padding: 16
+    )
     var onAction: (() -> Void)?
 
     init() {
@@ -228,11 +235,6 @@ private final class PlaceholderView: NSStackView {
         detail.textColor = Theme.text2
         detail.alignment = .center
         detail.maximumNumberOfLines = 4
-        button.bezelStyle = .push
-        button.controlSize = .large
-        button.keyEquivalent = ""
-        button.bezelColor = Theme.primary
-        button.contentTintColor = Theme.onPrimary
         button.target = self
         button.action = #selector(act)
         addArrangedSubview(title)
@@ -251,7 +253,7 @@ private final class PlaceholderView: NSStackView {
         self.title.stringValue = title
         self.detail.stringValue = detail
         button.isHidden = action == nil
-        button.title = action ?? ""
+        button.setText(action ?? "")
     }
 
     @objc private func act() {

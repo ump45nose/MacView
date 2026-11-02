@@ -29,6 +29,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     let router: InputRouter
     let pageView: PageView
     let content: ReaderContentView
+    let pendingView: PendingSequenceView
     /// 本窗口的停靠区；页面视图在中间栏。
     let dock: WindowDock
     private let services: CoreServices
@@ -36,6 +37,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private let catalog: CommandCatalog
     private let isMock: Bool
     private var openTask: Task<Void, Never>?
+    private let bookTitle = NSTextField(labelWithString: "")
+    private let bookPath = NSTextField(labelWithString: "")
     private let logger = Logger(category: "window")
     /// 打开时有多个 URL，除第一个外的交给调用方（另开标签页）。
     var onOpenExtra: (([URL]) -> Void)?
@@ -51,7 +54,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             serviceBadge: isMock ? String(localized: "Mock 服务") : "",
             badgeToolTip: String(localized: "尚未接入真实服务，书和图片来自内存中的模拟目录（/Volumes/Mock）。")
         )
-        dock = WindowDock(coordinator: dockCoordinator, mainView: pageView)
+        let mainView = ReaderMainView(pageView: pageView)
+        pendingView = mainView.pendingView
+        dock = WindowDock(coordinator: dockCoordinator, mainView: mainView)
         content = ReaderContentView(mainView: dock, statusBar: statusBar)
         self.catalog = catalog
         router = InputRouter(catalog: catalog)
@@ -67,6 +72,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window.tabbingIdentifier = Self.tabbingIdentifier
         window.tabbingMode = .preferred
         window.backgroundColor = Theme.ground
+        // 标题栏透出窗口底色；书名由工具栏项按设计稿绘制，`title` 仍供标签页和“窗口”菜单使用。
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
         window.contentView = content
         window.initialFirstResponder = pageView
         window.router = router
@@ -82,7 +90,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window.toolbar = toolbar
         window.toolbarStyle = .unified
 
-        router.onPendingChange = { [weak self] pending in self?.content.pendingView.show(pending) }
+        router.onPendingChange = { [weak self] pending in self?.pendingView.show(pending) }
         pageView.onOpen = { [weak self] in self?.run(.fileOpen) }
         content.onDrop = { [weak self] urls in self?.open(urls) }
         statusBar.onJump = { [weak self] number in self?.session.go(.index(number - 1)) }
@@ -117,7 +125,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private func render() {
         let location = session.book?.location
         window?.title = location?.name ?? "MacView"
-        window?.subtitle = location?.parent.map(Self.breadcrumb) ?? ""
+        bookTitle.stringValue = window?.title ?? ""
+        bookPath.stringValue = location?.parent.map(Self.breadcrumb) ?? ""
+        bookPath.isHidden = bookPath.stringValue.isEmpty
         pageView.refresh()
         content.statusBar.refresh(session)
         window?.toolbar?.validateVisibleItems()
@@ -222,13 +232,15 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     // MARK: 工具栏
 
+    private static let toolbarTitle = NSToolbarItem.Identifier("book.title")
+
     private static let toolbarCommands: [NSToolbarItem.Identifier: (command: CommandID, symbol: String)] = [
         .init("book.previous"): (.bookPrevious, "chevron.left"),
         .init("book.next"): (.bookNext, "chevron.right"),
     ]
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.init("book.previous"), .init("book.next")]
+        [.init("book.previous"), .init("book.next"), Self.toolbarTitle]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -236,6 +248,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if identifier == Self.toolbarTitle { return makeTitleItem() }
         guard let entry = Self.toolbarCommands[identifier] else { return nil }
         let title = catalog.title(of: entry.command)
         let item = NSToolbarItem(itemIdentifier: identifier)
@@ -246,6 +259,28 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         item.isNavigational = true
         item.target = self
         item.action = #selector(toolbarCommand(_:))
+        return item
+    }
+
+    /// 书名（衬线 17/500）和它所在的路径。
+    private func makeTitleItem() -> NSToolbarItem {
+        bookTitle.font = Theme.serif(17)
+        bookTitle.textColor = Theme.text
+        bookPath.font = .systemFont(ofSize: 11)
+        bookPath.textColor = Theme.text2
+        for label in [bookTitle, bookPath] {
+            label.lineBreakMode = .byTruncatingTail
+            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        }
+        let stack = NSStackView(views: [bookTitle, bookPath])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 0
+        let item = NSToolbarItem(itemIdentifier: Self.toolbarTitle)
+        item.view = stack
+        item.isBordered = false
+        item.autovalidates = false
+        item.visibilityPriority = .high
         return item
     }
 

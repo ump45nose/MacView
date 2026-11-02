@@ -1,10 +1,36 @@
 import AppKit
 
-/// 阅读窗口的内容视图：上方是主视图（停靠容器），下方是状态栏，底部居中浮着多键序列的待定提示。整个窗口都是拖放目标。
+/// 停靠框架中间栏的主视图：页面视图，底部居中浮着多键序列的待定提示。
+@MainActor
+final class ReaderMainView: NSView {
+    let pendingView = PendingSequenceView()
+
+    init(pageView: NSView) {
+        super.init(frame: .zero)
+        for view in [pageView, pendingView] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(view)
+        }
+        NSLayoutConstraint.activate([
+            pageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            pageView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            pageView.topAnchor.constraint(equalTo: topAnchor),
+            pageView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            pendingView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            pendingView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+/// 阅读窗口的内容视图：上方是停靠容器，下方是状态栏。整个窗口都是拖放目标。
 @MainActor
 final class ReaderContentView: NSView {
     let statusBar: StatusBarView
-    let pendingView = PendingSequenceView()
     /// 拖入了文件 URL。
     var onDrop: (([URL]) -> Void)?
     private var isDropTarget = false {
@@ -15,7 +41,7 @@ final class ReaderContentView: NSView {
         self.statusBar = statusBar
         super.init(frame: .zero)
         wantsLayer = true
-        for view in [mainView, statusBar, pendingView] {
+        for view in [mainView, statusBar] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
@@ -27,8 +53,6 @@ final class ReaderContentView: NSView {
             statusBar.leadingAnchor.constraint(equalTo: leadingAnchor),
             statusBar.trailingAnchor.constraint(equalTo: trailingAnchor),
             statusBar.bottomAnchor.constraint(equalTo: bottomAnchor),
-            pendingView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            pendingView.bottomAnchor.constraint(equalTo: statusBar.topAnchor, constant: -12),
         ])
         registerForDraggedTypes([.fileURL])
     }
