@@ -26,8 +26,8 @@
 - 阶段 5 的实现完成（S1-F3、S1-F1、S1-F2）。App 已接入真实服务，真实服务自检中英文各 23 PASS、0 FAIL、0 SKIP；Mock 自检中英文各 32 PASS、0 FAIL、0 SKIP，停靠自检三阶段分别为 54、6、4 PASS，均为 0 FAIL、0 SKIP。
   - 待用户录制：C5.2（画布，触控板滚动与改尺寸）、C5.12（停靠，拖动面板与改尺寸）。
   - 未测：真实鼠标拖动手势。
-- 阶段 4 的 S1-T8 实现已接入；独立验收中 220 项测试及八组 GUI 自检通过。C4.2 的 extract 启动同步扫描和 C4.4 的立即退出重建缓存写入竞争仍待修复，见[报告](../reports/S1-T8.md)。
-- 下一步：修复上述问题后重验失败项和受影响测试，再评估关口 G1。
+- 阶段 4 的 S1-T8 已完成。首次独立验收中 220 项测试及八组 GUI 自检通过；三项修复后的受影响测试 56/56 及真实服务自检通过，见[报告](../reports/S1-T8.md)。
+- 下一步：由设计侧综合评估关口 G1。
 
 ## 关口
 
@@ -63,7 +63,7 @@ S1 的任务都在 G0 之后开始，前置列只列阶段内的依赖。
 | S1-T5 | MVPipeline：串联各缓存层、一次读取产出多种渲染件、渐进交付、预取计划的差异应用与取消 | S1-T1、S1-T3、S1-T4 | [S1-T5](tasks/S1-T5.md)、[报告](../reports/S1-T5.md) | 已完成（NFS 吞吐未验证） |
 | S1-T6 | MVReading：BookLoader（渐进、过滤、排序、递归、穿透、探测顺序）、Bookshelf、PageFrameEngine、ReaderSession | S1-T7 | [S1-T6](tasks/S1-T6.md)、[报告](../reports/S1-T6.md) | 已完成 |
 | S1-T7 | MVSettings 与 MVCommands：JSON 存储与重载、分层解析、路径规则、书记忆、命令登记、按键序列解析，以及 P0 的默认命令、绑定和菜单 | — | [S1-T7](tasks/S1-T7.md)、[报告](../reports/S1-T7.md) | 已完成 |
-| S1-T8 | MVServices 组合根，加跨模块集成测试：打开 zip 书、翻页、生成缩略图、设置落盘 | S1-T1、S1-T2、S1-T5、S1-T6 | [S1-T8](tasks/S1-T8.md)、[报告](../reports/S1-T8.md) | 进行中（实现已接入，验收待上游修复） |
+| S1-T8 | MVServices 组合根，加跨模块集成测试：打开 zip 书、翻页、生成缩略图、设置落盘 | S1-T1、S1-T2、S1-T5、S1-T6 | [S1-T8](tasks/S1-T8.md)、[报告](../reports/S1-T8.md) | 已完成 |
 | S1-F1 | App 外壳：生命周期、窗口与标签、服务容器（先接 Mock）、MenuBuilder、InputRouter、String Catalog（开发语言为简体中文，补英文） | — | [S1-F1](tasks/S1-F1.md)、[报告](../reports/S1-F1.md) | 已完成（菜单显示与真实拖放待用户目测） |
 | S1-F2 | 停靠面板框架：三个停靠区、面板栈、拖动换区、浮动面板、全屏自动隐藏、布局持久化 | S1-F1 | [S1-F2](tasks/S1-F2.md)、[报告](../reports/S1-F2.md) | 实现完成；C5.12 待用户录制，真实鼠标拖动未测 |
 | S1-F3 | 画布引擎正式版：四种 LayoutModel、锚点保持、可见范围回报 | S0-F1 | [S1-F3](tasks/S1-F3.md)、[报告](../reports/S1-F3.md) | 实现完成；C5.2 待用户录制 |
