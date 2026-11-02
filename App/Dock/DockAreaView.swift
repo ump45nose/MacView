@@ -6,12 +6,18 @@ import MVLayout
 final class DockSplitView: NSSplitView {
     override var dividerColor: NSColor { Theme.line }
 
-    /// 尺寸变化是否来自用户拖动（或双击）分隔线。通知里的分隔线序号不够：
-    /// 分栏自己调整、程序设置位置时也会带上，所以还要求当前事件是这个窗口里的鼠标事件，且不在窗口缩放中。
+    /// 正在跟踪分隔线上的鼠标。
+    private var isTrackingMouse = false
+
+    override func mouseDown(with event: NSEvent) {
+        isTrackingMouse = true
+        defer { isTrackingMouse = false }
+        super.mouseDown(with: event)
+    }
+
+    /// 尺寸变化是否来自用户拖动（或双击）分隔线：分栏自己调整、程序设置位置时都不在跟踪中。
     static func isUserDrag(_ notification: Notification) -> Bool {
-        guard notification.userInfo?["NSSplitViewDividerIndex"] != nil, let split = notification.object as? NSSplitView,
-              !split.inLiveResize, let event = NSApp.currentEvent, event.window === split.window else { return false }
-        return [.leftMouseDown, .leftMouseDragged, .leftMouseUp].contains(event.type)
+        (notification.object as? DockSplitView)?.isTrackingMouse == true
     }
 }
 

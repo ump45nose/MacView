@@ -144,8 +144,9 @@ final class WindowDock: NSView, NSSplitViewDelegate {
         outer.layoutSubtreeIfNeeded()
         let thickness = outer.dividerThickness
         let width = outer.bounds.width
-        let left = hosts[.left]!.isHidden ? 0 : dockLayout.left.size
-        let right = hosts[.right]!.isHidden ? 0 : dockLayout.right.size
+        // 读取时不低于最小尺寸：文件里保存的 0 也能显示，布局本身不改。
+        let left = hosts[.left]!.isHidden ? 0 : max(dockLayout.left.size, Self.minimumSize[.left]!)
+        let right = hosts[.right]!.isHidden ? 0 : max(dockLayout.right.size, Self.minimumSize[.right]!)
         let room = max(width - Self.minimumMain.width - 2 * thickness, 0)
         let scale = left + right > room && left + right > 0 ? room / (left + right) : 1
         if !hosts[.left]!.isHidden {
@@ -156,7 +157,7 @@ final class WindowDock: NSView, NSSplitViewDelegate {
         }
         if !hosts[.bottom]!.isHidden {
             let height = center.bounds.height
-            let bottom = min(dockLayout.bottom.size, max(height - Self.minimumMain.height - thickness, 0))
+            let bottom = min(max(dockLayout.bottom.size, Self.minimumSize[.bottom]!), max(height - Self.minimumMain.height - thickness, 0))
             center.setPosition(height - floor(bottom) - thickness, ofDividerAt: 0)
         }
     }
