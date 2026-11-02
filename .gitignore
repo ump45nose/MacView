@@ -6,6 +6,7 @@ DerivedData/
 .swiftpm/
 Fixtures/local/
 .DS_Store
+*.trace
 # 夹具里的 .DS_Store 是测试数据
 !Fixtures/tree/hidden/.DS_Store
 !Fixtures/tree/pass-through/一层/.DS_Store

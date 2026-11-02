@@ -22,7 +22,14 @@ for layout in $layouts; do
 	caffeinate -d -u xcrun xctrace record --template 'Animation Hitches' --instrument os_signpost --time-limit 60s --output "$work/$layout.trace" \
 		--launch -- "$app" -MVCanvasTest YES -MVCanvasTestAutorun YES -MVCanvasTestLayout "$layout" \
 		-MVCanvasTestReport "$work/$layout.json"
-	python3 -I scripts/canvas-hitches.py "$work/$layout.trace" "$work/$layout.json" "$out/S1-F3-$layout.json" >/dev/null
+	summary="$work/S1-F3-$layout.json"
+	python3 -I scripts/canvas-hitches.py "$work/$layout.trace" "$work/$layout.json" "$summary" >/dev/null
+	# os-signpost 表可能为空（xctrace 没导出），这时 C5.3 没有数据，这份录制不能用。
+	if ! python3 -I -c 'import json, sys; sys.exit(0 if any(p.get("settles", 0) for p in json.load(open(sys.argv[1]))["phases"]) else 1)' "$summary"; then
+		echo "错误：$layout 的 settles 为 0（os-signpost 表为空），录制不可用，需要重录。录制保留在 $work" >&2
+		exit 1
+	fi
+	mv "$summary" "$out/S1-F3-$layout.json"
 	echo "$layout：$out/S1-F3-$layout.json"
 done
 echo "录制保留在 $work"

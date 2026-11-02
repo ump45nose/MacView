@@ -17,8 +17,9 @@ final class FileErrorBanner: NSView {
         setAccessibilityRole(.group)
         setAccessibilityLabel(title)
 
-        let icon = NSImageView(image: NSImage(systemSymbolName: "doc.badge.exclamationmark", accessibilityDescription: nil) ?? NSImage())
-        icon.symbolConfiguration = .init(pointSize: 13, weight: .regular)
+        let icon = NSImageView(image: NSImage(systemSymbolName: "doc.badge.gearshape", accessibilityDescription: nil) ?? NSImage())
+        icon.symbolConfiguration = .init(pointSize: 16, weight: .regular)
+        icon.imageScaling = .scaleProportionallyDown
         icon.contentTintColor = Theme.danger
         let titleLabel = NSTextField(labelWithString: title)
         titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
@@ -35,8 +36,12 @@ final class FileErrorBanner: NSView {
         text.setContentHuggingPriority(.defaultLow, for: .horizontal)
         text.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let open = NSButton(title: String(localized: "打开文件"), target: self, action: #selector(openFile(_:)))
-        open.controlSize = .small
+        let open = FlatButton(
+            font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 10
+        )
+        open.setText(String(localized: "打开文件"))
+        open.target = self
+        open.action = #selector(openFile(_:))
         let close = NSButton(image: NSImage(systemSymbolName: "xmark", accessibilityDescription: String(localized: "关闭提示")) ?? NSImage(),
                              target: self, action: #selector(close(_:)))
         close.isBordered = false
@@ -53,10 +58,16 @@ final class FileErrorBanner: NSView {
         row.translatesAutoresizingMaskIntoConstraints = false
         addSubview(row)
         NSLayoutConstraint.activate([
+            icon.widthAnchor.constraint(equalToConstant: 16),
+            icon.heightAnchor.constraint(equalToConstant: 16),
+            close.widthAnchor.constraint(equalToConstant: 26),
+            close.heightAnchor.constraint(equalToConstant: 26),
             row.leadingAnchor.constraint(equalTo: leadingAnchor),
             row.trailingAnchor.constraint(equalTo: trailingAnchor),
             row.topAnchor.constraint(equalTo: topAnchor),
             row.bottomAnchor.constraint(equalTo: bottomAnchor),
+            // 顶对齐的 NSStackView 不保证下内边距：文字有多行时直接贴到底边。
+            text.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -10),
         ])
     }
 
