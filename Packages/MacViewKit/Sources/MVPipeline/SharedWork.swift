@@ -2,10 +2,90 @@ import Foundation
 import MVIO
 import Synchronization
 
+/// 任务的登记、步骤准入和停止共用一个关口；取消消费者不会提前移除实际仍在运行的任务。
+final class PipelineLifetime: Sendable {
+    private struct State: Sendable {
+        var stopped = false
+        var tasks: [UUID: @Sendable () -> Void] = [:]
+        var drained: [CheckedContinuation<Void, Never>] = []
+    }
+    private let state = Mutex(State())
+
+    func checkRunning() throws {
+        try Task.checkCancellation()
+        try state.withLock { if $0.stopped { throw CancellationError() } }
+    }
+
+    /// 在锁内准入并登记，再让任务执行；shutdown 不会漏掉尚未开始执行的任务。
+    func start<Value: Sendable>(priority: TaskPriority? = nil, operation: @escaping @Sendable () async throws -> Value) throws -> Task<Value, any Error> {
+        try state.withLock { state in
+            guard !state.stopped else { throw CancellationError() }
+            let id = UUID()
+            let task = Task(priority: priority) {
+                defer { self.finished(id) }
+                return try await operation()
+            }
+            state.tasks[id] = { task.cancel() }
+            return task
+        }
+    }
+
+    func value<Value: Sendable>(priority: TaskPriority? = nil, operation: @escaping @Sendable () async throws -> Value) async throws -> Value {
+        try Task.checkCancellation()
+        let task = try start(priority: priority) {
+            try self.checkRunning()
+            return try await operation()
+        }
+        return try await withTaskCancellationHandler {
+            let value = try await task.value
+            try Task.checkCancellation()
+            return value
+        } onCancel: { task.cancel() }
+    }
+
+    /// 同步缓存写入与停止也在同一把锁上排序。
+    func whileRunning<Value>(_ operation: () throws -> Value) throws -> Value {
+        try state.withLock { state in
+            guard !state.stopped else { throw CancellationError() }
+            return try operation()
+        }
+    }
+
+    func stop() {
+        let tasks = state.withLock { state in
+            state.stopped = true
+            return Array(state.tasks.values)
+        }
+        for cancel in tasks { cancel() }
+    }
+
+    func shutdown() async {
+        stop()
+        await withCheckedContinuation { continuation in
+            let finished = state.withLock { state in
+                if state.tasks.isEmpty { return true }
+                state.drained.append(continuation)
+                return false
+            }
+            if finished { continuation.resume() }
+        }
+    }
+
+    private func finished(_ id: UUID) {
+        let waiters = state.withLock { state in
+            state.tasks[id] = nil
+            guard state.stopped, state.tasks.isEmpty else { return [CheckedContinuation<Void, Never>]() }
+            defer { state.drained.removeAll() }
+            return state.drained
+        }
+        for waiter in waiters { waiter.resume() }
+    }
+}
+
 /// 独立的消费者等待同一个任务；取消一个等待者不会取消其他等待者。
 final class SharedWork<Value: Sendable>: Sendable {
     private struct State: Sendable {
-        var task: Task<Void, Never>?
+        var task: Task<Void, any Error>?
         var waiters: [UUID: CheckedContinuation<Value, any Error>] = [:]
         var priorities: [UUID: IOPriority] = [:]
         var cancelled: Set<UUID> = []
@@ -17,8 +97,12 @@ final class SharedWork<Value: Sendable>: Sendable {
     let group = IORequestGroup()
     let context = RequestContext(.background)
     private let scheduler: IOScheduler?
+    private let lifetime: PipelineLifetime
 
-    init(scheduler: IOScheduler?) { self.scheduler = scheduler }
+    init(scheduler: IOScheduler?, lifetime: PipelineLifetime) {
+        self.scheduler = scheduler
+        self.lifetime = lifetime
+    }
 
     var isAccepting: Bool { state.withLock { $0.accepting } }
     var priority: IOPriority { state.withLock { $0.priorities.values.max() ?? .background } }
@@ -50,12 +134,18 @@ final class SharedWork<Value: Sendable>: Sendable {
                 context.setPriority(action.2)
                 scheduler?.setPriority(action.2, for: group)
                 guard action.1 else { return }
-                let task = Task(priority: action.2.taskPriority) {
-                    let result: Result<Value, any Error>
-                    do { result = .success(try await operation(self)) }
-                    catch { result = .failure(error) }
-                    finish(result)
-                }
+                let task: Task<Void, any Error>
+                do {
+                    task = try lifetime.start(priority: action.2.taskPriority) {
+                        let result: Result<Value, any Error>
+                        do {
+                            try self.lifetime.checkRunning()
+                            result = .success(try await operation(self))
+                        }
+                        catch { result = .failure(error) }
+                        self.finish(result)
+                    }
+                } catch { finish(.failure(error)); return }
                 let cancelled = state.withLock { state in
                     state.task = task
                     return state.waiters.isEmpty && state.result == nil
@@ -66,7 +156,7 @@ final class SharedWork<Value: Sendable>: Sendable {
     }
 
     private func cancel(_ consumer: UUID) {
-        let action = state.withLock { state -> (CheckedContinuation<Value, any Error>?, Task<Void, Never>?, IOPriority) in
+        let action = state.withLock { state -> (CheckedContinuation<Value, any Error>?, Task<Void, any Error>?, IOPriority) in
             guard let continuation = state.waiters.removeValue(forKey: consumer) else {
                 if state.result == nil { state.cancelled.insert(consumer) }
                 return (nil, nil, state.priorities.values.max() ?? .background)

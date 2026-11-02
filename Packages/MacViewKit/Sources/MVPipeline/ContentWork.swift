@@ -22,26 +22,30 @@ actor ContentWork {
     private let sources: any SourceRegistry
     private let caches: PipelineCaches
     private let scheduler: IOScheduler?
+    private let lifetime: PipelineLifetime
     private let completed: @Sendable () -> Void
     private let group = IORequestGroup()
     private var waiters: [UUID: Waiter] = [:]
     private var cancelled: Set<UUID> = []
-    private var task: Task<Void, Never>?
+    private var task: Task<Void, any Error>?
+    private var accepting = true
     private var result: Result<PipelineContent, any Error>?
     private var source: (any ByteSource)?
 
-    init(identity: ContentIdentity, sources: any SourceRegistry, caches: PipelineCaches, completed: @escaping @Sendable () -> Void) {
+    init(identity: ContentIdentity, sources: any SourceRegistry, caches: PipelineCaches, lifetime: PipelineLifetime, completed: @escaping @Sendable () -> Void) {
         requested = identity
         self.sources = sources
         self.caches = caches
+        self.lifetime = lifetime
         scheduler = (sources as? FileSourceRegistry)?.scheduler
         self.completed = completed
     }
 
     func value(full: Bool, metadata: Bool, consumer: UUID, priority: IOPriority) async throws -> PipelineContent {
         try await withTaskCancellationHandler {
-            try Task.checkCancellation()
+            try lifetime.checkRunning()
             return try await withCheckedThrowingContinuation { continuation in
+                guard accepting else { continuation.resume(throwing: CancellationError()); return }
                 if cancelled.remove(consumer) != nil { continuation.resume(throwing: CancellationError()); return }
                 if let result {
                     switch result {
@@ -56,7 +60,14 @@ actor ContentWork {
                 }
                 waiters[consumer] = Waiter(full: full, metadata: metadata, priority: priority, continuation: continuation)
                 updatePriority()
-                if task == nil { task = Task { await run() } }
+                if task == nil {
+                    do { task = try lifetime.start { await self.run() } }
+                    catch {
+                        for waiter in waiters.values { waiter.continuation.resume(throwing: error) }
+                        waiters.removeAll()
+                        completed()
+                    }
+                }
             }
         } onCancel: { Task { await self.cancel(consumer) } }
     }
@@ -74,6 +85,7 @@ actor ContentWork {
         guard let waiter = waiters.removeValue(forKey: consumer) else { cancelled.insert(consumer); return }
         waiter.continuation.resume(throwing: CancellationError())
         if waiters.isEmpty {
+            accepting = false
             scheduler?.cancel(group)
             task?.cancel()
             completed()
@@ -82,10 +94,13 @@ actor ContentWork {
 
     private func run() async {
         do {
+            try lifetime.checkRunning()
             let source: any ByteSource
             if let opened = self.source { source = opened }
             else {
-                source = try await sources.provider(for: requested.location).open(requested.location)
+                let provider = try sources.provider(for: requested.location)
+                let location = requested.location
+                source = try await lifetime.value { try await provider.open(location) }
                 self.source = source
             }
             let identity = source.identity
@@ -93,13 +108,15 @@ actor ContentWork {
             var metadata: ImageMetadata?
             var headerEnd = min(identity.size, Int64(MediaProbe.initialHeaderLength))
             while !waiters.isEmpty {
-                try Task.checkCancellation()
+                try lifetime.checkRunning()
                 let needsMetadata = waiters.values.contains { $0.metadata }
                 if needsMetadata, metadata == nil, Int64(data.count) >= headerEnd {
-                    switch try MediaProbe.image(data, isComplete: Int64(data.count) >= identity.size) {
+                    switch try lifetime.whileRunning({ try MediaProbe.image(data, isComplete: Int64(data.count) >= identity.size) }) {
                     case let .metadata(value):
                         metadata = value
-                        if let parent = identity.location.parent { try await caches.metadata.store([identity.cacheKey: value], in: parent) }
+                        if let parent = identity.location.parent {
+                            try await lifetime.value { [caches] in try await caches.metadata.store([identity.cacheKey: value], in: parent) }
+                        }
                     case let .needsMoreData(next): headerEnd = min(identity.size, Int64(next ?? Int(identity.size)))
                     }
                 }
@@ -114,11 +131,13 @@ actor ContentWork {
                 let end = full ? min(identity.size, Int64(data.count) + (4 << 20)) : headerEnd
                 guard end > Int64(data.count) else { throw MediaError.decodeFailed("文件在读取完成前结束") }
                 let priority = waiters.values.map(\.priority).max() ?? .background
-                let part = try await source.read(Int64(data.count)..<end, priority: priority, group: group)
+                let range = Int64(data.count)..<end
+                let group = group
+                let part = try await lifetime.value { try await source.read(range, priority: priority, group: group) }
                 guard !part.isEmpty else { throw MediaError.decodeFailed("文件在读取完成前结束") }
                 data.append(part)
                 // 前缀也有用；只有长度等于 identity.size 时才当成完整文件。
-                caches.raw.insert(data, for: identity.cacheKey, cost: Int64(data.count))
+                try lifetime.whileRunning { caches.raw.insert(data, for: identity.cacheKey, cost: Int64(data.count)) }
             }
         } catch {
             result = .failure(error)

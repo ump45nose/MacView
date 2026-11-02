@@ -171,6 +171,8 @@ public struct CoreConfiguration: Sendable {
                         guard !Task.isCancelled else { return }
                         pipeline.cancelAll(session: session.id)
                     }
+                    guard !Task.isCancelled else { return }
+                    await (pipeline as? FileImagePipeline)?.shutdown()
                     if let runtime {
                         guard !Task.isCancelled else { return }
                         do { try await runtime.settings.flush() }
@@ -186,6 +188,7 @@ public struct CoreConfiguration: Sendable {
                 let deadline = Task.detached {
                     do { try await Task.sleep(for: .milliseconds(900)) } catch { return }
                     work.cancel()
+                    (pipeline as? FileImagePipeline)?.beginShutdown()
                     runtime?.scheduler.shutdown()
                     completion.finish()
                 }

@@ -125,22 +125,26 @@ import Testing
         await fixture.shutdown(services)
     }
 
-    @Test("翻到第十页后立即 shutdown，最新页不受一秒去抖影响")
+    @Test("翻页后立即 shutdown，同一缓存目录反复重建并恢复最新页")
     func immediatelySavesLatestPage() async throws {
         let fixture = try ServiceFixture()
         defer { fixture.clean() }
-        let services = try await fixture.make()
-        let session = services.makeSession()
-        let location = try await services.sources.location(for: fixture.zip)
-        await session.open(location, at: nil)
-        session.go(.index(9))
-        await fixture.shutdown(services)
-        let reopened = try await fixture.make()
-        #expect(await reopened.settings.bookMemory(for: location)?.lastPageIndex == 9)
-        let restored = reopened.makeSession()
-        await restored.open(location, at: nil)
-        #expect(restored.currentFrame == 9)
-        await fixture.shutdown(reopened)
+        for page in [9, 3, 11, 0, 6, 10] {
+            let services = try await fixture.make()
+            let session = services.makeSession()
+            let location = try await services.sources.location(for: fixture.zip)
+            await session.open(location, at: nil)
+            #expect(session.loadError == nil)
+            session.go(.index(page))
+            await fixture.shutdown(services)
+            let reopened = try await fixture.make()
+            #expect(await reopened.settings.bookMemory(for: location)?.lastPageIndex == page)
+            let restored = reopened.makeSession()
+            await restored.open(location, at: nil)
+            #expect(restored.loadError == nil)
+            #expect(restored.currentFrame == page)
+            await fixture.shutdown(reopened)
+        }
     }
 
     @Test("内存 warning/critical 收缩到预算50%/25%，全局预算影响L0至L3")
@@ -237,6 +241,9 @@ import Testing
         }
         try await waitUntil { started.load(ordering: .relaxed) }
         await fixture.shutdown(services)
+        let location = try await services.sources.location(for: fixture.sourceImage)
+        let identity = try await services.sources.provider(for: location).entry(at: location).identity
+        await #expect(throws: CancellationError.self) { try await services.pipeline.thumbnail(for: identity, maxPixel: 96, priority: .visible) }
         gate.signal()
         try await pending.value
     }
@@ -262,7 +269,7 @@ private struct ServiceFixture {
     var tarGzip: URL { root.appending(path: "book.tar.gz") }
 
     init() throws {
-        root = Fixtures.root.deletingLastPathComponent().appending(path: "build/stage4-work/services-tests/\(UUID().uuidString)", directoryHint: .isDirectory)
+        root = Fixtures.root.deletingLastPathComponent().appending(path: "build/stage4-repair/services-tests/\(UUID().uuidString)", directoryHint: .isDirectory)
         configuration = CoreConfiguration(supportDirectory: root.appending(path: "support"), cacheDirectory: root.appending(path: "cache"), browseBounds: PixelSize(width: 640, height: 960))
         let pages = root.appending(path: "pages")
         try FileManager.default.createDirectory(at: pages, withIntermediateDirectories: true)
