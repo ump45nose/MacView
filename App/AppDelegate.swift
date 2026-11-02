@@ -128,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func reloadBindings() {
         catalog = CommandCatalog(user: services?.keyBindings?.value().bindings ?? [])
-        menuBuilder?.update(catalog: catalog, in: NSApp)
+        installMenu()
         controllers.forEach { $0.updateBindings(catalog) }
     }
 
