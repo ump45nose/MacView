@@ -3,6 +3,7 @@ import MVCommands
 import MVFoundation
 import MVIO
 import MVServices
+import MVSettings
 import MVTestSupport
 import os
 
@@ -11,13 +12,21 @@ import os
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let logger = Logger(category: "app")
-    let catalog = CommandCatalog()
+    private(set) var catalog = CommandCatalog()
     private var menuBuilder: MenuBuilder?
     private(set) var services: CoreServices?
     private(set) var dispatcher: CommandDispatcher?
     private(set) var dock: DockCoordinator?
-    /// 真实服务（S1-T8）接入之前一律是 Mock，窗口状态栏会标明。
-    private let isMock = true
+    var isMock: Bool {
+        #if DEBUG
+        UserDefaults.standard.bool(forKey: "MVMockServices")
+        #else
+        false
+        #endif
+    }
+    private var keyBindingsTask: Task<Void, Never>?
+    private var keyBindingsError: String?
+    private(set) var supportDirectory = URL.applicationSupportDirectory.appending(path: "MacView")
     /// NSWindow 不持有自己的控制器，由这里保留到窗口关闭。
     private(set) var controllers: [ReaderWindowController] = []
     /// 服务就绪之前收到的打开请求（例如拖到 Dock 图标启动）。
@@ -35,6 +44,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        installMenu()
+    }
+
+    private func installMenu() {
         let builder = MenuBuilder(
             catalog: catalog,
             isEnabled: { [weak self] id in self?.isEnabled(id) ?? false },
@@ -63,6 +76,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             let services = try await makeServices()
             self.services = services
+            reloadBindings()
+            observeBindings()
             let dispatcher = CommandDispatcher(registry: services.commands)
             self.dispatcher = dispatcher
             dock = DockCoordinator(fileURL: DockCoordinator.defaultFileURL())
@@ -74,8 +89,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.messageText = String(localized: "无法启动 MacView")
             alert.informativeText = ErrorText.describe(error)
             alert.addButton(withTitle: String(localized: "退出"))
+            #if DEBUG
+            SelfTest.checkStartupFailureIfRequested(app: self, alert: alert)
+            #endif
             alert.runModal()
-            NSApp.terminate(nil)
+            NSApp.perform(#selector(NSApplication.terminate(_:)), with: nil, afterDelay: 0)
             return
         }
         let urls = pendingURLs
@@ -92,13 +110,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
-    /// 服务容器。S1-T8 之后，没有 `-MVMockServices YES` 时改用 `CoreServices.make`；它失败时显示错误并退出，不回落到 Mock。
+    /// Debug 自检可覆盖目录，避免触碰用户的配置与缓存。
     private func makeServices() async throws -> CoreServices {
-        CoreServices.makeMock()
+        if isMock { return CoreServices.makeMock() }
+        var cacheDirectory = URL.cachesDirectory.appending(path: "MacView")
+        #if DEBUG
+        if let path = UserDefaults.standard.string(forKey: "MVSupportDirectory") { supportDirectory = URL(fileURLWithPath: path) }
+        if let path = UserDefaults.standard.string(forKey: "MVCacheDirectory") { cacheDirectory = URL(fileURLWithPath: path) }
+        #endif
+        let pixels = NSScreen.screens.map { $0.frame.size.applying(.init(scaleX: $0.backingScaleFactor, y: $0.backingScaleFactor)) }
+        let bounds = PixelSize(width: Int(pixels.map(\.width).max() ?? 3840), height: Int(pixels.map(\.height).max() ?? 2160))
+        return try await CoreServices.make(configuration: CoreConfiguration(
+            supportDirectory: supportDirectory, cacheDirectory: cacheDirectory,
+            browseBounds: bounds, helperExecutable: Bundle.main.executableURL
+        ))
+    }
+
+    private func reloadBindings() {
+        catalog = CommandCatalog(user: services?.keyBindings?.value().bindings ?? [])
+        installMenu()
+        controllers.forEach { $0.updateBindings(catalog) }
+    }
+
+    private func observeBindings() {
+        guard let store = services?.keyBindings else { return }
+        let changes = store.changes()
+        keyBindingsTask = Task { [weak self] in
+            for await change in changes {
+                guard let self, !Task.isCancelled else { return }
+                switch change {
+                case .reloaded:
+                    keyBindingsError = nil
+                    reloadBindings()
+                case let .fileError(message):
+                    keyBindingsError = message
+                }
+                controllers.forEach { showBindingsError(in: $0) }
+            }
+        }
+    }
+
+    private func showBindingsError(in controller: ReaderWindowController) {
+        controller.content.showFileError(keyBindingsError, fileURL: supportDirectory.appending(path: "keybindings.json"))
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let services else { return .terminateNow }
+        keyBindingsTask?.cancel()
         // shutdown 自己有时限，不等被卡住的 I/O。
         Task {
             await dock?.flush()
@@ -188,6 +246,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         cascadePoint = window.cascadeTopLeft(from: cascadePoint)
         controllers.append(controller)
+        showBindingsError(in: controller)
         return controller
     }
 

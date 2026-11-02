@@ -26,7 +26,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     static let tabbingIdentifier = "MacView.reader"
 
     let session: ReaderSession
-    let router: InputRouter
+    private(set) var router: InputRouter
     let pageView: PageView
     let content: ReaderContentView
     let pendingView: PendingSequenceView
@@ -34,7 +34,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     let dock: WindowDock
     private let services: CoreServices
     private let dispatcher: CommandDispatcher
-    private let catalog: CommandCatalog
+    private var catalog: CommandCatalog
     private let isMock: Bool
     private var openTask: Task<Void, Never>?
     private let bookTitle = NSTextField(labelWithString: "")
@@ -52,7 +52,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         pageView = PageView(session: session, pipeline: services.pipeline)
         let statusBar = StatusBarView(
             serviceBadge: isMock ? String(localized: "Mock 服务") : "",
-            badgeToolTip: String(localized: "尚未接入真实服务，书和图片来自内存中的模拟目录（/Volumes/Mock）。")
+            badgeToolTip: isMock ? String(localized: "尚未接入真实服务，书和图片来自内存中的模拟目录（/Volumes/Mock）。") : ""
         )
         let mainView = ReaderMainView(pageView: pageView)
         pendingView = mainView.pendingView
@@ -110,6 +110,18 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     /// 按第一响应者的作用域执行命令，供工具栏和按钮使用。
     func run(_ id: CommandID) {
         dispatcher.run(id, in: self, scope: InputRouter.scope(of: window?.firstResponder))
+    }
+
+    /// InputRouter 持有解析器状态；配置重载时整体替换，并清除未完成的序列。
+    func updateBindings(_ catalog: CommandCatalog) {
+        self.catalog = catalog
+        router = InputRouter(catalog: catalog)
+        router.onCommand = { [weak self] id, arguments, scope in
+            self?.dispatcher.run(id, arguments: arguments, in: self, scope: scope)
+        }
+        router.onPendingChange = { [weak self] pending in self?.pendingView.show(pending) }
+        (window as? ReaderWindow)?.router = router
+        pendingView.show(nil)
     }
 
     // MARK: 会话

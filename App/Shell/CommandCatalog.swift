@@ -36,7 +36,7 @@ struct CommandCatalog {
     let menu: MenuModel
     private let descriptors: [CommandID: CommandDescriptor]
 
-    /// `user` 是 keybindings.json 中的绑定；接入真实服务（S1-T8）之前为空。
+    /// `user` 是 keybindings.json 中的绑定。
     @MainActor
     init(user: [KeyBinding] = []) {
         let all = CoreCommands.all + Self.appCommands

@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "keybindings.json 无法解析，保留上次的按键绑定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t read keybindings.json; keeping the last keyboard bindings"
+          }
+        }
+      }
+    },
     "Mock 服务": {
       "localizations": {
         "en": {
