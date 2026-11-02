@@ -137,13 +137,33 @@ enum TarIndex {
         var values: [String: String] = [:]
         var offset = 0
         while offset < data.count {
-            guard let space = data[offset...].firstIndex(of: 32),
-                  let count = Int(String(decoding: data[offset..<space], as: UTF8.self)), count > space - offset + 2,
+            var count = 0
+            var space = offset
+            while space < data.count, data[space] != 32 {
+                let byte = data[space]
+                guard byte >= 48, byte <= 57, count <= (Int.max - Int(byte - 48)) / 10 else {
+                    throw IOError.corrupted(location, "无效的 pax 记录长度")
+                }
+                count = count * 10 + Int(byte - 48)
+                space += 1
+            }
+            guard space > offset, space < data.count, count > space - offset + 2,
                   count <= data.count - offset, data[offset + count - 1] == 10 else { throw IOError.corrupted(location, "无效的 pax 记录长度") }
             let body = data[space + 1..<offset + count - 1]
-            guard let equal = body.firstIndex(of: 61),
-                  let key = String(data: body[..<equal], encoding: .utf8),
-                  let value = String(data: body[body.index(after: equal)...], encoding: .utf8) else { throw IOError.corrupted(location, "无效的 pax 键值") }
+            guard let equal = body.firstIndex(of: 61), equal > body.startIndex else { throw IOError.corrupted(location, "无效的 pax 键值") }
+            let keyBytes = body[..<equal]
+            let key: String
+            if keyBytes.elementsEqual("path".utf8) { key = "path" }
+            else if keyBytes.elementsEqual("size".utf8) { key = "size" }
+            else if keyBytes.elementsEqual("mtime".utf8) { key = "mtime" }
+            else {
+                // LIBARCHIVE.xattr 等未知键允许二进制值，按记录长度直接跳过。
+                offset += count
+                continue
+            }
+            guard let value = String(data: body[body.index(after: equal)...], encoding: .utf8) else {
+                throw IOError.corrupted(location, "无效的 pax 键值")
+            }
             values[key] = value
             offset += count
         }
