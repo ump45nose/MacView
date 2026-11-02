@@ -45,6 +45,7 @@
 | MVServices | 组合根：创建并连接各服务，负责启动、退出和内存压力处理 | 以上全部 |
 | MVTestSupport | Mock 与夹具清单（`Fixtures/manifest.json`）的读取。App 的 Debug 构建可以用启动参数 `-MVMockServices YES` 切换到 Mock | 契约 |
 | mvbench | 基准测试与夹具生成的命令行工具 | 全部 |
+| MVLayout | App 侧的纯计算：画布的四种布局与锚点、停靠布局及其变换。App 没有测试目标，放进包里才能用 `make test` 测 | MVFoundation、MVSettings |
 | App（`MacView` target） | 窗口与标签页、停靠面板、集合视图、查看器、输入、菜单、设置界面、本地化 | MVServices 等 |
 
 - 任务 ID 中，T 表示 Core 任务，F 表示 App 任务。
@@ -241,12 +242,24 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 窗口：
   - 每个窗口或标签一个 `ReaderWindowController`，持有自己的 ReaderSession 和停靠布局。
   - `tabbingMode = .preferred`。
-  - 用 NSWindowRestoration 恢复窗口、书和页。
+  - 用 NSWindowRestoration 恢复窗口、书和页（S2-F3）。
+- 菜单与快捷键：
+  - 菜单由命令清单生成。global 作用域的绑定是真正的菜单快捷键，焦点在文本框里或没有窗口时也可用。
+  - 其余作用域的绑定只在菜单打开时（`menuWillOpen`）写到菜单项上，关闭后清除，按键一律经 InputRouter 路由。
+  - 原因：菜单项一直带着 →、⌘G 这类快捷键时，AppKit 会在按键到达响应链之前匹配它们，菜单项不可用时还会吞掉按键；`menuHasKeyEquivalent` 返回 false 也拦不住（S1-F1 实测）。
 - 停靠框架：
   - NSSplitView 分出左、中、右三栏，底部区在中间栏下方。
   - 每个区放一个面板栈（标签页或上下分割），面板可以拖到别的区。
-  - 浮动面板是全应用共享的 NSPanel，作用于当前活动窗口。
+  - 浮动面板全应用只有一份，是共享的 NSPanel，作用于当前活动窗口。
   - 全屏时停靠区自动隐藏，鼠标靠近边缘时浮出。
+  - S1-F2 的结论（[报告](reports/S1-F2.md)）：
+    - “折叠”就是隐藏：区不占空间，面板与尺寸保留，没有只剩标题条的形态。区头按钮、显示命令、把分隔线拖到边缘，效果相同。
+    - 面板浮动后，其他窗口中停靠着的同一面板随之移走。拖回某个窗口后，其他窗口不会自动出现这个面板。
+    - 每个窗口的布局只有停靠区是自己的。`layout.json` 只存一份：最近一次改动所在窗口的完整布局，它也是新窗口的默认布局。
+    - 面板在区、窗口、停靠与浮动之间移动时，保留同一实例与视图设置。
+    - 只有同时满足三个条件才算用户拖动分隔线：通知带分隔线序号；当前事件是本窗口的鼠标事件；不在窗口缩放中，也不是程序在设置位置。NSSplitView 初次布局时也发带序号的通知。
+    - 浮动面板用 `hidesOnDeactivate`（App 失去焦点时隐藏）和 `fullScreenAuxiliary`（可以浮在全屏窗口之上）。
+    - 占位面板沿用正式标识 `bookshelf`、`pageList`，S2-F2 只替换面板类型，`layout.json` 和快捷键不变。
 - 画布引擎：
   - 基于 NSScrollView，利用它原生的滚动、惯性和捏合缩放。内容是图层池，不为每一项建一个 NSView。
   - LayoutModel 有砌体、网格、纵向条、横向条四种，布局变化时保持可见锚点。
@@ -257,6 +270,13 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     - 图层内容只用已解码、IOSurface 支撑的图像，避免在提交时复制。
     - 图片突发到达时，每帧设置图层内容的数量有限额。
     - 滚动走 NSScrollView 自己的路径，不在显示链接回调里改滚动位置；卡顿验收用真实的滚动输入。
+  - S1-F3 的结论（[报告](reports/S1-F3.md)）：
+    - 布局和锚点是纯计算，在 MVLayout。自动场景的 App 侧统计：滚动更新 P99 ≤ 0.33 ms，全量重排 P99 ≤ 0.62 ms。
+    - 只排最长前缀的规则适用于砌体和两种条；网格与宽高比无关，所有项都排。
+    - 视口尺寸的任何变化都做全量重排，P99 不到 1 ms，不另设只改内容尺寸的路径。
+    - 锚点分两种：尺寸、种类、方向变化时取前沿落在视口内的第一项；整体重排时取选中项，没有时取中心项。
+    - 缩略图逐项调用 `thumbnail(for:)`，因为项滚出余量时要逐个取消，批量流只能整体取消。请求按项的实际像素尺寸，不封顶 1024。
+    - 滚动停止 50 ms 后结算（一个推迟触发时间的计时器），补发请求，并通过闭包 `onVisibleRangeChange` 回报 `visible` 和 `margin` 两个范围，由调用方接到 `ReaderSession.visibleRangeChanged` 或面板的预取。
 - 集合组件：列表和详情表格用 NSTableView，网格和瀑布流用画布引擎。
 - 查看器：
   - 分页渲染器负责页帧图层、缩放模式计算、设备像素 1:1、放大镜、翻页时保持缩放与位置，以及以光标为中心缩放。
@@ -546,6 +566,67 @@ public struct CoreConfiguration: Sendable { public var supportDirectory: URL; pu
     public func shutdown() async   // 有时限地等待，不等被卡住的 I/O 线程
 }
 // MVTestSupport：extension CoreServices { static func makeMock(_ options: MockOptions = MockOptions()) -> CoreServices }
+
+// MVLayout：App 侧的纯计算，不依赖 AppKit
+public enum CollectionLayoutKind: String, Codable, Sendable, CaseIterable { case masonry, grid, verticalStrip, horizontalStrip; public var isHorizontal: Bool { get } }
+public enum LayoutMove: Sendable { case up, down, left, right }
+public struct LayoutAnchor: Sendable, Hashable { public var index: Int; public var offset: Double; public var extent: Double; public init(index: Int, offset: Double, extent: Double) }
+// offset 是沿阅读方向，锚点项前沿到视口前沿的点数，项跨过视口前沿时为负；此时按 extent 把 offset 换算到项的新长度。
+public struct CollectionLayout: Sendable {   // 砌体和两种条只排已知宽高比的最长前缀；网格与宽高比无关，所有项都排
+    public let kind: CollectionLayoutKind; public let viewportSize: CGSize; public let itemExtent: Double; public let spacing: Double; public let direction: ReadingDirection
+    public private(set) var contentSize: CGSize; public let columnCount: Int
+    public init(kind: CollectionLayoutKind, viewportSize: CGSize, itemExtent: Double, spacing: Double, direction: ReadingDirection)
+    public var count: Int { get }
+    public mutating func setAspectRatios(_ ratios: [Double?])   // 已排部分不变时在尾部追加，变了就从头重排
+    public func frame(of index: Int) -> CGRect?
+    public func items(in rect: CGRect) -> [(index: Int, frame: CGRect)]
+    public func index(moving index: Int, _ move: LayoutMove) -> Int?   // 方向键：按画面几何找相邻项
+    public func leadingAnchor(in viewport: CGRect) -> LayoutAnchor?   // 尺寸、种类、方向变化时用
+    public func reorderAnchor(in viewport: CGRect, selected: Int?) -> LayoutAnchor?   // 整体重排时用：选中项，没有时取中心项
+    public func viewportOrigin(restoring anchor: LayoutAnchor) -> CGPoint?   // 锚点项还没排时为 nil
+}
+public struct PanelID: RawRepresentable, Hashable, Codable, Sendable, CodingKeyRepresentable { public var rawValue: String; public init(rawValue: String); public init(_ rawValue: String) }
+public enum DockEdge: String, Codable, Sendable, CaseIterable { case left, right, bottom }
+public enum DockStackStyle: String, Codable, Sendable { case tabs, split }
+public struct DockArea: Codable, Sendable, Hashable {
+    public var panels: [PanelID]; public var style: DockStackStyle; public var selected: PanelID?; public var weights: [PanelID: Double]; public var size: Double; public var isCollapsed: Bool
+    public init(panels: [PanelID] = [], style: DockStackStyle = .tabs, selected: PanelID? = nil, weights: [PanelID: Double] = [:], size: Double, isCollapsed: Bool = false)
+}
+public struct DockFrame: Codable, Sendable, Hashable { public var x: Double; public var y: Double; public var width: Double; public var height: Double; public init(x: Double, y: Double, width: Double, height: Double) }
+public struct FloatingPanel: Codable, Sendable, Hashable {
+    public var panel: PanelID; public var frame: DockFrame; public var home: DockEdge; public var isHidden: Bool; public var settings: JSONValue?
+    public init(panel: PanelID, frame: DockFrame, home: DockEdge, isHidden: Bool = false, settings: JSONValue? = nil)
+}
+public enum DockTarget: Hashable, Sendable { case area(DockEdge, index: Int), floating(DockFrame) }   // index 是可见面板中的位置
+public enum PanelPlacement: Hashable, Sendable { case docked(DockEdge, index: Int), floating(index: Int) }   // docked 的 index 含隐藏的面板
+public struct DockLayout: Codable, Sendable, Hashable {   // layout.json 的内容；变换都是纯函数，返回新的布局
+    public var left: DockArea; public var right: DockArea; public var bottom: DockArea
+    public var floating: [FloatingPanel]; public var hidden: Set<PanelID>; public var settings: [PanelID: JSONValue]
+    public init(left: DockArea, right: DockArea, bottom: DockArea, floating: [FloatingPanel] = [], hidden: Set<PanelID> = [], settings: [PanelID: JSONValue] = [:])
+    public subscript(edge: DockEdge) -> DockArea { get }
+    public func placement(of panel: PanelID) -> PanelPlacement?
+    public func visiblePanels(in edge: DockEdge) -> [PanelID]
+    public func isShowing(_ edge: DockEdge) -> Bool
+    public func currentTab(in edge: DockEdge) -> PanelID?
+    public func isPanelVisible(_ panel: PanelID) -> Bool
+    public func settings(of panel: PanelID) -> JSONValue?
+    public func moving(_ panel: PanelID, to target: DockTarget) -> DockLayout
+    public func inserting(_ panel: PanelID, at target: DockTarget, settings: JSONValue?) -> DockLayout   // 跨窗口移动的两端
+    public func removing(_ panel: PanelID) -> DockLayout
+    public func docking(_ panel: PanelID) -> DockLayout   // 浮动面板回到原来的区
+    public func togglingStyle(_ edge: DockEdge) -> DockLayout
+    public func selecting(_ panel: PanelID) -> DockLayout
+    public func resizing(_ edge: DockEdge, to size: Double) -> DockLayout
+    public func reweighting(_ edge: DockEdge, _ weights: [PanelID: Double]) -> DockLayout
+    public func settingCollapsed(_ edge: DockEdge, _ isCollapsed: Bool) -> DockLayout
+    public func togglingArea(_ edge: DockEdge) -> DockLayout
+    public func togglingAllAreas() -> DockLayout
+    public func togglingPanel(_ panel: PanelID, defaultEdge: DockEdge) -> DockLayout
+    public func movingFloating(_ panel: PanelID, to frame: DockFrame) -> DockLayout
+    public func settingSettings(_ value: JSONValue, for panel: PanelID) -> DockLayout
+    public func adoptingFloating(of other: DockLayout) -> DockLayout   // 浮动面板全应用一份：采用对方的浮动列表，并移走自己停靠着的同一面板
+    public func sanitized(knownPanels: Set<PanelID>) -> DockLayout   // 整理从文件读入的布局
+}
 ```
 
 ## 5. 关口

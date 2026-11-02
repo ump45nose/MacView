@@ -23,7 +23,10 @@
 - 阶段 1 独立验收通过；S1-T2、S1-T4、S1-T7 均已完成。NAS 压缩包吞吐 C1.10 因 NFS 未在线而未验证。
 - 阶段 3 独立验收通过；S1-T5（图像管线）与 S1-T6（阅读模型）均已完成，176 项测试通过，零编译警告。
 - S1-T5 独立复测 C3.2 为 78.68 ms、C3.3 为 19.76 ms，均达标；C3.4 因 NFS 未在线而未验证。
-- 下一步：推进阶段 4 的 S1-T8。F 系列在 Mock 上穿插：S1-F1 → S1-F3 → S1-F2。
+- 阶段 5 的实现完成（S1-F3、S1-F1、S1-F2），目前都运行在 Mock 服务上；停靠自检与外壳自检全部通过。
+  - 待用户录制：C5.2（画布，触控板滚动与改尺寸）、C5.12（停靠，拖动面板与改尺寸）。
+  - 未测：真实鼠标拖动手势。
+- 下一步：推进阶段 4 的 S1-T8，把 App 从 Mock 切到真实服务。
 
 ## 关口
 
@@ -60,9 +63,9 @@ S1 的任务都在 G0 之后开始，前置列只列阶段内的依赖。
 | S1-T6 | MVReading：BookLoader（渐进、过滤、排序、递归、穿透、探测顺序）、Bookshelf、PageFrameEngine、ReaderSession | S1-T7 | [S1-T6](tasks/S1-T6.md)、[报告](../reports/S1-T6.md) | 已完成 |
 | S1-T7 | MVSettings 与 MVCommands：JSON 存储与重载、分层解析、路径规则、书记忆、命令登记、按键序列解析，以及 P0 的默认命令、绑定和菜单 | — | [S1-T7](tasks/S1-T7.md)、[报告](../reports/S1-T7.md) | 已完成 |
 | S1-T8 | MVServices 组合根，加跨模块集成测试：打开 zip 书、翻页、生成缩略图、设置落盘 | S1-T1、S1-T2、S1-T5、S1-T6 | [S1-T8](tasks/S1-T8.md) | 未开始 |
-| S1-F1 | App 外壳：生命周期、窗口与标签、服务容器（先接 Mock）、MenuBuilder、InputRouter、String Catalog（开发语言为简体中文，补英文） | — | [S1-F1](tasks/S1-F1.md) | 未开始 |
-| S1-F2 | 停靠面板框架：三个停靠区、面板栈、拖动换区、浮动面板、全屏自动隐藏、布局持久化 | S1-F1 | [S1-F2](tasks/S1-F2.md) | 未开始 |
-| S1-F3 | 画布引擎正式版：四种 LayoutModel、锚点保持、可见范围回报 | S0-F1 | [S1-F3](tasks/S1-F3.md) | 未开始 |
+| S1-F1 | App 外壳：生命周期、窗口与标签、服务容器（先接 Mock）、MenuBuilder、InputRouter、String Catalog（开发语言为简体中文，补英文） | — | [S1-F1](tasks/S1-F1.md)、[报告](../reports/S1-F1.md) | 已完成（菜单显示与真实拖放待用户目测） |
+| S1-F2 | 停靠面板框架：三个停靠区、面板栈、拖动换区、浮动面板、全屏自动隐藏、布局持久化 | S1-F1 | [S1-F2](tasks/S1-F2.md)、[报告](../reports/S1-F2.md) | 实现完成；C5.12 待用户录制，真实鼠标拖动未测 |
+| S1-F3 | 画布引擎正式版：四种 LayoutModel、锚点保持、可见范围回报 | S0-F1 | [S1-F3](tasks/S1-F3.md)、[报告](../reports/S1-F3.md) | 实现完成；C5.2 待用户录制 |
 
 排序原则：按关键路径和风险排序。性能链（S1-T1、S1-T3、S1-T4 → S1-T5）优先，F 系列在 Mock 上穿插进行。
 
