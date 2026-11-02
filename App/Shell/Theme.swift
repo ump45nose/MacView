@@ -9,7 +9,6 @@ enum Theme {
     static let hud = color(light: 0xFFFFFF, lightAlpha: 0.94, dark: 0x141413, darkAlpha: 0.9)
     static let text = color(light: 0x141413, dark: 0xFAF9F5)
     static let text2 = color(light: 0x5E5D59, dark: 0xC2C0B6)
-    static let text3 = color(light: 0x73726C, dark: 0x9C9A92)
     static let line = color(light: 0x1F1E1D, lightAlpha: 0.15, dark: 0xDEDCD1, darkAlpha: 0.13)
     static let lineStrong = color(light: 0x1F1E1D, lightAlpha: 0.3, dark: 0xDEDCD1, darkAlpha: 0.26)
     static let primary = color(light: 0x141413, dark: 0xFAF9F5)

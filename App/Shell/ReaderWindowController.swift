@@ -31,7 +31,6 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     let content: ReaderContentView
     /// 本窗口的停靠区；页面视图在中间栏。
     let dock: WindowDock
-    private let dockCoordinator: DockCoordinator
     private let services: CoreServices
     private let dispatcher: CommandDispatcher
     private let catalog: CommandCatalog
@@ -44,7 +43,6 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     init(services: CoreServices, catalog: CommandCatalog, dispatcher: CommandDispatcher, dock dockCoordinator: DockCoordinator, isMock: Bool) {
         self.services = services
-        self.dockCoordinator = dockCoordinator
         self.dispatcher = dispatcher
         self.isMock = isMock
         session = services.makeSession()
@@ -53,8 +51,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             serviceBadge: isMock ? String(localized: "Mock 服务") : "",
             badgeToolTip: String(localized: "尚未接入真实服务，书和图片来自内存中的模拟目录（/Volumes/Mock）。")
         )
-        dock = dockCoordinator.makeDock(mainView: pageView)
-        content = ReaderContentView(mainView: dock.container, statusBar: statusBar)
+        dock = WindowDock(coordinator: dockCoordinator, mainView: pageView)
+        content = ReaderContentView(mainView: dock, statusBar: statusBar)
         self.catalog = catalog
         router = InputRouter(catalog: catalog)
 
@@ -203,19 +201,19 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     // MARK: 窗口
 
     func windowDidBecomeMain(_ notification: Notification) {
-        dockCoordinator.activate(dock)
+        dock.coordinator.activate(dock)
     }
 
     func windowWillEnterFullScreen(_ notification: Notification) {
-        dock.container.setAutoHide(true)
+        dock.setAutoHide(true)
     }
 
     func windowWillExitFullScreen(_ notification: Notification) {
-        dock.container.setAutoHide(false)
+        dock.setAutoHide(false)
     }
 
     func windowWillClose(_ notification: Notification) {
-        dockCoordinator.detach(dock)
+        dock.coordinator.detach(dock)
         openTask?.cancel()
         pageView.cancelLoads()
         services.pipeline.cancelAll(session: session.id)

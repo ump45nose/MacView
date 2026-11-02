@@ -3,15 +3,11 @@ import AppKit
 /// 配置文件出错时窗口顶部的提示条（设计稿“状态与反馈 · 配置文件解析失败”）：图标、标题与说明、“打开文件”、关闭。
 @MainActor
 final class FileErrorBanner: NSView {
-    let title: String
-    let detail: String
     private let fileURL: URL
     private let onClose: () -> Void
     private let bottomLine = CALayer()
 
     init(title: String, detail: String, fileURL: URL, onClose: @escaping () -> Void) {
-        self.title = title
-        self.detail = detail
         self.fileURL = fileURL
         self.onClose = onClose
         super.init(frame: .zero)

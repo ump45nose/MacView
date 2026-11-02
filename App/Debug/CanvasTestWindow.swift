@@ -542,15 +542,11 @@ private struct ScenarioRun {
 
     mutating func record(_ measure: CanvasMeasure) {
         switch measure {
-        case let .scroll(duration): scrollUpdates[currentIndex].append(Self.milliseconds(duration))
-        case let .relayout(duration): relayouts[currentIndex].append(Self.milliseconds(duration))
-        case let .settled(latency, visible) where visible > 0: settles[currentIndex].append(Self.milliseconds(latency))
+        case let .scroll(duration): scrollUpdates[currentIndex].append(duration.milliseconds)
+        case let .relayout(duration): relayouts[currentIndex].append(duration.milliseconds)
+        case let .settled(latency, visible) where visible > 0: settles[currentIndex].append(latency.milliseconds)
         case .settled: break
         }
-    }
-
-    private static func milliseconds(_ duration: Duration) -> Double {
-        Double(duration.components.attoseconds) * 1e-15 + Double(duration.components.seconds) * 1000
     }
 
     func results(endCounters: CanvasCounters) -> [CanvasTestSummary.Phase] {

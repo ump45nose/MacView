@@ -87,11 +87,6 @@ public struct CollectionLayout: Sendable {
         kind == .grid ? gridCount : frames.count
     }
 
-    /// 横截方向的视口长度；它变化时才需要重新排版，沿滚动方向的变化只影响 `contentSize`。
-    public var crossExtent: Double {
-        kind.isHorizontal ? viewportSize.height : viewportSize.width
-    }
-
     /// 按全部项的宽高比（未知为 nil）更新。已排部分的宽高比不变时只在尾部追加，否则从头重排。
     public mutating func setAspectRatios(_ ratios: [Double?]) {
         if kind == .grid {
@@ -269,15 +264,14 @@ public struct CollectionLayout: Sendable {
             }
         }
         guard let chosen = inside ?? crossing else { return nil }
-        return LayoutAnchor(index: chosen.index, offset: chosen.main.min - start, extent: chosen.main.max - chosen.main.min)
+        return anchor(chosen.index, start: start)
     }
 
     /// 数据整体重排时的锚点：取选中项；没有选中项（或它还没排）时取可见区中心的项。
     public func reorderAnchor(in viewport: CGRect, selected: Int?) -> LayoutAnchor? {
         let start = readingMain(viewport).min
-        if let selected, let frame = frame(of: selected) {
-            let main = readingMain(frame)
-            return LayoutAnchor(index: selected, offset: main.min - start, extent: main.max - main.min)
+        if let selected, frame(of: selected) != nil {
+            return anchor(selected, start: start)
         }
         let center = CGPoint(x: viewport.midX, y: viewport.midY)
         var best: (index: Int, distance: Double)?
@@ -287,9 +281,13 @@ public struct CollectionLayout: Sendable {
             let distance = dx * dx + dy * dy
             if best.map({ (distance, index) < ($0.distance, $0.index) }) ?? true { best = (index, distance) }
         }
-        guard let best, let frame = frame(of: best.index) else { return nil }
-        let main = readingMain(frame)
-        return LayoutAnchor(index: best.index, offset: main.min - start, extent: main.max - main.min)
+        return best.map { anchor($0.index, start: start) }
+    }
+
+    /// 已排的项相对于视口前沿 `start` 的锚点。
+    private func anchor(_ index: Int, start: Double) -> LayoutAnchor {
+        let main = readingMain(output(readingFrame(index)))
+        return LayoutAnchor(index: index, offset: main.min - start, extent: main.max - main.min)
     }
 
     /// 让锚点项回到它在视口中的相对位置时，视口的原点。锚点项还没排时为 nil。

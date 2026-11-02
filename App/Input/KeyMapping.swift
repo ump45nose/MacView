@@ -41,6 +41,11 @@ enum KeyMapping {
         NamedKey(name: "F\(number)", keyCode: code, menuCharacter: function(NSF1FunctionKey + number - 1), symbol: "F\(number)")
     }
 
+    /// 修饰键与 AppKit 标志的对应。
+    private static let modifierFlags: [(KeyModifiers, NSEvent.ModifierFlags)] = [
+        (.command, .command), (.option, .option), (.control, .control), (.shift, .shift), (.function, .function),
+    ]
+
     private static let byKeyCode = Dictionary(namedKeys.map { ($0.keyCode, $0) }, uniquingKeysWith: { first, _ in first })
     private static let byName = Dictionary(namedKeys.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
 
@@ -49,10 +54,9 @@ enum KeyMapping {
         guard event.type == .keyDown else { return nil }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         var modifiers = KeyModifiers()
-        if flags.contains(.command) { modifiers.insert(.command) }
-        if flags.contains(.option) { modifiers.insert(.option) }
-        if flags.contains(.control) { modifiers.insert(.control) }
-        if flags.contains(.shift) { modifiers.insert(.shift) }
+        for (modifier, flag) in modifierFlags where modifier != .function && flags.contains(flag) {
+            modifiers.insert(modifier)
+        }
         if let named = byKeyCode[Int(event.keyCode)] {
             // 方向键、Home 等自带 function 标志，不算修饰键。
             return KeyChord(named.name, modifiers: modifiers)
@@ -73,11 +77,9 @@ enum KeyMapping {
             return nil
         }
         var mask = NSEvent.ModifierFlags()
-        if chord.modifiers.contains(.command) { mask.insert(.command) }
-        if chord.modifiers.contains(.option) { mask.insert(.option) }
-        if chord.modifiers.contains(.control) { mask.insert(.control) }
-        if chord.modifiers.contains(.shift) { mask.insert(.shift) }
-        if chord.modifiers.contains(.function) { mask.insert(.function) }
+        for (modifier, flag) in modifierFlags where chord.modifiers.contains(modifier) {
+            mask.insert(flag)
+        }
         return (key, mask)
     }
 

@@ -6,7 +6,7 @@ import os
 
 /// 全应用的停靠协调者：保存 layout.json、管理共享的浮动面板、在窗口之间移动面板。
 ///
-/// - 每个窗口有自己的停靠区（`WindowDock.layout`）；浮动面板全应用共享，作用于当前活动窗口。
+/// - 每个窗口有自己的停靠区（`WindowDock.dockLayout`）；浮动面板全应用共享，作用于当前活动窗口。
 /// - `current` 是最近一次改动后的完整布局：新窗口套用它的停靠区，它也是去抖后写进 layout.json 的内容。
 /// - 变换都经 `perform` 或 `commit`：先算出新布局，再让涉及的窗口和浮动面板跟上。
 ///   面板离开一处时实例先放进 `pool`，同一轮里移到别处时取回，视图和状态保留。
@@ -28,7 +28,7 @@ final class DockCoordinator {
     private(set) var floatingWindows: [PanelID: FloatingPanelWindow] = [:]
     private(set) var drag: (panel: PanelID, source: WindowDock?)?
     private(set) var problem: Problem? {
-        didSet { docks.forEach { $0.showError(problem) } }
+        didSet { docks.forEach { $0.showProblem(problem) } }
     }
     private var pool: [PanelID: any DockPanel] = [:]
     private var saveTask: Task<Void, Never>?
@@ -85,15 +85,11 @@ final class DockCoordinator {
 
     // MARK: 窗口
 
-    func makeDock(mainView: NSView) -> WindowDock {
-        WindowDock(coordinator: self, mainView: mainView)
-    }
-
     /// 窗口就绪：套用默认布局（`current` 的停靠区）。
     func attach(_ dock: WindowDock, to owner: ReaderWindowController) {
-        dock.attach(to: owner)
+        dock.owner = owner
         docks.append(dock)
-        dock.showError(problem)
+        dock.showProblem(problem)
         commit([(dock, current)], current: current, save: false)
         if active == nil { activate(dock) }
     }
@@ -119,8 +115,7 @@ final class DockCoordinator {
 
     /// 在一个窗口（nil 时只涉及浮动面板）上变换布局。
     func perform(in dock: WindowDock?, render: Bool = true, _ transform: (DockLayout) -> DockLayout) {
-        var base = dock?.layout ?? current
-        base.floating = current.floating
+        let base = layout(of: dock)
         let next = transform(base)
         guard next != base else { return }
         commit(dock.map { [($0, next)] } ?? [], current: next, render: render)
@@ -141,8 +136,8 @@ final class DockCoordinator {
         }
         if floatingChanged {
             for dock in docks where !updates.contains(where: { $0.0 === dock }) {
-                let adopted = Self.docked(dock.layout.adoptingFloating(of: next))
-                if adopted != dock.layout { dock.apply(adopted, render: true) }
+                let adopted = Self.docked(dock.dockLayout.adoptingFloating(of: next))
+                if adopted != dock.dockLayout { dock.apply(adopted, render: true) }
             }
         }
         syncFloating()
@@ -150,7 +145,15 @@ final class DockCoordinator {
         if save { scheduleSave() }
     }
 
-    private static func docked(_ layout: DockLayout) -> DockLayout {
+    /// 窗口（nil 时为最近一次改动后）的停靠区，加上共享的浮动面板。
+    private func layout(of dock: WindowDock?) -> DockLayout {
+        var layout = dock?.dockLayout ?? current
+        layout.floating = current.floating
+        return layout
+    }
+
+    /// 去掉浮动面板，即窗口自己的停靠区。
+    static func docked(_ layout: DockLayout) -> DockLayout {
         var layout = layout
         layout.floating = []
         return layout
@@ -162,18 +165,29 @@ final class DockCoordinator {
         if pool[id] == nil { pool[id] = panel }
     }
 
-    /// 本轮中刚离开别处的实例，或者按视图设置新建。设置无法解码时用默认设置，并显示错误。
-    func obtain(_ id: PanelID, settings: JSONValue?) -> (any DockPanel)? {
-        if let panel = pool.removeValue(forKey: id) { return panel }
+    /// 本轮中刚离开别处的实例，或者按视图设置新建；设置无法解码时用默认设置，并显示错误。
+    /// 面板作用于 `dock`，nil 时是浮动面板，作用于活动窗口；视图设置的改动记进同一处。
+    func obtain(_ id: PanelID, settings: JSONValue?, for dock: WindowDock?) -> (any DockPanel)? {
         guard let type = DockPanels.type(id) else { return nil }
-        let (panel, error) = type.instantiate(settings: settings)
-        if let error {
-            logger.error("面板 \(id.rawValue, privacy: .public) 的视图设置无效：\(String(describing: error), privacy: .public)")
-            problem = Problem(
-                title: String(localized: "layout.json 中“\(type.title)”的视图设置无效"),
-                detail: String(describing: error) + "\n" + String(localized: "已改用默认设置。")
-            )
+        let panel: any DockPanel
+        if let pooled = pool.removeValue(forKey: id) {
+            panel = pooled
+        } else {
+            let made = type.instantiate(settings)
+            panel = made.panel
+            if let error = made.error {
+                logger.error("面板 \(id.rawValue, privacy: .public) 的视图设置无效：\(String(describing: error), privacy: .public)")
+                problem = Problem(
+                    title: String(localized: "layout.json 中“\(type.title)”的视图设置无效"),
+                    detail: String(describing: error) + "\n" + String(localized: "已改用默认设置。")
+                )
+            }
         }
+        panel.onSettingsChange = { [weak self, weak dock, weak panel] in
+            guard let self, let panel else { return }
+            perform(in: dock, render: false) { $0.settingSettings(panel.encodedSettings(), for: id) }
+        }
+        panel.bind(to: (dock ?? active)?.owner)
         return panel
     }
 
@@ -185,13 +199,8 @@ final class DockCoordinator {
             if let existing = floatingWindows[item.panel] {
                 window = existing
             } else {
-                guard let type = DockPanels.type(item.panel), let panel = obtain(item.panel, settings: item.settings) else { continue }
+                guard let type = DockPanels.type(item.panel), let panel = obtain(item.panel, settings: item.settings, for: nil) else { continue }
                 window = FloatingPanelWindow(type: type, panel: panel, coordinator: self)
-                panel.onSettingsChange = { [weak self, weak panel] in
-                    guard let self, let panel else { return }
-                    perform(in: nil, render: false) { $0.settingSettings(panel.encodedSettings(), for: item.panel) }
-                }
-                panel.bind(to: active?.owner)
                 floatingWindows[item.panel] = window
             }
             window.place(item.frame)
@@ -205,24 +214,16 @@ final class DockCoordinator {
         perform(in: nil, render: false) { $0.movingFloating(panel, to: frame) }
     }
 
-    /// 浮动面板的关闭按钮：隐藏，位置保留。
-    func closeFloating(_ panel: PanelID) {
-        perform(in: nil) { $0.togglingPanel(panel, defaultEdge: .right) }
-    }
-
-    /// 浮动面板停靠回活动窗口；`edge` 为 nil 时回到原来的区。
-    func dockFloating(_ panel: PanelID, to edge: DockEdge?) {
+    /// 浮动面板停靠回活动窗口中原来的区。
+    func dockFloating(_ panel: PanelID) {
         guard let dock = active else { return }
-        perform(in: dock) { layout in
-            guard let edge else { return layout.docking(panel) }
-            return layout.moving(panel, to: .area(edge, index: layout.visiblePanels(in: edge).count))
-        }
+        perform(in: dock) { $0.docking(panel) }
     }
 
     /// 停靠的面板拖出或经菜单成为浮动面板。`screenPoint` 是放下的位置，nil 时放在原来的区旁边。
     func float(_ panel: PanelID, from dock: WindowDock, at screenPoint: NSPoint?) {
-        guard case let .docked(edge, _) = dock.layout.placement(of: panel) else { return }
-        let area = dock.layout[edge]
+        guard case let .docked(edge, _) = dock.dockLayout.placement(of: panel) else { return }
+        let area = dock.dockLayout[edge]
         let size = edge == .bottom
             ? CGSize(width: 420, height: max(area.size, 200) + 28)
             : CGSize(width: max(area.size, 220), height: 400)
@@ -230,7 +231,7 @@ final class DockCoordinator {
         if let screenPoint {
             origin = CGPoint(x: screenPoint.x - 40, y: screenPoint.y - size.height + 14)
         } else {
-            let view = dock.container.areas[edge]!
+            let view = dock.areas[edge]!
             let screen = view.window?.convertToScreen(view.convert(view.bounds, to: nil)) ?? .zero
             origin = CGPoint(x: screen.minX + 40, y: screen.maxY - size.height - 40)
         }
@@ -252,10 +253,8 @@ final class DockCoordinator {
             perform(in: target) { $0.moving(panel, to: destination) }
             return
         }
-        var sourceLayout = source.layout
-        sourceLayout.floating = current.floating
-        var targetLayout = target.layout
-        targetLayout.floating = current.floating
+        let sourceLayout = layout(of: source)
+        let targetLayout = layout(of: target)
         let inserted = targetLayout.inserting(panel, at: destination, settings: sourceLayout.settings(of: panel))
         commit([(source, sourceLayout.removing(panel)), (target, targetLayout.removing(panel)), (target, inserted)], current: inserted)
     }
@@ -268,29 +267,52 @@ final class DockCoordinator {
             float(panel, from: source, at: screenPoint)
         } else if case let .floating(index) = current.placement(of: panel) {
             var frame = current.floating[index].frame
-            frame.x = screenPoint.x - 40
-            frame.y = screenPoint.y - frame.height + 14
+            (frame.x, frame.y) = (screenPoint.x - 40, screenPoint.y - frame.height + 14)
             perform(in: nil) { $0.movingFloating(panel, to: frame) }
         }
     }
 
-    // MARK: 命令
+    // MARK: 命令与菜单
 
-    func toggleArea(_ edge: DockEdge, in dock: WindowDock) {
-        perform(in: dock) { $0.togglingArea(edge) }
-    }
-
-    func toggleAllAreas(in dock: WindowDock) {
-        perform(in: dock) { $0.togglingAllAreas() }
-    }
-
-    /// 停靠的面板在所在窗口中切换；浮动面板全应用切换。
+    /// 停靠的面板在所在窗口中切换；浮动面板全应用切换（也是浮动面板的关闭按钮：隐藏，位置保留）。
     func togglePanel(_ type: DockPanelType, in dock: WindowDock?) {
         if case .floating = current.placement(of: type.id) {
             perform(in: nil) { $0.togglingPanel(type.id, defaultEdge: type.defaultEdge) }
         } else if let dock {
             perform(in: dock) { $0.togglingPanel(type.id, defaultEdge: type.defaultEdge) }
         }
+    }
+
+    /// 标签的右键菜单。停靠的面板（`dock` 是所在窗口）：移到其他区、浮动、隐藏；浮动面板：停靠到活动窗口的各区、隐藏。
+    func menu(for panel: PanelID, in dock: WindowDock?) -> NSMenu {
+        let menu = NSMenu()
+        let current: DockEdge? = if case let .docked(edge, _) = dock?.dockLayout.placement(of: panel) { edge } else { nil }
+        for edge in DockEdge.allCases where edge != current {
+            let title = switch (edge, dock == nil) {
+            case (.left, false): String(localized: "移到左侧")
+            case (.right, false): String(localized: "移到右侧")
+            case (.bottom, false): String(localized: "移到底部")
+            case (.left, true): String(localized: "停靠到左侧")
+            case (.right, true): String(localized: "停靠到右侧")
+            case (.bottom, true): String(localized: "停靠到底部")
+            }
+            menu.addItem(MenuAction(title) { [weak self, weak dock] in
+                guard let self, let target = dock ?? active else { return }
+                perform(in: target) { $0.moving(panel, to: .area(edge, index: $0.visiblePanels(in: edge).count)) }
+            }.item)
+        }
+        if let dock {
+            menu.addItem(MenuAction(String(localized: "浮动")) { [weak self, weak dock] in
+                guard let self, let dock else { return }
+                float(panel, from: dock, at: nil)
+            }.item)
+        }
+        menu.addItem(.separator())
+        menu.addItem(MenuAction(String(localized: "隐藏")) { [weak self, weak dock] in
+            guard let self, let type = DockPanels.type(panel) else { return }
+            togglePanel(type, in: dock)
+        }.item)
+        return menu
     }
 
     // MARK: 保存
@@ -322,5 +344,24 @@ final class DockCoordinator {
             logger.error("无法保存 layout.json：\(String(describing: error), privacy: .public)")
             problem = Problem(title: String(localized: "无法保存 layout.json"), detail: ErrorText.describe(error))
         }
+    }
+}
+
+/// 用闭包作动作的菜单项；菜单项持有它。
+@MainActor
+final class MenuAction: NSObject {
+    private let action: () -> Void
+    let item: NSMenuItem
+
+    init(_ title: String, action: @escaping () -> Void) {
+        self.action = action
+        item = NSMenuItem(title: title, action: #selector(run(_:)), keyEquivalent: "")
+        super.init()
+        item.target = self
+        item.representedObject = self
+    }
+
+    @objc private func run(_ sender: Any?) {
+        action()
     }
 }

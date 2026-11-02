@@ -6,14 +6,14 @@ import os
 /// 菜单、工具栏、按钮和按键执行命令的统一入口：组装上下文，经 CommandRegistry 执行并处理错误。
 @MainActor
 final class CommandDispatcher {
-    let registry: CommandRegistry
+    private let registry: CommandRegistry
     private let logger = Logger(category: "commands")
 
     init(registry: CommandRegistry) {
         self.registry = registry
     }
 
-    func context(_ controller: ReaderWindowController?, scope: InputScope) -> CommandContext {
+    private func context(_ controller: ReaderWindowController?, scope: InputScope) -> CommandContext {
         CommandContext(session: controller?.session.id, scope: scope)
     }
 

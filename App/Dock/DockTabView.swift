@@ -102,27 +102,17 @@ final class DockTabView: NSView, NSDraggingSource {
 
     /// 拖动时的图像：凸起底色上的图标和标题。
     private func snapshot() -> NSImage {
-        let scale = window?.backingScaleFactor ?? 2
-        guard let layer, let context = CGContext(
-            data: nil, width: Int(bounds.width * scale), height: Int(bounds.height * scale), bitsPerComponent: 8,
-            bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return NSImage() }
+        guard let layer else { return NSImage() }
         let background = layer.backgroundColor
         effectiveAppearance.performAsCurrentDrawingAppearance {
             layer.backgroundColor = Theme.raised.cgColor
             layer.borderColor = Theme.lineStrong.cgColor
         }
         layer.borderWidth = 0.5
-        context.scaleBy(x: scale, y: scale)
-        if !layer.isGeometryFlipped {
-            context.translateBy(x: 0, y: bounds.height)
-            context.scaleBy(x: 1, y: -1)
-        }
-        layer.render(in: context)
+        let image = renderedImage()
         layer.backgroundColor = background
         layer.borderWidth = 0
-        guard let image = context.makeImage() else { return NSImage() }
-        return NSImage(cgImage: image, size: bounds.size)
+        return image.map { NSImage(cgImage: $0, size: bounds.size) } ?? NSImage()
     }
 
     // MARK: NSDraggingSource
@@ -135,5 +125,24 @@ final class DockTabView: NSView, NSDraggingSource {
         // 拖到停靠区以外（包括窗口之外）时结束操作为空，由回调改成浮动；Esc 取消时什么都不做。
         let cancelled = NSApp.currentEvent?.type == .keyDown && NSApp.currentEvent?.keyCode == 53
         onDragEnded?(screenPoint, operation != [], cancelled)
+    }
+}
+
+extension NSView {
+    /// 把视图的图层树按窗口的缩放渲染成图像；不需要屏幕录制权限。拖动图像和自检的截图都用它。
+    func renderedImage() -> CGImage? {
+        guard let layer else { return nil }
+        let scale = window?.backingScaleFactor ?? 2
+        guard let context = CGContext(
+            data: nil, width: Int(bounds.width * scale), height: Int(bounds.height * scale), bitsPerComponent: 8,
+            bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.scaleBy(x: scale, y: scale)
+        if isFlipped, !layer.isGeometryFlipped {
+            context.translateBy(x: 0, y: bounds.height)
+            context.scaleBy(x: 1, y: -1)
+        }
+        layer.render(in: context)
+        return context.makeImage()
     }
 }
