@@ -2,7 +2,7 @@
   "cacheCondition" : "首图每次不同 ContentIdentity，L0/L1/L2/L3 为空；计时从 image 调用到 exact 交付，含 I/O、解码、缩放。首屏为 10000 条 L2 中均匀选 60 条，L1 每轮为空，计时含 SQLite、文件读取、JPEG 解码、缩放与全部流交付；操作系统页缓存未清空。",
   "cachedEntries" : 10000,
   "environment" : {
-    "collectedAt" : "2026-11-01T12:21:19Z",
+    "collectedAt" : "2026-11-02T15:34:03Z",
     "machine" : {
       "chip" : "Apple M1 Pro",
       "efficiencyCores" : 2,
@@ -12,7 +12,7 @@
     },
     "network" : [
       {
-        "linkSpeedMbps" : 576,
+        "linkSpeedMbps" : 720,
         "name" : "en0",
         "type" : "IEEE80211",
         "wifiPHYMode" : "802.11ax"
@@ -32,21 +32,21 @@
       {
         "fileSystem" : "apfs",
         "mountPoint" : "/System/Volumes/Data",
-        "path" : "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s1-core/build/stage3-work/cold-jpegs",
+        "path" : "build/wf3/cold-jpegs",
         "source" : "/dev/disk3s5"
       }
     ]
   },
-  "finishedAt" : "2026-11-01T12:21:19Z",
+  "finishedAt" : "2026-11-02T15:34:03Z",
   "firstImageFiles" : 10,
   "firstImageMilliseconds" : {
     "count" : 10,
-    "max" : 93.870708,
-    "mean" : 60.3128373,
-    "min" : 54.920458,
-    "p50" : 56.1720415,
-    "p95" : 78.68052689999996,
-    "p99" : 90.83267178
+    "max" : 105.960083,
+    "mean" : 62.9786539,
+    "min" : 51.579583,
+    "p50" : 57.9953535,
+    "p95" : 88.09326454999996,
+    "p99" : 102.38671931
   },
   "firstImagePassed" : true,
   "firstImagePixelSize" : {
@@ -107,12 +107,12 @@
   "firstScreenFiles" : 60,
   "firstScreenMilliseconds" : {
     "count" : 10,
-    "max" : 20.447958,
-    "mean" : 18.5479961,
-    "min" : 17.984667,
-    "p50" : 18.331145999999997,
-    "p95" : 19.75640205,
-    "p99" : 20.30964681
+    "max" : 25.972041,
+    "mean" : 23.824291599999995,
+    "min" : 22.560333,
+    "p50" : 23.4624375,
+    "p95" : 25.67076645,
+    "p99" : 25.91178609
   },
   "firstScreenOutputLongSide" : 256,
   "firstScreenPassed" : true,
