@@ -3,6 +3,8 @@ import MVCommands
 
 /// 把菜单模型渲染成菜单栏，再加上系统菜单项（关于、服务、隐藏、编辑、窗口列表、退出）。
 ///
+/// 菜单只安装一次；配置重载时就地更新菜单项的快捷键，不替换 `NSApp.mainMenu`。
+///
 /// 命令项的启用状态来自 CommandRegistry，单键绑定显示为快捷键。快捷键由谁触发按绑定的作用域区分：
 /// - global 作用域的绑定是真正的菜单快捷键，没有窗口或焦点在文本框中时也可用；
 /// - 其余作用域的绑定只在菜单打开时显示。菜单关着时这些项没有快捷键，AppKit 不会拿它们匹配按键，
@@ -14,13 +16,11 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
     private final class Trigger: NSObject, NSMenuItemValidation {
         let command: CommandID
         /// 只在菜单打开时显示的快捷键。
-        let display: (key: String, mask: NSEvent.ModifierFlags)?
-        // 配置热重载会替换菜单；AppKit 仍在跟踪的旧菜单项要保留自己的 builder。
+        var display: (key: String, mask: NSEvent.ModifierFlags)?
         let builder: MenuBuilder
 
-        init(command: CommandID, display: (key: String, mask: NSEvent.ModifierFlags)?, builder: MenuBuilder) {
+        init(command: CommandID, builder: MenuBuilder) {
             self.command = command
-            self.display = display
             self.builder = builder
         }
 
@@ -33,7 +33,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         }
     }
 
-    private let catalog: CommandCatalog
+    private var catalog: CommandCatalog
     private let isEnabled: (CommandID) -> Bool
     private let perform: (CommandID) -> Void
 
@@ -88,6 +88,19 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         app.windowsMenu = windows
     }
 
+    /// 配置重载：菜单结构和标题不随绑定变化，只更新快捷键。
+    func update(catalog: CommandCatalog, in app: NSApplication) {
+        self.catalog = catalog
+        if let main = app.mainMenu { updateKeys(in: main) }
+    }
+
+    private func updateKeys(in menu: NSMenu) {
+        for item in menu.items {
+            if let submenu = item.submenu { updateKeys(in: submenu) }
+            if let trigger = item.representedObject as? Trigger { applyBinding(to: item, trigger) }
+        }
+    }
+
     // MARK: 命令菜单
 
     private func commandMenu(titleKey: String, children: [MenuNode]) -> NSMenu {
@@ -108,18 +121,21 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
     }
 
     private func commandItem(_ id: CommandID) -> NSMenuItem {
-        let binding = catalog.menuBinding(for: id)
-        let equivalent = binding.flatMap { KeyMapping.menuKeyEquivalent(for: $0.sequence[0]) }
-        let live = binding?.scope == .global
-        let trigger = Trigger(command: id, display: live ? nil : equivalent, builder: self)
+        let trigger = Trigger(command: id, builder: self)
         let item = NSMenuItem(title: catalog.title(of: id), action: #selector(Trigger.trigger(_:)), keyEquivalent: "")
         item.target = trigger
         item.representedObject = trigger
-        if live, let equivalent {
-            item.keyEquivalent = equivalent.key
-            item.keyEquivalentModifierMask = equivalent.mask
-        }
+        applyBinding(to: item, trigger)
         return item
+    }
+
+    private func applyBinding(to item: NSMenuItem, _ trigger: Trigger) {
+        let binding = catalog.menuBinding(for: trigger.command)
+        let equivalent = binding.flatMap { KeyMapping.menuKeyEquivalent(for: $0.sequence[0]) }
+        let live = binding?.scope == .global
+        trigger.display = live ? nil : equivalent
+        item.keyEquivalent = live ? equivalent?.key ?? "" : ""
+        item.keyEquivalentModifierMask = live ? equivalent?.mask ?? [] : []
     }
 
     /// 只在真正打开时填上；menuNeedsUpdate 在菜单栏例行更新和匹配快捷键时也会被调用，不能用。
