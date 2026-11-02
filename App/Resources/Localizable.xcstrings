@@ -1623,6 +1623,18 @@
         }
       }
     },
+    "缺少全局字段，已补默认值：%@": {
+      "comment": "MVSettings 的配置错误文字，键来自 FileSettingsStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing global fields, filled with defaults: %@"
+          }
+        }
+      }
+    },
     "缺少 value 字段": {
       "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
       "extractionState": "manual",

@@ -164,7 +164,7 @@ public final class FileSettingsStore: SettingsStore {
         var missing: [String] = []
         let merged = filling(object, defaults: defaults, path: "", missing: &missing)
         let value = try JSONDecoder().decode(GlobalSettings.self, from: JSONSerialization.data(withJSONObject: merged, options: [.fragmentsAllowed]))
-        return (value, missing.isEmpty ? nil : "缺少全局字段，已补默认值：" + missing.sorted().joined(separator: "、"))
+        return (value, missing.isEmpty ? nil : String(localized: "缺少全局字段，已补默认值：\(missing.sorted().joined(separator: ", "))", bundle: .main))
     }
 
     private static func filling(_ object: Any, defaults: Any, path: String, missing: inout [String]) -> Any {
