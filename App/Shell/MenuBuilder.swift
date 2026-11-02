@@ -15,7 +15,8 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         let command: CommandID
         /// 只在菜单打开时显示的快捷键。
         let display: (key: String, mask: NSEvent.ModifierFlags)?
-        unowned let builder: MenuBuilder
+        // 配置热重载会替换菜单；AppKit 仍在跟踪的旧菜单项要保留自己的 builder。
+        let builder: MenuBuilder
 
         init(command: CommandID, display: (key: String, mask: NSEvent.ModifierFlags)?, builder: MenuBuilder) {
             self.command = command

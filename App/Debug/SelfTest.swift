@@ -1,12 +1,17 @@
 #if DEBUG
 import AppKit
 import Carbon.HIToolbox
+import IOSurface
 import MVCommands
+import MVFoundation
+import MVMedia
 import MVReading
 
-/// 外壳的自检：在 Mock 上打开书，向 NSApp 发送合成的按键，检查菜单、输入路由、翻页、切书与多标签，并把窗口渲染成 PNG。
+/// 外壳自检：Mock 验证菜单与输入；真实服务验证文件入口、取图与配置重载。
 ///
 /// 启动参数：`-MVSelfTest YES` 运行后退出（退出码为失败数）；`-MVSelfTestOutput <目录>` 写入菜单清单与窗口图像。
+/// 真实服务另传 `-MVSelfTestFixtures <Fixtures目录>`，并用 `-MVSupportDirectory/-MVCacheDirectory/-MVLayoutFile` 隔离数据。
+/// 预期启动失败的场景加 `-MVSelfTestStartupFailure YES`，自动检查错误窗口并退出。
 /// 按键经 `NSApp.sendEvent` 分派，走的是真实的菜单快捷键匹配和响应链；不需要辅助功能权限。
 @MainActor
 final class SelfTest {
@@ -24,18 +29,41 @@ final class SelfTest {
         Task { await test.run() }
     }
 
+    /// 仍显示真实错误窗口；自检在模态 run loop 中检查并点击“退出”。
+    static func checkStartupFailureIfRequested(app: AppDelegate, alert: NSAlert) {
+        guard UserDefaults.standard.bool(forKey: launchKey) else { return }
+        let check = Timer(timeInterval: 0.1, repeats: false) { _ in
+            MainActor.assumeIsolated {
+                let log = SelfTestLog()
+                log.check(alert.window.isVisible, "真实服务启动失败后显示错误窗口")
+                log.check(!app.isMock && app.services == nil && app.controllers.isEmpty, "启动失败没有回落到 Mock")
+                guard UserDefaults.standard.bool(forKey: "MVSelfTestStartupFailure") else {
+                    log.check(false, "自检遇到非预期的服务启动失败")
+                    exit(log.summarize())
+                }
+                log.snapshot(alert.window, "startup-error")
+                let failures = log.summarize()
+                if failures != 0 { exit(failures) }
+                alert.buttons.first?.performClick(nil)
+            }
+        }
+        RunLoop.main.add(check, forMode: .modalPanel)
+    }
+
     private init(app: AppDelegate) {
         self.app = app
     }
 
     private func run() async {
         NSApp.activate()
+        if !app.isMock { await runReal(); return }
         dumpMenu()
         guard let first = app.controllers.first, let window = first.window else {
             log.check(false, "没有窗口")
             exit(log.summarize())
         }
         target = window
+        log.check(text(in: first.content.statusBar).contains(String(localized: "Mock 服务")), "显式 Mock 服务在窗口上标明")
         log.check(window.toolbar?.items.map(\.itemIdentifier.rawValue) == ["book.previous", "book.next", "book.title"], "工具栏有上一本、下一本按钮和书名")
         print("INFO 按键分派：\(NSApp.isActive ? "NSApp.sendEvent" : "App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派")")
         await settle()
@@ -169,6 +197,107 @@ final class SelfTest {
             print("SKIP ⌘W 关闭标签页（App 未激活）")
         }
         exit(log.summarize())
+    }
+
+    private func runReal() async {
+        guard let services = app.services, let first = app.controllers.first, let window = first.window,
+              let path = UserDefaults.standard.string(forKey: "MVSelfTestFixtures") else {
+            log.check(false, "真实服务自检需要窗口与 -MVSelfTestFixtures")
+            exit(log.summarize())
+        }
+        target = window
+        let fixtures = URL(fileURLWithPath: path)
+        log.check(services.keyBindings != nil, "默认使用真实服务")
+        dumpMenu()
+        do {
+            for (relative, drop) in [("image/aspect", false), ("archive/zip/stored.zip", true)] {
+                let url = fixtures.appending(path: relative)
+                let expected = try await services.sources.location(for: url)
+                if drop { first.content.onDrop?([url]) } else { first.open([url]) }
+                await waitForBook(first) { $0.location == expected && $0.pages.count > 1 }
+                log.check(first.session.book?.location == expected && (first.session.book?.pages.count ?? 0) > 1,
+                          "\(drop ? "拖放" : "打开面板共用")入口正确打开 \(relative)")
+                first.session.go(.first)
+                window.makeFirstResponder(first.pageView)
+                await send(kVK_RightArrow)
+                log.check(first.session.currentFrame == 1, "真实书按 → 翻页：\(relative)")
+                await checkRealImage(first)
+            }
+            let outer = try await services.sources.location(for: fixtures.appending(path: "archive/zip/nested.zip"))
+            let nested = outer.appendingLayer(["inner-stored.zip"])
+            await first.session.open(nested, at: nil)
+            log.check(first.session.book?.location == nested && (first.session.book?.pages.count ?? 0) > 1, "嵌套压缩包打开并枚举图片")
+            first.session.go(.first)
+            await send(kVK_RightArrow)
+            log.check(first.session.currentFrame == 1, "嵌套压缩包翻页")
+            await checkRealImage(first)
+            await checkBindingReload(first)
+            log.snapshot(window, "real-book")
+        } catch {
+            log.check(false, "真实服务场景失败：\(error)")
+        }
+        await services.shutdown()
+        exit(log.summarize())
+    }
+
+    private func checkRealImage(_ controller: ReaderWindowController) async {
+        guard let services = app.services, let book = controller.session.book,
+              controller.session.frames.indices.contains(controller.session.currentFrame),
+              let element = controller.session.frames[controller.session.currentFrame].elements.first else {
+            return log.check(false, "真实书没有当前页帧")
+        }
+        do {
+            var delivered = false
+            let identity = book.pages[element.page].entry.identity
+            for try await image in services.pipeline.image(for: identity, target: DisplayTarget(pixelSize: PixelSize(width: 120, height: 180)), allowOriginal: false, priority: .visible) {
+                delivered = true
+                log.check(image.surface != nil && CanvasImage(image).contents is IOSurface, "真实取图与 CanvasImage 仅交付 IOSurface")
+            }
+            log.check(delivered, "真实管线取到当前页图片")
+            for _ in 0..<100 where controller.pageView.layer?.sublayers?.contains(where: { $0.contents is IOSurface }) != true {
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+            let contents = controller.pageView.layer?.sublayers?.compactMap(\.contents) ?? []
+            log.check(!contents.isEmpty && contents.allSatisfy { $0 is IOSurface }, "PageView 图层内容全部是 IOSurface")
+        } catch { log.check(false, "真实页面取图失败：\(error)") }
+    }
+
+    private func checkBindingReload(_ controller: ReaderWindowController) async {
+        let url = app.supportDirectory.appending(path: "keybindings.json")
+        let binding = KeyBinding(sequence: [KeyChord("j")], command: .frameNext, scope: .viewer)
+        do {
+            let value = try JSONSerialization.jsonObject(with: JSONEncoder().encode(KeyBindingsFile(bindings: [binding])))
+            let data = try JSONSerialization.data(withJSONObject: ["version": 1, "value": value])
+            try data.write(to: url, options: .atomic)
+            for _ in 0..<100 where !app.catalog.bindings.contains(binding) { try? await Task.sleep(for: .milliseconds(20)) }
+            log.check(app.catalog.bindings.contains(binding) && !app.catalog.bindings.contains { $0.command == .frameNext && $0 != binding }, "外部 keybindings.json 替换默认绑定")
+            let menu = NSApp.mainMenu?.items.compactMap(\.submenu).first { menu in menu.items.contains { $0.title == app.catalog.title(of: .frameNext) } }
+            if let menu { menu.delegate?.menuWillOpen?(menu) }
+            log.check(menu?.items.first { $0.title == app.catalog.title(of: .frameNext) }?.keyEquivalent == "j", "重载后菜单显示新快捷键")
+            if let menu { menu.delegate?.menuDidClose?(menu) }
+            controller.session.go(.first)
+            await send(kVK_ANSI_J)
+            log.check(controller.session.currentFrame == 1, "重建的 InputRouter 用新绑定翻页")
+            try Data("{ broken".utf8).write(to: url, options: .atomic)
+            for _ in 0..<100 where controller.content.fileErrorBanner == nil { try? await Task.sleep(for: .milliseconds(20)) }
+            log.check(controller.content.fileErrorBanner != nil && app.catalog.bindings.contains(binding), "坏配置显示错误横幅并保留上次绑定")
+            if let window = controller.window { log.snapshot(window, "keybindings-error") }
+            let extra = app.newWindow()
+            log.check(extra?.content.fileErrorBanner != nil, "坏配置期间新窗口也显示横幅")
+            extra?.window?.performClose(nil)
+            controller.window?.makeKeyAndOrderFront(nil)
+            controller.window?.makeFirstResponder(controller.pageView)
+            controller.session.go(.first)
+            await send(kVK_ANSI_J)
+            log.check(controller.session.currentFrame == 1, "坏配置后旧绑定继续生效")
+            try data.write(to: url, options: .atomic)
+            for _ in 0..<100 where controller.content.fileErrorBanner != nil { try? await Task.sleep(for: .milliseconds(20)) }
+            log.check(controller.content.fileErrorBanner == nil, "修复配置后清除横幅")
+        } catch { log.check(false, "按键绑定重载失败：\(error)") }
+    }
+
+    private func text(in view: NSView) -> String {
+        (view as? NSTextField)?.stringValue ?? view.subviews.map { text(in: $0) }.joined(separator: " ")
     }
 
     // MARK: 工具
