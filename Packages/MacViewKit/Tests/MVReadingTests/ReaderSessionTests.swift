@@ -5,6 +5,7 @@ import MVMedia
 import MVPipeline
 import MVSettings
 import MVTestSupport
+import Synchronization
 import Testing
 @testable import MVReading
 
@@ -293,6 +294,170 @@ import Testing
         await task.value
     }
 
+    @Test("相邻书与目录封面按书架排序进入同一份预取计划")
+    func adjacentPrefetchFollowsShelf() async throws {
+        let tree = MockTree(nodes: [.book("A", pages: 4), .book("B", pages: 6), .book("C", pages: 3), .book("D", pages: 5)])
+        var global = GlobalSettings.default
+        global.prefetch.neighborBooks = 2
+        global.prefetch.shelfCovers = true
+        global.prefetch.viewerReadAheadPages = 0
+        global.prefetch.viewerDecodeFrames = 0
+        let environment = MockEnvironment(MockOptions(tree: tree, timing: .instant))
+        let descending = BookSettings(sort: SortSpec(key: .name, ascending: false))
+        let store = MockSettingsStore(global: global, pathRules: [PathRule(name: "B", prefix: tree.location("B"), settings: descending)])
+        let pipeline = MockImagePipeline(environment: environment)
+        let loader = MockBookLoader(environment: environment)
+        let tracking = RefreshTrackingShelf(base: MockBookshelf(environment: environment))
+        let session = ReaderSession(loader: loader, settings: store, bookshelf: tracking, pipeline: pipeline)
+        let a = tree.location("A"), b = tree.location("B"), c = tree.location("C"), d = tree.location("D")
+
+        await session.open(a, at: nil)
+        #expect(session.loadError == nil)
+        #expect(tracking.listings == 0)
+        #expect(pipeline.prefetchPlan(for: session.id)?.items.contains { $0.priority == .adjacent } == false)
+
+        session.shelfSortChanged(SortSpec(key: .name))
+        let aPages = try await loadedPages(loader, book: a, settings: await store.resolve(for: a))
+        let bPages = try await loadedPages(loader, book: b, settings: await store.resolve(for: b))
+        let cPages = try await loadedPages(loader, book: c, settings: await store.resolve(for: c))
+        #expect(bPages.map(\.entry.name) == ["006.jpg", "005.jpg", "004.jpg", "003.jpg", "002.jpg", "001.jpg"])
+        let bCover = try await coverIdentity(loader, environment, b)
+        let cCover = try await coverIdentity(loader, environment, c)
+        let dCover = try await coverIdentity(loader, environment, d)
+        let aCover = try await coverIdentity(loader, environment, a)
+        let first = bPages.map(\.entry.identity) + cPages.map(\.entry.identity) + [dCover]
+        await eventually { self.adjacentIdentities(pipeline, session) == first }
+        expectAdjacent(pipeline, session, first)
+        #expect(pipeline.prefetchPlan(for: session.id)?.items.filter { $0.priority == .book }.map(\.identity) == aPages.map(\.entry.identity))
+        #expect(tracking.listings == 1)
+
+        session.go(.index(2))
+        #expect(self.adjacentIdentities(pipeline, session) == first)
+        session.viewportChanged(PixelSize(width: 800, height: 600))
+        expectAdjacent(pipeline, session, first)
+
+        session.shelfSortChanged(SortSpec(key: .name, ascending: false))
+        #expect(pipeline.prefetchPlan(for: session.id)?.items.contains { $0.priority == .adjacent } == false)
+        await eventually { self.adjacentIdentities(pipeline, session) == [dCover, cCover, bCover] }
+        expectAdjacent(pipeline, session, [dCover, cCover, bCover])
+
+        await session.open(b, at: nil)
+        let fullA = aPages.map(\.entry.identity)
+        await eventually { self.adjacentIdentities(pipeline, session) == fullA + [dCover, cCover] }
+        expectAdjacent(pipeline, session, fullA + [dCover, cCover])
+        #expect(pipeline.prefetchPlan(for: session.id)?.items.filter { $0.priority == .adjacent }.contains { $0.identity == bCover } == false)
+
+        try await store.updateGlobal { $0.prefetch.neighborBooks = 0 }
+        await eventually { self.adjacentIdentities(pipeline, session) == [dCover, cCover, aCover] }
+        expectAdjacent(pipeline, session, [dCover, cCover, aCover])
+
+        try await store.updateGlobal { $0.prefetch.shelfCovers = false }
+        await eventually { self.adjacentIdentities(pipeline, session).isEmpty }
+        #expect(pipeline.prefetchPlan(for: session.id)?.items.contains { $0.priority == .adjacent } == false)
+
+        try await store.updateGlobal { $0.prefetch.neighborBooks = 2 }
+        await eventually { self.adjacentIdentities(pipeline, session) == fullA }
+        expectAdjacent(pipeline, session, fullA)
+        #expect(session.loadError == nil)
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(tracking.refreshed == false)
+
+        let omitted = OmittingShelf(base: MockBookshelf(environment: environment), omitted: a)
+        let another = ReaderSession(loader: loader, settings: MockSettingsStore(global: global), bookshelf: omitted, pipeline: pipeline)
+        await another.open(a, at: nil)
+        another.shelfSortChanged(SortSpec(key: .name))
+        let covers = [bCover, cCover, dCover]
+        await eventually { self.adjacentIdentities(pipeline, another) == covers }
+        expectAdjacent(pipeline, another, covers)
+        #expect(another.loadError == nil)
+    }
+
+    @Test("切书和改排序取消旧的相邻枚举，失败不写入 loadError")
+    func adjacentPrefetchDropsStaleResults() async throws {
+        let tree = MockTree(nodes: [.book("A", pages: 4), .book("B", pages: 6), .book("C", pages: 3), .book("D", pages: 5)])
+        var global = GlobalSettings.default
+        global.prefetch.neighborBooks = 2
+        global.prefetch.shelfCovers = false
+        global.prefetch.viewerReadAheadPages = 0
+        global.prefetch.viewerDecodeFrames = 0
+        let environment = MockEnvironment(MockOptions(tree: tree, timing: .instant))
+        let store = MockSettingsStore(global: global)
+        let pipeline = MockImagePipeline(environment: environment)
+        let shelf = HoldingShelf(environment: environment)
+        let session = ReaderSession(loader: MockBookLoader(environment: environment), settings: store, bookshelf: shelf, pipeline: pipeline)
+        let a = tree.location("A"), b = tree.location("B"), c = tree.location("C"), d = tree.location("D")
+
+        await session.open(a, at: nil)
+        session.shelfSortChanged(SortSpec(key: .name))
+        await eventually { shelf.started == 1 }
+        session.shelfSortChanged(SortSpec(key: .name, ascending: false))
+        await eventually { shelf.started == 2 }
+        shelf.release(0)
+        await eventually { shelf.finished >= 1 }
+        #expect(shelf.cancelled(0))
+        #expect(shelf.yielded(0) == false)
+        #expect(pipeline.prefetchPlan(for: session.id)?.items.contains { $0.priority == .adjacent } == false)
+        shelf.release(1)
+        await eventually { shelf.finished >= 2 && shelf.yielded(1) }
+        #expect(pipeline.prefetchPlan(for: session.id)?.items.contains { $0.priority == .adjacent } == false)
+
+        session.shelfSortChanged(SortSpec(key: .name))
+        await eventually { shelf.started == 3 }
+        await session.open(d, at: nil)
+        await eventually { shelf.started == 4 }
+        shelf.release(2)
+        await eventually { shelf.finished >= 3 }
+        #expect(shelf.cancelled(2))
+        #expect(shelf.yielded(2) == false)
+        #expect(self.adjacentIdentities(pipeline, session).isEmpty)
+        shelf.release(3)
+        await eventually { shelf.finished >= 4 && shelf.yielded(3) }
+        #expect(self.adjacentIdentities(pipeline, session).isEmpty)
+        #expect(session.loadError == nil)
+        #expect(session.book?.location == d)
+
+        let failingShelf = ThrowingShelf(base: MockBookshelf(environment: environment))
+        let failingSession = ReaderSession(
+            loader: MockBookLoader(environment: environment), settings: MockSettingsStore(global: global),
+            bookshelf: failingShelf, pipeline: pipeline
+        )
+        await failingSession.open(a, at: nil)
+        failingSession.shelfSortChanged(SortSpec(key: .name))
+        await eventually { failingShelf.calls == 1 }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(failingSession.loadError == nil)
+        #expect(failingSession.book?.pages.isEmpty == false)
+        #expect(pipeline.prefetchPlan(for: failingSession.id)?.items.contains { $0.priority == .adjacent } == false)
+
+        let partial = ReaderSession(
+            loader: FailingBookLoader(base: MockBookLoader(environment: environment), failing: c),
+            settings: MockSettingsStore(global: global), bookshelf: MockBookshelf(environment: environment), pipeline: pipeline
+        )
+        await partial.open(a, at: nil)
+        partial.shelfSortChanged(SortSpec(key: .name))
+        let bPages = try await loadedPages(MockBookLoader(environment: environment), book: b)
+        await eventually { self.adjacentIdentities(pipeline, partial) == bPages.map(\.entry.identity) }
+        expectAdjacent(pipeline, partial, bPages.map(\.entry.identity))
+        #expect(partial.loadError == nil)
+    }
+
+    private func expectAdjacent(_ pipeline: MockImagePipeline, _ session: ReaderSession, _ identities: [ContentIdentity]) {
+        let items = pipeline.prefetchPlan(for: session.id)?.items ?? []
+        let adjacent = items.filter { $0.priority == .adjacent }
+        #expect(adjacent.map(\.identity) == identities)
+        #expect(adjacent.allSatisfy { $0.renditions == [.thumbnail, .metadata] })
+        guard let index = items.firstIndex(where: { $0.priority == .adjacent }) else {
+            #expect(identities.isEmpty)
+            return
+        }
+        #expect(items[..<index].allSatisfy { $0.priority != .adjacent })
+        #expect(items[index...].allSatisfy { $0.priority == .adjacent })
+    }
+
+    private func adjacentIdentities(_ pipeline: MockImagePipeline, _ session: ReaderSession) -> [ContentIdentity] {
+        pipeline.prefetchPlan(for: session.id)?.items.filter { $0.priority == .adjacent }.map(\.identity) ?? []
+    }
+
     private func expectDisplayWindow(
         _ session: ReaderSession, _ pipeline: MockImagePipeline, viewport: PixelSize, maxDecodeLongSide: Int, radius: Int
     ) throws {
@@ -334,5 +499,173 @@ import Testing
             try? await Task.sleep(for: .milliseconds(5))
         }
         Issue.record("异步状态未在一秒内到达")
+    }
+}
+
+func coverIdentity(_ loader: any BookLoader, _ environment: MockEnvironment, _ book: Location) async throws -> ContentIdentity {
+    let cover = try #require(try await MockBookshelf(environment: environment).cover(of: book, priority: .adjacent))
+    let pages = try await loadedPages(loader, book: book)
+    return try #require(pages.first { $0.id == cover }).entry.identity
+}
+
+/// 在第一次 `.sorted` 之后停住。会话若结束流，这里的后续刷新不会发生。
+final class RefreshTrackingShelf: Bookshelf, @unchecked Sendable {
+    private let base: MockBookshelf
+    private let state = Mutex<State>(State())
+    private struct State { var listings = 0; var refreshed = false }
+    init(base: MockBookshelf) { self.base = base }
+    var listings: Int { state.withLock { $0.listings } }
+    var refreshed: Bool { state.withLock { $0.refreshed } }
+
+    func items(in directory: Location, sort: SortSpec) -> AsyncThrowingStream<ShelfEvent, any Error> {
+        state.withLock { $0.listings += 1 }
+        let upstream = base.items(in: directory, sort: sort)
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await event in upstream {
+                        continuation.yield(event)
+                        if case .sorted = event {
+                            try await Task.sleep(for: .milliseconds(300))
+                            self.state.withLock { $0.refreshed = true }
+                        }
+                    }
+                    continuation.finish()
+                } catch { continuation.finish(throwing: error) }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func cover(of book: Location, priority: IOPriority) async throws -> Location? { try await base.cover(of: book, priority: priority) }
+    func neighbor(of book: Location, _ direction: NavigationDirection, sort: SortSpec) async throws -> Location? { try await base.neighbor(of: book, direction, sort: sort) }
+    func passThrough(_ location: Location) async throws -> Location { try await base.passThrough(location) }
+}
+
+/// 每次目录枚举先停住，测试放行后才把真实书架的结果交出去。
+final class HoldingShelf: Bookshelf, @unchecked Sendable {
+    private struct State {
+        var nextID = 0
+        var started = 0
+        var finished = 0
+        var cancelled: Set<Int> = []
+        var yielded: Set<Int> = []
+        var signals: [Int: AsyncStream<Void>.Continuation] = [:]
+    }
+
+    private let base: MockBookshelf
+    private let state = Mutex<State>(State())
+    init(environment: MockEnvironment) { base = MockBookshelf(environment: environment) }
+    var started: Int { state.withLock { $0.started } }
+    var finished: Int { state.withLock { $0.finished } }
+    func cancelled(_ id: Int) -> Bool { state.withLock { $0.cancelled.contains(id) } }
+    func yielded(_ id: Int) -> Bool { state.withLock { $0.yielded.contains(id) } }
+
+    func release(_ id: Int) {
+        let continuation = state.withLock { $0.signals.removeValue(forKey: id) }
+        continuation?.yield(())
+        continuation?.finish()
+    }
+
+    func items(in directory: Location, sort: SortSpec) -> AsyncThrowingStream<ShelfEvent, any Error> {
+        let id = state.withLock { current -> Int in
+            let id = current.nextID
+            current.nextID += 1
+            return id
+        }
+        let base = base
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                var yielded = false
+                do {
+                    await self.wait(id)
+                    if Task.isCancelled { throw CancellationError() }
+                    for try await event in base.items(in: directory, sort: sort) {
+                        if case .sorted = event { yielded = true }
+                        continuation.yield(event)
+                    }
+                    continuation.finish()
+                } catch { continuation.finish(throwing: error) }
+                let cancelled = Task.isCancelled
+                self.state.withLock { current in
+                    current.finished += 1
+                    if cancelled { current.cancelled.insert(id) }
+                    if yielded { current.yielded.insert(id) }
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func cover(of book: Location, priority: IOPriority) async throws -> Location? { try await base.cover(of: book, priority: priority) }
+    func neighbor(of book: Location, _ direction: NavigationDirection, sort: SortSpec) async throws -> Location? { try await base.neighbor(of: book, direction, sort: sort) }
+    func passThrough(_ location: Location) async throws -> Location { try await base.passThrough(location) }
+
+    private func wait(_ id: Int) async {
+        let (stream, continuation) = AsyncStream.makeStream(of: Void.self)
+        state.withLock { current in
+            current.signals[id] = continuation
+            current.started += 1
+        }
+        for await _ in stream { break }
+        state.withLock { $0.signals[id] = nil }
+    }
+}
+
+final class ThrowingShelf: Bookshelf, @unchecked Sendable {
+    private let base: MockBookshelf
+    private let state = Mutex(0)
+    init(base: MockBookshelf) { self.base = base }
+    var calls: Int { state.withLock { $0 } }
+
+    func items(in directory: Location, sort: SortSpec) -> AsyncThrowingStream<ShelfEvent, any Error> {
+        state.withLock { $0 += 1 }
+        return AsyncThrowingStream { continuation in continuation.finish(throwing: IOError.notFound(directory)) }
+    }
+
+    func cover(of book: Location, priority: IOPriority) async throws -> Location? { try await base.cover(of: book, priority: priority) }
+    func neighbor(of book: Location, _ direction: NavigationDirection, sort: SortSpec) async throws -> Location? { try await base.neighbor(of: book, direction, sort: sort) }
+    func passThrough(_ location: Location) async throws -> Location { try await base.passThrough(location) }
+}
+
+struct OmittingShelf: Bookshelf {
+    var base: MockBookshelf
+    var omitted: Location
+
+    func items(in directory: Location, sort: SortSpec) -> AsyncThrowingStream<ShelfEvent, any Error> {
+        let upstream = base.items(in: directory, sort: sort)
+        let omitted = omitted
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await event in upstream {
+                        switch event {
+                        case let .appended(entries):
+                            let books = entries.filter { $0.location != omitted }
+                            if !books.isEmpty { continuation.yield(.appended(books)) }
+                        case let .sorted(entries): continuation.yield(.sorted(entries.filter { $0.location != omitted }))
+                        }
+                    }
+                    continuation.finish()
+                } catch { continuation.finish(throwing: error) }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func cover(of book: Location, priority: IOPriority) async throws -> Location? { try await base.cover(of: book, priority: priority) }
+    func neighbor(of book: Location, _ direction: NavigationDirection, sort: SortSpec) async throws -> Location? { try await base.neighbor(of: book, direction, sort: sort) }
+    func passThrough(_ location: Location) async throws -> Location { try await base.passThrough(location) }
+}
+
+struct FailingBookLoader: BookLoader {
+    var base: MockBookLoader
+    var failing: Location
+
+    func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> {
+        guard location != failing else {
+            return AsyncThrowingStream { $0.finish(throwing: IOError.notFound(location)) }
+        }
+        return base.load(location, settings: settings, startingAt: page)
     }
 }
