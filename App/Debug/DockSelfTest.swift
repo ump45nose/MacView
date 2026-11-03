@@ -2,6 +2,7 @@
 import AppKit
 import MVFoundation
 import MVLayout
+import MVSettings
 
 /// 停靠框架的自检。拖动手势本身（NSDraggingSession 的鼠标跟踪）无法合成，自检从手势之下的同一条路径驱动：
 /// 容器按坐标求放置位置并显示指示（`showDropIndicator`），再经 `beginDrag` → `drop` → `endDrag` 完成放置，
@@ -132,7 +133,7 @@ final class DockSelfTest {
         log.check(coordinator.current.floating.map(\.panel) == [DockPanels.pageList] && floating != nil, "拖到停靠区以外成为浮动面板")
         log.check(coordinator.current.floating.first?.home == .right && dock.dockLayout.right.panels.isEmpty, "浮动面板记住原来的区，右区收起")
         log.check(floating?.panel.view.window === floating, "面板视图移进浮动窗口")
-        log.check(placeholder(floating?.panel)?.boundSession == first.session.id, "浮动面板作用于窗口 1")
+        log.check(collection(floating?.panel)?.boundSession == first.session.id, "浮动面板作用于窗口 1")
 
         // 第二个窗口：套用最近的布局；各自改动互不影响。
         guard let second = app.newWindow(), let secondWindow = second.window else { return log.check(false, "没有第二个窗口") }
@@ -152,9 +153,9 @@ final class DockSelfTest {
 
         // 浮动面板跟随活动窗口。App 未激活时没有主窗口通知，直接调用通知处理的同一方法。
         await activate(second)
-        log.check(placeholder(floating?.panel)?.boundSession == second.session.id, "切到窗口 2：浮动面板改为作用于窗口 2")
+        log.check(collection(floating?.panel)?.boundSession == second.session.id, "切到窗口 2：浮动面板改为作用于窗口 2")
         await activate(first)
-        log.check(placeholder(floating?.panel)?.boundSession == first.session.id, "切回窗口 1：浮动面板跟随")
+        log.check(collection(floating?.panel)?.boundSession == first.session.id, "切回窗口 1：浮动面板跟随")
 
         // 拖回：从浮动面板拖进窗口 2 的右区。
         await activate(second)
@@ -167,15 +168,15 @@ final class DockSelfTest {
         log.check(dock.dockLayout.placement(of: DockPanels.pageList) == nil, "窗口 1 不因此多出页面列表")
 
         // 视图设置与跨窗口移动。
-        placeholder(dock.panels[DockPanels.bookshelf])?.setStyle(.grid)
-        let grid: JSONValue = .object(["style": .string("grid")])
-        log.check(coordinator.current.settings[DockPanels.bookshelf] == grid, "视图设置编码进布局：\(String(describing: coordinator.current.settings[DockPanels.bookshelf]))")
+        collection(dock.panels[DockPanels.bookshelf])?.setStyle(.grid)
+        let grid = coordinator.current.settings[DockPanels.bookshelf]
+        log.check(grid.flatMap { if case let .object(fields) = $0 { fields["style"] } else { nil } } == .string("grid"), "视图设置编码进布局：\(String(describing: grid))")
         let bookshelf = dock.panels[DockPanels.bookshelf]
         let secondBottom = NSPoint(x: second.dock.bounds.midX, y: second.dock.bounds.maxY - 10)
         await drop(DockPanels.bookshelf, from: dock, into: second.dock, at: secondBottom, expect: .area(.bottom, index: 0), "跨窗口：窗口 1 的书架到窗口 2 底部")
         log.check(dock.dockLayout.placement(of: DockPanels.bookshelf) == nil && second.dock.dockLayout.settings[DockPanels.bookshelf] == grid,
               "书架连同视图设置移到窗口 2")
-        log.check(second.dock.panels[DockPanels.bookshelf] === bookshelf && placeholder(bookshelf)?.boundSession == second.session.id,
+        log.check(second.dock.panels[DockPanels.bookshelf] === bookshelf && collection(bookshelf)?.boundSession == second.session.id,
               "实例保留，改为作用于窗口 2")
         log.snapshot(secondWindow, "window2-cross")
 
@@ -249,7 +250,9 @@ final class DockSelfTest {
         await settle()
         // 窗口的 frame 取整数点；用整数，重启后摆放时才不被 AppKit 改动。
         coordinator.floatingMoved(DockPanels.pageList, to: DockFrame(x: floor(screen.midX) - 130, y: floor(screen.midY) - 200, width: 260, height: 400))
-        placeholder(dock.panels[DockPanels.bookshelf])?.setStyle(.grid)
+        collection(dock.panels[DockPanels.bookshelf])?.setStyle(.grid)
+        collection(dock.panels[DockPanels.bookshelf])?.setItemExtent(180)
+        collection(dock.panels[DockPanels.bookshelf])?.setSort(SortSpec(key: .size, ascending: false))
         await settle()
         dock.perform(render: false) { $0.resizing(.left, to: 300) }
         do {
@@ -270,9 +273,10 @@ final class DockSelfTest {
         let items = controller.window?.toolbar?.items.map(\.itemIdentifier.rawValue) ?? []
         log.check(items.first == "dock.left" && items.last == "dock.right", "左侧开关在最前，右侧开关在最后：\(items)")
         log.check(left.state == .on && right.state == .on && left.isEnabled && right.isEnabled, "默认布局：两个开关按下且可用")
-        dockHideButton(dock, .left)?.performClick(nil)
+        let menu = dock.areas[.left]!.optionsMenu()
+        menu.performActionForItem(at: menu.indexOfItem(withTitle: String(localized: "隐藏停靠区")))
         await settle()
-        log.check(!dock.isOnScreen(.left) && left.state == .off && left.isEnabled, "区头按钮隐藏：开关弹起，仍可用")
+        log.check(!dock.isOnScreen(.left) && left.state == .off && left.isEnabled, "区头 ⋯ 菜单隐藏：开关弹起，仍可用")
         left.performClick(nil)
         await settle()
         log.check(dock.isOnScreen(.left) && left.state == .on, "点工具栏开关：区恢复，开关按下")
@@ -291,14 +295,6 @@ final class DockSelfTest {
         log.check(dock.isOnScreen(.left) && left.state == .on && left.isEnabled, "⌥⌘1 显示书架：开关恢复")
     }
 
-    private func dockHideButton(_ dock: WindowDock, _ edge: DockEdge) -> NSButton? {
-        func find(_ view: NSView) -> NSButton? {
-            if let button = view as? NSButton, button.toolTip == String(localized: "隐藏停靠区") { return button }
-            return view.subviews.lazy.compactMap(find).first
-        }
-        return find(dock.areas[edge]!)
-    }
-
     // MARK: restore
 
     private func runRestore() async {
@@ -314,7 +310,9 @@ final class DockSelfTest {
         let frame = expected.floating.first?.frame
         log.check(floating != nil && frame.map { NSRect(x: $0.x, y: $0.y, width: $0.width, height: $0.height) } == floating?.frame,
               "浮动面板恢复到原位置：\(String(describing: floating?.frame))")
-        log.check(placeholder(first.dock.panels[DockPanels.bookshelf])?.settings.style == .grid, "书架的视图设置恢复为网格")
+        let restored = collection(first.dock.panels[DockPanels.bookshelf])?.settings
+        log.check(restored?.style == .grid && restored?.itemExtent == 180 && restored?.sort == SortSpec(key: .size, ascending: false), "书架的样式、尺寸、排序重启后保留：\(String(describing: restored))")
+        log.check(collection(coordinator.floatingWindows[DockPanels.pageList]?.panel)?.settings.style == .list, "页面列表的设置不受影响")
         log.check(first.dock.isOnScreen(.left) && abs(first.dock.areas[.left]!.frame.width - 300) < 1,
               "左区宽度恢复为 300：\(first.dock.areas[.left]!.frame.width)")
         log.check(first.dockToggles[.left]?.state == .on && first.dockToggles[.left]?.isEnabled == true, "重启后左侧开关按下")
@@ -509,8 +507,8 @@ final class DockSelfTest {
         return (try? encoder.encode(layout)).map { String(decoding: $0, as: UTF8.self) } ?? ""
     }
 
-    private func placeholder(_ panel: (any DockPanel)?) -> PlaceholderPanel? {
-        panel as? PlaceholderPanel
+    private func collection(_ panel: (any DockPanel)?) -> CollectionPanel? {
+        panel as? CollectionPanel
     }
 
     /// 面板视图在某个区里，并且在窗口中。

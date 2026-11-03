@@ -3,7 +3,7 @@ import MVCommands
 import MVFoundation
 import MVLayout
 
-/// 停靠面板。具体面板（书架、页面列表等，S2-F2）实现这个协议，再在 `DockPanels.all` 中登记一个 `DockPanelType`。
+/// 停靠面板。具体面板（书架、页面列表等）实现这个协议，再在 `DockPanels.all` 中登记一个 `DockPanelType`。
 ///
 /// 同一种面板在每个停靠它的窗口里各有一个实例；浮动时全应用只有一个实例，随活动窗口切换 `bind(to:)`。
 /// 面板在区之间移动时实例和视图保留，只换父视图。
@@ -18,6 +18,8 @@ protocol DockPanel: AnyObject {
     var onSettingsChange: (() -> Void)? { get set }
     /// 面板作用的窗口：停靠的面板是所在窗口；浮动面板是当前活动窗口，没有阅读窗口时为 nil。
     func bind(to window: ReaderWindowController?)
+    /// 区头 ⋯ 菜单里这个面板的选项。
+    func addOptions(to menu: NSMenu)
 }
 
 extension DockPanel {
@@ -71,15 +73,14 @@ enum DockPanels {
     static let bookshelf = PanelID("bookshelf")
     static let pageList = PanelID("pageList")
 
-    /// S2-F2 之前是两个占位面板；S2-F2 换成正式的书架与页面列表，标识与命令不变。
     static let all: [DockPanelType] = [
         DockPanelType(
             id: bookshelf, title: String(localized: "书架"), symbol: "books.vertical",
-            toggleCommand: .bookshelfToggle, defaultEdge: .left, make: PlaceholderPanel.init
+            toggleCommand: .bookshelfToggle, defaultEdge: .left, make: BookshelfPanel.init
         ),
         DockPanelType(
             id: pageList, title: String(localized: "页面列表"), symbol: "square.grid.3x3",
-            toggleCommand: .pageListToggle, defaultEdge: .right, make: PlaceholderPanel.init
+            toggleCommand: .pageListToggle, defaultEdge: .right, make: PageListPanel.init
         ),
     ]
 

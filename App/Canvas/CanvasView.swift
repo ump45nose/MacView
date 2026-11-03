@@ -13,6 +13,10 @@ struct CanvasItem: Equatable {
     var aspectRatio: Double?
     /// 右下角的角标，例如视频的时长。
     var badge: String?
+    /// 底部的标题，网格用。
+    var label: String?
+    /// 图还不能请求，例如书架上还没解析封面的书。换成真正的身份时项的位置不变。
+    var isPending = false
 }
 
 /// 回报给预取计划的范围：可见项，以及可见区加余量内的项。砌体中可见项不一定连续，范围取最小到最大的序号。
@@ -97,6 +101,8 @@ final class CanvasView: NSScrollView {
     var onSelectionChange: ((Set<Int>) -> Void)?
     /// 双击或回车。
     var onActivate: ((Int) -> Void)?
+    /// 双击；没有设置时走 `onActivate`。
+    var onDoubleClick: ((Int) -> Void)?
     /// 捏合缩放改了 `itemExtent`。
     var onItemExtentChange: ((Double) -> Void)?
     var onMeasure: ((CanvasMeasure) -> Void)?
@@ -180,10 +186,15 @@ final class CanvasView: NSScrollView {
 
     /// 换一组项。前面的项不变（只追加项或补上宽高比）时，已排的项不动；否则视为整体重排，按身份保留选中项并以它为锚点。
     func setItems(_ newItems: [CanvasItem]) {
-        let appended = newItems.count >= items.count && zip(items, newItems).allSatisfy { $0.identity == $1.identity }
+        let appended = newItems.count >= items.count && zip(items, newItems).allSatisfy { $0.identity == $1.identity || $0.isPending }
         var anchor: LayoutAnchor?
         if appended {
             anchor = stickyAnchor ?? layout.leadingAnchor(in: viewport)
+            // 已分配的项：身份变了的重新分配，其余只更新角标和标题。
+            recycle(tiles.compactMap { index, tile in newItems[index].identity == tile.identity ? nil : index })
+            for (index, tile) in tiles where newItems[index] != items[index] {
+                setOverlays(newItems[index], on: tile.layer)
+            }
         } else {
             var newIndex: [ContentIdentity: Int] = [:]
             newIndex.reserveCapacity(newItems.count)
@@ -326,7 +337,7 @@ final class CanvasView: NSScrollView {
         for (index, tile) in tiles {
             if let frame = layout.frame(of: index) {
                 tile.layer.frame = frame
-                positionBadge(in: tile.layer)
+                positionOverlays(in: tile.layer)
                 // 错误标记居中显示，不随布局换填充方式。
                 if tile.layer.contentsGravity != .center {
                     tile.layer.contentsGravity = contentGravity
@@ -412,7 +423,7 @@ final class CanvasView: NSScrollView {
             layer.contentsGravity = contentGravity
             layer.contents = loader.cached(identity)?.contents
         }
-        setBadge(items[index].badge, on: layer)
+        setOverlays(items[index], on: layer)
         tiles[index] = Tile(layer: layer, identity: identity)
         tileIndex[identity] = index
         request(index, frame: frame, priority: priority)
@@ -426,7 +437,7 @@ final class CanvasView: NSScrollView {
             tileIndex[tile.identity] = nil
             tile.layer.isHidden = true
             tile.layer.contents = nil
-            setBadge(nil, on: tile.layer)
+            tile.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
             spare.append(tile.layer)
             loader.cancel(tile.identity)
         }
@@ -446,32 +457,51 @@ final class CanvasView: NSScrollView {
         return layer
     }
 
-    /// 角标是图块唯一的子图层。
-    private func setBadge(_ text: String?, on layer: CALayer) {
-        guard let text else {
-            layer.sublayers?.forEach { $0.removeFromSuperlayer() }
-            return
+    private func setOverlays(_ item: CanvasItem, on layer: CALayer) {
+        setOverlay("badge", text: item.badge, on: layer) { overlay in
+            overlay.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+            overlay.alignmentMode = .center
+            overlay.cornerRadius = 4
         }
-        let badge = layer.sublayers?.first as? CATextLayer ?? {
-            let badge = CATextLayer()
-            badge.fontSize = 11
-            badge.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
-            badge.foregroundColor = NSColor.white.cgColor
-            badge.backgroundColor = NSColor.black.withAlphaComponent(0.6).cgColor
-            badge.cornerRadius = 4
-            badge.alignmentMode = .center
-            badge.contentsScale = window?.backingScaleFactor ?? 2
-            layer.addSublayer(badge)
-            return badge
-        }()
-        badge.string = text
-        positionBadge(in: layer)
+        setOverlay("label", text: item.label, on: layer) { overlay in
+            overlay.font = NSFont.systemFont(ofSize: 11)
+            overlay.alignmentMode = .left
+            overlay.truncationMode = .end
+        }
+        positionOverlays(in: layer)
     }
 
-    private func positionBadge(in layer: CALayer) {
-        guard let badge = layer.sublayers?.first as? CATextLayer, let text = badge.string as? String else { return }
-        let width = ceil((text as NSString).size(withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)]).width) + 10
-        badge.frame = CGRect(x: layer.bounds.width - width - 6, y: layer.bounds.height - 22, width: width, height: 16)
+    private func setOverlay(_ name: String, text: String?, on layer: CALayer, configure: (CATextLayer) -> Void) {
+        let existing = layer.sublayers?.first { $0.name == name } as? CATextLayer
+        guard let text else {
+            existing?.removeFromSuperlayer()
+            return
+        }
+        let overlay = existing ?? {
+            let overlay = CATextLayer()
+            overlay.name = name
+            overlay.fontSize = 11
+            overlay.foregroundColor = NSColor.white.cgColor
+            overlay.backgroundColor = NSColor.black.withAlphaComponent(0.6).cgColor
+            overlay.contentsScale = window?.backingScaleFactor ?? 2
+            configure(overlay)
+            layer.addSublayer(overlay)
+            return overlay
+        }()
+        overlay.string = text
+    }
+
+    private func positionOverlays(in layer: CALayer) {
+        for overlay in layer.sublayers ?? [] {
+            guard let overlay = overlay as? CATextLayer else { continue }
+            if overlay.name == "label" {
+                overlay.frame = CGRect(x: 0, y: layer.bounds.height - 18, width: layer.bounds.width, height: 18)
+            } else if let text = overlay.string as? String {
+                let width = ceil((text as NSString).size(withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)]).width) + 10
+                let bottom = layer.sublayers?.contains { $0.name == "label" } == true ? 18.0 : 0
+                overlay.frame = CGRect(x: layer.bounds.width - width - 6, y: layer.bounds.height - bottom - 22, width: width, height: 16)
+            }
+        }
     }
 
     private func showError(on layer: CALayer) {
@@ -482,6 +512,7 @@ final class CanvasView: NSScrollView {
     /// 按项在屏幕上的像素尺寸请求。显示图要宽高比才能定目标尺寸；网格的单元是正方形，按宽高比放进单元。
     @discardableResult
     private func request(_ index: Int, frame: CGRect, priority: IOPriority) -> Bool {
+        guard !items[index].isPending else { return false }
         let scale = window?.backingScaleFactor ?? 2
         let size = PixelSize(width: Int((frame.width * scale).rounded(.up)), height: Int((frame.height * scale).rounded(.up)))
         let longSide = max(size.width, size.height)
@@ -574,7 +605,7 @@ final class CanvasView: NSScrollView {
             return
         }
         if event.clickCount == 2 {
-            onActivate?(index)
+            (onDoubleClick ?? onActivate)?(index)
             return
         }
         if case .failed = loader.state(of: items[index].identity), let tile = tiles[index] {

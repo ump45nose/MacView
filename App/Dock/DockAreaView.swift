@@ -42,8 +42,8 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
     private let split = DockSplitView()
     private var parts: [PanelFrameView] = []
     private let controls = NSStackView()
-    private let styleButton: NSButton
-    private let hideButton: NSButton
+    /// 区头的 ⋯：当前面板的选项、移动，以及这个区的分割和隐藏。
+    private let optionsButton: NSButton
     private let headerLine = CALayer()
     private var needsWeights = false
     /// 程序设置分隔线位置时，通知里也带分隔线序号，不能当作用户拖动。
@@ -52,15 +52,9 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
     init(edge: DockEdge, dock: WindowDock) {
         self.edge = edge
         self.dock = dock
-        styleButton = Self.button(symbol: "rectangle.split.1x2")
-        let hideSymbol = switch edge {
-        case .left: "sidebar.left"
-        case .right: "sidebar.right"
-        case .bottom: "rectangle.bottomthird.inset.filled"
-        }
-        hideButton = Self.button(symbol: hideSymbol)
-        hideButton.toolTip = String(localized: "隐藏停靠区")
-        hideButton.setAccessibilityLabel(hideButton.toolTip)
+        optionsButton = Self.button(symbol: "ellipsis")
+        optionsButton.toolTip = String(localized: "面板选项")
+        optionsButton.setAccessibilityLabel(optionsButton.toolTip)
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(headerLine)
@@ -70,12 +64,10 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         split.autoresizingMask = [.width, .height]
         controls.orientation = .horizontal
         controls.spacing = 2
-        controls.setViews([styleButton, hideButton], in: .trailing)
-        controls.frame.size = CGSize(width: 48, height: 22)
-        styleButton.target = self
-        styleButton.action = #selector(toggleStyle(_:))
-        hideButton.target = self
-        hideButton.action = #selector(hide(_:))
+        controls.setViews([optionsButton], in: .trailing)
+        controls.frame.size = CGSize(width: 22, height: 22)
+        optionsButton.target = self
+        optionsButton.action = #selector(showOptions(_:))
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
         let name = switch edge {
@@ -130,10 +122,6 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         for item in items where tabs[item.type.id] == nil {
             tabs[item.type.id] = makeTab(item.type)
         }
-        let label = style == .tabs ? String(localized: "改为上下分割") : String(localized: "改为标签页")
-        styleButton.toolTip = label
-        styleButton.setAccessibilityLabel(label)
-        styleButton.image = NSImage(systemSymbolName: style == .tabs ? "rectangle.split.1x2" : "rectangle.stack", accessibilityDescription: label)
 
         subviews.forEach { $0.removeFromSuperview() }
         split.subviews.forEach { $0.removeFromSuperview() }
@@ -190,9 +178,9 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         switch area.style {
         case .tabs:
             let height = Self.headerHeight
-            controls.frame = CGRect(x: bounds.width - 52, y: (height - 22) / 2, width: 48, height: 22)
+            controls.frame = CGRect(x: bounds.width - 26, y: (height - 22) / 2, width: 22, height: 22)
             // 标签放不下时等分可用宽度。
-            let available = max(bounds.width - 60 - 8, 0)
+            let available = max(bounds.width - 34 - 8, 0)
             let wanted = items.map { tabs[$0.type.id]!.fittingWidth }
             let total = wanted.reduce(0, +) + CGFloat(max(items.count - 1, 0)) * 2
             let scale = total > available && total > 0 ? available / total : 1
@@ -257,12 +245,43 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
 
     // MARK: 动作
 
-    @objc private func toggleStyle(_ sender: Any?) {
-        dock.perform { $0.togglingStyle(edge) }
+    @objc private func showOptions(_ sender: NSButton) {
+        optionsMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 2), in: sender)
     }
 
-    @objc private func hide(_ sender: Any?) {
-        dock.perform { $0.togglingArea(edge) }
+    /// 标签页时列出当前面板的选项；上下分割时每个面板一个子菜单。最后是这个区的分割和隐藏。
+    func optionsMenu() -> NSMenu {
+        let menu = NSMenu()
+        let shown = area.style == .tabs ? items.filter { $0.type.id == current } : items
+        for item in shown {
+            guard let panel = dock.panels[item.type.id] else { continue }
+            let target: NSMenu
+            if area.style == .tabs {
+                target = menu
+            } else {
+                let parent = NSMenuItem(title: item.type.title, action: nil, keyEquivalent: "")
+                target = NSMenu()
+                parent.submenu = target
+                menu.addItem(parent)
+            }
+            panel.addOptions(to: target)
+            target.addItem(.separator())
+            for entry in dock.coordinator.menu(for: item.type.id, in: dock).items {
+                entry.menu?.removeItem(entry)
+                target.addItem(entry)
+            }
+            if target === menu { menu.addItem(.separator()) }
+        }
+        if area.style != .tabs { menu.addItem(.separator()) }
+        let edge = edge
+        let dock = dock
+        menu.addItem(MenuAction(area.style == .tabs ? String(localized: "改为上下分割") : String(localized: "改为标签页")) {
+            dock.perform { $0.togglingStyle(edge) }
+        }.item)
+        menu.addItem(MenuAction(String(localized: "隐藏停靠区")) {
+            dock.perform { $0.togglingArea(edge) }
+        }.item)
+        return menu
     }
 
     // MARK: NSSplitViewDelegate

@@ -44,8 +44,8 @@ struct ReadingListing: Sendable {
     }
 }
 
-enum ReadingOrder {
-    static func sorted(_ entries: [Entry], by sort: SortSpec) -> [Entry] {
+public enum ReadingOrder {
+    public static func sorted(_ entries: [Entry], by sort: SortSpec) -> [Entry] {
         entries.sorted { compare($0, $1, by: sort) == .orderedAscending }
     }
 
