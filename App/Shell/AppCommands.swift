@@ -3,9 +3,7 @@ import MVCommands
 import MVLayout
 import MVReading
 
-/// App 侧登记的命令处理器：窗口、标签页、全屏、打开、关闭等界面命令，以及最简页面视图用到的翻页、跳页与切书。
-///
-/// 其余 Core 命令（浏览方式、缩放、排序等）由正式查看器与 Core 在之后的任务中登记，菜单中先显示为不可用。
+/// App 侧登记的命令处理器：窗口、标签页、全屏、打开、关闭等界面命令，以及翻页、跳页与切书。查看器的命令见 `registerViewerCommands`。
 extension AppDelegate {
     func registerCommands(in registry: CommandRegistry) {
         func register(
@@ -83,5 +81,6 @@ extension AppDelegate {
                 self?.controller(for: context.session)?.openNeighbor(direction)
             }
         }
+        registerViewerCommands(in: registry)
     }
 }

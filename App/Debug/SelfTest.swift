@@ -56,6 +56,8 @@ final class SelfTest {
 
     private func run() async {
         NSApp.activate()
+        // 激活是异步的：中途才激活时，按键分派的路径会变。
+        for _ in 0..<30 where !NSApp.isActive { try? await Task.sleep(for: .milliseconds(100)) }
         if !app.isMock { await runReal(); return }
         dumpMenu()
         guard let first = app.controllers.first, let window = first.window else {
@@ -64,7 +66,7 @@ final class SelfTest {
         }
         target = window
         log.check(text(in: first.content.statusBar).contains(String(localized: "Mock 服务")), "显式 Mock 服务在窗口上标明")
-        log.check(window.toolbar?.items.map(\.itemIdentifier.rawValue) == ["dock.left", "book.previous", "book.next", "book.title", "NSToolbarFlexibleSpaceItem", "dock.right"], "工具栏有停靠区开关、上一本、下一本按钮和书名")
+        log.check(window.toolbar?.items.map(\.itemIdentifier.rawValue) == ["dock.left", "book.previous", "book.next", "book.title", "NSToolbarFlexibleSpaceItem", "view.waterfallOptions", "view.browse", "view.options", "window.fullScreen", "dock.right"], "工具栏有停靠区开关、切书、书名、浏览方式、显示和全屏")
         print("INFO 按键分派：\(NSApp.isActive ? "NSApp.sendEvent" : "App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派")")
         await settle()
         let frameNextItem = NSApp.mainMenu?.items.compactMap(\.submenu).flatMap(\.items).first { $0.title == app.catalog.title(of: .frameNext) }
@@ -76,7 +78,7 @@ final class SelfTest {
         await waitForBook(first) { $0.pages.count == 100 }
         log.check(first.session.book?.location.description == "/mock/画集/系列 A/第 5 卷", "文件夹 URL 转成 Location：\(first.session.book?.location.description ?? "nil")")
         log.check(first.session.book?.pages.count == 100, "打开 100 页的书：\(first.session.book?.pages.count ?? 0) 页")
-        window.makeFirstResponder(first.pageView)
+        window.makeFirstResponder(first.viewer)
         await settle()
         log.snapshot(window, "book")
 
@@ -117,6 +119,8 @@ final class SelfTest {
             (kVK_ANSI_A, []), (kVK_ANSI_G, []), (kVK_ANSI_G, []), (kVK_RightArrow, []), (kVK_LeftArrow, []),
             (kVK_RightArrow, [.option]), (kVK_DownArrow, [.option]), (kVK_RightArrow, [.command]), (kVK_End, []), (kVK_Space, []),
         ]
+        // 系统当前是中文输入法时，字母会变成组合文本。
+        field.currentEditor()?.inputContext?.allowedInputSourceLocales = [NSAllRomanInputSourcesLocaleIdentifier]
         for (key, flags) in typing {
             await send(key, flags)
         }
@@ -132,7 +136,7 @@ final class SelfTest {
         }
         log.snapshot(window, "jump-field")
         await edit(kVK_Escape, editor, #selector(NSResponder.cancelOperation(_:)))
-        log.check(window.firstResponder === first.pageView, "Esc 取消输入，焦点回到页面")
+        log.check(window.firstResponder === first.viewer, "Esc 取消输入，焦点回到页面")
         await jump(first, "50")
         log.check(first.session.currentFrame == 49, "输入 50 回车跳到第 50 页：\(first.session.currentFrame)")
 
@@ -159,7 +163,7 @@ final class SelfTest {
         second.open([URL(fileURLWithPath: "/Volumes/Mock/漫画/作品 1.zip")])
         await waitForBook(second) { $0.pages.count == 40 }
         log.check(second.session.book?.location.layers == [["漫画", "作品 1.zip"]], "zip URL 转成 Location：\(second.session.book?.location.description ?? "nil")")
-        secondWindow.makeFirstResponder(second.pageView)
+        secondWindow.makeFirstResponder(second.viewer)
         await send(kVK_RightArrow)
         await send(kVK_RightArrow)
         await send(kVK_RightArrow)
@@ -218,7 +222,7 @@ final class SelfTest {
                 log.check(first.session.book?.location == expected && (first.session.book?.pages.count ?? 0) > 1,
                           "\(drop ? "拖放" : "打开面板共用")入口正确打开 \(relative)")
                 first.session.go(.first)
-                window.makeFirstResponder(first.pageView)
+                window.makeFirstResponder(first.viewer)
                 await send(kVK_RightArrow)
                 log.check(first.session.currentFrame == 1, "真实书按 → 翻页：\(relative)")
                 await checkRealImage(first)
@@ -254,11 +258,11 @@ final class SelfTest {
                 log.check(image.surface != nil && CanvasImage(image).contents is IOSurface, "真实取图与 CanvasImage 仅交付 IOSurface")
             }
             log.check(delivered, "真实管线取到当前页图片")
-            for _ in 0..<100 where controller.pageView.layer?.sublayers?.contains(where: { $0.contents is IOSurface }) != true {
+            for _ in 0..<100 where controller.viewer.paged.slots.contains(where: { $0.contents is IOSurface }) != true {
                 try? await Task.sleep(for: .milliseconds(20))
             }
-            let contents = controller.pageView.layer?.sublayers?.compactMap(\.contents) ?? []
-            log.check(!contents.isEmpty && contents.allSatisfy { $0 is IOSurface }, "PageView 图层内容全部是 IOSurface")
+            let contents = controller.viewer.paged.slots.compactMap(\.contents)
+            log.check(!contents.isEmpty && contents.allSatisfy { $0 is IOSurface }, "查看器图层内容全部是 IOSurface")
         } catch { log.check(false, "真实页面取图失败：\(error)") }
     }
 
@@ -287,7 +291,7 @@ final class SelfTest {
             log.check(extra?.content.fileErrorBanner != nil, "坏配置期间新窗口也显示横幅")
             extra?.window?.performClose(nil)
             controller.window?.makeKeyAndOrderFront(nil)
-            controller.window?.makeFirstResponder(controller.pageView)
+            controller.window?.makeFirstResponder(controller.viewer)
             controller.session.go(.first)
             await send(kVK_ANSI_J)
             log.check(controller.session.currentFrame == 1, "坏配置后旧绑定继续生效")

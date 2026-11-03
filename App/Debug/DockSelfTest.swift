@@ -116,7 +116,7 @@ final class DockSelfTest {
         log.snapshot(window, "drop-edge")
         await drop(DockPanels.bookshelf, from: dock, into: dock, at: leftEdge, expect: .area(.left, index: 0), "左侧边缘")
         log.check(isShown(DockPanels.bookshelf, in: .left, of: dock) && !dock.isOnScreen(.bottom), "书架回到左侧区，底部区收起")
-        let main = first.pageView.convert(NSPoint(x: first.pageView.bounds.midX, y: first.pageView.bounds.midY), to: dock)
+        let main = first.viewer.convert(NSPoint(x: first.viewer.bounds.midX, y: first.viewer.bounds.midY), to: dock)
         log.check(dock.dropTarget(at: main) == nil, "主视图中央不是放置目标（放下即浮动）")
         log.snapshot(window, "areas")
 
@@ -213,7 +213,7 @@ final class DockSelfTest {
         await fullScreen(first, on: true)
         log.check(!dock.isOnScreen(.left) && !dock.isOnScreen(.right), "全屏时停靠区隐藏")
         // 折叠的区在边缘各留一条 1 点的分隔线。
-        log.check(abs(first.pageView.frame.width - dock.bounds.width) <= 2, "主视图占满宽度：\(first.pageView.frame.width) / \(dock.bounds.width)")
+        log.check(abs(first.viewer.frame.width - dock.bounds.width) <= 2, "主视图占满宽度：\(first.viewer.frame.width) / \(dock.bounds.width)")
         let beforeToggle = dock.dockLayout
         log.check(first.dockToggles[.left]?.isEnabled == true && first.dockToggles[.left]?.state == .on, "全屏自动隐藏时开关可用，按下态不变")
         first.dockToggles[.left]?.performClick(nil)

@@ -42,7 +42,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     let session: ReaderSession
     private(set) var router: InputRouter
-    let pageView: PageView
+    let viewer: ViewerContainerView
     let content: ReaderContentView
     let pendingView: PendingSequenceView
     /// 本窗口的停靠区；页面视图在中间栏。
@@ -54,6 +54,20 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private var openTask: Task<Void, Never>?
     private let bookTitle = NSTextField(labelWithString: "")
     private let bookPath = NSTextField(labelWithString: "")
+    private let browseControl = BrowseModeControl(
+        labels: [String(localized: "单页"), String(localized: "双页"), String(localized: "瀑布"), String(localized: "竖条"), String(localized: "横条")]
+    )
+    private lazy var optionsButton = NSButton(
+        title: String(localized: "显示"), image: NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: nil) ?? NSImage(),
+        target: self, action: #selector(toggleOptions(_:))
+    )
+    private lazy var fullScreenButton = NSButton(
+        image: NSImage(systemSymbolName: "arrow.up.left.and.arrow.down.right", accessibilityDescription: String(localized: "全屏")) ?? NSImage(),
+        target: self, action: #selector(toggleFullScreen(_:))
+    )
+    private let sortButton = NSPopUpButton(frame: .zero, pullsDown: true)
+    private let sizeSlider = NSSlider()
+    private var optionsPopover: NSPopover?
     /// 工具栏的停靠区开关，按下态跟随本窗口的布局。
     private(set) var dockToggles: [DockEdge: NSButton] = [:]
     private let logger = Logger(category: "window")
@@ -66,12 +80,12 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         self.dispatcher = dispatcher
         self.isMock = isMock
         session = services.makeSession()
-        pageView = PageView(session: session, pipeline: services.pipeline)
+        viewer = ViewerContainerView(session: session, services: ViewerServices(pipeline: services.pipeline, sources: services.sources, bookshelf: services.bookshelf))
         let statusBar = StatusBarView(
             serviceBadge: isMock ? String(localized: "Mock 服务") : "",
             badgeToolTip: isMock ? String(localized: "尚未接入真实服务，书和图片来自内存中的模拟目录（/Volumes/Mock）。") : ""
         )
-        let mainView = ReaderMainView(pageView: pageView)
+        let mainView = ReaderMainView(viewer: viewer)
         pendingView = mainView.pendingView
         dock = WindowDock(coordinator: dockCoordinator, mainView: mainView)
         content = ReaderContentView(mainView: dock, statusBar: statusBar)
@@ -93,7 +107,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.contentView = content
-        window.initialFirstResponder = pageView
+        window.initialFirstResponder = viewer
         window.router = router
         super.init(window: window)
         router.onCommand = { [weak self] id, arguments, scope in
@@ -101,6 +115,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         }
         window.delegate = self
 
+        configureBrowseControls()
         for entry in Self.dockToggleItems.values { dockToggles[entry.edge] = makeDockToggle(entry) }
         dock.onLayoutChange = { [weak self] in self?.updateDockToggles() }
         let toolbar = NSToolbar(identifier: "MacView.reader")
@@ -110,12 +125,15 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window.toolbarStyle = .unified
 
         router.onPendingChange = { [weak self] pending in self?.pendingView.show(pending) }
-        pageView.onOpen = { [weak self] in self?.run(.fileOpen) }
+        viewer.onOpen = { [weak self] in self?.run(.fileOpen) }
+        viewer.onRetryBook = { [weak self] in self?.reopenBook() }
+        viewer.onConnect = { [weak self] in self?.connectVolume() }
+        viewer.continuous.onWaterfallExtentChange = { [weak self] in self?.updateWaterfallControls() }
         content.onDrop = { [weak self] urls in self?.open(urls) }
         statusBar.onJump = { [weak self] number in self?.session.go(.index(number - 1)) }
         statusBar.onJumpEnd = { [weak self] in
             guard let self else { return }
-            window.makeFirstResponder(pageView)
+            window.makeFirstResponder(viewer)
         }
         dockCoordinator.attach(dock, to: self)
         observeSession()
@@ -157,11 +175,21 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         let location = session.book?.location
         window?.title = location?.name ?? "MacView"
         bookTitle.stringValue = window?.title ?? ""
-        bookPath.stringValue = location?.parent.map(Self.breadcrumb) ?? ""
+        bookPath.stringValue = titleDetail(location)
         bookPath.isHidden = bookPath.stringValue.isEmpty
-        pageView.refresh()
+        viewer.refresh()
+        updateBrowseControls()
         content.statusBar.refresh(session)
         window?.toolbar?.validateVisibleItems()
+    }
+
+    /// 书名下面的一行：所在路径；单页模式前面加当前页。
+    private func titleDetail(_ location: Location?) -> String {
+        let path = location?.parent.map(Self.breadcrumb) ?? ""
+        let settings = session.settings
+        guard settings.browseMode == .paged, settings.pageMode == .single, let pages = session.book?.pages, pages.indices.contains(session.currentPage) else { return path }
+        let page = String(localized: "第 \(session.currentPage + 1) 页 · \(pages[session.currentPage].entry.name)")
+        return path.isEmpty ? page : page + " · " + path
     }
 
     /// 显示用的路径，例如 `mock › 画集 › 系列 A`。
@@ -194,9 +222,22 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     func openNeighbor(_ direction: NavigationDirection) {
         openTask?.cancel()
         openTask = Task { [weak self] in
-            // 书架面板（S2-F2）之前没有书架的排序，按名称。
-            await self?.session.openNeighborBook(direction, sort: SortSpec(key: .name))
+            guard let self else { return }
+            await session.openNeighborBook(direction, sort: session.neighborSort)
         }
+    }
+
+    /// 重新打开这本书：书的位置不丢。
+    func reopenBook() {
+        guard let location = session.book?.location else { return }
+        openTask?.cancel()
+        openTask = Task { [weak self] in await self?.session.open(location, at: nil) }
+    }
+
+    /// 让系统挂载书所在的卷。
+    func connectVolume() {
+        guard let url = session.book?.location.root.mountURL else { return }
+        NSWorkspace.shared.open(url)
     }
 
     private func presentOpenError(_ error: any Error, url: URL) {
@@ -256,7 +297,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     func windowWillClose(_ notification: Notification) {
         dock.coordinator.detach(dock)
         openTask?.cancel()
-        pageView.cancelLoads()
+        viewer.cancelLoads()
         services.pipeline.cancelAll(session: session.id)
         onClose?(self)
     }
@@ -277,8 +318,16 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         .init("dock.right"): (.right, .dockRightToggle, "sidebar.right"),
     ]
 
+    private static let toolbarBrowse = NSToolbarItem.Identifier("view.browse")
+    private static let toolbarWaterfall = NSToolbarItem.Identifier("view.waterfallOptions")
+    private static let toolbarOptions = NSToolbarItem.Identifier("view.options")
+    private static let toolbarFullScreen = NSToolbarItem.Identifier("window.fullScreen")
+
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.init("dock.left"), .init("book.previous"), .init("book.next"), Self.toolbarTitle, .flexibleSpace, .init("dock.right")]
+        [
+            .init("dock.left"), .init("book.previous"), .init("book.next"), Self.toolbarTitle, .flexibleSpace,
+            Self.toolbarWaterfall, Self.toolbarBrowse, Self.toolbarOptions, Self.toolbarFullScreen, .init("dock.right"),
+        ]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -287,6 +336,14 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if identifier == Self.toolbarTitle { return makeTitleItem() }
+        if identifier == Self.toolbarBrowse { return viewItem(identifier, browseControl, label: String(localized: "浏览方式")) }
+        if identifier == Self.toolbarWaterfall {
+            let stack = NSStackView(views: [sortButton, sizeSlider])
+            stack.spacing = 8
+            return viewItem(identifier, stack, label: String(localized: "瀑布流选项"))
+        }
+        if identifier == Self.toolbarOptions { return viewItem(identifier, optionsButton, label: String(localized: "显示")) }
+        if identifier == Self.toolbarFullScreen { return viewItem(identifier, fullScreenButton, label: catalog.title(of: .fullScreenToggle)) }
         if let entry = Self.dockToggleItems[identifier] { return makeDockToggleItem(identifier, entry) }
         guard let entry = Self.toolbarCommands[identifier] else { return nil }
         let title = catalog.title(of: entry.command)
@@ -299,6 +356,124 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         item.target = self
         item.action = #selector(toolbarCommand(_:))
         return item
+    }
+
+    private func viewItem(_ identifier: NSToolbarItem.Identifier, _ view: NSView, label: String) -> NSToolbarItem {
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        item.label = label
+        item.view = view
+        item.isBordered = false
+        item.autovalidates = false
+        return item
+    }
+
+    private func configureBrowseControls() {
+        browseControl.onSelect = { [weak self] index in self?.browseChanged(index) }
+        optionsButton.isBordered = false
+        optionsButton.imagePosition = .imageLeading
+        optionsButton.font = .systemFont(ofSize: 12)
+        optionsButton.contentTintColor = Theme.text
+        fullScreenButton.isBordered = false
+        fullScreenButton.contentTintColor = Theme.text
+        fullScreenButton.toolTip = catalog.title(of: .fullScreenToggle)
+        sortButton.isBordered = false
+        sortButton.font = .systemFont(ofSize: 12)
+        sortButton.pullsDown = true
+        sortButton.menu = viewerSortMenu()
+        sizeSlider.controlSize = .small
+        sizeSlider.minValue = 120
+        sizeSlider.maxValue = 480
+        sizeSlider.target = self
+        sizeSlider.action = #selector(sizeChanged(_:))
+        sizeSlider.widthAnchor.constraint(equalToConstant: 96).isActive = true
+    }
+
+    /// 瀑布流工具项的排序菜单：第一项是按钮的标题。
+    private func viewerSortMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "", action: nil, keyEquivalent: ""))
+        for (id, _) in Self.sortCommands {
+            let item = NSMenuItem(title: catalog.title(of: id), action: #selector(sortPicked(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = id.rawValue
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    private static let sortCommands: [(CommandID, SortKey)] = [
+        (.sortName, .name), (.sortModified, .modified), (.sortCreated, .created), (.sortSize, .size), (.sortType, .type), (.sortRandom, .random),
+    ]
+
+    @objc private func sortPicked(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String else { return }
+        run(CommandID(raw))
+    }
+
+    private func updateBrowseControls() {
+        let settings = session.settings
+        browseControl.selected = switch settings.browseMode {
+        case .paged: settings.pageMode == .single ? 0 : 1
+        case .waterfall: 2
+        case .verticalStrip: 3
+        case .horizontalStrip: 4
+        }
+        let item = window?.toolbar?.items.first { $0.itemIdentifier == Self.toolbarWaterfall }
+        item?.isHidden = settings.browseMode != .waterfall
+        sortButton.menu?.items.first?.title = Self.sortTitle(settings.sort.key)
+        sortButton.title = Self.sortTitle(settings.sort.key)
+        updateWaterfallControls()
+    }
+
+    private func updateWaterfallControls() {
+        sizeSlider.doubleValue = viewer.continuous.waterfallExtent
+    }
+
+    private static func sortTitle(_ key: SortKey) -> String {
+        switch key {
+        case .name: String(localized: "名称")
+        case .modified: String(localized: "修改时间")
+        case .created: String(localized: "创建时间")
+        case .size: String(localized: "大小")
+        case .type: String(localized: "类型")
+        case .random: String(localized: "随机")
+        }
+    }
+
+    private func browseChanged(_ index: Int) {
+        switch index {
+        case 0:
+            session.update {
+                $0.browseMode = .paged
+                $0.pageMode = .single
+            }
+        case 1:
+            session.update {
+                $0.browseMode = .paged
+                $0.pageMode = .double
+            }
+        case 2: run(.browseWaterfall)
+        case 3: run(.browseVerticalStrip)
+        default: run(.browseHorizontalStrip)
+        }
+    }
+
+    @objc private func sizeChanged(_ sender: NSSlider) {
+        viewer.continuous.waterfallExtent = sender.doubleValue
+    }
+
+    @objc private func toggleOptions(_ sender: NSButton) {
+        if let optionsPopover, optionsPopover.isShown {
+            optionsPopover.close()
+            return
+        }
+        let popover = ViewOptionsPopover.make(session: session, viewer: viewer)
+        popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .maxY)
+        optionsPopover = popover
+    }
+
+    @objc private func toggleFullScreen(_ sender: Any?) {
+        run(.fullScreenToggle)
     }
 
     private func makeDockToggle(_ entry: DockToggleItem) -> NSButton {
@@ -353,6 +528,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 0
+        // 路径可能很长，不能把后面的工具项挤进溢出菜单。
+        stack.widthAnchor.constraint(lessThanOrEqualToConstant: 320).isActive = true
         let item = NSToolbarItem(itemIdentifier: Self.toolbarTitle)
         item.view = stack
         item.isBordered = false

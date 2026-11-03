@@ -107,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         SelfTest.runIfRequested(app: self)
         DockSelfTest.runIfRequested(app: self)
+        ViewerSelfTest.runIfRequested(app: self)
         #endif
     }
 
