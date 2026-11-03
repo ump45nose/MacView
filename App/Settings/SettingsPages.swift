@@ -204,7 +204,7 @@ struct DisplaySettingsPage: View {
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 64)
                                 .onSubmit(commitDecode)
-                            Text("px")
+                            Text(verbatim: "px")
                                 .font(.system(size: 12))
                                 .foregroundStyle(Color(nsColor: Theme.text2))
                         }
