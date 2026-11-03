@@ -2,21 +2,27 @@ import MVFoundation
 import MVMedia
 import MVSettings
 
-/// 一个页帧元素在视口中的布局像素。宽高比未知时为 0×0。
+/// 一个页帧元素在视口中占的设备像素，以及向管线请求的尺寸。宽高比未知时两者都为 0×0。
 public struct FittedPage: Sendable, Hashable {
     public var element: PageFrameElement
     public var pixelSize: PixelSize
+    /// 请求的总是整页，半页由查看器裁出，所以这里的宽高比与源图一致。
+    public var decodeSize: PixelSize
 
-    public init(element: PageFrameElement, pixelSize: PixelSize) {
+    public init(element: PageFrameElement, pixelSize: PixelSize, decodeSize: PixelSize) {
         self.element = element
         self.pixelSize = pixelSize
+        self.decodeSize = decodeSize
     }
 }
 
 /// 页帧在给定视口和缩放设置下的显示尺寸。查看器和预解码共用这一结果，L1 的键才能对上。
+///
+/// `original` 与 `fixed` 按点（1 源像素 × 比例 = 1 点），`devicePixel` 按设备像素（1 源像素 = 1 设备像素）；
+/// 这三种模式超过源尺寸的部分不解码，由图层放大。适合类模式按布局尺寸解码。
 public struct PageFrameFit: Sendable, Hashable {
     public var pages: [FittedPage]
-    /// 整个页帧在视口中的像素尺寸。
+    /// 整个页帧在视口中的设备像素。
     public var size: PixelSize
 
     public init(pages: [FittedPage], size: PixelSize) {
@@ -25,43 +31,55 @@ public struct PageFrameFit: Sendable, Hashable {
     }
 
     /// 元素顺序与 `frame.elements` 相同，不再按阅读方向重排。
-    public static func fit(frame: PageFrame, pages: [Page], viewport: PixelSize, settings: ResolvedBookSettings) -> PageFrameFit {
+    public static func fit(frame: PageFrame, pages: [Page], viewport: PixelSize, backingScale: Double, settings: ResolvedBookSettings) -> PageFrameFit {
         let zero = PixelSize(width: 0, height: 0)
         let sources = frame.elements.map { sourcePixels(of: pages[$0.page], part: $0.part) }
+        let wholes = frame.elements.map { pages[$0.page].metadata?.pixelSize ?? zero }
         let known = sources.compactMap { $0 }
         var sizes = Array(repeating: zero, count: sources.count)
+        var decodes = Array(repeating: zero, count: sources.count)
         var frameSize = zero
         if !known.isEmpty {
             switch settings.scaleMode {
-            case .original, .devicePixel:
-                sizes = sources.map { $0 ?? zero }
-                frameSize = composed(sizes)
-            case .fixed:
-                sizes = sources.map { source in
-                    guard let source else { return zero }
-                    return PixelSize(width: fixedSide(source.width, settings.fixedScale), height: fixedSide(source.height, settings.fixedScale))
+            case .original, .devicePixel, .fixed:
+                let scale: Double
+                switch settings.scaleMode {
+                case .original: scale = backingScale
+                case .fixed: scale = settings.fixedScale * backingScale
+                default: scale = 1
+                }
+                for index in sources.indices {
+                    guard let source = sources[index] else { continue }
+                    sizes[index] = PixelSize(width: scaledSide(source.width, scale), height: scaledSide(source.height, scale))
+                    let decodeScale = min(scale, 1)
+                    decodes[index] = PixelSize(width: scaledSide(wholes[index].width, decodeScale), height: scaledSide(wholes[index].height, decodeScale))
                 }
                 frameSize = composed(sizes)
             case .fitWindow, .fitWidth, .fitHeight, .fill:
                 (sizes, frameSize) = fitted(sources, known: known, viewport: viewport, settings: settings, zero: zero)
+                for index in sources.indices where sizes[index].height > 0 {
+                    let whole = wholes[index]
+                    let height = sizes[index].height
+                    decodes[index] = PixelSize(width: max(1, Int((Double(whole.width) * Double(height) / Double(whole.height)).rounded())), height: height)
+                }
             }
         }
         var fittedPages: [FittedPage] = []
         fittedPages.reserveCapacity(frame.elements.count)
         for index in frame.elements.indices {
-            fittedPages.append(FittedPage(element: frame.elements[index], pixelSize: sizes[index]))
+            fittedPages.append(FittedPage(element: frame.elements[index], pixelSize: sizes[index], decodeSize: decodes[index]))
         }
         return PageFrameFit(pages: fittedPages, size: frameSize)
     }
 
-    /// 跳过 0×0。长边用 `pixelSize.fitting(longSide:)` 压到上限。
+    /// 跳过 0×0。长边用 `fitting(longSide:)` 压到上限。
     public func displayTargets(settings: ResolvedBookSettings, maxDecodeLongSide: Int) -> [(element: PageFrameElement, target: DisplayTarget)] {
         pages.compactMap { page in
-            guard page.pixelSize.width != 0 || page.pixelSize.height != 0 else { return nil }
+            guard page.decodeSize.width != 0 || page.decodeSize.height != 0 else { return nil }
             return (
                 page.element,
                 DisplayTarget(
-                    pixelSize: page.pixelSize.fitting(longSide: maxDecodeLongSide),
+                    pixelSize: page.decodeSize.fitting(longSide: maxDecodeLongSide),
                     filter: settings.resample,
                     sharpen: settings.sharpen
                 )
@@ -81,8 +99,8 @@ public struct PageFrameFit: Sendable, Hashable {
         return PixelSize(width: width, height: size.height)
     }
 
-    /// 源边为正时，乘 `fixedScale` 四舍五入后至少为 1。
-    private static func fixedSide(_ source: Int, _ scale: Double) -> Int {
+    /// 源边为正时，乘比例四舍五入后至少为 1。
+    private static func scaledSide(_ source: Int, _ scale: Double) -> Int {
         max(1, Int((Double(source) * scale).rounded()))
     }
 

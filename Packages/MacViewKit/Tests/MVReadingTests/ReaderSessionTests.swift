@@ -210,7 +210,7 @@ import Testing
         #expect(session.book?.pages.count == 100)
         #expect(session.frames.count == 100)
         #expect(containsDisplay(pipeline.prefetchPlan(for: session.id)) == false)
-        session.viewportChanged(viewport)
+        session.viewportChanged(viewport, backingScale: 1)
         session.go(.index(50))
         try expectDisplayWindow(session, pipeline, viewport: viewport, maxDecodeLongSide: global.maxDecodeLongSide, radius: 2)
         let pages = try #require(session.book).pages
@@ -220,7 +220,7 @@ import Testing
         #expect(plan.items.filter { $0.identity == current } == [
             PrefetchItem(identity: current, renditions: [.thumbnail, .metadata], priority: .book),
         ])
-        let target = try #require(PageFrameFit.fit(frame: session.frames[51], pages: pages, viewport: viewport, settings: session.settings)
+        let target = try #require(PageFrameFit.fit(frame: session.frames[51], pages: pages, viewport: viewport, backingScale: 1, settings: session.settings)
             .displayTargets(settings: session.settings, maxDecodeLongSide: global.maxDecodeLongSide).first).target
         #expect(plan.items.filter { $0.identity == neighbor } == [
             PrefetchItem(identity: neighbor, renditions: [.thumbnail, .metadata], priority: .book),
@@ -232,7 +232,7 @@ import Testing
         session.go(.index(99))
         try expectDisplayWindow(session, pipeline, viewport: viewport, maxDecodeLongSide: global.maxDecodeLongSide, radius: 2)
         let previous = displayRenditions(try #require(pipeline.prefetchPlan(for: session.id)))
-        session.viewportChanged(replaced)
+        session.viewportChanged(replaced, backingScale: 1)
         let updated = displayRenditions(try #require(pipeline.prefetchPlan(for: session.id)))
         #expect(previous.isDisjoint(with: updated))
         #expect(!updated.isEmpty)
@@ -244,7 +244,7 @@ import Testing
         try expectDisplayWindow(session, pipeline, viewport: replaced, maxDecodeLongSide: global.maxDecodeLongSide, radius: 2)
         for mode in [BrowseMode.verticalStrip, .horizontalStrip, .waterfall] {
             session.update { $0.browseMode = mode }
-            session.viewportChanged(PixelSize(width: 900, height: 700))
+            session.viewportChanged(PixelSize(width: 900, height: 700), backingScale: 1)
             session.visibleRangeChanged(0..<4)
             #expect(containsDisplay(pipeline.prefetchPlan(for: session.id)) == false)
         }
@@ -274,7 +274,7 @@ import Testing
         await eventually { session.book?.isEnumerated == true && session.frames.count == 6 }
         #expect(containsDisplay(pipeline.prefetchPlan(for: session.id)) == false)
         let viewport = PixelSize(width: 800, height: 600)
-        session.viewportChanged(viewport)
+        session.viewportChanged(viewport, backingScale: 1)
         session.go(.index(2))
         #expect(pipeline.prefetchPlan(for: session.id)?.items.isEmpty == true)
         let metadata = ImageMetadata(pixelSize: PixelSize(width: 1000, height: 2000))
@@ -283,7 +283,7 @@ import Testing
         ]))
         await eventually { session.book?.pages[3].metadata != nil }
         let loaded = try #require(session.book).pages
-        let targets = PageFrameFit.fit(frame: session.frames[3], pages: loaded, viewport: viewport, settings: session.settings)
+        let targets = PageFrameFit.fit(frame: session.frames[3], pages: loaded, viewport: viewport, backingScale: 1, settings: session.settings)
             .displayTargets(settings: session.settings, maxDecodeLongSide: global.maxDecodeLongSide)
         let target = try #require(targets.first).target
         #expect(target.pixelSize == PixelSize(width: 300, height: 600))
@@ -333,7 +333,7 @@ import Testing
 
         session.go(.index(2))
         #expect(self.adjacentIdentities(pipeline, session) == first)
-        session.viewportChanged(PixelSize(width: 800, height: 600))
+        session.viewportChanged(PixelSize(width: 800, height: 600), backingScale: 1)
         expectAdjacent(pipeline, session, first)
 
         session.shelfSortChanged(SortSpec(key: .name, ascending: false))
@@ -468,7 +468,7 @@ import Testing
         let lower = max(session.frames.startIndex, current - radius)
         let upper = min(session.frames.endIndex, current + radius + 1)
         for index in lower..<upper where index != current {
-            let targets = PageFrameFit.fit(frame: session.frames[index], pages: pages, viewport: viewport, settings: session.settings)
+            let targets = PageFrameFit.fit(frame: session.frames[index], pages: pages, viewport: viewport, backingScale: 1, settings: session.settings)
                 .displayTargets(settings: session.settings, maxDecodeLongSide: maxDecodeLongSide)
             for (element, target) in targets {
                 expected.append(PrefetchItem(identity: pages[element.page].entry.identity, renditions: [.display(target)], priority: .near))

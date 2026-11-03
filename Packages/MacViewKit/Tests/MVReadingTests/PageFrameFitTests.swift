@@ -108,19 +108,59 @@ struct PageFrameFitTests {
         settings.sharpen = 0.35
         let fitted = PageFrameFit(
             pages: [
-                FittedPage(element: PageFrameElement(page: 0), pixelSize: PixelSize(width: 4000, height: 2000)),
-                FittedPage(element: PageFrameElement(page: 1), pixelSize: PixelSize(width: 0, height: 0)),
-                FittedPage(element: PageFrameElement(page: 2, part: .leftHalf), pixelSize: PixelSize(width: 100, height: 50)),
-                FittedPage(element: PageFrameElement(page: 3), pixelSize: PixelSize(width: 2000, height: 4000)),
+                FittedPage(element: PageFrameElement(page: 0), pixelSize: PixelSize(width: 4000, height: 2000), decodeSize: PixelSize(width: 4000, height: 2000)),
+                FittedPage(element: PageFrameElement(page: 1), pixelSize: PixelSize(width: 0, height: 0), decodeSize: PixelSize(width: 0, height: 0)),
+                FittedPage(element: PageFrameElement(page: 2, part: .leftHalf), pixelSize: PixelSize(width: 100, height: 100), decodeSize: PixelSize(width: 200, height: 100)),
+                FittedPage(element: PageFrameElement(page: 3), pixelSize: PixelSize(width: 2000, height: 4000), decodeSize: PixelSize(width: 2000, height: 4000)),
             ],
             size: PixelSize(width: 6100, height: 4000)
         )
         let targets = fitted.displayTargets(settings: settings, maxDecodeLongSide: 1000)
         #expect(targets.map(\.element) == [PageFrameElement(page: 0), PageFrameElement(page: 2, part: .leftHalf), PageFrameElement(page: 3)])
         #expect(targets.map(\.target.pixelSize) == [
-            PixelSize(width: 1000, height: 500), PixelSize(width: 100, height: 50), PixelSize(width: 500, height: 1000),
+            PixelSize(width: 1000, height: 500), PixelSize(width: 200, height: 100), PixelSize(width: 500, height: 1000),
         ])
         #expect(targets.allSatisfy { $0.target.filter == .nearest && $0.target.sharpen == 0.35 })
+    }
+
+    @Test("original、fixed 随屏幕缩放倍率变化，devicePixel 不变；超过源尺寸的部分不解码")
+    func backingScale() {
+        let frame = PageFrame(elements: [PageFrameElement(page: 0)])
+        let pages = [page(0, pixels: PixelSize(width: 1000, height: 2000))]
+        let viewport = PixelSize(width: 800, height: 600)
+        func fit(_ mode: ScaleMode, fixedScale: Double = 1, backing: Double = 2) -> FittedPage {
+            var settings = ResolvedBookSettings.default
+            settings.scaleMode = mode
+            settings.fixedScale = fixedScale
+            return PageFrameFit.fit(frame: frame, pages: pages, viewport: viewport, backingScale: backing, settings: settings).pages[0]
+        }
+        let source = PixelSize(width: 1000, height: 2000)
+        #expect(fit(.original).pixelSize == PixelSize(width: 2000, height: 4000))
+        #expect(fit(.original).decodeSize == source)
+        #expect(fit(.devicePixel).pixelSize == source)
+        #expect(fit(.devicePixel).decodeSize == source)
+        #expect(fit(.fixed, fixedScale: 1.5).pixelSize == PixelSize(width: 3000, height: 6000))
+        #expect(fit(.fixed, fixedScale: 1.5).decodeSize == source)
+        #expect(fit(.fixed, fixedScale: 0.25).pixelSize == PixelSize(width: 500, height: 1000))
+        #expect(fit(.fixed, fixedScale: 0.25).decodeSize == PixelSize(width: 500, height: 1000))
+        #expect(fit(.fitHeight).pixelSize == PixelSize(width: 300, height: 600))
+        #expect(fit(.fitHeight).pixelSize == fit(.fitHeight, backing: 1).pixelSize)
+    }
+
+    @Test("半页的解码尺寸是整页比例，两半共用同一个目标")
+    func halfPageDecodesWholePage() {
+        let pages = [page(0, pixels: PixelSize(width: 4000, height: 2000))]
+        let viewport = PixelSize(width: 3000, height: 1000)
+        func fit(_ part: PagePart, _ mode: ScaleMode) -> FittedPage {
+            var settings = ResolvedBookSettings.default
+            settings.scaleMode = mode
+            return PageFrameFit.fit(frame: PageFrame(elements: [PageFrameElement(page: 0, part: part)]), pages: pages, viewport: viewport, backingScale: 1, settings: settings).pages[0]
+        }
+        #expect(fit(.leftHalf, .fitHeight).pixelSize == PixelSize(width: 1000, height: 1000))
+        #expect(fit(.leftHalf, .fitHeight).decodeSize == PixelSize(width: 2000, height: 1000))
+        #expect(fit(.rightHalf, .fitHeight).decodeSize == fit(.leftHalf, .fitHeight).decodeSize)
+        #expect(fit(.leftHalf, .original).pixelSize == PixelSize(width: 2000, height: 2000))
+        #expect(fit(.leftHalf, .original).decodeSize == PixelSize(width: 4000, height: 2000))
     }
 
     private func both(
@@ -143,7 +183,7 @@ struct PageFrameFitTests {
         settings.direction = direction
         let actual = PageFrameFit.fit(
             frame: PageFrame(elements: elements), pages: bookPages,
-            viewport: PixelSize(width: viewport.0, height: viewport.1), settings: settings
+            viewport: PixelSize(width: viewport.0, height: viewport.1), backingScale: 1, settings: settings
         )
         let expectedPages = stride(from: 0, to: pages.count, by: 2).map { PixelSize(width: pages[$0], height: pages[$0 + 1]) }
         #expect(actual.pages.map(\.pixelSize) == expectedPages, "\(mode) \(viewport) allowUpscale=\(allowUpscale)")

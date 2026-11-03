@@ -15,6 +15,15 @@ public final class ReaderSession {
     public private(set) var settings: ResolvedBookSettings = .default
     public private(set) var loadError: (any Error)?
 
+    /// 当前页的序号：分页模式下是当前页帧中阅读顺序靠前的一页，连续和瀑布模式下是可见区的第一页。书还没读到这一页时是书记忆中的序号。
+    public var currentPage: Int { anchorIndex }
+    /// 显示尺寸解码的长边上限，查看器和预解码用同一个值。
+    public var maxDecodeLongSide: Int { global.maxDecodeLongSide }
+    /// 切相邻书用的排序：书架面板回报的排序，没有书架面板时按名称。
+    public var neighborSort: SortSpec { shelfSort ?? SortSpec(key: .name) }
+    /// 最近一次 `go` 的时刻，用来统计翻页到上屏的用时。
+    @ObservationIgnored public private(set) var lastMoveAt: ContinuousClock.Instant?
+
     private let loader: any BookLoader
     private let store: any SettingsStore
     private let bookshelf: any Bookshelf
@@ -34,6 +43,7 @@ public final class ReaderSession {
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     /// 前端回报的设备像素。切书保留，直到下一次回报。
     @ObservationIgnored private var viewport: PixelSize?
+    @ObservationIgnored private var backingScale = 1.0
     /// 书架面板回报的排序。切书保留，直到下一次回报。
     @ObservationIgnored private var shelfSort: SortSpec?
     /// 最近一次仍有效的相邻书页面与目录封面，并在当前书预取项之后。
@@ -110,6 +120,7 @@ public final class ReaderSession {
 
     public func go(_ move: PageMove) {
         guard !frames.isEmpty, let book else { return }
+        lastMoveAt = .now
         let target: Int?
         var pageTarget: Int?
         switch move {
@@ -157,14 +168,23 @@ public final class ReaderSession {
         if previous.sort != settings.sort || previous.recursion != settings.recursion { reload() }
     }
 
+    /// 连续和瀑布模式由前端回报可见范围，当前页随可见区的第一页移动并写入书记忆。
     public func visibleRangeChanged(_ pages: Range<Int>) {
         visiblePages = pages
+        if let book, settings.browseMode != .paged, book.pages.indices.contains(pages.lowerBound), pages.lowerBound != anchorIndex {
+            anchorIndex = pages.lowerBound
+            anchor = book.pages[pages.lowerBound].id
+            anchorPart = .whole
+            if let frame = frameIndex(containing: pages.lowerBound) { currentFrame = frame }
+            remember()
+        }
         prefetch()
     }
 
-    /// 前端回报设备像素。记下后重新生成预取计划；没有回报之前不预解码到显示尺寸。
-    public func viewportChanged(_ pixels: PixelSize) {
+    /// 前端回报视口的设备像素和屏幕缩放倍率。记下后重新生成预取计划；没有回报之前不预解码到显示尺寸。
+    public func viewportChanged(_ pixels: PixelSize, backingScale: Double) {
         viewport = pixels
+        self.backingScale = backingScale
         prefetch()
     }
 
@@ -336,7 +356,7 @@ public final class ReaderSession {
         let lower = max(frames.startIndex, currentFrame - radius)
         let upper = min(frames.endIndex, currentFrame + radius + 1)
         for index in lower..<upper where index != currentFrame {
-            let fitted = PageFrameFit.fit(frame: frames[index], pages: pages, viewport: viewport, settings: settings)
+            let fitted = PageFrameFit.fit(frame: frames[index], pages: pages, viewport: viewport, backingScale: backingScale, settings: settings)
             for (element, target) in fitted.displayTargets(settings: settings, maxDecodeLongSide: global.maxDecodeLongSide) {
                 items.append(PrefetchItem(identity: pages[element.page].entry.identity, renditions: [.display(target)], priority: .near))
             }

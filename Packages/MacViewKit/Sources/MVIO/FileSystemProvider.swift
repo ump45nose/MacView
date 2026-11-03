@@ -61,8 +61,8 @@ public final class FileSystemProvider: ContainerProvider {
         return FileByteSource(identity: entry.identity, path: path, volume: volume, scheduler: scheduler)
     }
 
-    public func fileURL(for location: Location) async throws -> URL {
-        URL(filePath: try resolve(location).path, directoryHint: .inferFromPath)
+    public func fileLease(for location: Location) async throws -> FileLease {
+        FileLease(url: URL(filePath: try resolve(location).path, directoryHint: .inferFromPath))
     }
 
     private func resolve(_ location: Location) throws(IOError) -> (volume: Volume, path: String) {

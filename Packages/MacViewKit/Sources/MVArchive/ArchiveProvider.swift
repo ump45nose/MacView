@@ -12,7 +12,6 @@ public final class ArchiveProvider: ContainerProvider {
         var recent: [ContentIdentity] = []
     }
     private let state = Mutex(State())
-    private let deliveredURL = Mutex<ExtractLease?>(nil)
 
     public init(fileSystem: FileSystemProvider, extractDirectory: URL, extractBudget: Int64 = 10 << 30) throws {
         self.fileSystem = fileSystem
@@ -59,13 +58,11 @@ public final class ArchiveProvider: ContainerProvider {
         try await itemSource(location, priority: .visible, materializeArchive: false)
     }
 
-    public func fileURL(for location: Location) async throws -> URL {
-        if location.layers.count == 1 { return try await fileSystem.fileURL(for: location) }
+    public func fileLease(for location: Location) async throws -> FileLease {
+        if location.layers.count == 1 { return try await fileSystem.fileLease(for: location) }
         let source = try await open(location)
         let lease = try await materialize(source, key: source.identity.cacheKey + "-file", priority: .visible)
-        // URL 契约没有关闭句柄；最近一次交付保留到下次交付或 provider 释放。
-        deliveredURL.withLock { $0 = lease }
-        return lease.url
+        return FileLease(url: lease.url, holder: lease)
     }
 
     private func containerParts(_ location: Location) throws -> (Location, [String]) {
@@ -194,7 +191,8 @@ public final class ArchiveProvider: ContainerProvider {
             }
             try archiveCheckCancellation()
             try await output.synchronize()
-            return try await extracts.install(temporary, key: key, size: source.identity.size)
+            let name = source.identity.location.name as NSString
+            return try await extracts.install(temporary, key: key, size: source.identity.size, pathExtension: name.pathExtension)
         } catch {
             try? await ExtractIO.run { try FileManager.default.removeItem(at: temporary) }
             throw error

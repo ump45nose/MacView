@@ -27,14 +27,25 @@ public protocol ByteSource: Sendable {
 }
 
 /// 目录、压缩包等容器的来源，按根分派。
+/// 一个可以按路径访问的文件。`holder` 释放后，提取目录才可以淘汰这个文件。
+public struct FileLease: Sendable {
+    public let url: URL
+    private let holder: (any Sendable)?
+
+    public init(url: URL, holder: (any Sendable)? = nil) {
+        self.url = url
+        self.holder = holder
+    }
+}
+
 public protocol ContainerProvider: Sendable {
     func canHandle(_ location: Location) -> Bool
     /// 分批返回容器的直接子项，顺序为到达顺序。
     func children(of container: Location, priority: IOPriority) -> AsyncThrowingStream<[Entry], any Error>
     func entry(at location: Location) async throws -> Entry
     func open(_ location: Location) async throws -> any ByteSource
-    /// 系统路径；压缩包内的条目先解出到 extract/。
-    func fileURL(for location: Location) async throws -> URL
+    /// 系统路径；压缩包内的条目先解出到 extract/，使用期间持有租约。
+    func fileLease(for location: Location) async throws -> FileLease
 }
 
 public enum VolumeState: Sendable, Equatable {

@@ -49,12 +49,12 @@ struct ArchiveFixtureTests {
         #expect(try await provider.entry(at: location).identity == environment.registry.fileSystem.entry(at: location).identity)
         let source = try await provider.open(location)
         #expect(try await source.read(0..<source.identity.size, priority: .visible, group: nil) == Data(contentsOf: url))
-        #expect(try await provider.fileURL(for: location) == url)
+        #expect(try await provider.fileLease(for: location).url == url)
         let item = location.appendingLayer(["sub", "003.jpg"])
         #expect(item.parent == location.appendingLayer(["sub"]))
         #expect(try await provider.entry(at: item).name == "003.jpg")
-        let extracted = try await provider.fileURL(for: item)
-        let data = try Data(contentsOf: extracted)
+        let extracted = try await provider.fileLease(for: item)
+        let data = try Data(contentsOf: extracted.url)
         #expect(Int64(data.count) == (try await provider.entry(at: item)).identity.size)
     }
 
@@ -124,6 +124,28 @@ struct ArchiveFixtureTests {
             guard case .cancelled = error else { throw error }
         }
         #expect(try await environment.extractFiles().isEmpty)
+    }
+
+    @Test("持有 fileLease 期间，再次交付和超出预算都不淘汰该文件")
+    func fileLeaseKeepsFile() async throws {
+        let directory = try ArchiveDirectory()
+        defer { directory.clean() }
+        let scheduler = IOScheduler(configuration: IOConfiguration(helperExecutable: nil))
+        defer { scheduler.shutdown() }
+        let registry = FileSourceRegistry(scheduler: scheduler)
+        let provider = try ArchiveProvider(fileSystem: registry.fileSystem, extractDirectory: directory.url.appending(path: "extract"), extractBudget: 1)
+        registry.register(provider)
+        let archive = try await registry.location(for: Fixtures.url("archive/zip/deflate.zip"))
+        var first: FileLease? = try await provider.fileLease(for: archive.appendingLayer(["chapter", "001.jpg"]))
+        let url = try #require(first?.url)
+        let second = try await provider.fileLease(for: archive.appendingLayer(["chapter", "002.jpg"]))
+        await ExtractIO.drain()
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        #expect(FileManager.default.fileExists(atPath: second.url.path))
+        first = nil
+        await ExtractIO.drain()
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        #expect(FileManager.default.fileExists(atPath: second.url.path))
     }
 
     @Test("解出缓存按 LRU 淘汰，租约中的文件不删除")
