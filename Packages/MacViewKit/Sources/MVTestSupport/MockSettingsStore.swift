@@ -57,6 +57,17 @@ public final class MockSettingsStore: SettingsStore {
         }
     }
 
+    public func pathRules() async -> [PathRule] {
+        state.withLock { $0.rules }
+    }
+
+    public func updatePathRules(_ change: @Sendable (inout [PathRule]) -> Void) async throws {
+        state.withLock { current in
+            change(&current.rules)
+            current.notify(.pathRules)
+        }
+    }
+
     public func changes() -> AsyncStream<SettingsChange> {
         let (stream, continuation) = AsyncStream.makeStream(of: SettingsChange.self)
         let id = UUID()

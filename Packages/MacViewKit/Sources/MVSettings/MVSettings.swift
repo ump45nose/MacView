@@ -262,5 +262,7 @@ public protocol SettingsStore: Sendable {
     func saveBookMemory(_ memory: BookMemory) async
     func global() async -> GlobalSettings
     func updateGlobal(_ change: @Sendable (inout GlobalSettings) -> Void) async throws
+    func pathRules() async -> [PathRule]
+    func updatePathRules(_ change: @Sendable (inout [PathRule]) -> Void) async throws
     func changes() -> AsyncStream<SettingsChange>
 }

@@ -71,6 +71,12 @@ public final class FileSettingsStore: SettingsStore {
         try await settings.update(change)
     }
 
+    public func pathRules() async -> [PathRule] { rules.value() }
+
+    public func updatePathRules(_ change: @Sendable (inout [PathRule]) -> Void) async throws {
+        try await rules.update(change)
+    }
+
     public func resolve(for book: Location) async -> ResolvedBookSettings {
         var resolved = settings.value().defaultBook
         let matching = rules.value().enumerated().filter { book.hasPrefix($0.element.prefix) }
