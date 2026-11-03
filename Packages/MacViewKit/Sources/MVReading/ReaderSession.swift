@@ -1,5 +1,6 @@
 import Foundation
 import MVFoundation
+import MVMedia
 import MVPipeline
 import MVSettings
 import Observation
@@ -31,6 +32,8 @@ public final class ReaderSession {
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var settingsTask: Task<Void, Never>?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    /// 前端回报的设备像素。切书保留，直到下一次回报。
+    @ObservationIgnored private var viewport: PixelSize?
 
     public init(id: SessionID = SessionID(), loader: any BookLoader, settings: any SettingsStore, bookshelf: any Bookshelf, pipeline: any ImagePipeline) {
         self.id = id
@@ -146,6 +149,12 @@ public final class ReaderSession {
 
     public func visibleRangeChanged(_ pages: Range<Int>) {
         visiblePages = pages
+        prefetch()
+    }
+
+    /// 前端回报设备像素。记下后重新生成预取计划；没有回报之前不预解码到显示尺寸。
+    public func viewportChanged(_ pixels: PixelSize) {
+        viewport = pixels
         prefetch()
     }
 
@@ -282,6 +291,7 @@ public final class ReaderSession {
             if anchorIndex + 1 < last {
                 for index in (anchorIndex + 1)..<last { items.append(PrefetchItem(identity: pages[index].entry.identity, renditions: [], priority: .near)) }
             }
+            appendDisplayPrefetch(to: &items, pages: pages)
         } else {
             let visible = visiblePages ?? anchorIndex..<(anchorIndex + 1)
             let lower = min(max(visible.lowerBound, 0), pages.count)
@@ -297,5 +307,19 @@ public final class ReaderSession {
             }
         }
         pipeline.setPrefetchPlan(PrefetchPlan(items: items), session: id)
+    }
+
+    /// 当前帧前后各 `viewerDecodeFrames` 个页帧，不含当前帧。与缩略图、原始字节分条记录。
+    private func appendDisplayPrefetch(to items: inout [PrefetchItem], pages: [Page]) {
+        guard let viewport else { return }
+        let radius = max(0, global.prefetch.viewerDecodeFrames)
+        let lower = max(frames.startIndex, currentFrame - radius)
+        let upper = min(frames.endIndex, currentFrame + radius + 1)
+        for index in lower..<upper where index != currentFrame {
+            let fitted = PageFrameFit.fit(frame: frames[index], pages: pages, viewport: viewport, settings: settings)
+            for (element, target) in fitted.displayTargets(settings: settings, maxDecodeLongSide: global.maxDecodeLongSide) {
+                items.append(PrefetchItem(identity: pages[element.page].entry.identity, renditions: [.display(target)], priority: .near))
+            }
+        }
     }
 }

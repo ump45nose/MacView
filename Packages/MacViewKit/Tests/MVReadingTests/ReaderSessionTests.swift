@@ -1,6 +1,7 @@
 import Foundation
 import MVFoundation
 import MVIO
+import MVMedia
 import MVPipeline
 import MVSettings
 import MVTestSupport
@@ -190,6 +191,141 @@ import Testing
         }
         try await store.updateGlobal { $0.prefetch.currentBookPages = false }
         await eventually { pipeline.prefetchPlan(for: session.id)?.items.count == 30 }
+    }
+
+    @Test("视口回报后预解码前后页帧，换视口替换目标；非分页与缺元数据不预解码")
+    func displayPrefetchFollowsViewport() async throws {
+        var global = GlobalSettings.default
+        global.defaultBook.scaleMode = .fitWindow
+        global.defaultBook.allowUpscale = true
+        global.defaultBook.pageMode = .single
+        global.prefetch.viewerDecodeFrames = 2
+        global.prefetch.viewerReadAheadPages = 3
+        global.maxDecodeLongSide = 8192
+        let (session, _, pipeline) = setup(global: global)
+        let viewport = PixelSize(width: 800, height: 600)
+        let replaced = PixelSize(width: 1400, height: 800)
+        await session.open(tree.location("A"), at: nil)
+        #expect(session.book?.pages.count == 100)
+        #expect(session.frames.count == 100)
+        #expect(containsDisplay(pipeline.prefetchPlan(for: session.id)) == false)
+        session.viewportChanged(viewport)
+        session.go(.index(50))
+        try expectDisplayWindow(session, pipeline, viewport: viewport, maxDecodeLongSide: global.maxDecodeLongSide, radius: 2)
+        let pages = try #require(session.book).pages
+        let current = pages[50].entry.identity
+        let neighbor = pages[51].entry.identity
+        let plan = try #require(pipeline.prefetchPlan(for: session.id))
+        #expect(plan.items.filter { $0.identity == current } == [
+            PrefetchItem(identity: current, renditions: [.thumbnail, .metadata], priority: .book),
+        ])
+        let target = try #require(PageFrameFit.fit(frame: session.frames[51], pages: pages, viewport: viewport, settings: session.settings)
+            .displayTargets(settings: session.settings, maxDecodeLongSide: global.maxDecodeLongSide).first).target
+        #expect(plan.items.filter { $0.identity == neighbor } == [
+            PrefetchItem(identity: neighbor, renditions: [.thumbnail, .metadata], priority: .book),
+            PrefetchItem(identity: neighbor, renditions: [], priority: .near),
+            PrefetchItem(identity: neighbor, renditions: [.display(target)], priority: .near),
+        ])
+        session.go(.index(0))
+        try expectDisplayWindow(session, pipeline, viewport: viewport, maxDecodeLongSide: global.maxDecodeLongSide, radius: 2)
+        session.go(.index(99))
+        try expectDisplayWindow(session, pipeline, viewport: viewport, maxDecodeLongSide: global.maxDecodeLongSide, radius: 2)
+        let previous = displayRenditions(try #require(pipeline.prefetchPlan(for: session.id)))
+        session.viewportChanged(replaced)
+        let updated = displayRenditions(try #require(pipeline.prefetchPlan(for: session.id)))
+        #expect(previous.isDisjoint(with: updated))
+        #expect(!updated.isEmpty)
+        try expectDisplayWindow(session, pipeline, viewport: replaced, maxDecodeLongSide: global.maxDecodeLongSide, radius: 2)
+        await session.open(tree.location("B"), at: nil)
+        #expect(session.book?.pages.count == 8)
+        let kept = displayRenditions(try #require(pipeline.prefetchPlan(for: session.id)))
+        #expect(kept.isDisjoint(with: previous))
+        try expectDisplayWindow(session, pipeline, viewport: replaced, maxDecodeLongSide: global.maxDecodeLongSide, radius: 2)
+        for mode in [BrowseMode.verticalStrip, .horizontalStrip, .waterfall] {
+            session.update { $0.browseMode = mode }
+            session.viewportChanged(PixelSize(width: 900, height: 700))
+            session.visibleRangeChanged(0..<4)
+            #expect(containsDisplay(pipeline.prefetchPlan(for: session.id)) == false)
+        }
+    }
+
+    @Test("缺元数据的页不预解码，落入前后窗口后随元数据出现")
+    func displayPrefetchWaitsForMetadata() async throws {
+        let book = tree.location("A")
+        let original = pages(in: book, count: 6)
+        let environment = MockEnvironment(MockOptions(tree: tree, timing: .instant))
+        let pair = AsyncThrowingStream<BookLoadEvent, any Error>.makeStream()
+        var global = GlobalSettings.default
+        global.defaultBook.scaleMode = .fitWindow
+        global.defaultBook.allowUpscale = true
+        global.defaultBook.pageMode = .single
+        global.prefetch.viewerDecodeFrames = 2
+        global.prefetch.viewerReadAheadPages = 0
+        global.prefetch.currentBookPages = false
+        global.maxDecodeLongSide = 8192
+        let pipeline = MockImagePipeline(environment: environment)
+        let session = ReaderSession(
+            loader: EventLoader(stream: pair.stream), settings: MockSettingsStore(global: global),
+            bookshelf: MockBookshelf(environment: environment), pipeline: pipeline
+        )
+        let task = Task { await session.open(book, at: nil) }
+        pair.continuation.yield(.sorted(original))
+        await eventually { session.book?.isEnumerated == true && session.frames.count == 6 }
+        #expect(containsDisplay(pipeline.prefetchPlan(for: session.id)) == false)
+        let viewport = PixelSize(width: 800, height: 600)
+        session.viewportChanged(viewport)
+        session.go(.index(2))
+        #expect(pipeline.prefetchPlan(for: session.id)?.items.isEmpty == true)
+        let metadata = ImageMetadata(pixelSize: PixelSize(width: 1000, height: 2000))
+        pair.continuation.yield(.metadata([
+            original[2].id: metadata, original[3].id: metadata, original[5].id: metadata,
+        ]))
+        await eventually { session.book?.pages[3].metadata != nil }
+        let loaded = try #require(session.book).pages
+        let targets = PageFrameFit.fit(frame: session.frames[3], pages: loaded, viewport: viewport, settings: session.settings)
+            .displayTargets(settings: session.settings, maxDecodeLongSide: global.maxDecodeLongSide)
+        let target = try #require(targets.first).target
+        #expect(target.pixelSize == PixelSize(width: 300, height: 600))
+        #expect(pipeline.prefetchPlan(for: session.id)?.items == [
+            PrefetchItem(identity: original[3].entry.identity, renditions: [.display(target)], priority: .near),
+        ])
+        pair.continuation.finish()
+        await task.value
+    }
+
+    private func expectDisplayWindow(
+        _ session: ReaderSession, _ pipeline: MockImagePipeline, viewport: PixelSize, maxDecodeLongSide: Int, radius: Int
+    ) throws {
+        let plan = try #require(pipeline.prefetchPlan(for: session.id))
+        let pages = try #require(session.book).pages
+        let current = session.currentFrame
+        var expected: [PrefetchItem] = []
+        let lower = max(session.frames.startIndex, current - radius)
+        let upper = min(session.frames.endIndex, current + radius + 1)
+        for index in lower..<upper where index != current {
+            let targets = PageFrameFit.fit(frame: session.frames[index], pages: pages, viewport: viewport, settings: session.settings)
+                .displayTargets(settings: session.settings, maxDecodeLongSide: maxDecodeLongSide)
+            for (element, target) in targets {
+                expected.append(PrefetchItem(identity: pages[element.page].entry.identity, renditions: [.display(target)], priority: .near))
+            }
+        }
+        let actual = plan.items.filter(isDisplay)
+        #expect(actual.count == expected.count)
+        for item in expected { #expect(actual.contains(item)) }
+        let currentIdentities = Set(session.frames[current].elements.map { pages[$0.page].entry.identity })
+        #expect(!actual.contains { currentIdentities.contains($0.identity) })
+    }
+
+    private func displayRenditions(_ plan: PrefetchPlan) -> Set<RenditionSpec> {
+        Set(plan.items.filter(isDisplay).flatMap(\.renditions))
+    }
+
+    private func containsDisplay(_ plan: PrefetchPlan?) -> Bool {
+        plan?.items.contains(where: isDisplay) ?? false
+    }
+
+    private func isDisplay(_ item: PrefetchItem) -> Bool {
+        item.renditions.contains { if case .display = $0 { true } else { false } }
     }
 
     private func eventually(_ predicate: @MainActor () async -> Bool) async {
