@@ -297,7 +297,7 @@ import Testing
     let video = try await environment.identity(fixture.path)
     let metadata = try await environment.pipeline.metadata(for: video, priority: .book)
     #expect(metadata.pixelSize == fixture.video?.pixelSize)
-    let poster = try await environment.pipeline.videoPoster(for: video, maxPixel: 64)
+    let poster = try await environment.pipeline.videoPoster(for: video, maxPixel: 64, priority: .near)
     #expect(max(poster.image.width, poster.image.height) <= 64)
     #expect(environment.registry.control.fileURLs > 0)
 }
@@ -335,7 +335,7 @@ import Testing
     await #expect(throws: CancellationError.self) { try await collect(environment.pipeline.image(for: identity, target: target, allowOriginal: false, priority: .visible)) }
     await #expect(throws: CancellationError.self) { try await environment.pipeline.tiledSource(for: identity) }
     await #expect(throws: CancellationError.self) { try await environment.pipeline.animatedFrames(for: animation, target: target) }
-    await #expect(throws: CancellationError.self) { try await environment.pipeline.videoPoster(for: video, maxPixel: 16) }
+    await #expect(throws: CancellationError.self) { try await environment.pipeline.videoPoster(for: video, maxPixel: 16, priority: .near) }
     await #expect(throws: CancellationError.self) { try await tiles.tile(CGRect(x: 0, y: 0, width: 16, height: 16), scale: 1) }
     await #expect(throws: CancellationError.self) { try await frames.frame(at: 0) }
     var failures = 0
@@ -475,6 +475,14 @@ func foregroundThumbnailJoiningPrefetchPromotesDecodeAheadOfQueue(_ priority: IO
     try await blocker.value
     try await marker.value
     await environment.pipeline.shutdown()
+}
+
+private func waitUntil(_ condition: () -> Bool) async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
+    while !condition() {
+        guard ContinuousClock.now < deadline else { throw PipelineTestFailure.timedOut }
+        try await Task.sleep(for: .milliseconds(2))
+    }
 }
 
 private func eventually(_ predicate: () async throws -> Bool) async throws {
@@ -639,6 +647,60 @@ private struct CountingSource: ByteSource {
             if priority >= .userInitiated { control.escalated(identity) }
         }
     }
+}
+
+@Test func visibleWaitingDecodeStartsBeforeNear() async throws {
+    let decoder = ImageDecoder(maxConcurrentDecodes: 1)
+    let gate = DispatchSemaphore(value: 0)
+    let order = Mutex<[String]>([])
+    let placeholder = Task {
+        try await decoder.perform {
+            gate.wait()
+            order.withLock { $0.append("placeholder") }
+        }
+    }
+    try await waitUntil { decoder.limiter.runningCount == 1 }
+    let near = Task(priority: IOPriority.near.taskPriority) {
+        try await decoder.perform { order.withLock { $0.append("near") } }
+    }
+    try await waitUntil { decoder.limiter.waitingCount == 1 }
+    let visible = Task(priority: IOPriority.visible.taskPriority) {
+        try await decoder.perform { order.withLock { $0.append("visible") } }
+    }
+    try await waitUntil { decoder.limiter.waitingCount == 2 }
+    gate.signal()
+    // 取结果会提升还在排队的任务，所以先等出队顺序记下来。
+    try await waitUntil { order.withLock { $0.count } == 3 }
+    #expect(order.withLock { $0 } == ["placeholder", "visible", "near"])
+    for task in [placeholder, near, visible] { try await task.value }
+    #expect(decoder.limiter.waitingCount == 0)
+}
+
+@Test func videoPosterReadsAtTheGivenPriority() async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let fixture = try #require(Fixtures.manifest().fixtures.first { $0.video != nil })
+    let local = try await environment.identity(fixture.path)
+    var mirrored = local
+    mirrored.location.root = .network(scheme: "nfs", host: "fixture", share: "readonly")
+    let registry = MirroredVideoSource(base: environment.registry, local: local.location, mirrored: mirrored)
+    let pipe = FileImagePipeline(sources: registry, decoder: ImageDecoder(), caches: environment.caches, configuration: PipelineConfiguration(browseBounds: PixelSize(width: 320, height: 480)))
+    environment.registry.control.reset()
+    let background = try await pipe.videoPoster(for: mirrored, maxPixel: 64, priority: .background)
+    #expect(max(background.image.width, background.image.height) <= 64)
+    let backgroundReads = environment.registry.control.reads.map(\.priority)
+    #expect(!backgroundReads.isEmpty)
+    #expect(backgroundReads.allSatisfy { $0 == .background })
+
+    // 磁盘缩略图键不含尺寸；换 maxPixel 仍会命中它，清掉后才会再读源。
+    try await environment.caches.thumbnails.setBudget(0)
+    environment.registry.control.reset()
+    let visible = try await pipe.videoPoster(for: mirrored, maxPixel: 32, priority: .visible)
+    #expect(max(visible.image.width, visible.image.height) <= 32)
+    let visibleReads = environment.registry.control.reads.map(\.priority)
+    #expect(!visibleReads.isEmpty)
+    #expect(visibleReads.allSatisfy { $0 == .visible })
+    await pipe.shutdown()
 }
 
 @Test func networkVideoUsesByteSourceBridgeAndArchivedVideoUsesFileURL() async throws {

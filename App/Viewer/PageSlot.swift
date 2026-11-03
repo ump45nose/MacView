@@ -70,7 +70,7 @@ final class PageSlot {
             let longSide = max(target.pixelSize.width, target.pixelSize.height)
             baseTask = Task { [weak self] in
                 do {
-                    let image = try await pipeline.videoPoster(for: identity, maxPixel: longSide)
+                    let image = try await pipeline.videoPoster(for: identity, maxPixel: longSide, priority: .visible)
                     guard !Task.isCancelled else { return }
                     self?.apply(image, isUpgrade: false)
                 } catch {

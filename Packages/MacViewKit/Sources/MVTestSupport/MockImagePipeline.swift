@@ -105,9 +105,9 @@ public final class MockImagePipeline: ImagePipeline {
         return MockAnimatedFrames(title: Self.title(of: location), frameCount: media.frameCount, size: target.pixelSize, seed: MockRandom.fnv1a(location.description))
     }
 
-    public func videoPoster(for identity: ContentIdentity, maxPixel: Int) async throws -> RenderedImage {
+    public func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage {
         let location = identity.location
-        let media = try await environment.readMedia(location, priority: .near)
+        let media = try await environment.readMedia(location, priority: priority)
         guard media.duration != nil else { throw IOError.unsupported(location) }
         return render(location, media, size: media.pixelSize.fitted(longSide: maxPixel), quality: .exact)
     }

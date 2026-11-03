@@ -68,7 +68,7 @@ final class TracingPipeline: ImagePipeline {
     func image(for identity: ContentIdentity, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error> { base.image(for: identity, target: target, allowOriginal: allowOriginal, priority: priority) }
     func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource { try await base.tiledSource(for: identity) }
     func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource { try await base.animatedFrames(for: identity, target: target) }
-    func videoPoster(for identity: ContentIdentity, maxPixel: Int) async throws -> RenderedImage { try await base.videoPoster(for: identity, maxPixel: maxPixel) }
+    func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage { try await base.videoPoster(for: identity, maxPixel: maxPixel, priority: priority) }
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID) { base.setPrefetchPlan(plan, session: session) }
     func cancelAll(session: SessionID) { base.cancelAll(session: session) }
 }
