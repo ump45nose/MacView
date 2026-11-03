@@ -276,6 +276,10 @@ final class PanelSelfTest {
         }
         await open(second, shelf.appending(path: "alpha")) { $0.isEnumerated }
         second.window?.makeKeyAndOrderFront(nil)
+        if !NSApp.isActive {
+            print("INFO App 不在前台，窗口成不了主窗口，直接切换活动窗口")
+            dock.activate(second.dock)
+        }
         await waitFor { floating.boundSession == second.session.id && view.items.count == 3 }
         log.check(view.items.map(\.name) == ["p01.png", "p02.png", "p03.png"], "切到窗口 2，浮动面板显示 alpha：\(view.items.map(\.name))")
         first.window?.makeKeyAndOrderFront(nil)
