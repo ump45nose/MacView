@@ -1,6 +1,7 @@
 import AppKit
 import MVCommands
 import MVFoundation
+import MVIO
 import MVLayout
 import MVReading
 import MVServices
@@ -74,6 +75,12 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     /// 打开时有多个 URL，除第一个外的交给调用方（另开标签页）。
     var onOpenExtra: (([URL]) -> Void)?
     var onClose: ((ReaderWindowController) -> Void)?
+    /// 窗口、书或布局变了，会话要重新保存。
+    var onSessionChange: (() -> Void)?
+    /// 上一次不是全屏时的 frame；全屏不进会话。
+    private(set) var normalFrame = NSRect.zero
+    private var healthTask: Task<Void, Never>?
+    private var volumes: [VolumeHealth] = []
 
     init(services: CoreServices, catalog: CommandCatalog, dispatcher: CommandDispatcher, dock dockCoordinator: DockCoordinator, isMock: Bool) {
         self.services = services
@@ -117,7 +124,10 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
         configureBrowseControls()
         for entry in Self.dockToggleItems.values { dockToggles[entry.edge] = makeDockToggle(entry) }
-        dock.onLayoutChange = { [weak self] in self?.updateDockToggles() }
+        dock.onLayoutChange = { [weak self] in
+            self?.updateDockToggles()
+            self?.onSessionChange?()
+        }
         let toolbar = NSToolbar(identifier: "MacView.reader")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
@@ -128,7 +138,11 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         viewer.onOpen = { [weak self] in self?.run(.fileOpen) }
         viewer.onRetryBook = { [weak self] in self?.reopenBook() }
         viewer.onConnect = { [weak self] in self?.connectVolume() }
-        viewer.continuous.onWaterfallExtentChange = { [weak self] in self?.updateWaterfallControls() }
+        viewer.continuous.onWaterfallExtentChange = { [weak self] in
+            self?.updateWaterfallControls()
+            self?.onSessionChange?()
+        }
+        content.volumeStatus.onRetry = { [weak self] in self?.viewer.retryFailed() }
         content.onDrop = { [weak self] urls in self?.open(urls) }
         statusBar.onJump = { [weak self] number in self?.session.go(.index(number - 1)) }
         statusBar.onJumpEnd = { [weak self] in
@@ -137,6 +151,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         }
         dockCoordinator.attach(dock, to: self)
         observeSession()
+        observeVolumes()
+        normalFrame = window.frame
     }
 
     @available(*, unavailable)
@@ -181,6 +197,38 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         updateBrowseControls()
         content.statusBar.refresh(session)
         window?.toolbar?.validateVisibleItems()
+        updateVolumeStatus()
+        onSessionChange?()
+    }
+
+    // MARK: 卷状态
+
+    private func observeVolumes() {
+        let updates = services.sources.volumeHealth()
+        healthTask = Task { [weak self] in
+            for await volumes in updates {
+                guard let self, !Task.isCancelled else { return }
+                let wasHealthy = currentVolume?.state ?? .healthy == .healthy
+                self.volumes = volumes
+                updateVolumeStatus()
+                // 探测成功后自动恢复，失败项不用再点重试。
+                if !wasHealthy, currentVolume?.state ?? .healthy == .healthy { viewer.retryFailed() }
+            }
+        }
+    }
+
+    /// 当前书所在的卷。
+    private var currentVolume: VolumeHealth? {
+        guard let root = session.book?.location.root else { return nil }
+        return volumes.first { $0.root == root }
+    }
+
+    private func updateVolumeStatus() {
+        let health = currentVolume
+        // 书整本打不开时由查看器的提示显示，同一件事不显示两次。
+        let coveredByViewer = session.loadError.map(ViewerContainerView.isVolumeError) ?? false
+        content.volumeStatus.show(health, showsBanner: !coveredByViewer)
+        content.statusBar.setVolumeStatus(VolumeStatusView.statusText(for: health))
     }
 
     /// 书名下面的一行：所在路径；单页模式前面加当前页。
@@ -315,9 +363,30 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         dock.setAutoHide(false)
     }
 
+    func windowDidMove(_ notification: Notification) {
+        rememberFrame()
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        rememberFrame()
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        onSessionChange?()
+    }
+
+    private func rememberFrame() {
+        guard let window, !window.styleMask.contains(.fullScreen) else { return }
+        normalFrame = window.frame
+        onSessionChange?()
+    }
+
     func windowWillClose(_ notification: Notification) {
         dock.coordinator.detach(dock)
         openTask?.cancel()
+        healthTask?.cancel()
+        // 页码来自书记忆，关窗前落盘。
+        Task { [session] in await session.flush() }
         viewer.cancelLoads()
         services.pipeline.cancelAll(session: session.id)
         onClose?(self)

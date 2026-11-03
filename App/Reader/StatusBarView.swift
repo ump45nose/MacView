@@ -14,6 +14,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
     let jumpField = NSTextField()
     private let jumpTotal = NSTextField(labelWithString: "")
     private let badge = NSTextField(labelWithString: "")
+    private let volume = NSTextField(labelWithString: "")
     private let topLine = CALayer()
     private var jumpViews: [NSView] { [jumpLabel, jumpField, jumpTotal] }
     /// 输入了页码（从 1 开始）并回车。
@@ -25,7 +26,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(topLine)
-        for label in [position, pixelSize, jumpLabel, jumpTotal, badge] {
+        for label in [position, pixelSize, jumpLabel, jumpTotal, volume, badge] {
             label.font = .systemFont(ofSize: 11)
             label.textColor = Theme.text2
             label.lineBreakMode = .byTruncatingTail
@@ -44,10 +45,11 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         badgeIcon.symbolConfiguration = .init(pointSize: 11, weight: .regular)
         badgeIcon.contentTintColor = Theme.text2
         badgeIcon.toolTip = badgeToolTip
+        badgeIcon.isHidden = serviceBadge.isEmpty
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let stack = NSStackView(views: [position, jumpLabel, jumpField, jumpTotal, pixelSize, spacer, badgeIcon, badge])
+        let stack = NSStackView(views: [position, jumpLabel, jumpField, jumpTotal, pixelSize, spacer, volume, badgeIcon, badge])
         stack.orientation = .horizontal
         stack.spacing = 18
         stack.setCustomSpacing(6, after: jumpLabel)
@@ -64,6 +66,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
             heightAnchor.constraint(equalToConstant: Self.height),
         ])
         jumpViews.forEach { $0.isHidden = true }
+        volume.isHidden = true
     }
 
     @available(*, unavailable)
@@ -84,6 +87,14 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         super.layout()
         topLine.frame = CGRect(x: 0, y: 0, width: bounds.width, height: 0.5)
     }
+
+    /// 卷不健康时显示。
+    func setVolumeStatus(_ text: String?) {
+        volume.stringValue = text ?? ""
+        volume.isHidden = text == nil
+    }
+
+    var volumeStatus: String? { volume.isHidden ? nil : volume.stringValue }
 
     func refresh(_ session: ReaderSession) {
         let pages = session.book?.pages ?? []

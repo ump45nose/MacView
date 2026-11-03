@@ -18,6 +18,13 @@ final class SelfTest {
     static let launchKey = "MVSelfTest"
     static let outputKey = "MVSelfTestOutput"
 
+    /// 自检不读不写用户的会话，会话自检除外。
+    static var isRunningExceptSession: Bool {
+        ["MVSelfTest", "MVDockSelfTest", "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest"].contains {
+            UserDefaults.standard.object(forKey: $0) != nil
+        }
+    }
+
     private let app: AppDelegate
     private let log = SelfTestLog()
     /// App 不在前台时接收按键的窗口。
@@ -283,31 +290,31 @@ final class SelfTest {
             await send(kVK_ANSI_J)
             log.check(controller.session.currentFrame == 1, "重建的 InputRouter 用新绑定翻页")
             try Data("{ broken".utf8).write(to: url, options: .atomic)
-            for _ in 0..<100 where controller.content.fileErrorBanner == nil { try? await Task.sleep(for: .milliseconds(20)) }
-            log.check(controller.content.fileErrorBanner != nil && app.catalog.bindings.contains(binding), "坏配置显示错误横幅并保留上次绑定")
+            for _ in 0..<100 where controller.content.fileErrorBanners["keybindings.json"] == nil { try? await Task.sleep(for: .milliseconds(20)) }
+            log.check(controller.content.fileErrorBanners["keybindings.json"] != nil && app.catalog.bindings.contains(binding), "坏配置显示错误横幅并保留上次绑定")
             checkBannerLanguage(controller, zh: "行，第", en: "Line ", "语法错误")
             if let window = controller.window { log.snapshot(window, "keybindings-error") }
             let extra = app.newWindow()
-            log.check(extra?.content.fileErrorBanner != nil, "坏配置期间新窗口也显示横幅")
+            log.check(extra?.content.fileErrorBanners["keybindings.json"] != nil, "坏配置期间新窗口也显示横幅")
             extra?.window?.performClose(nil)
             controller.window?.makeKeyAndOrderFront(nil)
             controller.window?.makeFirstResponder(controller.viewer)
             controller.session.go(.first)
             await send(kVK_ANSI_J)
             log.check(controller.session.currentFrame == 1, "坏配置后旧绑定继续生效")
-            let syntaxBanner = controller.content.fileErrorBanner
+            let syntaxBanner = controller.content.fileErrorBanners["keybindings.json"]
             try Data(#"{"version":1,"value":{}}"#.utf8).write(to: url, options: .atomic)
-            for _ in 0..<100 where controller.content.fileErrorBanner === syntaxBanner { try? await Task.sleep(for: .milliseconds(20)) }
+            for _ in 0..<100 where controller.content.fileErrorBanners["keybindings.json"] === syntaxBanner { try? await Task.sleep(for: .milliseconds(20)) }
             checkBannerLanguage(controller, zh: "缺少字段 bindings", en: "Missing field bindings", "缺字段")
             try data.write(to: url, options: .atomic)
-            for _ in 0..<100 where controller.content.fileErrorBanner != nil { try? await Task.sleep(for: .milliseconds(20)) }
-            log.check(controller.content.fileErrorBanner == nil, "修复配置后清除横幅")
+            for _ in 0..<100 where controller.content.fileErrorBanners["keybindings.json"] != nil { try? await Task.sleep(for: .milliseconds(20)) }
+            log.check(controller.content.fileErrorBanners["keybindings.json"] == nil, "修复配置后清除横幅")
         } catch { log.check(false, "按键绑定重载失败：\(error)") }
     }
 
     /// 横幅文字跟随界面语言，英文环境不混入中文。
     private func checkBannerLanguage(_ controller: ReaderWindowController, zh: String, en: String, _ name: String) {
-        let banner = controller.content.fileErrorBanner.map { text(in: $0) } ?? ""
+        let banner = controller.content.fileErrorBanners["keybindings.json"].map { text(in: $0) } ?? ""
         let hasChinese = banner.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }
         let matches = Bundle.main.preferredLocalizations.first == "en" ? banner.contains(en) && !hasChinese : banner.contains(zh)
         log.check(matches, "\(name)的横幅文字跟随界面语言：\(banner)")
