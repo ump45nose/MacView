@@ -543,9 +543,9 @@ private struct CountingProvider: ContainerProvider {
         control.opened()
         return CountingSource(base: source, control: control)
     }
-    func fileURL(for location: Location) async throws -> URL {
+    func fileLease(for location: Location) async throws -> FileLease {
         control.fileURL()
-        return try await base.fileURL(for: location)
+        return try await base.fileLease(for: location)
     }
 }
 
@@ -607,7 +607,7 @@ private struct MirroredVideoSource: SourceRegistry, ContainerProvider {
     func open(_ location: Location) async throws -> any ByteSource {
         MirroredBytes(base: try await base.provider(for: local).open(local), identity: mirrored)
     }
-    func fileURL(for location: Location) async throws -> URL { try await base.provider(for: local).fileURL(for: local) }
+    func fileLease(for location: Location) async throws -> FileLease { try await base.provider(for: local).fileLease(for: local) }
 }
 private struct MirroredBytes: ByteSource {
     var base: any ByteSource

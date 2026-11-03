@@ -75,17 +75,17 @@ struct DisplayPrefetchTests {
         #expect(frames.count == 102)
         let viewport = PixelSize(width: 40, height: 80)
         let settings = await session.settings
-        let probe = PageFrameFit.fit(frame: frames[1], pages: pages, viewport: viewport, settings: settings)
+        let probe = PageFrameFit.fit(frame: frames[1], pages: pages, viewport: viewport, backingScale: 1, settings: settings)
         #expect(probe.pages.map(\.pixelSize) == [PixelSize(width: 40, height: 40)])
         #expect(probe.size == PixelSize(width: 40, height: 40))
-        await session.viewportChanged(viewport)
+        await session.viewportChanged(viewport, backingScale: 1)
         var samples: [Duration] = []
         samples.reserveCapacity(100)
         for index in 0..<100 {
             await session.go(.index(index))
             let current = await session.currentFrame
             #expect(current == index)
-            let targets = PageFrameFit.fit(frame: frames[index + 1], pages: pages, viewport: viewport, settings: settings)
+            let targets = PageFrameFit.fit(frame: frames[index + 1], pages: pages, viewport: viewport, backingScale: 1, settings: settings)
                 .displayTargets(settings: settings, maxDecodeLongSide: global.maxDecodeLongSide)
             let pair = try #require(targets.first)
             #expect(targets.count == 1)
@@ -193,7 +193,7 @@ private struct CountingProvider: ContainerProvider {
         control.opened(source.identity)
         return CountingSource(base: source, control: control)
     }
-    func fileURL(for location: Location) async throws -> URL { try await base.fileURL(for: location) }
+    func fileLease(for location: Location) async throws -> FileLease { try await base.fileLease(for: location) }
 }
 
 private struct CountingSource: ByteSource {

@@ -57,7 +57,7 @@ struct MockContainerProvider: ContainerProvider {
     }
 
     /// 模拟树里的文件没有系统路径。
-    func fileURL(for location: Location) async throws -> URL {
+    func fileLease(for location: Location) async throws -> FileLease {
         throw IOError.unsupported(location)
     }
 }

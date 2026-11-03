@@ -312,9 +312,11 @@ public final class FileImagePipeline: ImagePipeline {
             return result
         }
         let source = try await lifetime.value { try await provider.open(identity.location) }
-        let url = try await lifetime.value { try await provider.fileURL(for: identity.location) }
+        let lease = try await lifetime.value { try await provider.fileLease(for: identity.location) }
         try lifetime.checkRunning()
-        return try await operation(AVURLAsset(url: url), source.identity)
+        let result = try await operation(AVURLAsset(url: lease.url), source.identity)
+        withExtendedLifetime(lease) {}
+        return result
     }
 
     private func content(_ identity: ContentIdentity, full: Bool, metadata: Bool, context: RequestContext) async throws -> PipelineContent {

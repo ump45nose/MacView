@@ -51,7 +51,7 @@ struct LocateCommand: AsyncParsableCommand {
 
     private func resolve(_ location: Location, _ registry: FileSourceRegistry, into result: inout Result) async throws {
         do {
-            result.resolvedPath = try await registry.provider(for: location).fileURL(for: location).path
+            result.resolvedPath = try await registry.provider(for: location).fileLease(for: location).url.path
         } catch IOError.volumeUnavailable(let root) {
             result.error = "volumeUnavailable"
             result.mountURL = root.mountURL?.absoluteString

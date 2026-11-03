@@ -59,8 +59,9 @@ final class ExtractStore: Sendable {
         }
     }
 
-    func install(_ temporary: URL, key: String, size: Int64) async throws -> ExtractLease {
-        let destination = directory.appending(path: UUID().uuidString + ".extract")
+    /// `pathExtension` 给按扩展名认格式的读者用（AVFoundation）。
+    func install(_ temporary: URL, key: String, size: Int64, pathExtension: String = "") async throws -> ExtractLease {
+        let destination = directory.appending(path: UUID().uuidString + "." + (pathExtension.isEmpty ? "extract" : pathExtension))
         try await ExtractIO.run { try FileManager.default.moveItem(at: temporary, to: destination) }
         let result = state.withLock { state in
             // 同一条目的并发解出只留下一个文件，各调用方仍有自己的租约。

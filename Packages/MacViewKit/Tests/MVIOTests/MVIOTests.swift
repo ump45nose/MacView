@@ -38,7 +38,7 @@ import Testing
     let registry = FileSourceRegistry(scheduler: IOScheduler(configuration: IOConfiguration(helperExecutable: nil)))
     let location = try await registry.location(for: URL(fileURLWithPath: "/Users/me/../me/书/001.jpg"))
     #expect(location == Location(root: .local, layers: [["Users", "me", "书", "001.jpg"]]))
-    #expect(try await registry.fileSystem.fileURL(for: location).path == "/Users/me/书/001.jpg")
+    #expect(try await registry.fileSystem.fileLease(for: location).url.path == "/Users/me/书/001.jpg")
 }
 
 @Test func entryKindsFollowTheExtension() {
