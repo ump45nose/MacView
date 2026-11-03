@@ -24,6 +24,8 @@ extension AppDelegate {
             }
         }
 
+        register(.bookReveal) { controller, _ in controller.revealBook() }
+
         let browse: [(CommandID, BrowseMode)] = [
             (.browsePaged, .paged), (.browseWaterfall, .waterfall), (.browseVerticalStrip, .verticalStrip), (.browseHorizontalStrip, .horizontalStrip),
         ]

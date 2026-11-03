@@ -47,7 +47,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     let pendingView: PendingSequenceView
     /// 本窗口的停靠区；页面视图在中间栏。
     let dock: WindowDock
-    private let services: CoreServices
+    let services: CoreServices
     private let dispatcher: CommandDispatcher
     private var catalog: CommandCatalog
     private let isMock: Bool
@@ -216,6 +216,27 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             }
             logger.info("打开 \(location.description, privacy: .public)")
             await session.open(location, at: nil)
+        }
+    }
+
+    /// 打开书架上的一本书。
+    func openBook(_ location: Location) {
+        guard location != session.book?.location else { return }
+        openTask?.cancel()
+        openTask = Task { [weak self] in await self?.session.open(location, at: nil) }
+    }
+
+    /// 在 Finder 中显示这本书。
+    func revealBook() {
+        guard let location = session.book?.location else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let lease = try await services.sources.provider(for: location).fileLease(for: location)
+                NSWorkspace.shared.activateFileViewerSelecting([lease.url])
+            } catch {
+                presentOpenError(error, url: URL(fileURLWithPath: location.description))
+            }
         }
     }
 
