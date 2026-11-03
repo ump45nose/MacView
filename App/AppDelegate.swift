@@ -29,6 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var cacheDirectory = URL.cachesDirectory.appending(path: "MacView")
     private var settingsWindow: SettingsWindowController?
     private var sessionStore: SessionStore?
+    #if DEBUG
+    private var debugSocket: DebugSocket?
+    #endif
     private var sessionSaveEnabled = false
     private var tabObservations: [NSKeyValueObservation] = []
     private var settingsErrorsTask: Task<Void, Never>?
@@ -128,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PanelSelfTest.runIfRequested(app: self)
         SettingsSelfTest.runIfRequested(app: self)
         SessionSelfTest.runIfRequested(app: self)
+        debugSocket = DebugSocket.startIfRequested(app: self)
         #endif
     }
 
