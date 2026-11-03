@@ -142,8 +142,10 @@ public struct CoreConfiguration: Sendable {
 
     private func updateBudgets() async {
         guard let runtime else { return }
-        let budget = await settings.global().cache
+        let global = await settings.global()
+        let budget = global.cache
         guard !Task.isCancelled else { return }
+        (pipeline as? FileImagePipeline)?.setMaxDecodeLongSide(global.maxDecodeLongSide)
         runtime.caches.raw.setBudget(budget.rawBytes)
         runtime.caches.decoded.setBudget(budget.decodedBytes)
         do {

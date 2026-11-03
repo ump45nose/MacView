@@ -229,6 +229,17 @@ public struct PathRule: Codable, Sendable, Hashable {
         self.prefix = prefix
         self.settings = settings
     }
+
+    /// 匹配这本书的规则：越具体越靠后，具体程度相同时按原顺序。解析和设置窗口共用。
+    public static func matching(_ rules: [PathRule], for book: Location) -> [PathRule] {
+        rules.enumerated().filter { book.hasPrefix($0.element.prefix) }
+            .sorted {
+                let left = $0.element.prefix.layers.reduce(0) { $0 + $1.count }
+                let right = $1.element.prefix.layers.reduce(0) { $0 + $1.count }
+                return (left, $0.offset) < (right, $1.offset)
+            }
+            .map(\.element)
+    }
 }
 
 /// 一本书的记忆：书层设置与上次的页位置。

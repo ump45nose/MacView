@@ -30,7 +30,7 @@ public final class ReaderSession {
     private let pipeline: any ImagePipeline
     @ObservationIgnored private var resolved: ResolvedBookSettings = .default
     @ObservationIgnored private var bookLayer = BookSettings()
-    @ObservationIgnored private var global: GlobalSettings = .default
+    private var global: GlobalSettings = .default
     @ObservationIgnored private var anchor: Location?
     @ObservationIgnored private var anchorIndex = 0
     @ObservationIgnored private var anchorPart: PagePart = .whole

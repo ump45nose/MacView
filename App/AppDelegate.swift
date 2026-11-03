@@ -27,6 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyBindingsTask: Task<Void, Never>?
     private var keyBindingsError: String?
     private(set) var supportDirectory = URL.applicationSupportDirectory.appending(path: "MacView")
+    private(set) var cacheDirectory = URL.cachesDirectory.appending(path: "MacView")
+    private var settingsWindow: SettingsWindowController?
     /// NSWindow 不持有自己的控制器，由这里保留到窗口关闭。
     private(set) var controllers: [ReaderWindowController] = []
     /// 服务就绪之前收到的打开请求（例如拖到 Dock 图标启动）。
@@ -109,13 +111,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DockSelfTest.runIfRequested(app: self)
         ViewerSelfTest.runIfRequested(app: self)
         PanelSelfTest.runIfRequested(app: self)
+        SettingsSelfTest.runIfRequested(app: self)
         #endif
+    }
+
+    /// 全应用一个设置窗口。
+    func openSettings() -> SettingsWindowController? {
+        guard let services else { return nil }
+        let controller = settingsWindow ?? SettingsWindowController(
+            store: services.settings, sources: services.sources,
+            supportDirectory: supportDirectory, cacheDirectory: cacheDirectory
+        )
+        settingsWindow = controller
+        controller.show()
+        return controller
     }
 
     /// Debug 自检可覆盖目录，避免触碰用户的配置与缓存。
     private func makeServices() async throws -> CoreServices {
         if isMock { return CoreServices.makeMock() }
-        var cacheDirectory = URL.cachesDirectory.appending(path: "MacView")
         #if DEBUG
         if let path = UserDefaults.standard.string(forKey: "MVSupportDirectory") { supportDirectory = URL(fileURLWithPath: path) }
         if let path = UserDefaults.standard.string(forKey: "MVCacheDirectory") { cacheDirectory = URL(fileURLWithPath: path) }
