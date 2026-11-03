@@ -238,6 +238,8 @@ import Testing
     }
     try await Task.sleep(for: .milliseconds(200))
     #expect(!result.withLock { $0.done })
+    // 打开方读取时持有共享锁，COMMIT 要等它释放。
+    #expect(sqlite3_busy_timeout(sqlite, 2_000) == SQLITE_OK)
     #expect(sqlite3_exec(sqlite, "COMMIT", nil, nil, nil) == SQLITE_OK)
     #expect(sqlite3_close(sqlite) == SQLITE_OK)
     connection = nil

@@ -35,7 +35,10 @@ final class SettingsWindowController: NSWindowController {
         window.tabbingMode = .disallowed
         window.center()
         super.init(window: window)
-        window.contentViewController = NSHostingController(rootView: SettingsRootView(state: state))
+        let hosting = NSHostingController(rootView: SettingsRootView(state: state))
+        // 窗口尺寸由用户决定，不随页面内容变化；放不下的页面在自己的滚动区内滚动。
+        hosting.sizingOptions = []
+        window.contentViewController = hosting
         window.setContentSize(NSSize(width: 680, height: 620))
     }
 

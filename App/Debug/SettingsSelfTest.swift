@@ -82,6 +82,13 @@ final class SettingsSelfTest {
         log.check(session.settings.direction == .rightToLeft, "书层覆盖不变")
         session.update { $0.direction = nil }
         model.updateGlobal { $0.defaultBook.scaleMode = .fitWindow }
+        let choice = browseChoice(model)
+        choice.wrappedValue = BrowseChoice.options[1].1
+        log.check(model.global.defaultBook.browseMode == .paged && model.global.defaultBook.pageMode == .double, "全局默认可以设成双页")
+        choice.wrappedValue = BrowseChoice.options[3].1
+        log.check(model.global.defaultBook.browseMode == .verticalStrip && model.global.defaultBook.pageMode == .double, "选竖条不改单双页")
+        choice.wrappedValue = BrowseChoice.options[0].1
+        log.check(choice.wrappedValue == BrowseChoice.options[0].1 && model.global.defaultBook.pageMode == .single, "全局默认回到单页")
     }
 
     /// C2.15
@@ -145,9 +152,11 @@ final class SettingsSelfTest {
 
     private func screenshots(_ settings: SettingsWindowController) async {
         guard let window = settings.window else { return }
+        let size = window.frame.size
         for page in SettingsPage.allCases {
             settings.state.page = page
             try? await Task.sleep(for: .milliseconds(200))
+            log.check(window.frame.size == size, "切到\(page.title)页窗口尺寸不变：\(size) → \(window.frame.size)")
             log.snapshot(window, "settings-\(page.rawValue)")
         }
     }

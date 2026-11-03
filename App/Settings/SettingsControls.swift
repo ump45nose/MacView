@@ -12,12 +12,21 @@ struct SettingsSection<Content: View>: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color(nsColor: Theme.text2))
                 .padding(.horizontal, 12)
-            VStack(spacing: 0) {
-                content
-            }
-            .background(Color(nsColor: Theme.raised), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color(nsColor: Theme.line), lineWidth: 0.5))
+            SettingsCard { content }
         }
+    }
+}
+
+/// 没有小标题的卡片。
+struct SettingsCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            content
+        }
+        .background(Color(nsColor: Theme.raised), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color(nsColor: Theme.line), lineWidth: 0.5))
     }
 }
 
@@ -54,20 +63,33 @@ struct SettingsDivider: View {
     }
 }
 
-/// 分段选择。
+/// 分段选择：凹槽里选中项是抬起的底。
 struct SettingsSegments<Value: Hashable>: View {
     let label: String
     let options: [(String, Value)]
     @Binding var selection: Value
 
     var body: some View {
-        Picker(label, selection: $selection) {
-            ForEach(options, id: \.1) { Text($0.0).tag($0.1) }
+        HStack(spacing: 2) {
+            ForEach(options, id: \.1) { option in
+                let isSelected = option.1 == selection
+                Button(option.0) { selection = option.1 }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(Color(nsColor: isSelected ? Theme.text : Theme.text2))
+                    .padding(.horizontal, 10)
+                    .frame(height: 22)
+                    .background(isSelected ? Color(nsColor: Theme.raised) : .clear, in: RoundedRectangle(cornerRadius: 7))
+                    .contentShape(Rectangle())
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
+        .padding(2)
+        .background(Color(nsColor: Theme.well), in: RoundedRectangle(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color(nsColor: Theme.line), lineWidth: 0.5))
         .fixedSize()
-        .controlSize(.small)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label)
     }
 }
 
@@ -96,26 +118,25 @@ struct SettingsSwitch: View {
     var body: some View {
         Toggle(label, isOn: $isOn)
             .toggleStyle(.switch)
+            .tint(Color(nsColor: Theme.accent))
             .labelsHidden()
             .controlSize(.small)
     }
 }
 
-/// 数字步进：前后缀文字，加减按钮。
+/// 数字步进：前缀文字、带单位的数值，加减按钮。
 struct SettingsStepper: View {
     var prefix: String?
-    let suffix: String
+    let format: (Int) -> String
     let range: ClosedRange<Int>
     @Binding var value: Int
 
     var body: some View {
         HStack(spacing: 6) {
             if let prefix { Text(prefix) }
-            Text(verbatim: "\(value)")
+            Text(format(value))
                 .font(.system(size: 12).monospacedDigit())
-                .frame(minWidth: 18, alignment: .trailing)
-            Text(suffix)
-            Stepper(prefix ?? suffix, value: $value, in: range)
+            Stepper(prefix ?? format(value), value: $value, in: range)
                 .labelsHidden()
                 .controlSize(.small)
         }

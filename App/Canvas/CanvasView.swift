@@ -447,7 +447,7 @@ final class CanvasView: NSScrollView {
     private func makeLayer() -> CALayer {
         let layer = CALayer()
         layer.backgroundColor = NSColor.quaternaryLabelColor.cgColor
-        layer.borderColor = NSColor.controlAccentColor.cgColor
+        layer.borderColor = Theme.accent.cgColor
         layer.cornerRadius = 6
         layer.cornerCurve = .continuous
         layer.masksToBounds = true
