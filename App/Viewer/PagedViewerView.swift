@@ -36,6 +36,7 @@ final class PagedViewerView: NSView {
     private(set) var fit = PageFrameFit(pages: [], size: PixelSize(width: 0, height: 0))
     /// 查看器自己探测到的元数据：书的加载没探测成功（或还没轮到）时，当前页不能一直等。
     private var probed: [ContentIdentity: ImageMetadata] = [:]
+    private var decodeLimit = 0
     private var probes: [ContentIdentity: Task<Void, Never>] = [:]
     private var probeFailures: [ContentIdentity: any Error] = [:]
     private var requestTimer: Timer?
@@ -93,6 +94,7 @@ final class PagedViewerView: NSView {
     /// 会话状态变化后调用；可以频繁调用，没有变化时不发请求。
     func refresh() {
         guard session.settings.browseMode == .paged else { return }
+        decodeLimit = session.maxDecodeLongSide
         var pages = session.book?.pages ?? []
         for index in pages.indices where pages[index].metadata == nil {
             pages[index].metadata = probed[pages[index].entry.identity]
@@ -303,7 +305,7 @@ final class PagedViewerView: NSView {
     private func applyTargets() {
         requestTimer = nil
         let settings = session.settings
-        let limit = session.maxDecodeLongSide
+        let limit = decodeLimit
         let targets = fit.displayTargets(settings: settings, maxDecodeLongSide: limit)
         for (index, slot) in slots.enumerated() where fit.pages.indices.contains(index) {
             guard let base = targets.first(where: { $0.element == slot.element })?.target else { continue }

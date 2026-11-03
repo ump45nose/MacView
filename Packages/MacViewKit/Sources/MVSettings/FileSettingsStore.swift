@@ -79,13 +79,7 @@ public final class FileSettingsStore: SettingsStore {
 
     public func resolve(for book: Location) async -> ResolvedBookSettings {
         var resolved = settings.value().defaultBook
-        let matching = rules.value().enumerated().filter { book.hasPrefix($0.element.prefix) }
-            .sorted {
-                let left = $0.element.prefix.layers.reduce(0) { $0 + $1.count }
-                let right = $1.element.prefix.layers.reduce(0) { $0 + $1.count }
-                return (left, $0.offset) < (right, $1.offset)
-            }
-        for rule in matching { resolved = resolved.applying(rule.element.settings) }
+        for rule in PathRule.matching(rules.value(), for: book) { resolved = resolved.applying(rule.settings) }
         if let memory = state.withLock({ $0.memories[book] }) { resolved = resolved.applying(memory.settings) }
         return resolved
     }

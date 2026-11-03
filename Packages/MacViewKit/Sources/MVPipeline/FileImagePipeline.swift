@@ -62,6 +62,7 @@ public final class FileImagePipeline: ImagePipeline {
     private let decoder: ImageDecoder
     private let caches: PipelineCaches
     private let configuration: PipelineConfiguration
+    private let maxDecode: Mutex<Int>
     private let scheduler: IOScheduler?
     private let state = Mutex(State())
     private let lifetime = PipelineLifetime()
@@ -71,8 +72,13 @@ public final class FileImagePipeline: ImagePipeline {
         self.decoder = decoder
         self.caches = caches
         self.configuration = configuration
+        maxDecode = Mutex(configuration.maxDecodeLongSide)
         scheduler = (sources as? FileSourceRegistry)?.scheduler
     }
+
+    /// 解码上限，设置改变时热生效。
+    public var maxDecodeLongSide: Int { maxDecode.withLock { $0 } }
+    public func setMaxDecodeLongSide(_ value: Int) { maxDecode.withLock { $0 = value } }
 
     public func metadata(for identity: ContentIdentity, priority: IOPriority) async throws -> ImageMetadata {
         try await lifetime.value(priority: priority.taskPriority) { [self] in
@@ -382,7 +388,7 @@ public final class FileImagePipeline: ImagePipeline {
             // 在原始读取完成后才确定解码尺寸；读取期间进入的不同渲染件合并到同一最大尺寸。
             let bounds = state.withLock { $0.bundleBounds[key]! }
             let requiredSize = size.fitting(within: bounds)
-            if ImageDecoder.needsTiling(requiredSize, maxDecodeLongSide: configuration.maxDecodeLongSide) { throw MediaError.requiresTiling(size) }
+            if ImageDecoder.needsTiling(requiredSize, maxDecodeLongSide: maxDecodeLongSide) { throw MediaError.requiresTiling(size) }
             // 保留 ImageDecoder 的 DCT 缩小级别，目标滤镜和锐化只在各自最终缩放时应用。
             let ratio = min(Double(size.width) / Double(requiredSize.width), Double(size.height) / Double(requiredSize.height))
             var factor = 1
