@@ -245,17 +245,41 @@ import Testing
     try await eventuallyForCancellationResume("等待取消后保留前缀") {
         environment.caches.raw.value(for: identity.cacheKey)?.count == 4 << 20
     }
-    let prefix = try #require(environment.caches.raw.value(for: identity.cacheKey))
-    #expect(prefix.count == 4 << 20)
+    let retained = try #require(environment.caches.raw.value(for: identity.cacheKey))
+    #expect(retained.count == 4 << 20)
+    let returnedBefore = environment.registry.control.returnedReads.count
     await gate.release()
+    // 被挡住的读取返回后才插入缓存；成功时等到这次范围的上界，取消时当时的缓存就是前缀。
+    try await eventuallyForCancellationResume("等待被挡住的读取结束") {
+        environment.registry.control.returnedReads.count > returnedBefore
+    }
+    let returned = environment.registry.control.returnedReads[returnedBefore]
+    if returned.succeeded {
+        let upperBound = Int(returned.range.upperBound)
+        do {
+            try await eventuallyForCancellationResume("等待放行读取写入缓存") {
+                (environment.caches.raw.value(for: identity.cacheKey)?.count ?? 0) >= upperBound
+            }
+        } catch let CancellationResumeTestFailure.timedOut(message) {
+            let count = environment.caches.raw.value(for: identity.cacheKey)?.count ?? -1
+            let reads = environment.registry.control.reads.map { "\($0.range.lowerBound)..<\($0.range.upperBound)" }.joined(separator: ",")
+            throw CancellationResumeTestFailure.timedOut("\(message)；缓存长度 \(count)，读取 \(reads)")
+        }
+    }
+    let prefix = try #require(environment.caches.raw.value(for: identity.cacheKey))
     environment.registry.control.gate = nil
     let previous = environment.registry.control.reads.count
     environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [PrefetchItem(identity: identity, renditions: [], priority: .near)]), session: session)
     try await eventuallyForCancellationResume("等待续读开始") {
         environment.registry.control.reads.count > previous
     }
-    #expect(environment.registry.control.reads.dropFirst(previous).first?.range.lowerBound == Int64(prefix.count))
+    let resume = try #require(environment.registry.control.reads.dropFirst(previous).first).range.lowerBound
+    // 更大是跳过保留字节，更小是重读保留字节。
+    #expect(resume == Int64(prefix.count))
     try await eventuallyForCancellationResume("等待原始缓存完整") { environment.caches.raw.value(for: identity.cacheKey)?.count == Int(identity.size) }
+    let cached = try #require(environment.caches.raw.value(for: identity.cacheKey))
+    let source = try Data(contentsOf: environment.root.appendingPathComponent("large.jpg"))
+    #expect(cached == source)
     environment.pipeline.cancelAll(session: session)
 }
 
@@ -473,16 +497,19 @@ private actor ReadGate {
 
 private final class ReadControl: Sendable {
     struct Read: Sendable { var range: Range<Int64>; var priority: IOPriority }
+    struct ReturnedRead: Sendable { var range: Range<Int64>; var succeeded: Bool }
     struct State: Sendable {
         var opens = 0
         var reads: [Read] = []
         var gate: ReadGate?
         var fileURLs = 0
+        var returnedReads: [ReturnedRead] = []
     }
     private let state = Mutex(State())
     var opens: Int { state.withLock { $0.opens } }
     var reads: [Read] { state.withLock { $0.reads } }
     var fileURLs: Int { state.withLock { $0.fileURLs } }
+    var returnedReads: [ReturnedRead] { state.withLock { $0.returnedReads } }
     var gate: ReadGate? {
         get { state.withLock { $0.gate } }
         set { state.withLock { $0.gate = newValue } }
@@ -490,7 +517,10 @@ private final class ReadControl: Sendable {
     func opened() { state.withLock { $0.opens += 1 } }
     func fileURL() { state.withLock { $0.fileURLs += 1 } }
     func read(_ range: Range<Int64>, priority: IOPriority) { state.withLock { $0.reads.append(Read(range: range, priority: priority)) } }
-    func reset() { state.withLock { $0.opens = 0; $0.reads.removeAll(); $0.fileURLs = 0 } }
+    func didReturn(_ range: Range<Int64>, succeeded: Bool) {
+        state.withLock { $0.returnedReads.append(ReturnedRead(range: range, succeeded: succeeded)) }
+    }
+    func reset() { state.withLock { $0.opens = 0; $0.reads.removeAll(); $0.fileURLs = 0; $0.returnedReads.removeAll() } }
 }
 
 private final class CountingRegistry: SourceRegistry {
@@ -526,8 +556,16 @@ private struct CountingSource: ByteSource {
     func read(_ range: Range<Int64>, priority: IOPriority, group: IORequestGroup?) async throws -> Data {
         control.read(range, priority: priority)
         await control.gate?.wait()
-        try Task.checkCancellation()
-        return try await base.read(range, priority: priority, group: group)
+        do {
+            try Task.checkCancellation()
+            let data = try await base.read(range, priority: priority, group: group)
+            // 子任务已被取消时，调用方会在插入缓存前丢弃结果。
+            control.didReturn(range, succeeded: !Task.isCancelled)
+            return data
+        } catch {
+            control.didReturn(range, succeeded: false)
+            throw error
+        }
     }
 }
 
