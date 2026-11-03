@@ -212,8 +212,8 @@ struct OverrideField: Identifiable {
     }
 
     static let browseModes: [(String, BrowseMode)] = [
-        (String(localized: "分页"), .paged), (String(localized: "瀑布流"), .waterfall),
-        (String(localized: "纵向连续"), .verticalStrip), (String(localized: "横向连续"), .horizontalStrip),
+        (String(localized: "分页"), .paged), (String(localized: "瀑布"), .waterfall),
+        (String(localized: "竖条"), .verticalStrip), (String(localized: "横条"), .horizontalStrip),
     ]
     static let pageModes: [(String, PageMode)] = [(String(localized: "单页"), .single), (String(localized: "双页"), .double)]
     static let directions: [(String, ReadingDirection)] = [(String(localized: "左开"), .leftToRight), (String(localized: "右开"), .rightToLeft)]

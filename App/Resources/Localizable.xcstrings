@@ -61,12 +61,112 @@
         }
       }
     },
+    "%lld 层": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld level"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld levels"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld 帧": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld frame"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld frames"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld 本": {
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld books"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld book"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld books"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld 本书": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld book"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld books"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld 页": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld page"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld pages"
+                }
+              }
+            }
           }
         }
       }
@@ -74,9 +174,21 @@
     "%lld 页 · %@": {
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld pages · %@"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld page · %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld pages · %@"
+                }
+              }
+            }
           }
         },
         "zh-Hans": {
@@ -1089,16 +1201,6 @@
         }
       }
     },
-    "层": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "levels"
-          }
-        }
-      }
-    },
     "屏幕尺寸的图，再次打开时不必重读 NAS": {
       "localizations": {
         "en": {
@@ -1152,9 +1254,21 @@
     "已找到 %lld 页": {
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld pages found"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld page found"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld pages found"
+                }
+              }
+            }
           }
         }
       }
@@ -1175,16 +1289,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Selected"
-          }
-        }
-      }
-    },
-    "帧": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "frames"
           }
         }
       }
@@ -1913,16 +2017,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Last Page"
-          }
-        }
-      }
-    },
-    "本书": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "books"
           }
         }
       }
@@ -3075,16 +3169,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Panel Options"
-          }
-        }
-      }
-    },
-    "页": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "pages"
           }
         }
       }

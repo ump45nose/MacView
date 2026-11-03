@@ -15,7 +15,7 @@ final class ContinuousViewer: NSView {
     let canvas: CanvasView
     private let progress = PillLabel()
     private let scaleLabel = PillLabel()
-    private let pageLabel = NSTextField(labelWithString: "")
+    private let pageLabel = PillLabel()
     private let footer = StripFooterView()
     /// 正在定位到的页；定位期间不回报可见范围。
     private var targetPage: Int?
@@ -47,8 +47,6 @@ final class ContinuousViewer: NSView {
         canvas.arrowKeysMoveSelection = false
         canvas.translatesAutoresizingMaskIntoConstraints = false
         addSubview(canvas)
-        pageLabel.font = .monospacedSystemFont(ofSize: 11, weight: .semibold)
-        pageLabel.textColor = Theme.text2
         for view in [progress, scaleLabel, pageLabel] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
@@ -111,7 +109,8 @@ final class ContinuousViewer: NSView {
         scaleLabel.isHidden = settings.browseMode == .waterfall
         scaleLabel.text = settings.browseMode == .verticalStrip ? String(localized: "适合宽度") : String(localized: "适合高度")
         let page = min(knownPage ?? session.currentPage, max(current.pages.count - 1, 0))
-        pageLabel.stringValue = current.pages.isEmpty ? "" : "\(page + 1) / \(current.pages.count)"
+        pageLabel.text = current.pages.isEmpty ? "" : "\(page + 1) / \(current.pages.count)"
+        pageLabel.isHidden = current.pages.isEmpty
     }
 
     /// 离开连续模式：停掉请求。回来时重新定位。
@@ -179,7 +178,7 @@ final class ContinuousViewer: NSView {
         pinned = nil
         knownPage = visible.lowerBound
         session.visibleRangeChanged(visible)
-        if let count = session.book?.pages.count { pageLabel.stringValue = "\(visible.lowerBound + 1) / \(count)" }
+        if let count = session.book?.pages.count { pageLabel.text = "\(visible.lowerBound + 1) / \(count)" }
     }
 
     private func activate(_ index: Int) {

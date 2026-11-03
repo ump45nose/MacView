@@ -93,7 +93,7 @@ final class ReaderContentView: NSView {
 
     private func updateDropBorder() {
         layer?.borderWidth = isDropTarget ? 2 : 0
-        layer?.borderColor = NSColor.controlAccentColor.cgColor
+        layer?.borderColor = Theme.accent.cgColor
     }
 
     /// 卷状态条，窗口控制器按当前书所在的卷更新。

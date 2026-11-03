@@ -277,6 +277,7 @@ private final class CollectionPanelView: NSView {
         slider.minValue = PanelExtent.range.lowerBound
         slider.maxValue = PanelExtent.range.upperBound
         slider.controlSize = .small
+        slider.trackFillColor = Theme.accent
         slider.isContinuous = true
         slider.target = self
         slider.action = #selector(sliderChanged(_:))

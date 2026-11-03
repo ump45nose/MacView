@@ -78,6 +78,36 @@ private func book<Value>(_ model: SettingsModel, _ path: WritableKeyPath<Resolve
     )
 }
 
+/// 全局默认的浏览方式：分页的单页、双页和三种连续方式，与工具栏一致。
+struct BrowseChoice: Hashable {
+    var browseMode: BrowseMode
+    var pageMode: PageMode?
+
+    static let options: [(String, BrowseChoice)] = [
+        (String(localized: "单页"), BrowseChoice(browseMode: .paged, pageMode: .single)),
+        (String(localized: "双页"), BrowseChoice(browseMode: .paged, pageMode: .double)),
+        (String(localized: "瀑布"), BrowseChoice(browseMode: .waterfall)),
+        (String(localized: "竖条"), BrowseChoice(browseMode: .verticalStrip)),
+        (String(localized: "横条"), BrowseChoice(browseMode: .horizontalStrip)),
+    ]
+}
+
+@MainActor
+func browseChoice(_ model: SettingsModel) -> Binding<BrowseChoice> {
+    Binding(
+        get: {
+            let book = model.global.defaultBook
+            return BrowseChoice(browseMode: book.browseMode, pageMode: book.browseMode == .paged ? book.pageMode : nil)
+        },
+        set: { choice in
+            model.updateGlobal {
+                $0.defaultBook.browseMode = choice.browseMode
+                if let pageMode = choice.pageMode { $0.defaultBook.pageMode = pageMode }
+            }
+        }
+    )
+}
+
 @MainActor
 private func global<Value>(_ model: SettingsModel, _ path: WritableKeyPath<GlobalSettings, Value>) -> Binding<Value> {
     Binding(
@@ -98,11 +128,14 @@ struct BrowseSettingsPage: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Color(nsColor: Theme.text2))
                     Spacer()
-                    Button("编辑路径规则", action: onEditRules).controlSize(.small)
+                    Button(action: onEditRules) { Text("编辑路径规则").underline() }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(nsColor: Theme.text))
                 }
-                SettingsSection(title: String(localized: "浏览方式")) {
+                SettingsCard {
                     SettingsRow(title: String(localized: "浏览方式")) {
-                        SettingsSegments(label: String(localized: "浏览方式"), options: OverrideField.browseModes, selection: book(model, \.browseMode))
+                        SettingsSegments(label: String(localized: "浏览方式"), options: BrowseChoice.options, selection: browseChoice(model))
                     }
                 }
                 SettingsSection(title: String(localized: "页面排序")) {
@@ -124,7 +157,7 @@ struct BrowseSettingsPage: View {
                     }
                     SettingsDivider()
                     SettingsRow(title: String(localized: "展开深度")) {
-                        SettingsStepper(suffix: String(localized: "层"), range: 1...16, value: book(model, \.recursion.maxDepth))
+                        SettingsStepper(format: { String(localized: "\($0) 层") }, range: 1...16, value: book(model, \.recursion.maxDepth))
                             .disabled(!model.global.defaultBook.recursion.enabled)
                     }
                 }
@@ -288,11 +321,11 @@ struct CacheSettingsPage: View {
                     .padding(.horizontal, 12)
                 SettingsSection(title: String(localized: "预取与预生成")) {
                     SettingsRow(title: String(localized: "预解码"), detail: String(localized: "查看器当前页帧的前后")) {
-                        SettingsStepper(prefix: String(localized: "前后各"), suffix: String(localized: "帧"), range: 0...8, value: global(model, \.prefetch.viewerDecodeFrames))
+                        SettingsStepper(prefix: String(localized: "前后各"), format: { String(localized: "\($0) 帧") }, range: 0...8, value: global(model, \.prefetch.viewerDecodeFrames))
                     }
                     SettingsDivider()
                     SettingsRow(title: String(localized: "预读原始数据"), detail: String(localized: "预解码范围之外，沿阅读方向继续读取文件")) {
-                        SettingsStepper(prefix: String(localized: "再读"), suffix: String(localized: "页"), range: 0...32, value: global(model, \.prefetch.viewerReadAheadPages))
+                        SettingsStepper(prefix: String(localized: "再读"), format: { String(localized: "\($0) 页") }, range: 0...32, value: global(model, \.prefetch.viewerReadAheadPages))
                     }
                     SettingsDivider()
                     SettingsRow(title: String(localized: "当前书的全部页面（可见区域优先）"), detail: String(localized: "在后台生成，存入磁盘缓存")) {
@@ -300,7 +333,7 @@ struct CacheSettingsPage: View {
                     }
                     SettingsDivider()
                     SettingsRow(title: String(localized: "预生成书架上后面的书")) {
-                        SettingsStepper(prefix: String(localized: "书架上后"), suffix: String(localized: "本书"), range: 0...8, value: global(model, \.prefetch.neighborBooks))
+                        SettingsStepper(prefix: String(localized: "书架上后"), format: { String(localized: "\($0) 本书") }, range: 0...8, value: global(model, \.prefetch.neighborBooks))
                     }
                     SettingsDivider()
                     SettingsRow(title: String(localized: "当前目录各书的封面")) {
