@@ -107,6 +107,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window.minSize = NSSize(width: 480, height: 320)
         // 窗口由控制器持有，关闭时不能再让 AppKit 释放一次。
         window.isReleasedWhenClosed = false
+        // 恢复由 SessionStore 负责，不用系统的窗口恢复。
+        window.isRestorable = false
         window.tabbingIdentifier = Self.tabbingIdentifier
         window.tabbingMode = .preferred
         window.backgroundColor = Theme.ground
@@ -481,7 +483,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     /// 瀑布流工具项的排序菜单：第一项是按钮的标题。
     private func viewerSortMenu() -> NSMenu {
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem())
         for (id, _) in Self.sortCommands {
             let item = NSMenuItem(title: catalog.title(of: id), action: #selector(sortPicked(_:)), keyEquivalent: "")
             item.target = self

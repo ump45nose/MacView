@@ -111,7 +111,7 @@ struct SettingsStepper: View {
     var body: some View {
         HStack(spacing: 6) {
             if let prefix { Text(prefix) }
-            Text("\(value)")
+            Text(verbatim: "\(value)")
                 .font(.system(size: 12).monospacedDigit())
                 .frame(minWidth: 18, alignment: .trailing)
             Text(suffix)

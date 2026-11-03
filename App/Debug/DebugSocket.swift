@@ -11,7 +11,7 @@ import os
 
 /// 调试命令接口：`-MVDebugSocket <路径>` 开启的 Unix 域套接字，一行一个 JSON。
 ///
-/// 协议见 docs/architecture.md §3.10。阻塞的 accept 和 read 在一条专用线程上，命令在主线程执行，一次处理一条。
+/// 协议见 docs/architecture.md §3.8。阻塞的 accept 和 read 在一条专用线程上，命令在主线程执行，一次处理一条。
 final class DebugSocket: Sendable {
     private let path: String
     private let commands: DebugCommands

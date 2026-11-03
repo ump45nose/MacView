@@ -54,6 +54,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        // 自检截图用：`-MVAppearance dark` 或 `light`。
+        if let name = UserDefaults.standard.string(forKey: "MVAppearance") {
+            NSApp.appearance = NSAppearance(named: name == "dark" ? .darkAqua : .aqua)
+        }
+        #endif
         installMenu()
     }
 

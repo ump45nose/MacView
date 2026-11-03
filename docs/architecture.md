@@ -244,7 +244,15 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 窗口：
   - 每个窗口或标签一个 `ReaderWindowController`，持有自己的 ReaderSession 和停靠布局。
   - `tabbingMode = .preferred`。
-  - 用 NSWindowRestoration 恢复窗口、书和页（S2-F3）。
+  - 恢复：`SessionStore` 写 `session.json`（带版本号，原子写入，去抖 500 ms），按窗口存 frame、选中的标签和各标签的书、停靠布局、瀑布流尺寸。页码来自书记忆，关窗和退出前 `flush`。窗口的 `isRestorable` 不用系统恢复。
+    - 启动时恢复；同时有要打开的 URL 时，恢复后另开标签。Mock 和其他自检不读不写。
+    - 书不在时窗口仍恢复，`session.book` 保留位置，显示错误和重试或连接；书记忆不被覆盖。
+    - 文件解析失败时开一个空窗口并显示错误条，不覆盖坏文件，直到用户修好或关掉错误条。
+    - 同一本书开在两个标签时，两者共用一份书记忆，恢复到最后保存的页。全屏不进会话，恢复成全屏前的 frame。
+- 状态与错误：
+  - `VolumeStatusView` 显示当前书所在卷的 degraded 和 unavailable，状态栏同时显示一行；书整本打不开时由查看器的提示显示，不重复。探测成功后自动重试失败项。
+  - 配置错误按文件各一条（`settings.json`、`path-rules.json`、`keybindings.json`、`session.json`、`state.sqlite`），修好后消失。`layout.json` 的错误由停靠框架显示。
+- `NSApp.terminate` 不能在主队列的块或主 actor 任务里直接调用：`terminateLater` 的嵌套循环排不空主队列，退出流程的主线程任务永远跑不了。用 `perform(_:with:afterDelay:)`。
 - 菜单与快捷键：
   - 菜单由命令清单生成。global 作用域的绑定是真正的菜单快捷键，焦点在文本框里或没有窗口时也可用。
   - 其余作用域的绑定只在菜单打开时（`menuWillOpen`）写到菜单项上，关闭后清除，按键一律经 InputRouter 路由。
@@ -261,7 +269,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     - 面板在区、窗口、停靠与浮动之间移动时，保留同一实例与视图设置。
     - 只有在 `DockSplitView.mouseDown` 跟踪分隔线期间，尺寸变化才算用户拖动。不能看 `NSApp.currentEvent`：点工具栏后分栏自己调整时，当前事件也是本窗口的鼠标事件，曾把宽度 0 写进布局（S1 手动验收）。读取尺寸时不低于最小值，已保存的 0 能自愈。
     - 浮动面板用 `hidesOnDeactivate`（App 失去焦点时隐藏）和 `fullScreenAuxiliary`（可以浮在全屏窗口之上）。
-    - 占位面板沿用正式标识 `bookshelf`、`pageList`，S2-F2 只替换面板类型，`layout.json` 和快捷键不变。
+    - 书架和页面列表是 `CollectionPanel` 的两个子类。面板的样式、尺寸和排序存在 `layout.json` 的面板设置里；区头的 ⋯ 菜单由面板和停靠区共同填充。
 - 画布引擎：
   - 基于 NSScrollView，利用它原生的滚动、惯性和捏合缩放。内容是图层池，不为每一项建一个 NSView。
   - LayoutModel 有砌体、网格、纵向条、横向条四种，布局变化时保持可见锚点。
@@ -284,6 +292,24 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 分页渲染器负责页帧图层、缩放模式计算、设备像素 1:1、放大镜、翻页时保持缩放与位置，以及以光标为中心缩放。
   - 缩放手势结束后，按新的设备像素尺寸重新请求图像；超过上限时请求原图或分块。
   - 视频用 AVPlayerLayer，每个窗口只有一个活动的播放器。
+  - 图层用点，`ViewerTransform` 和 `PageFrameFit` 用设备像素；`decodeSize` 是向管线请求的尺寸（半页时是整页），`pixelSize` 是在视口中占的尺寸。
+  - 连续和瀑布模式包 `CanvasView`，分页和连续之间切换时保持当前页。瀑布流尺寸按窗口保存在 `session.json`。
+  - `CanvasView` 在 Debug 构建开了 `-MVViewerSelfTest` 或 `-MVDebugSocket` 时关掉响应式滚动，否则收不到合成事件；帧时间验收要看这一点。
+- 调试接口（`App/Debug/DebugSocket.swift`，只在 Debug 构建编译，只在传 `-MVDebugSocket <路径>` 时开启，权限 0600）：
+  - Unix 域套接字，一行一个 JSON。请求 `{"id":1,"command":"state","args":{}}`，响应 `{"id":1,"ok":true,"result":{…}}` 或 `{"id":1,"ok":false,"error":"…"}`。一次一个连接，命令按顺序在主线程执行。路径不能超过 103 字节，太长时用相对路径。
+
+    | 命令 | 参数 | 结果 |
+    |---|---|---|
+    | `perform` | `command`（CommandID）、`arguments?` | 经 `CommandRegistry` 在前台窗口执行 |
+    | `open` | `path`、`page?`（从 0 开始） | 打开完成后返回窗口状态；打不开时 `ok: false` |
+    | `resize` | `width`、`height`（点，内容区） | 调整前台窗口，返回窗口状态 |
+    | `scroll` | `dx`、`dy`（点，负的 `dy` 向下）、`steps`、`intervalMs` | 按 began、changed、ended 生成滚轮事件，经 `NSApp.sendEvent` 发到查看器中央，全部发完后返回 |
+    | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes` |
+    | `quit` | — | 正常退出流程 |
+
+  - `windows[]`：`book`、`page`、`frame`、`frameCount`、`browseMode`、`scaleMode`、`zoom`、`viewport`（点）、`visibleRange`（`[起, 止)`，分页模式是当前页帧）、`loadError`、`lastDisplay`（`{page, quality, milliseconds}`，从翻页调用到目标质量图设到图层的用时，只有分页模式）。
+  - 合成滚动和屏幕状态有关：屏幕锁定时事件不生效。
+- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。
 - 观测：用 os_signpost 标记帧时间和请求延迟，用 Instruments 的 Animation Hitches 验收。
 
 ### 3.9 P1 扩展点（P0 只体现在接口形状上）
@@ -323,12 +349,13 @@ public protocol ByteSource: Sendable {
     var identity: ContentIdentity { get }
     func read(_ range: Range<Int64>, priority: IOPriority, group: IORequestGroup?) async throws -> Data
 }
+public struct FileLease: Sendable { public let url: URL; public init(url: URL, holder: (any Sendable)? = nil) }
 public protocol ContainerProvider: Sendable {
     func canHandle(_ location: Location) -> Bool
     func children(of container: Location, priority: IOPriority) -> AsyncThrowingStream<[Entry], any Error>   // 分批返回
     func entry(at location: Location) async throws -> Entry
     func open(_ location: Location) async throws -> any ByteSource
-    func fileURL(for location: Location) async throws -> URL   // 压缩包内的条目解出到 extract/
+    func fileLease(for location: Location) async throws -> FileLease   // 压缩包内的条目解出到 extract/，持有者释放后才可以淘汰
 }
 public enum VolumeState: Sendable, Equatable { case healthy, degraded(String), unavailable }
 public struct VolumeHealth: Sendable { public var root: Location.Root; public var state: VolumeState; public var inFlight: Int; public var stuck: Int }
@@ -356,7 +383,7 @@ public final class ByteSourceAsset: Sendable { public let asset: AVURLAsset; pub
 public final class ArchiveProvider: ContainerProvider {
     public init(fileSystem: FileSystemProvider, extractDirectory: URL, extractBudget: Int64 = 10 << 30) throws
 }   // 启动清空 extractDirectory；认领压缩包与多层位置，不持有 registry。压缩包自身的 entry/open/fileURL 交给所在层，children 列出包内条目
-// fileURL 最近一次返回的临时路径保留到下一次 fileURL 交付或 provider 释放；ByteSource 存活期间保留对应解出文件
+// fileLease 的文件保留到租约释放；ByteSource 存活期间保留对应解出文件
 
 // MVCache：键由调用方用 ContentIdentity.cacheKey 生成；本模块不决定预取策略
 public final class MemoryCache<Key: Hashable & Sendable, Value: Sendable>: Sendable {
@@ -448,6 +475,11 @@ public final class FileImagePipeline: ImagePipeline {
     public func shutdown() async   // 停止接收新工作，新请求抛 CancellationError；取消并排空读取、解码和缓存写入，包括独立衍生件任务
 }
 
+extension FileImagePipeline {
+    public var maxDecodeLongSide: Int { get }
+    public func setMaxDecodeLongSide(_ value: Int)   // 由 MVServices 在全局设置变化时调用
+}
+
 // MVSettings
 public enum BrowseMode: String, Codable, Sendable { case paged, waterfall, verticalStrip, horizontalStrip }
 public enum PageMode: String, Codable, Sendable { case single, double }
@@ -465,6 +497,7 @@ public struct BookSettings: Codable, Sendable, Hashable {   // 每层只写自�
 }   // “仅缩小不放大” = 适合类缩放模式 + allowUpscale=false
 public struct ResolvedBookSettings: Codable, Sendable, Hashable { /* 与 BookSettings 字段相同，全部非可选 */ }
 public struct GlobalSettings: Codable, Sendable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int }   // CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
+extension PathRule { public static func matching(_ rules: [PathRule], for book: Location) -> [PathRule] }   // 越具体越靠后，相同时按原顺序；解析和设置窗口共用
 public struct PathRule: Codable, Sendable { public var id: UUID; public var name: String; public var prefix: Location; public var settings: BookSettings }
 public struct BookMemory: Codable, Sendable { public var book: Location; public var settings: BookSettings; public var lastPage: Location?; public var lastPageIndex: Int?; public var openedAt: Date }
 public enum SettingsChange: Sendable, Equatable { case global, pathRules, fileError(file: String, message: String) }
@@ -547,12 +580,16 @@ public struct PageFrameElement: Sendable, Hashable { public var page: Int; publi
 public struct PageFrame: Sendable, Hashable { public var elements: [PageFrameElement]; public init(elements: [PageFrameElement]) }   // 元素按画面从左到右，页帧序列按阅读顺序
 public struct PageLayout: Sendable, Hashable { public var pageMode: PageMode; public var direction: ReadingDirection; public var firstPageSingle: Bool; public var widePage: WidePagePolicy; public init(pageMode: PageMode, direction: ReadingDirection, firstPageSingle: Bool, widePage: WidePagePolicy) }
 public enum PageFrameEngine { public static func frames(aspectRatios: [Double?], layout: PageLayout) -> [PageFrame] }
-public struct FittedPage: Sendable, Hashable { public var element: PageFrameElement; public var pixelSize: PixelSize; public init(element: PageFrameElement, pixelSize: PixelSize) }
+public struct FittedPage: Sendable, Hashable {
+    public var element: PageFrameElement
+    public var pixelSize: PixelSize     // 在视口中占的设备像素
+    public var decodeSize: PixelSize    // 向管线请求的尺寸；半页时是整页尺寸，宽高比与源一致
+}
 public struct PageFrameFit: Sendable, Hashable {   // 查看器与预解码共用；元素顺序与 frame.elements 相同
     public var pages: [FittedPage]
     public var size: PixelSize
     public init(pages: [FittedPage], size: PixelSize)
-    public static func fit(frame: PageFrame, pages: [Page], viewport: PixelSize, settings: ResolvedBookSettings) -> PageFrameFit
+    public static func fit(frame: PageFrame, pages: [Page], viewport: PixelSize, backingScale: Double, settings: ResolvedBookSettings) -> PageFrameFit
     public func displayTargets(settings: ResolvedBookSettings, maxDecodeLongSide: Int) -> [(element: PageFrameElement, target: DisplayTarget)]
 }
 public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextPage, previousPage, first, last, index(Int) }
@@ -566,11 +603,17 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async   // sort 是书架面板当前的排序，与书内页面的排序无关
     public func update(_ change: (inout BookSettings) -> Void)   // 写入书层，去抖后持久化
     public func visibleRangeChanged(_ pages: Range<Int>)        // 连续和瀑布模式由前端回报
-    public func viewportChanged(_ pixels: PixelSize)           // 设备像素；未回报前不预解码
+    public func viewportChanged(_ pixels: PixelSize, backingScale: Double)   // 设备像素；未回报前不预解码
+    public var currentPage: Int { get }   // 分页模式下是当前页帧中阅读顺序靠前的一页，连续和瀑布模式下是回报的当前页
+    public var maxDecodeLongSide: Int { get }   // 查看器和预解码用同一个值，设置改变时热生效并通知观察者
+    public var neighborSort: SortSpec { get }   // 切相邻书用的排序
+    public private(set) var lastMoveAt: ContinuousClock.Instant?   // 最近一次 go 的时刻，统计翻页到上屏的用时
     public func shelfSortChanged(_ sort: SortSpec)             // 书架面板的排序；未回报前不预取相邻书和封面
     public func flush() async   // 立即把最新书记忆快照写入 SettingsStore；数据库落盘由组合根负责
 }
 // 分页模式在视口回报后，对当前帧前后各 viewerDecodeFrames 个页帧（不含当前帧）按 PageFrameFit.displayTargets 预解码；连续模式仍按可见范围。相邻书与封面在排序回报后以 .adjacent 合进同一份计划。
+
+public enum ReadingOrder { public static func sorted(_ entries: [Entry], by sort: SortSpec) -> [Entry] }   // 书架和页面列表面板自己的排序用它
 
 // MVServices
 public struct CoreConfiguration: Sendable {
@@ -591,6 +634,13 @@ public struct CoreConfiguration: Sendable {
 // MVTestSupport：extension CoreServices { static func makeMock(_ options: MockOptions = MockOptions()) -> CoreServices }
 
 // MVLayout：App 侧的纯计算，不依赖 AppKit
+public struct ViewerTransform: Sendable, Hashable {
+    public var zoom: Double      // 相对 PageFrameFit 的倍数
+    public var offset: CGPoint   // 页帧中心相对视口中心，设备像素
+    public func zoomed(by factor: Double, around point: CGPoint, frame: CGSize, viewport: CGSize) -> ViewerTransform   // 光标处的内容不动
+    public func panned(by delta: CGPoint, frame: CGSize, viewport: CGSize) -> ViewerTransform
+    public func clamped(frame: CGSize, viewport: CGSize) -> ViewerTransform   // 小于视口时居中，大于视口时不留空
+}
 public enum CollectionLayoutKind: String, Codable, Sendable, CaseIterable { case masonry, grid, verticalStrip, horizontalStrip; public var isHorizontal: Bool { get } }
 public enum LayoutMove: Sendable { case up, down, left, right }
 public struct LayoutAnchor: Sendable, Hashable { public var index: Int; public var offset: Double; public var extent: Double; public init(index: Int, offset: Double, extent: Double) }

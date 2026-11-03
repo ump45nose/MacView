@@ -1,12 +1,98 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
-    "keybindings.json 无法解析，保留上次的按键绑定": {
+    "%@ · 响应缓慢 · 正在探测": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Couldn’t read keybindings.json; keeping the last keyboard bindings"
+            "value": "%@ · Slow to respond · Probing"
+          }
+        }
+      }
+    },
+    "%@ · 完": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · End"
+          }
+        }
+      }
+    },
+    "%@ · 无法访问": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · Unavailable"
+          }
+        }
+      }
+    },
+    "%@ 响应缓慢": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is slow to respond"
+          }
+        }
+      }
+    },
+    "%@ 无法解析，这次没有恢复窗口": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t read %@. Windows weren’t restored this time"
+          }
+        }
+      }
+    },
+    "%@ 有错误，继续使用可用的配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ has errors. Using the settings that still work"
+          }
+        }
+      }
+    },
+    "%lld 本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld books"
+          }
+        }
+      }
+    },
+    "%lld 页 · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld pages · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld 页 · %2$@"
+          }
+        }
+      }
+    },
+    "%lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld items"
           }
         }
       }
@@ -17,6 +103,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mock Services"
+          }
+        }
+      }
+    },
+    "NAS 没有响应，或者共享已断开。已缓存的缩略图仍可浏览。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The NAS isn’t responding, or the share was disconnected. Cached thumbnails are still available."
           }
         }
       }
@@ -51,6 +147,26 @@
         }
       }
     },
+    "。已改动，下次启动时生效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ". Changed; takes effect at next launch"
+          }
+        }
+      }
+    },
+    "。开关在下次启动时生效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ". The switch takes effect at next launch"
+          }
+        }
+      }
+    },
     "上一帧": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -71,6 +187,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Previous Book"
+          }
+        }
+      }
+    },
+    "上一级目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enclosing Folder"
           }
         }
       }
@@ -111,6 +237,16 @@
         }
       }
     },
+    "下一本：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next: %@"
+          }
+        }
+      }
+    },
     "下一页": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -129,6 +265,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "“%@” isn’t supported"
+          }
+        }
+      }
+    },
+    "与文件混排": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mixed with Files"
+          }
+        }
+      }
+    },
+    "为一个文件夹里的所有书设默认值。多条规则同时匹配时，路径越具体越优先；书自己的设置仍优先于规则。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set defaults for all books in a folder. When several rules match, the most specific path wins; a book’s own settings still take priority."
           }
         }
       }
@@ -165,12 +321,92 @@
         }
       }
     },
-    "作用于：%@": {
+    "书架、页面列表和瀑布流使用": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Applies to: %@"
+            "value": "Used by the bookshelf, page list and waterfall"
+          }
+        }
+      }
+    },
+    "书架上后": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next"
+          }
+        }
+      }
+    },
+    "仅缩小": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shrink Only"
+          }
+        }
+      }
+    },
+    "仅缩小不放大": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shrink Only"
+          }
+        }
+      }
+    },
+    "仅缩小，不放大": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shrink only, don’t enlarge"
+          }
+        }
+      }
+    },
+    "从右到左": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right to Left"
+          }
+        }
+      }
+    },
+    "从左到右": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left to Right"
+          }
+        }
+      }
+    },
+    "保持缩放": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Zoom"
+          }
+        }
+      }
+    },
+    "修改时间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date Modified"
           }
         }
       }
@@ -237,6 +473,26 @@
         }
       }
     },
+    "全局：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Global: %@"
+          }
+        }
+      }
+    },
+    "全屏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full Screen"
+          }
+        }
+      }
+    },
     "全选": {
       "localizations": {
         "en": {
@@ -253,6 +509,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show All"
+          }
+        }
+      }
+    },
+    "关": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
           }
         }
       }
@@ -283,6 +549,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dismiss"
+          }
+        }
+      }
+    },
+    "关闭时，每个子文件夹作为下一本书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When off, each subfolder is the next book"
+          }
+        }
+      }
+    },
+    "内存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memory"
+          }
+        }
+      }
+    },
+    "再读": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read"
           }
         }
       }
@@ -345,6 +641,36 @@
         }
       }
     },
+    "创建时间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date Created"
+          }
+        }
+      }
+    },
+    "删除所选规则": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Selected Rule"
+          }
+        }
+      }
+    },
+    "前后各": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each side:"
+          }
+        }
+      }
+    },
     "前置全部窗口": {
       "localizations": {
         "en": {
@@ -377,12 +703,112 @@
         }
       }
     },
-    "占位面板，S2-F2 接入正式内容": {
+    "单双页": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Placeholder panel; real content arrives in S2-F2"
+            "value": "Page Layout"
+          }
+        }
+      }
+    },
+    "单独": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alone"
+          }
+        }
+      }
+    },
+    "单独成帧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alone"
+          }
+        }
+      }
+    },
+    "单页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Single"
+          }
+        }
+      }
+    },
+    "原始尺寸": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actual Size"
+          }
+        }
+      }
+    },
+    "原始数据": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raw Data"
+          }
+        }
+      }
+    },
+    "原始数据内存上限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raw data memory limit"
+          }
+        }
+      }
+    },
+    "原样": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As Is"
+          }
+        }
+      }
+    },
+    "双页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double"
+          }
+        }
+      }
+    },
+    "取消": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+    "只含一个子文件夹、没有图片的目录会自动进入下一层。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A folder with only one subfolder and no images is entered automatically."
           }
         }
       }
@@ -393,6 +819,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Right Dock"
+          }
+        }
+      }
+    },
+    "右开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right"
+          }
+        }
+      }
+    },
+    "右开：从右往左翻页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right: pages turn from right to left"
+          }
+        }
+      }
+    },
+    "名称": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
+          }
+        }
+      }
+    },
+    "固定比例": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed Scale"
+          }
+        }
+      }
+    },
+    "固定百分比": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed Percentage"
           }
         }
       }
@@ -409,6 +885,16 @@
         }
       }
     },
+    "图片太大，无法整张解码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The image is too large to decode whole"
+          }
+        }
+      }
+    },
     "在书架中显示当前书": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -417,6 +903,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reveal Current Book in Bookshelf"
+          }
+        }
+      }
+    },
+    "在后台生成，存入磁盘缓存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generated in the background and stored in the disk cache"
+          }
+        }
+      }
+    },
+    "在访达中显示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Finder"
           }
         }
       }
@@ -433,6 +939,46 @@
         }
       }
     },
+    "大图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Large Images"
+          }
+        }
+      }
+    },
+    "大小": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Size"
+          }
+        }
+      }
+    },
+    "好": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "子文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subfolders"
+          }
+        }
+      }
+    },
     "实际像素": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -441,6 +987,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Actual Size"
+          }
+        }
+      }
+    },
+    "宽大于高的页面：照常配对、单独成帧或拆成两页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pages wider than tall: pair as usual, show alone, or split in two"
+          }
+        }
+      }
+    },
+    "宽页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wide Pages"
           }
         }
       }
@@ -493,6 +1059,16 @@
         }
       }
     },
+    "封面单独占一帧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The cover gets its own frame"
+          }
+        }
+      }
+    },
     "尚未接入真实服务，书和图片来自内存中的模拟目录（/Volumes/Mock）。": {
       "localizations": {
         "en": {
@@ -503,12 +1079,62 @@
         }
       }
     },
+    "尺寸": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimensions"
+          }
+        }
+      }
+    },
+    "层": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "levels"
+          }
+        }
+      }
+    },
+    "屏幕尺寸的图，再次打开时不必重读 NAS": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screen-sized images, so reopening doesn’t read the NAS again"
+          }
+        }
+      }
+    },
+    "展开深度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depth"
+          }
+        }
+      }
+    },
     "左侧停靠区": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Left Dock"
+          }
+        }
+      }
+    },
+    "左开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left"
           }
         }
       }
@@ -543,6 +1169,26 @@
         }
       }
     },
+    "已选中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected"
+          }
+        }
+      }
+    },
+    "帧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "frames"
+          }
+        }
+      }
+    },
     "底部停靠区": {
       "localizations": {
         "en": {
@@ -553,12 +1199,42 @@
         }
       }
     },
+    "开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        }
+      }
+    },
+    "当前书的全部页面（可见区域优先）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All pages of the current book (visible first)"
+          }
+        }
+      }
+    },
     "当前使用 Mock 服务，只能打开 /Volumes/Mock 下的模拟目录。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Mock services are in use. Only locations under /Volumes/Mock can be opened."
+          }
+        }
+      }
+    },
+    "当前目录各书的封面": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Covers of books in the current folder"
           }
         }
       }
@@ -645,6 +1321,26 @@
         }
       }
     },
+    "拆分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Split"
+          }
+        }
+      }
+    },
+    "拆成两页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Split"
+          }
+        }
+      }
+    },
     "拷贝": {
       "localizations": {
         "en": {
@@ -703,6 +1399,16 @@
         }
       }
     },
+    "按屏幕所需尺寸解码，长边不超过此值；放大超过时改用原图，超大图分块显示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Images decode at the size the screen needs, up to this long edge. Beyond it the original is used, and very large images show in tiles"
+          }
+        }
+      }
+    },
     "按类型排序": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -711,6 +1417,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sort by Kind"
+          }
+        }
+      }
+    },
+    "换页后沿用当前的缩放比例和滚动位置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep the current zoom and scroll position after turning the page"
           }
         }
       }
@@ -727,12 +1443,32 @@
         }
       }
     },
+    "排序依据": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sort By"
+          }
+        }
+      }
+    },
     "撤销": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Undo"
+          }
+        }
+      }
+    },
+    "播放": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play"
           }
         }
       }
@@ -811,6 +1547,16 @@
         }
       }
     },
+    "数字按大小，中文按拼音": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Numbers by value, Chinese by pinyin"
+          }
+        }
+      }
+    },
     "文件": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -823,6 +1569,16 @@
         }
       }
     },
+    "文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder"
+          }
+        }
+      }
+    },
     "文件夹在前": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -831,6 +1587,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Folders First"
+          }
+        }
+      }
+    },
+    "文档版本 %lld 高于支持的版本 %lld": {
+      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Document version %1$lld is newer than the supported version %2$lld"
           }
         }
       }
@@ -855,6 +1623,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "New Window"
+          }
+        }
+      }
+    },
+    "新打开的书使用这些默认值。书的设置优先于路径规则，路径规则优先于这里。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Newly opened books use these defaults. A book’s settings override path rules, and path rules override these."
+          }
+        }
+      }
+    },
+    "新的读取已暂停，正在探测连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New reads are paused while the connection is probed"
           }
         }
       }
@@ -919,6 +1707,46 @@
         }
       }
     },
+    "无法播放：视频编码不受支持": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t play: unsupported video codec"
+          }
+        }
+      }
+    },
+    "无法解码：文件已损坏或格式不受支持": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t decode: the file is damaged or the format isn’t supported"
+          }
+        }
+      }
+    },
+    "无法访问": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        }
+      }
+    },
+    "无法访问 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t reach %@"
+          }
+        }
+      }
+    },
     "显示": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -927,6 +1755,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "View"
+          }
+        }
+      }
+    },
+    "显示尺寸图和原图；默认取 2 GB 与内存的 10% 中较小者": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display-sized and original images; defaults to the smaller of 2 GB and 10% of memory"
           }
         }
       }
@@ -1017,12 +1855,42 @@
         }
       }
     },
+    "暂停": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
+          }
+        }
+      }
+    },
     "最小化": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Minimize"
+          }
+        }
+      }
+    },
+    "最近读取的文件内容，换尺寸重新解码时不必再读 NAS": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recently read file data, so decoding at a new size doesn’t read the NAS again"
+          }
+        }
+      }
+    },
+    "最近邻": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nearest Neighbor"
           }
         }
       }
@@ -1049,6 +1917,36 @@
         }
       }
     },
+    "本书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "books"
+          }
+        }
+      }
+    },
+    "本机": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac"
+          }
+        }
+      }
+    },
+    "查看器当前页帧的前后": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before and after the current frame in the viewer"
+          }
+        }
+      }
+    },
     "横向连续": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1057,6 +1955,32 @@
           "stringUnit": {
             "state": "translated",
             "value": "Horizontal Strip"
+          }
+        }
+      }
+    },
+    "横条": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Horizontal"
+          }
+        }
+      }
+    },
+    "正在定位到第 %lld 页 · 已读取 %lld / %lld 页的尺寸": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locating page %lld · Read the size of %lld of %lld pages"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "正在定位到第 %1$lld 页 · 已读取 %2$lld / %3$lld 页的尺寸"
           }
         }
       }
@@ -1071,12 +1995,72 @@
         }
       }
     },
-    "没有活动窗口": {
+    "没有列出的项沿用上一层": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No active window"
+            "value": "Items not listed follow the level above"
+          }
+        }
+      }
+    },
+    "没有打开的书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Book Open"
+          }
+        }
+      }
+    },
+    "没有覆盖项。这条规则下的书沿用上一层的设置。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No overrides. Books under this rule follow the level above."
+          }
+        }
+      }
+    },
+    "浏览": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse"
+          }
+        }
+      }
+    },
+    "浏览图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse Images"
+          }
+        }
+      }
+    },
+    "浏览图缓存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse image cache"
+          }
+        }
+      }
+    },
+    "浏览图缓存上限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse image cache limit"
           }
         }
       }
@@ -1103,6 +2087,36 @@
         }
       }
     },
+    "添加覆盖项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Override"
+          }
+        }
+      }
+    },
+    "添加规则": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Rule"
+          }
+        }
+      }
+    },
+    "瀑布": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waterfall"
+          }
+        }
+      }
+    },
     "瀑布流": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1115,12 +2129,42 @@
         }
       }
     },
+    "瀑布流选项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waterfall Options"
+          }
+        }
+      }
+    },
+    "照常配对": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pair"
+          }
+        }
+      }
+    },
     "画布测试": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Canvas Test"
+          }
+        }
+      }
+    },
+    "磁盘缓存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disk Cache"
           }
         }
       }
@@ -1155,6 +2199,16 @@
         }
       }
     },
+    "移除覆盖：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Override: %@"
+          }
+        }
+      }
+    },
     "空格": {
       "localizations": {
         "en": {
@@ -1177,12 +2231,50 @@
         }
       }
     },
+    "竖条": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertical"
+          }
+        }
+      }
+    },
+    "第 %lld 行，第 %lld 列：%@": {
+      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Line %1$lld, column %2$lld: %3$@"
+          }
+        }
+      }
+    },
     "第 %lld 页 / 共 %lld 页": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Page %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "第 %lld 页 · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page %lld · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "第 %1$lld 页 · %2$@"
           }
         }
       }
@@ -1207,12 +2299,42 @@
         }
       }
     },
+    "算法": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algorithm"
+          }
+        }
+      }
+    },
+    "类型": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type"
+          }
+        }
+      }
+    },
     "粘贴": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Paste"
+          }
+        }
+      }
+    },
+    "系统内存紧张时，两者会暂时收缩到上限的 50% 或 25%。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When system memory is tight, both shrink temporarily to 50% or 25% of the limit."
           }
         }
       }
@@ -1229,12 +2351,42 @@
         }
       }
     },
+    "缓存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache"
+          }
+        }
+      }
+    },
+    "缓存位置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache Location"
+          }
+        }
+      }
+    },
     "编辑": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Edit"
+          }
+        }
+      }
+    },
+    "编辑路径规则": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Path Rules"
           }
         }
       }
@@ -1251,12 +2403,98 @@
         }
       }
     },
+    "缩小后锐化": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sharpen After Shrinking"
+          }
+        }
+      }
+    },
     "缩放": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Zoom"
+          }
+        }
+      }
+    },
+    "缩放方式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scale Mode"
+          }
+        }
+      }
+    },
+    "缩略图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thumbnails"
+          }
+        }
+      }
+    },
+    "缩略图尺寸": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thumbnail Size"
+          }
+        }
+      }
+    },
+    "缩略图缓存上限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thumbnail cache limit"
+          }
+        }
+      }
+    },
+    "缺少 value 字段": {
+      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing “value” field"
+          }
+        }
+      }
+    },
+    "缺少全局字段，已补默认值：%@": {
+      "comment": "MVSettings 的配置错误文字，键来自 FileSettingsStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing global fields, filled with defaults: %@"
+          }
+        }
+      }
+    },
+    "缺少字段 %@": {
+      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing field %@"
           }
         }
       }
@@ -1283,6 +2521,16 @@
         }
       }
     },
+    "翻页保持缩放": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Zoom on Page Turn"
+          }
+        }
+      }
+    },
     "翻页保持缩放与位置": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1291,6 +2539,82 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keep Zoom and Position on Page Turn"
+          }
+        }
+      }
+    },
+    "翻页时保持缩放与位置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep zoom and position on page turn"
+          }
+        }
+      }
+    },
+    "覆盖的设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overrides"
+          }
+        }
+      }
+    },
+    "规则「%@」：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rule “%@”: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "规则「%1$@」：%2$@"
+          }
+        }
+      }
+    },
+    "规则保存在 path-rules.json，可以直接编辑，保存后自动重载。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rules are stored in path-rules.json. You can edit it directly; it reloads when saved."
+          }
+        }
+      }
+    },
+    "解码尺寸上限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decode Size Limit"
+          }
+        }
+      }
+    },
+    "解码结果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decoded Images"
+          }
+        }
+      }
+    },
+    "解码结果内存上限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decoded image memory limit"
           }
         }
       }
@@ -1307,6 +2631,16 @@
         }
       }
     },
+    "设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        }
+      }
+    },
     "设置…": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1315,6 +2649,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Settings…"
+          }
+        }
+      }
+    },
+    "详情表格": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Details Table"
+          }
+        }
+      }
+    },
+    "读到 %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read to %lld"
           }
         }
       }
@@ -1349,6 +2703,36 @@
         }
       }
     },
+    "超过上限时，先淘汰最久未用的。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Over the limit, the least recently used items go first."
+          }
+        }
+      }
+    },
+    "跟随书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow Book"
+          }
+        }
+      }
+    },
+    "路径规则": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Path Rules"
+          }
+        }
+      }
+    },
     "跳到": {
       "localizations": {
         "en": {
@@ -1371,12 +2755,52 @@
         }
       }
     },
+    "这个目录下没有书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Books in This Folder"
+          }
+        }
+      }
+    },
+    "这本书没有页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Book Has No Pages"
+          }
+        }
+      }
+    },
+    "这里同样是默认值；在主窗口“显示”里的改动只作用于当前书。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These are defaults too. Changes under “View” in the main window apply only to the current book."
+          }
+        }
+      }
+    },
     "这里没有图片或视频": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No Images or Videos Here"
+          }
+        }
+      }
+    },
+    "连接…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect…"
           }
         }
       }
@@ -1425,6 +2849,16 @@
         }
       }
     },
+    "适合类模式下，小图保持原始尺寸": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In fit modes, small images stay at their original size"
+          }
+        }
+      }
+    },
     "适合高度": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1437,12 +2871,42 @@
         }
       }
     },
+    "选择…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose…"
+          }
+        }
+      }
+    },
+    "选择或添加一条规则": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select or add a rule"
+          }
+        }
+      }
+    },
     "选择要打开的文件夹或压缩包": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Choose a folder or archive to open"
+          }
+        }
+      }
+    },
+    "递归展开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include Subfolders"
           }
         }
       }
@@ -1459,12 +2923,32 @@
         }
       }
     },
+    "递归展开时，子文件夹的内容排在前面或与文件混排": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With subfolders included, their contents come first or mix with files"
+          }
+        }
+      }
+    },
     "重做": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Redo"
+          }
+        }
+      }
+    },
+    "重试": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
           }
         }
       }
@@ -1481,6 +2965,36 @@
         }
       }
     },
+    "重采样": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resampling"
+          }
+        }
+      }
+    },
+    "锐化强度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sharpening"
+          }
+        }
+      }
+    },
+    "阅读方向": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading Direction"
+          }
+        }
+      }
+    },
     "降序": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1489,6 +3003,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Descending"
+          }
+        }
+      }
+    },
+    "随机": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Random"
           }
         }
       }
@@ -1545,6 +3069,26 @@
         }
       }
     },
+    "面板选项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel Options"
+          }
+        }
+      }
+    },
+    "页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pages"
+          }
+        }
+      }
+    },
     "页 / 共 %lld 页": {
       "localizations": {
         "en": {
@@ -1575,6 +3119,96 @@
         }
       }
     },
+    "页面排序": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page Sorting"
+          }
+        }
+      }
+    },
+    "顺序": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Order"
+          }
+        }
+      }
+    },
+    "预取与预生成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefetch and Pre-generation"
+          }
+        }
+      }
+    },
+    "预生成书架上后面的书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pre-generate following books on the shelf"
+          }
+        }
+      }
+    },
+    "预生成封面": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pre-generate covers"
+          }
+        }
+      }
+    },
+    "预生成当前书的缩略图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pre-generate thumbnails of the current book"
+          }
+        }
+      }
+    },
+    "预解码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pre-decode"
+          }
+        }
+      }
+    },
+    "预解码范围之外，沿阅读方向继续读取文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beyond pre-decoding, keep reading files in the reading direction"
+          }
+        }
+      }
+    },
+    "预读原始数据": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read Ahead"
+          }
+        }
+      }
+    },
     "首页": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1595,66 +3229,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Single First Page"
-          }
-        }
-      }
-    },
-    "第 %lld 行，第 %lld 列：%@": {
-      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Line %1$lld, column %2$lld: %3$@"
-          }
-        }
-      }
-    },
-    "缺少字段 %@": {
-      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Missing field %@"
-          }
-        }
-      }
-    },
-    "缺少全局字段，已补默认值：%@": {
-      "comment": "MVSettings 的配置错误文字，键来自 FileSettingsStore.swift",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Missing global fields, filled with defaults: %@"
-          }
-        }
-      }
-    },
-    "缺少 value 字段": {
-      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Missing “value” field"
-          }
-        }
-      }
-    },
-    "文档版本 %lld 高于支持的版本 %lld": {
-      "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Document version %1$lld is newer than the supported version %2$lld"
           }
         }
       }
