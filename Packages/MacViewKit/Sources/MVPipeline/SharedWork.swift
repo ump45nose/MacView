@@ -192,11 +192,12 @@ final class SharedWork<Value: Sendable>: Sendable {
 }
 
 extension IOPriority {
+    /// 可见页必须高于预取。`.userInitiated` 和 `.high` 的原始值都是 25，解码队列同档先进先出。
     var taskPriority: TaskPriority {
         switch self {
-        case .visible: .userInitiated
-        case .near: .high
-        case .book: .medium
+        case .visible: .high
+        case .near: .medium
+        case .book: .low
         case .adjacent: .low
         case .background: .background
         }

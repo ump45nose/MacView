@@ -255,11 +255,11 @@ struct MockPipelineTests {
         let gif = try await pipeline.animatedFrames(for: try pipeline.environment.item(at: sample.location("动图与视频/循环.gif")).entry.identity, target: DisplayTarget(pixelSize: PixelSize(width: 240, height: 135)))
         #expect(gif.frameCount == 24)
         #expect(try await gif.frame(at: 3).image.width == 240)
-        let poster = try await pipeline.videoPoster(for: try pipeline.environment.item(at: sample.location("动图与视频/片段.mp4")).entry.identity, maxPixel: 320)
+        let poster = try await pipeline.videoPoster(for: try pipeline.environment.item(at: sample.location("动图与视频/片段.mp4")).entry.identity, maxPixel: 320, priority: .near)
         #expect(poster.image.width == 320 && poster.image.height == 180)
         let cover = try pipeline.environment.item(at: sample.location("动图与视频/封面.jpg")).entry.identity
         await #expect(throws: IOError.unsupported(cover.location)) {
-            try await pipeline.videoPoster(for: cover, maxPixel: 320)
+            try await pipeline.videoPoster(for: cover, maxPixel: 320, priority: .near)
         }
         let tiles = try await pipeline.tiledSource(for: cover)
         #expect(tiles.pixelSize == PixelSize(width: 2400, height: 3600))
