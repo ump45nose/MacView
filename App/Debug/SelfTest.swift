@@ -126,6 +126,8 @@ final class SelfTest {
             (kVK_ANSI_A, []), (kVK_ANSI_G, []), (kVK_ANSI_G, []), (kVK_RightArrow, []), (kVK_LeftArrow, []),
             (kVK_RightArrow, [.option]), (kVK_DownArrow, [.option]), (kVK_RightArrow, [.command]), (kVK_End, []), (kVK_Space, []),
         ]
+        // 先记下用户当前的输入源，再限制这个文本框的输入法；不切换系统输入法。
+        let keyboard = currentKeyboardInput()
         // 系统当前是中文输入法时，字母会变成组合文本。
         field.currentEditor()?.inputContext?.allowedInputSourceLocales = [NSAllRomanInputSourcesLocaleIdentifier]
         for (key, flags) in typing {
@@ -135,11 +137,15 @@ final class SelfTest {
         log.check(first.session.currentFrame == 0 && first.session.book?.location == book, "文本框中的按键没有翻页或切书：帧 \(first.session.currentFrame)")
         log.check(first.pendingView.isHidden, "文本框中按 G 不显示待定提示")
         let editor = field.currentEditor() as? NSTextView
-        if NSApp.isActive {
-            log.check(editor?.string.contains("agg") == true, "字母进入了文本框：“\(editor?.string ?? "")”")
-        } else {
+        if !NSApp.isActive {
             // 文本输入上下文只对 key window 生效；App 未激活时按键到了输入框但不插入文字。
             print("SKIP 字母进入文本框（App 未激活）")
+        } else if keyboard.insertsPlainLetters {
+            log.check(editor?.string.contains("agg") == true, "字母进入了文本框：“\(editor?.string ?? "")”")
+        } else {
+            let languages = keyboard.languages.joined(separator: ",")
+            let detail = languages.isEmpty ? keyboard.id : "\(keyboard.id)，\(languages)"
+            print("SKIP 字母进入了文本框（\(detail)，字母会进入组合文本）")
         }
         log.snapshot(window, "jump-field")
         await edit(kVK_Escape, editor, #selector(NSResponder.cancelOperation(_:)))
@@ -322,6 +328,30 @@ final class SelfTest {
 
     private func text(in view: NSView) -> String {
         (view as? NSTextField)?.stringValue ?? view.subviews.map { text(in: $0) }.joined(separator: " ")
+    }
+
+    /// 当前键盘输入源。只读，不调用选择输入源的接口。
+    private func currentKeyboardInput() -> (id: String, languages: [String], insertsPlainLetters: Bool) {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else {
+            return ("未取得输入源", [], false)
+        }
+        let id: String
+        if let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) {
+            id = Unmanaged<CFString>.fromOpaque(raw).takeUnretainedValue() as String
+        } else {
+            id = "未取得输入源标识"
+        }
+        let languages: [String]
+        if let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages) {
+            languages = Unmanaged<CFArray>.fromOpaque(raw).takeUnretainedValue() as? [String] ?? []
+        } else {
+            languages = []
+        }
+        let primary = languages.first?.split(whereSeparator: { $0 == "-" || $0 == "_" }).first.map(String.init)?.lowercased() ?? ""
+        let chinese = languages.contains { $0.lowercased().contains("zh") }
+        // 英文键位（ABC、U.S.）才会把字母直接送进文本框；语言含 zh，或标识不是 keylayout（输入法），都算非 ASCII。
+        let insertsPlainLetters = primary == "en" && !chinese && id.hasPrefix("com.apple.keylayout.")
+        return (id, languages, insertsPlainLetters)
     }
 
     // MARK: 工具

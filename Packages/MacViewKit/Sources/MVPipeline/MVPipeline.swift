@@ -38,7 +38,7 @@ public protocol ImagePipeline: Sendable {
     func image(for identity: ContentIdentity, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error>
     func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource
     func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource
-    func videoPoster(for identity: ContentIdentity, maxPixel: Int) async throws -> RenderedImage
+    func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
     /// 整体替换会话的预取计划：移除的取消，保留的重排，新增的入队。
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID)
     func cancelAll(session: SessionID)

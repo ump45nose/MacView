@@ -108,7 +108,7 @@ public final class FileImagePipeline: ImagePipeline {
     }
 
     private func thumbnail(_ identity: ContentIdentity, maxPixel: Int, context: RequestContext) async throws -> RenderedImage {
-        if EntryKind(fileName: identity.location.name) == .video { return try await videoPoster(for: identity, maxPixel: maxPixel) }
+        if EntryKind(fileName: identity.location.name) == .video { return try await videoPoster(for: identity, maxPixel: maxPixel, priority: context.priority) }
         let key = identity.cacheKey + "|thumb|\(maxPixel)"
         return try await render(key, context: context) { [self] context in
             if let data = try await diskData(caches.thumbnails, for: identity.cacheKey) {
@@ -288,18 +288,18 @@ public final class FileImagePipeline: ImagePipeline {
         }
     }
 
-    public func videoPoster(for identity: ContentIdentity, maxPixel: Int) async throws -> RenderedImage {
+    public func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage {
         let key = identity.cacheKey + "|video|\(maxPixel)"
-        return try await render(key, context: RequestContext(.near)) { [self] _ in
+        return try await render(key, context: RequestContext(priority)) { [self] _ in
             if let data = try await diskData(caches.thumbnails, for: identity.cacheKey) {
                 let size = try self.probe(data).pixelSize.fitting(longSide: maxPixel)
                 return try await decode(data, target: DisplayTarget(pixelSize: size))
             }
-            return try await withVideo(identity, priority: .near) { asset, actual in
+            return try await withVideo(identity, priority: priority) { asset, actual in
                 let image = try await self.decoder.videoPoster(asset, maxPixel: max(self.configuration.thumbnailLongSide, maxPixel))
-                let data = try await self.encode(image, priority: .near)
+                let data = try await self.encode(image, priority: priority)
                 try await self.store(data, in: self.caches.thumbnails, for: actual.cacheKey)
-                return try await self.resize(image, target: DisplayTarget(pixelSize: PixelSize(width: image.image.width, height: image.image.height).fitting(longSide: maxPixel)), quality: .exact, priority: .near)
+                return try await self.resize(image, target: DisplayTarget(pixelSize: PixelSize(width: image.image.width, height: image.image.height).fitting(longSide: maxPixel)), quality: .exact, priority: priority)
             }
         }
     }
