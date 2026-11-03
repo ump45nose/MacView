@@ -193,17 +193,31 @@ final class ViewerContainerView: NSView, InputScoped {
         session.loadError != nil && session.book != nil ? onRetryBook?() : onOpen?()
     }
 
+    static func isVolumeError(_ error: any Error) -> Bool {
+        switch error as? IOError {
+        case .volumeUnavailable, .volumeDegraded: true
+        default: false
+        }
+    }
+
     private func updateMessage() {
         isEmptyState = session.book == nil && session.loadError == nil
         if let error = session.loadError {
-            let canConnect: Bool
-            if case IOError.volumeUnavailable = error { canConnect = true } else { canConnect = false }
             let hasBook = session.book != nil
-            message.show(
-                title: String(localized: "无法打开这本书"), detail: ErrorText.describe(error),
-                action: hasBook ? String(localized: "重试") : String(localized: "打开…"),
-                secondary: canConnect ? String(localized: "连接…") : nil
-            )
+            if Self.isVolumeError(error), let root = session.book?.location.root {
+                message.show(
+                    title: String(localized: "无法访问 \(root.displayName)"),
+                    detail: String(localized: "NAS 没有响应，或者共享已断开。已缓存的缩略图仍可浏览。"),
+                    action: String(localized: "重试"),
+                    secondary: root.mountURL == nil ? nil : String(localized: "连接…")
+                )
+            } else {
+                message.show(
+                    title: String(localized: "无法打开这本书"), detail: ErrorText.describe(error),
+                    action: hasBook ? String(localized: "重试") : String(localized: "打开…"),
+                    secondary: nil
+                )
+            }
         } else if let book = session.book {
             if !session.frames.isEmpty {
                 message.isHidden = true
@@ -260,6 +274,7 @@ private final class ViewerMessageView: NSStackView {
         secondary.target = self
         secondary.action = #selector(actSecondary)
         buttons.spacing = 8
+        buttons.setHuggingPriority(.required, for: .horizontal)
         buttons.addArrangedSubview(button)
         buttons.addArrangedSubview(secondary)
         addArrangedSubview(title)

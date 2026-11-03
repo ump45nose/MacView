@@ -27,6 +27,14 @@ final class ReaderMainView: NSView {
     }
 }
 
+/// 一个配置文件的错误。
+struct FileProblem: Equatable {
+    var file: String
+    var title: String
+    var message: String
+    var url: URL
+}
+
 /// 阅读窗口的内容视图：上方是停靠容器，下方是状态栏。整个窗口都是拖放目标。
 @MainActor
 final class ReaderContentView: NSView {
@@ -34,8 +42,10 @@ final class ReaderContentView: NSView {
     /// 拖入了文件 URL。
     var onDrop: (([URL]) -> Void)?
     private let mainView: NSView
-    private var mainTop: NSLayoutConstraint!
-    private(set) var fileErrorBanner: FileErrorBanner?
+    private let banners = NSStackView()
+    private let volumeBanner = VolumeStatusView()
+    /// 按文件各一条。
+    private(set) var fileErrorBanners: [String: FileErrorBanner] = [:]
     private var isDropTarget = false {
         didSet { updateDropBorder() }
     }
@@ -45,15 +55,24 @@ final class ReaderContentView: NSView {
         self.mainView = mainView
         super.init(frame: .zero)
         wantsLayer = true
-        for view in [mainView, statusBar] {
+        banners.orientation = .vertical
+        banners.alignment = .width
+        banners.spacing = 0
+        banners.addArrangedSubview(volumeBanner)
+        for view in [banners, mainView, statusBar] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
-        mainTop = mainView.topAnchor.constraint(equalTo: topAnchor)
+        let emptyBanners = banners.heightAnchor.constraint(equalToConstant: 0)
+        emptyBanners.priority = .init(1)
         NSLayoutConstraint.activate([
+            banners.leadingAnchor.constraint(equalTo: leadingAnchor),
+            banners.trailingAnchor.constraint(equalTo: trailingAnchor),
+            banners.topAnchor.constraint(equalTo: topAnchor),
+            emptyBanners,
             mainView.leadingAnchor.constraint(equalTo: leadingAnchor),
             mainView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            mainTop,
+            mainView.topAnchor.constraint(equalTo: banners.bottomAnchor),
             mainView.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
             statusBar.leadingAnchor.constraint(equalTo: leadingAnchor),
             statusBar.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -77,26 +96,20 @@ final class ReaderContentView: NSView {
         layer?.borderColor = NSColor.controlAccentColor.cgColor
     }
 
-    func showFileError(_ message: String?, fileURL: URL) {
-        mainTop.isActive = false
-        fileErrorBanner?.removeFromSuperview()
-        fileErrorBanner = message.map { detail in
-            FileErrorBanner(title: String(localized: "keybindings.json 无法解析，保留上次的按键绑定"), detail: detail, fileURL: fileURL) { [weak self] in
-                self?.showFileError(nil, fileURL: fileURL)
+    /// 卷状态条，窗口控制器按当前书所在的卷更新。
+    var volumeStatus: VolumeStatusView { volumeBanner }
+
+    /// 按文件显示配置错误；不在 `errors` 里的条目移除。
+    func setFileErrors(_ errors: [FileProblem], onClose: @escaping (String) -> Void) {
+        fileErrorBanners.values.forEach { $0.removeFromSuperview() }
+        fileErrorBanners = [:]
+        for error in errors {
+            let banner = FileErrorBanner(title: error.title, detail: error.message, fileURL: error.url) {
+                onClose(error.file)
             }
+            banners.addArrangedSubview(banner)
+            fileErrorBanners[error.file] = banner
         }
-        if let banner = fileErrorBanner {
-            banner.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(banner)
-            NSLayoutConstraint.activate([
-                banner.leadingAnchor.constraint(equalTo: leadingAnchor), banner.trailingAnchor.constraint(equalTo: trailingAnchor),
-                banner.topAnchor.constraint(equalTo: topAnchor),
-            ])
-            mainTop = mainView.topAnchor.constraint(equalTo: banner.bottomAnchor)
-        } else {
-            mainTop = mainView.topAnchor.constraint(equalTo: topAnchor)
-        }
-        mainTop.isActive = true
     }
 
     // MARK: 拖放

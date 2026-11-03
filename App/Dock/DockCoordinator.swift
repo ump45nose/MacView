@@ -94,6 +94,12 @@ final class DockCoordinator {
         if active == nil { activate(dock) }
     }
 
+    /// 恢复会话：这个窗口用保存的布局，浮动面板不动。
+    func restore(_ dock: WindowDock, layout: DockLayout) {
+        let known = Set(DockPanels.all.map(\.id))
+        commit([(dock, layout.sanitized(knownPanels: known).adoptingFloating(of: current))], current: current, save: false)
+    }
+
     func detach(_ dock: WindowDock) {
         docks.removeAll { $0 === dock }
         dock.detach()
