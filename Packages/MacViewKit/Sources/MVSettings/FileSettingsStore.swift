@@ -26,7 +26,7 @@ public final class FileSettingsStore: SettingsStore {
         rules = try JSONDocumentStore(fileURL: directory.appending(path: "path-rules.json"), version: 1, defaultValue: [])
         var configuration = Configuration()
         configuration.prepareDatabase { database in
-            try database.execute(sql: "PRAGMA journal_mode = WAL")
+            try Self.enableWriteAheadLogging(database)
             try database.execute(sql: "PRAGMA synchronous = FULL")
         }
         database = try DatabaseQueue(path: directory.appending(path: "state.sqlite").path, configuration: configuration)
@@ -131,6 +131,23 @@ public final class FileSettingsStore: SettingsStore {
         documentChanged(.fileError(message: error.localizedDescription), file: "state.sqlite", change: .global)
     }
 
+    private static func enableWriteAheadLogging(_ database: Database) throws {
+        var deadline: ContinuousClock.Instant?
+        while true {
+            do {
+                try database.execute(sql: "PRAGMA journal_mode = WAL")
+                return
+            } catch let error as DatabaseError {
+                guard error.resultCode == .SQLITE_BUSY else { throw error }
+                let now = ContinuousClock.now
+                let retryDeadline = deadline ?? now + .seconds(5)
+                deadline = retryDeadline
+                guard now.duration(to: retryDeadline) >= .milliseconds(20) else { throw error }
+                Thread.sleep(for: .milliseconds(20))
+            }
+        }
+    }
+
     private func writePending() throws {
         let pending = state.withLock { current in
             let pending = current.pending
@@ -175,5 +192,13 @@ public final class FileSettingsStore: SettingsStore {
             else { object[key] = value; missing.append(field) }
         }
         return object
+    }
+}
+
+private extension Thread {
+    static func sleep(for duration: Duration) {
+        let components = duration.components
+        sleep(forTimeInterval: TimeInterval(components.seconds)
+            + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000)
     }
 }

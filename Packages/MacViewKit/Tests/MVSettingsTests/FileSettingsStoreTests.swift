@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import MVFoundation
+import SQLite3
 import Synchronization
 import Testing
 @testable import MVSettings
@@ -189,6 +190,70 @@ import Testing
         let reopened = try FileSettingsStore(directory: directory.url)
         return await reopened.bookMemory(for: book) == memory
     }
+}
+
+@Test func stateDatabaseOpenSucceedsAfterWriteLockReleased() async throws {
+    let directory = try SettingsDirectory()
+    let path = directory.url.appending(path: "state.sqlite").path
+    var connection: OpaquePointer?
+    #expect(sqlite3_open(path, &connection) == SQLITE_OK)
+    let sqlite = try #require(connection)
+    defer {
+        if connection != nil { sqlite3_close(sqlite) }
+    }
+    #expect(sqlite3_exec(sqlite, "PRAGMA journal_mode = DELETE", nil, nil, nil) == SQLITE_OK)
+    var statement: OpaquePointer?
+    #expect(sqlite3_prepare_v2(sqlite, "PRAGMA journal_mode", -1, &statement, nil) == SQLITE_OK)
+    let modeStatement = try #require(statement)
+    #expect(sqlite3_step(modeStatement) == SQLITE_ROW)
+    let mode = sqlite3_column_text(modeStatement, 0).map { String(cString: $0) }
+    #expect(mode?.lowercased() != "wal")
+    #expect(sqlite3_finalize(modeStatement) == SQLITE_OK)
+    #expect(sqlite3_exec(sqlite, "BEGIN IMMEDIATE", nil, nil, nil) == SQLITE_OK)
+
+    let result = Mutex<(done: Bool, error: String?)>((false, nil))
+    DispatchQueue.global().async {
+        do {
+            _ = try FileSettingsStore(directory: directory.url)
+            result.withLock { $0 = (true, nil) }
+        } catch {
+            result.withLock { $0 = (true, String(describing: error)) }
+        }
+    }
+    try await Task.sleep(for: .milliseconds(200))
+    #expect(!result.withLock { $0.done })
+    #expect(sqlite3_exec(sqlite, "COMMIT", nil, nil, nil) == SQLITE_OK)
+    #expect(sqlite3_close(sqlite) == SQLITE_OK)
+    connection = nil
+
+    try await settingsWait(timeout: .seconds(2)) { result.withLock { $0.done } }
+    #expect(result.withLock { $0.error } == nil)
+}
+
+@Test func concurrentOpenAndClosePreservesBookMemory() async throws {
+    let directory = try SettingsDirectory()
+    let book = Location(root: .local, layers: [["books", "concurrent.zip"]])
+    let memory = BookMemory(book: book, settings: BookSettings(pageMode: .double),
+                            lastPage: book.appending("42.jpg"), lastPageIndex: 42,
+                            openedAt: Date(timeIntervalSince1970: 42))
+    do {
+        let store = try FileSettingsStore(directory: directory.url)
+        await store.saveBookMemory(memory)
+        try await store.flush()
+    }
+
+    try await withThrowingTaskGroup(of: Void.self) { group in
+        for _ in 0..<50 {
+            group.addTask {
+                let store = try FileSettingsStore(directory: directory.url)
+                #expect(await store.bookMemory(for: book) == memory)
+            }
+        }
+        try await group.waitForAll()
+    }
+
+    let reopened = try FileSettingsStore(directory: directory.url)
+    #expect(await reopened.bookMemory(for: book) == memory)
 }
 
 @Test func concurrentDocumentUpdatesDoNotLoseChanges() async throws {
