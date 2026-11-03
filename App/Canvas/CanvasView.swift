@@ -8,9 +8,11 @@ import os
 import QuartzCore
 
 /// 画布的一项：内容身份与宽高比（宽除以高，未知时为 nil）。
-struct CanvasItem {
+struct CanvasItem: Equatable {
     var identity: ContentIdentity
     var aspectRatio: Double?
+    /// 右下角的角标，例如视频的时长。
+    var badge: String?
 }
 
 /// 回报给预取计划的范围：可见项，以及可见区加余量内的项。砌体中可见项不一定连续，范围取最小到最大的序号。
@@ -62,7 +64,24 @@ final class CanvasView: NSScrollView {
 
     /// 捏合缩放时 `itemExtent` 的范围。
     var itemExtentRange: ClosedRange<Double> = 80...640
-    let spacing: Double = 8
+    var spacing: Double = 8 {
+        didSet { if spacing != oldValue { configurationChanged() } }
+    }
+
+    /// 单击直接激活，不选中；主区的瀑布流和条用。
+    var activatesOnSingleClick = false
+    /// 方向键移动选中项。关掉时由响应链处理（翻页），上下键滚动一行。
+    var arrowKeysMoveSelection = true
+    /// 条的末尾：排在最后一项之后、占主方向 `footerLength` 点的视图，加进文档视图。
+    var footerView: NSView? {
+        didSet {
+            if footerView === oldValue { return }
+            oldValue?.removeFromSuperview()
+            if let footerView { content.addSubview(footerView) }
+            relayout(geometry: false, anchor: stickyAnchor ?? layout.leadingAnchor(in: viewport))
+        }
+    }
+    var footerLength = 200.0
 
     var imageSource: CanvasImageSource {
         get { loader.source }
@@ -145,6 +164,10 @@ final class CanvasView: NSScrollView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    #if DEBUG
+    override class var isCompatibleWithResponsiveScrolling: Bool { !SyntheticScroll.isInUse }
+    #endif
+
     var counters: CanvasCounters {
         var counters = counts
         counters.activeLayers = tiles.count
@@ -168,7 +191,7 @@ final class CanvasView: NSScrollView {
                 newIndex[item.identity] = index
             }
             if let old = layout.reorderAnchor(in: viewport, selected: focus.flatMap { selection.contains($0) ? $0 : nil } ?? selection.min()),
-               let index = newIndex[items[old.index].identity] {
+               old.index < items.count, let index = newIndex[items[old.index].identity] {
                 anchor = LayoutAnchor(index: index, offset: old.offset, extent: old.extent)
             }
             selection = Set(selection.compactMap { newIndex[items[$0].identity] })
@@ -180,6 +203,60 @@ final class CanvasView: NSScrollView {
         items = newItems
         ratios = newItems.map(\.aspectRatio)
         relayout(geometry: false, anchor: anchor)
+    }
+
+    /// 把一项滚到视口开头。这一项还没排时返回 false。
+    @discardableResult
+    func scrollTo(index: Int) -> Bool {
+        guard index < layout.count, let origin = layout.viewportOrigin(restoring: LayoutAnchor(index: index, offset: spacing, extent: 0)) else { return false }
+        isRelayingOut = true
+        contentView.scroll(to: origin)
+        reflectScrolledClipView(contentView)
+        isRelayingOut = false
+        stickyAnchor = nil
+        updateVisible(scrolled: false)
+        return true
+    }
+
+    /// 已排的项数（不含条的末尾）。
+    var placedCount: Int {
+        min(layout.count, items.count)
+    }
+
+    func frame(of index: Int) -> CGRect? {
+        layout.frame(of: index)
+    }
+
+    /// 重试全部失败的项；返回是否有失败的项。
+    @discardableResult
+    func retryFailed() -> Bool {
+        var failed = false
+        for item in items {
+            if case .failed = loader.state(of: item.identity) {
+                loader.retry(item.identity)
+                failed = true
+            }
+        }
+        guard failed else { return false }
+        for (index, tile) in tiles {
+            tile.layer.contents = loader.cached(tile.identity)?.contents
+            tile.layer.contentsGravity = contentGravity
+            request(index, frame: tile.layer.frame, priority: tile.layer.frame.intersects(viewport) ? .visible : .near)
+        }
+        return true
+    }
+
+    /// 窗口上正显示为失败的项。
+    var failedCount: Int {
+        tiles.values.reduce(0) { count, tile in
+            if case .failed = loader.state(of: tile.identity) { return count + 1 }
+            return count
+        }
+    }
+
+    func cachedContents(at index: Int) -> Any? {
+        guard items.indices.contains(index) else { return nil }
+        return tiles[index]?.layer.contents
     }
 
     /// 换管线：丢掉缓存和进行中的请求，可见项重新加载。
@@ -218,6 +295,14 @@ final class CanvasView: NSScrollView {
         kind == .grid ? .resizeAspect : .resizeAspectFill
     }
 
+    /// 条的末尾在布局里占一项：所有项都已知才排到，宽高比按视口换算。
+    private var footerRatio: [Double?] {
+        guard footerView != nil, kind.isHorizontal || kind == .verticalStrip else { return [] }
+        let size = contentView.bounds.size
+        let cross = max(1, min(itemExtent, (kind.isHorizontal ? size.height : size.width) - spacing * 2))
+        return [kind.isHorizontal ? footerLength / cross : cross / footerLength]
+    }
+
     /// `geometry` 为 true 时按当前视口和配置新建布局，否则只在原布局上更新宽高比（已排的项不动）。
     private func relayout(geometry: Bool, anchor: LayoutAnchor?) {
         let start = ContinuousClock.now
@@ -226,8 +311,10 @@ final class CanvasView: NSScrollView {
         if geometry {
             layout = CollectionLayout(kind: kind, viewportSize: contentView.bounds.size, itemExtent: itemExtent, spacing: spacing, direction: direction)
         }
-        layout.setAspectRatios(ratios)
+        layout.setAspectRatios(ratios + footerRatio)
         content.setFrameSize(layout.contentSize)
+        footerView?.isHidden = layout.count <= items.count
+        if let footerView, let frame = layout.frame(of: items.count) { footerView.frame = frame }
         // 没有可见项可作锚点时（初次排版），停在第 0 项；右开的横向条因此从右端开始。
         let target = anchor ?? LayoutAnchor(index: 0, offset: spacing, extent: 0)
         if let origin = layout.viewportOrigin(restoring: target), origin != contentView.bounds.origin {
@@ -239,6 +326,7 @@ final class CanvasView: NSScrollView {
         for (index, tile) in tiles {
             if let frame = layout.frame(of: index) {
                 tile.layer.frame = frame
+                positionBadge(in: tile.layer)
                 // 错误标记居中显示，不随布局换填充方式。
                 if tile.layer.contentsGravity != .center {
                     tile.layer.contentsGravity = contentGravity
@@ -287,7 +375,7 @@ final class CanvasView: NSScrollView {
         recycle(tiles.keys.filter { !wantedSet.contains($0) })
         var visible = (low: Int.max, high: Int.min)
         var margin = (low: Int.max, high: Int.min)
-        for (index, frame) in wanted {
+        for (index, frame) in wanted where index < items.count {
             let isVisible = frame.intersects(visibleRect)
             if isVisible {
                 visible = (min(visible.low, index), max(visible.high, index))
@@ -324,6 +412,7 @@ final class CanvasView: NSScrollView {
             layer.contentsGravity = contentGravity
             layer.contents = loader.cached(identity)?.contents
         }
+        setBadge(items[index].badge, on: layer)
         tiles[index] = Tile(layer: layer, identity: identity)
         tileIndex[identity] = index
         request(index, frame: frame, priority: priority)
@@ -337,6 +426,7 @@ final class CanvasView: NSScrollView {
             tileIndex[tile.identity] = nil
             tile.layer.isHidden = true
             tile.layer.contents = nil
+            setBadge(nil, on: tile.layer)
             spare.append(tile.layer)
             loader.cancel(tile.identity)
         }
@@ -354,6 +444,34 @@ final class CanvasView: NSScrollView {
         content.layer?.addSublayer(layer)
         counts.createdLayers += 1
         return layer
+    }
+
+    /// 角标是图块唯一的子图层。
+    private func setBadge(_ text: String?, on layer: CALayer) {
+        guard let text else {
+            layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+            return
+        }
+        let badge = layer.sublayers?.first as? CATextLayer ?? {
+            let badge = CATextLayer()
+            badge.fontSize = 11
+            badge.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+            badge.foregroundColor = NSColor.white.cgColor
+            badge.backgroundColor = NSColor.black.withAlphaComponent(0.6).cgColor
+            badge.cornerRadius = 4
+            badge.alignmentMode = .center
+            badge.contentsScale = window?.backingScaleFactor ?? 2
+            layer.addSublayer(badge)
+            return badge
+        }()
+        badge.string = text
+        positionBadge(in: layer)
+    }
+
+    private func positionBadge(in layer: CALayer) {
+        guard let badge = layer.sublayers?.first as? CATextLayer, let text = badge.string as? String else { return }
+        let width = ceil((text as NSString).size(withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)]).width) + 10
+        badge.frame = CGRect(x: layer.bounds.width - width - 6, y: layer.bounds.height - 22, width: width, height: 16)
     }
 
     private func showError(on layer: CALayer) {
@@ -451,7 +569,7 @@ final class CanvasView: NSScrollView {
         window?.makeFirstResponder(content)
         let point = content.convert(event.locationInWindow, from: nil)
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard let index = layout.items(in: CGRect(x: point.x, y: point.y, width: 1, height: 1)).first(where: { $0.frame.contains(point) })?.index else {
+        guard let index = layout.items(in: CGRect(x: point.x, y: point.y, width: 1, height: 1)).first(where: { $0.frame.contains(point) })?.index, index < items.count else {
             if !flags.contains(.command), !flags.contains(.shift) { select([], focus: nil) }
             return
         }
@@ -464,7 +582,9 @@ final class CanvasView: NSScrollView {
             tile.layer.contents = nil
             request(index, frame: tile.layer.frame, priority: .visible)
         }
-        if flags.contains(.command) {
+        if activatesOnSingleClick {
+            onActivate?(index)
+        } else if flags.contains(.command) {
             var next = selection
             if next.remove(index) == nil { next.insert(index) }
             select(next, focus: index)
@@ -479,6 +599,13 @@ final class CanvasView: NSScrollView {
     fileprivate func key(_ event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
         guard flags.isEmpty, let key = event.specialKey else { return false }
+        if !arrowKeysMoveSelection {
+            guard !kind.isHorizontal, key == .upArrow || key == .downArrow else { return false }
+            let line = key == .upArrow ? -verticalLineScroll * 3 : verticalLineScroll * 3
+            contentView.scroll(to: CGPoint(x: 0, y: min(max(contentView.bounds.minY + line, 0), max(0, content.frame.height - contentView.bounds.height))))
+            reflectScrolledClipView(contentView)
+            return true
+        }
         let move: LayoutMove
         switch key {
         case .upArrow: move = .up
@@ -491,7 +618,7 @@ final class CanvasView: NSScrollView {
         default: return false
         }
         guard let current = focus ?? layout.leadingAnchor(in: viewport)?.index else { return true }
-        let next = focus == nil ? current : layout.index(moving: current, move) ?? current
+        let next = min(focus == nil ? current : layout.index(moving: current, move) ?? current, max(items.count - 1, 0))
         select([next], focus: next)
         if let frame = layout.frame(of: next) {
             content.scrollToVisible(frame.insetBy(dx: -spacing, dy: -spacing))
@@ -501,7 +628,13 @@ final class CanvasView: NSScrollView {
 
     /// 捏合改缩略图尺寸，锚点不动。
     override func magnify(with event: NSEvent) {
-        let extent = min(max(itemExtent * (1 + event.magnification), itemExtentRange.lowerBound), itemExtentRange.upperBound)
+        zoom(by: 1 + event.magnification)
+    }
+
+    func zoom(by factor: Double) {
+        // 条的尺寸可以是“适合视口”的无穷大：从实际的横截长度开始缩放。
+        let cross = kind.isHorizontal ? contentView.bounds.height : contentView.bounds.width
+        let extent = min(max(min(itemExtent, cross) * factor, itemExtentRange.lowerBound), itemExtentRange.upperBound)
         guard extent != itemExtent else { return }
         itemExtent = extent
         onItemExtentChange?(extent)

@@ -1,21 +1,21 @@
 import AppKit
 
-/// 停靠框架中间栏的主视图：页面视图，底部居中浮着多键序列的待定提示。
+/// 停靠框架中间栏的主视图：查看器，底部居中浮着多键序列的待定提示。
 @MainActor
 final class ReaderMainView: NSView {
     let pendingView = PendingSequenceView()
 
-    init(pageView: NSView) {
+    init(viewer: NSView) {
         super.init(frame: .zero)
-        for view in [pageView, pendingView] {
+        for view in [viewer, pendingView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
         NSLayoutConstraint.activate([
-            pageView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            pageView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            pageView.topAnchor.constraint(equalTo: topAnchor),
-            pageView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            viewer.leadingAnchor.constraint(equalTo: leadingAnchor),
+            viewer.trailingAnchor.constraint(equalTo: trailingAnchor),
+            viewer.topAnchor.constraint(equalTo: topAnchor),
+            viewer.bottomAnchor.constraint(equalTo: bottomAnchor),
             pendingView.centerXAnchor.constraint(equalTo: centerXAnchor),
             pendingView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
         ])

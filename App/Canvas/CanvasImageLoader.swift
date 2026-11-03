@@ -100,7 +100,8 @@ final class CanvasImageLoader: NSObject {
         // 管线调用放在主线程之外；取消会传进管线，排队中的请求直接出队。
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
-                if let target {
+                // 视频没有显示图，用封面。
+                if let target, EntryKind(fileName: identity.location.name) != .video {
                     for try await rendered in pipeline.image(for: identity, target: DisplayTarget(pixelSize: target), allowOriginal: false, priority: priority) {
                         await self?.receive(rendered, for: identity)
                     }
