@@ -469,6 +469,7 @@ public final class FileImagePipeline: ImagePipeline {
                 if var old = current[key] {
                     old.item = item
                     old.context.setPriority(item.priority)
+                    old.task.escalatePriority(to: item.priority.taskPriority)
                     current[key] = old
                 } else {
                     let context = RequestContext(item.priority)
@@ -564,18 +565,19 @@ public final class FileImagePipeline: ImagePipeline {
         try await lifetime.value { try await cache.store(data, for: key) }
     }
     private func encode(_ image: RenderedImage, priority: IOPriority) async throws -> Data {
-        try await lifetime.value(priority: priority.taskPriority) {
-            try await Task.detached(priority: priority.taskPriority) { try RenditionEncoding.default.encode(image.image) }.value
+        try await lifetime.value(priority: priority.taskPriority) { [decoder] in
+            try await decoder.perform { try RenditionEncoding.default.encode(image.image) }
         }
     }
     private func resize(_ image: RenderedImage, target: DisplayTarget, quality: RenditionQuality, priority: IOPriority) async throws -> RenderedImage {
-        try await lifetime.value(priority: priority.taskPriority) {
+        try await lifetime.value(priority: priority.taskPriority) { [decoder] in
             if image.image.width == target.pixelSize.width, image.image.height == target.pixelSize.height {
                 return RenderedImage(image: image.image, quality: quality, surface: image.surface)
             }
-            return try await Task.detached(priority: priority.taskPriority) {
+            // 已入队的任务提升后仍留在原 QoS 的队列里；计算放进按优先级出队的限流器，前台不必排在后台积压之后。
+            return try await decoder.perform {
                 try Bitmap.resampled(image.image, to: target.pixelSize, filter: target.filter, sharpen: target.sharpen, quality: quality)
-            }.value
+            }
         }
     }
 }

@@ -283,6 +283,7 @@ final class PanelSelfTest {
         await waitFor { floating.boundSession == second.session.id && view.items.count == 3 }
         log.check(view.items.map(\.name) == ["p01.png", "p02.png", "p03.png"], "切到窗口 2，浮动面板显示 alpha：\(view.items.map(\.name))")
         first.window?.makeKeyAndOrderFront(nil)
+        if !NSApp.isActive { dock.activate(first.dock) }
         await waitFor { floating.boundSession == first.session.id && view.items.count == 2 }
         log.check(view.items.map(\.name) == ["a.mp4", "b.png"], "切回窗口 1，显示 clips：\(view.items.map(\.name))")
         floating.activate(1)

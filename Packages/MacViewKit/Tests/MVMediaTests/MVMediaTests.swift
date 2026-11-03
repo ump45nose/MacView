@@ -204,6 +204,26 @@ func videosReportDurationSizeAndPoster(_ fixture: Fixture) async throws {
     #expect(limiter.waitingCount == 0)
 }
 
+@Test func escalatedWaitingDecodeStartsBeforeLowerPriorityItems() async throws {
+    let limiter = WorkLimiter(limit: 1)
+    let gate = DispatchSemaphore(value: 0)
+    let order = Mutex<[String]>([])
+    let blocker = Task { try await limiter.run { gate.wait(); order.withLock { $0.append("blocker") } } }
+    try await waitUntil { limiter.runningCount == 1 }
+    let earlier = Task(priority: .background) { try await limiter.run { order.withLock { $0.append("earlier") } } }
+    try await waitUntil { limiter.waitingCount == 1 }
+    let escalated = Task(priority: .background) { try await limiter.run { order.withLock { $0.append("escalated") } } }
+    try await waitUntil { limiter.waitingCount == 2 }
+    let medium = Task(priority: .medium) { try await limiter.run { order.withLock { $0.append("medium") } } }
+    try await waitUntil { limiter.waitingCount == 3 }
+    escalated.escalatePriority(to: .userInitiated)
+    gate.signal()
+    // 等待任务的结果也会提升它，所以先等全部出队。
+    try await waitUntil { order.withLock { $0.count } == 4 }
+    #expect(order.withLock { $0 } == ["blocker", "escalated", "medium", "earlier"])
+    for task in [blocker, earlier, escalated, medium] { try await task.value }
+}
+
 // MARK: 渲染件编码
 
 @Test(arguments: RenditionEncoding.allCases)

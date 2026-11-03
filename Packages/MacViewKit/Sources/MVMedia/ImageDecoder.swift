@@ -32,6 +32,11 @@ public final class ImageDecoder: Sendable {
         limiter = WorkLimiter(limit: max(1, maxConcurrentDecodes))
     }
 
+    /// 在解码的并发上限内按任务优先级执行其他图像计算（缩放、编码）。
+    package func perform<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
+        try await limiter.run(body)
+    }
+
     /// 长边超过解码上限或纹理上限的图不整张解码，改用 `tiledSource`。
     public static func needsTiling(_ size: PixelSize, maxDecodeLongSide: Int) -> Bool {
         max(size.width, size.height) > min(maxDecodeLongSide, maxTextureSide)
@@ -141,7 +146,7 @@ extension PixelSize {
 final class WorkLimiter: Sendable {
     private struct Waiter {
         let id: UInt64
-        let priority: TaskPriority
+        var priority: TaskPriority
         let start: @Sendable () -> Void
         let cancel: @Sendable () -> Void
     }
@@ -178,36 +183,42 @@ final class WorkLimiter: Sendable {
     }
 
     func run<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
-        let priority = Task.currentPriority
         let id = state.withLock { state in
             state.nextID += 1
             return state.nextID
         }
         return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, any Error>) in
-                let start: @Sendable () -> Void = { [queue, self] in
-                    queue.async {
-                        let interval = Self.signposter.beginInterval("decode")
-                        continuation.resume(with: Result { try body() })
-                        Self.signposter.endInterval("decode", interval)
-                        self.finish(id)
+            try await withTaskPriorityEscalationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, any Error>) in
+                    let start: @Sendable () -> Void = { [queue, self] in
+                        queue.async {
+                            let interval = Self.signposter.beginInterval("decode")
+                            continuation.resume(with: Result { try body() })
+                            Self.signposter.endInterval("decode", interval)
+                            self.finish(id)
+                        }
+                    }
+                    let cancel: @Sendable () -> Void = { continuation.resume(throwing: CancellationError()) }
+                    let admission = state.withLock { state -> Admission in
+                        if state.cancelledEarly.remove(id) != nil { return .cancelled }
+                        state.admitted.insert(id)
+                        if state.running < limit {
+                            state.running += 1
+                            return .start
+                        }
+                        state.waiting.append(Waiter(id: id, priority: Task.currentPriority, start: start, cancel: cancel))
+                        return .wait
+                    }
+                    switch admission {
+                    case .start: start()
+                    case .cancelled: cancel()
+                    case .wait: break
                     }
                 }
-                let cancel: @Sendable () -> Void = { continuation.resume(throwing: CancellationError()) }
-                let admission = state.withLock { state -> Admission in
-                    if state.cancelledEarly.remove(id) != nil { return .cancelled }
-                    state.admitted.insert(id)
-                    if state.running < limit {
-                        state.running += 1
-                        return .start
-                    }
-                    state.waiting.append(Waiter(id: id, priority: priority, start: start, cancel: cancel))
-                    return .wait
-                }
-                switch admission {
-                case .start: start()
-                case .cancelled: cancel()
-                case .wait: break
+            } onPriorityEscalated: { _, priority in
+                // 登记时在锁内读当前优先级：登记前发生的提升由那次读取带上，之后的提升在这里更新。
+                state.withLock { state in
+                    if let index = state.waiting.firstIndex(where: { $0.id == id }) { state.waiting[index].priority = priority }
                 }
             }
         } onCancel: {
