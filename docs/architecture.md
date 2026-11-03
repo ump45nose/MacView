@@ -167,11 +167,11 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - `image(for:target:)` 依次交付三个阶段：缩略图放大的占位 → 浏览图 → 精确尺寸。
   - 主区瀑布流按列宽调用它，由管线在缩略图、浏览图和原图之间选择来源；画廊面板用 `thumbnail`。
 - 预取计划以会话为单位整体替换：移除的取消，保留的重排，新增的入队。
-- 默认预取范围（都可配置，S2-T1 再调优）：
-  - 查看器：前后各 2 个页帧预解码；阅读方向上再往前 5 页预读原始字节。
+- 默认预取范围（都可配置；S2-T1 已按此实现，默认值不变）：
+  - 查看器：前后各 2 个页帧预解码到 `PageFrameFit` 给出的显示尺寸，长边不超过 `maxDecodeLongSide`；阅读方向上再往前 5 页预读原始字节。
   - 画廊：可见区域再加一屏的余量。
   - 当前书：全部页面的缩略图和元数据。
-  - 相邻：书架上后 2 本书，以及当前目录各书的封面。
+  - 相邻：书架排序中当前书之后的 `neighborBooks` 本（默认 2）的全部页面（缩略图和元数据），以及当前目录各书的封面。
 
 ### 3.5 阅读模型
 
@@ -474,6 +474,8 @@ public protocol SettingsStore: Sendable {
     func saveBookMemory(_ memory: BookMemory) async
     func global() async -> GlobalSettings
     func updateGlobal(_ change: @Sendable (inout GlobalSettings) -> Void) async throws
+    func pathRules() async -> [PathRule]
+    func updatePathRules(_ change: @Sendable (inout [PathRule]) -> Void) async throws
     func changes() -> AsyncStream<SettingsChange>
 }
 public enum DocumentChange: Sendable, Equatable { case reloaded, fileError(message: String) }   // 解析错误带行列号，保留上一份可用值
@@ -545,6 +547,14 @@ public struct PageFrameElement: Sendable, Hashable { public var page: Int; publi
 public struct PageFrame: Sendable, Hashable { public var elements: [PageFrameElement]; public init(elements: [PageFrameElement]) }   // 元素按画面从左到右，页帧序列按阅读顺序
 public struct PageLayout: Sendable, Hashable { public var pageMode: PageMode; public var direction: ReadingDirection; public var firstPageSingle: Bool; public var widePage: WidePagePolicy; public init(pageMode: PageMode, direction: ReadingDirection, firstPageSingle: Bool, widePage: WidePagePolicy) }
 public enum PageFrameEngine { public static func frames(aspectRatios: [Double?], layout: PageLayout) -> [PageFrame] }
+public struct FittedPage: Sendable, Hashable { public var element: PageFrameElement; public var pixelSize: PixelSize; public init(element: PageFrameElement, pixelSize: PixelSize) }
+public struct PageFrameFit: Sendable, Hashable {   // 查看器与预解码共用；元素顺序与 frame.elements 相同
+    public var pages: [FittedPage]
+    public var size: PixelSize
+    public init(pages: [FittedPage], size: PixelSize)
+    public static func fit(frame: PageFrame, pages: [Page], viewport: PixelSize, settings: ResolvedBookSettings) -> PageFrameFit
+    public func displayTargets(settings: ResolvedBookSettings, maxDecodeLongSide: Int) -> [(element: PageFrameElement, target: DisplayTarget)]
+}
 public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextPage, previousPage, first, last, index(Int) }
 @MainActor @Observable public final class ReaderSession {
     public let id: SessionID
@@ -556,9 +566,11 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async   // sort 是书架面板当前的排序，与书内页面的排序无关
     public func update(_ change: (inout BookSettings) -> Void)   // 写入书层，去抖后持久化
     public func visibleRangeChanged(_ pages: Range<Int>)        // 连续和瀑布模式由前端回报
+    public func viewportChanged(_ pixels: PixelSize)           // 设备像素；未回报前不预解码
+    public func shelfSortChanged(_ sort: SortSpec)             // 书架面板的排序；未回报前不预取相邻书和封面
     public func flush() async   // 立即把最新书记忆快照写入 SettingsStore；数据库落盘由组合根负责
 }
-// 分页模式预读阅读方向上的原始字节，以及全书缩略图和元数据；本阶段不按视口尺寸预解码。
+// 分页模式在视口回报后，对当前帧前后各 viewerDecodeFrames 个页帧（不含当前帧）按 PageFrameFit.displayTargets 预解码；连续模式仍按可见范围。相邻书与封面在排序回报后以 .adjacent 合进同一份计划。
 
 // MVServices
 public struct CoreConfiguration: Sendable {
