@@ -118,10 +118,15 @@ public final class CacheIndex: Sendable {
 /// 文件改名、更新索引和淘汰必须整体串行；读文件不经过这里。
 final class DiskOperations: Sendable {
     private let queue = DispatchQueue(label: "MacView.cache.files.write", qos: .utility)
+    private let pending = Mutex(0)
+
+    var pendingCount: Int { pending.withLock { $0 } }
 
     func perform<Value: Sendable>(_ operation: @escaping @Sendable () throws -> Value) async throws -> Value {
-        try await withCheckedThrowingContinuation { continuation in
+        pending.withLock { $0 += 1 }
+        return try await withCheckedThrowingContinuation { continuation in
             queue.async {
+                defer { self.pending.withLock { $0 -= 1 } }
                 do { continuation.resume(returning: try operation()) }
                 catch { continuation.resume(throwing: error) }
             }

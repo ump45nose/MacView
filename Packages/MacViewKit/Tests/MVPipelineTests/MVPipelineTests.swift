@@ -361,7 +361,7 @@ import Testing
         Issue.record("应先交付精确尺寸图")
     }
     try await display.value
-    try await Task.sleep(for: .milliseconds(100))
+    try await eventually { environment.index.diskOperations.pendingCount > 1 }
     let shutdown = Task { await environment.pipeline.shutdown(); finished.store(true, ordering: .relaxed) }
     try await Task.sleep(for: .milliseconds(30))
     let shutdownFinished = finished.load(ordering: .relaxed)
