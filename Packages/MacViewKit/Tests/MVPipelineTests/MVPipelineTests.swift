@@ -418,6 +418,44 @@ private func collect(_ stream: AsyncThrowingStream<RenderedImage, any Error>) as
     return result
 }
 
+// 没有预取时约 0.1 s；不加入预取、单独取另一张时约 1.2 s。限时只排除排在整个预取队列之后。
+@Test(.serialized, arguments: [IOPriority.adjacent, .background])
+func foregroundThumbnailJoiningPrefetchReturnsWithinLimit(_ priority: IOPriority) async throws {
+    let environment = try PipelineEnvironment(thumbnailLongSide: 1024, browseBounds: PixelSize(width: 3840, height: 2160))
+    defer { environment.clean() }
+    var identities: [ContentIdentity] = []
+    for index in 0..<120 { identities.append(try await environment.copyIdentity("image/size/3600x5400.jpg", index: index)) }
+    let session = SessionID()
+    environment.pipeline.setPrefetchPlan(PrefetchPlan(items: identities.map { PrefetchItem(identity: $0, renditions: [.thumbnail], priority: priority) }), session: session)
+    try await eventually { !environment.registry.control.reads.isEmpty }
+    // 预取的启动顺序不固定，所以一次加入多张还没有缩略图的。
+    var pending: [ContentIdentity] = []
+    for identity in identities where try await environment.caches.thumbnails.data(for: identity.cacheKey) == nil {
+        pending.append(identity)
+        if pending.count == 8 { break }
+    }
+    #expect(pending.count == 8)
+    let joining = pending
+    let started = ContinuousClock.now
+    let returned = try await withThrowingTaskGroup(of: Bool.self) { group in
+        group.addTask {
+            try await withThrowingTaskGroup(of: Void.self) { thumbnails in
+                for identity in joining {
+                    thumbnails.addTask { _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 180, priority: .visible) }
+                }
+                try await thumbnails.waitForAll()
+            }
+            return true
+        }
+        group.addTask { try await Task.sleep(for: .seconds(5)); return false }
+        defer { group.cancelAll() }
+        return try await group.next()!
+    }
+    #expect(returned, "\(priority) 预取未完成时，前台缩略图等待 \(ContinuousClock.now - started) 仍未返回")
+    environment.pipeline.cancelAll(session: session)
+    await environment.pipeline.shutdown()
+}
+
 private func eventually(_ predicate: () async throws -> Bool) async throws {
     for _ in 0..<400 {
         if try await predicate() { return }
@@ -449,7 +487,7 @@ private final class PipelineEnvironment: Sendable {
     let caches: PipelineCaches
     let index: CacheIndex
     let pipeline: FileImagePipeline
-    init(browse: Bool = true) throws {
+    init(browse: Bool = true, thumbnailLongSide: Int = 128, browseBounds: PixelSize = PixelSize(width: 320, height: 480)) throws {
         root = Fixtures.root.deletingLastPathComponent().appendingPathComponent("build/stage4-repair/pipeline-tests/\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         registry = CountingRegistry(base: FileSourceRegistry(scheduler: IOScheduler(configuration: IOConfiguration(helperExecutable: nil))))
@@ -457,10 +495,16 @@ private final class PipelineEnvironment: Sendable {
         let thumbnails = try DiskCache(tier: .thumbnails, cacheDirectory: root, budget: 128 << 20, index: index)
         let browseCache = try browse ? DiskCache(tier: .browse, cacheDirectory: root, budget: 128 << 20, index: index) : nil
         caches = PipelineCaches(raw: MemoryCache(budget: 64 << 20), decoded: MemoryCache(budget: 64 << 20), thumbnails: thumbnails, browse: browseCache, metadata: MetadataIndex(index: index))
-        pipeline = FileImagePipeline(sources: registry, decoder: ImageDecoder(), caches: caches, configuration: PipelineConfiguration(thumbnailLongSide: 128, browseBounds: PixelSize(width: 320, height: 480)))
+        pipeline = FileImagePipeline(sources: registry, decoder: ImageDecoder(), caches: caches, configuration: PipelineConfiguration(thumbnailLongSide: thumbnailLongSide, browseBounds: browseBounds))
     }
     func identity(_ path: String) async throws -> ContentIdentity {
         let location = try await registry.location(for: Fixtures.url(path))
+        return try await registry.base.provider(for: location).entry(at: location).identity
+    }
+    func copyIdentity(_ path: String, index: Int) async throws -> ContentIdentity {
+        let url = root.appendingPathComponent("copy-\(index)." + (path as NSString).pathExtension)
+        try FileManager.default.copyItem(at: Fixtures.url(path), to: url)
+        let location = try await registry.location(for: url)
         return try await registry.base.provider(for: location).entry(at: location).identity
     }
     func largeIdentity() async throws -> ContentIdentity {

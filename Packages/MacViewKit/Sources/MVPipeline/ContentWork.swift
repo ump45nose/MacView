@@ -61,7 +61,7 @@ actor ContentWork {
                 waiters[consumer] = Waiter(full: full, metadata: metadata, priority: priority, continuation: continuation)
                 updatePriority()
                 if task == nil {
-                    do { task = try lifetime.start { await self.run() } }
+                    do { task = try lifetime.start(priority: waiters.values.map(\.priority).max()?.taskPriority) { await self.run() } }
                     catch {
                         for waiter in waiters.values { waiter.continuation.resume(throwing: error) }
                         waiters.removeAll()
@@ -78,7 +78,10 @@ actor ContentWork {
     }
 
     private func updatePriority() {
-        scheduler?.setPriority(waiters.values.map(\.priority).max() ?? .background, for: group)
+        let priority = waiters.values.map(\.priority).max() ?? .background
+        scheduler?.setPriority(priority, for: group)
+        // 消费者通过续体等待，运行时不会把优先级传给读取任务；任务优先级只升不降。
+        task?.escalatePriority(to: priority.taskPriority)
     }
 
     private func cancel(_ consumer: UUID) {

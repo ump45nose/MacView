@@ -112,8 +112,14 @@ final class SharedWork<Value: Sendable>: Sendable {
             if state.priorities[consumer] != nil { state.priorities[consumer] = priority }
             return state.priorities.values.max() ?? .background
         }
-        context.setPriority(effective)
-        scheduler?.setPriority(effective, for: group)
+        apply(effective)
+    }
+
+    /// 消费者通过续体等待，运行时不会把优先级传给运行中的任务；任务优先级只升不降。
+    private func apply(_ priority: IOPriority) {
+        context.setPriority(priority)
+        scheduler?.setPriority(priority, for: group)
+        state.withLock { $0.task }?.escalatePriority(to: priority.taskPriority)
     }
 
     func value(consumer: UUID = UUID(), priority: IOPriority, operation: @escaping @Sendable (SharedWork<Value>) async throws -> Value) async throws -> Value {
@@ -131,8 +137,7 @@ final class SharedWork<Value: Sendable>: Sendable {
                     return (nil, start, state.priorities.values.max() ?? priority)
                 }
                 if let result = action.0 { continuation.resume(with: result); return }
-                context.setPriority(action.2)
-                scheduler?.setPriority(action.2, for: group)
+                apply(action.2)
                 guard action.1 else { return }
                 let task: Task<Void, any Error>
                 do {
@@ -146,10 +151,12 @@ final class SharedWork<Value: Sendable>: Sendable {
                         self.finish(result)
                     }
                 } catch { finish(.failure(error)); return }
-                let cancelled = state.withLock { state in
+                // 任务登记之前加入的消费者没能提升它。
+                let (cancelled, effective) = state.withLock { state in
                     state.task = task
-                    return state.waiters.isEmpty && state.result == nil
+                    return (state.waiters.isEmpty && state.result == nil, state.priorities.values.max())
                 }
+                if let effective { task.escalatePriority(to: effective.taskPriority) }
                 if cancelled { task.cancel() }
             }
         } onCancel: { self.cancel(consumer) }
