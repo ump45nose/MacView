@@ -156,6 +156,22 @@ import Testing
     #expect(await (try FileSettingsStore(directory: directory.url)).global().maxDecodeLongSide == 1024)
 }
 
+@Test func updatePathRulesIsVisibleToResolveAndEmitsPathRules() async throws {
+    let directory = try SettingsDirectory()
+    let store = try FileSettingsStore(directory: directory.url)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+    let book = Location(root: .local, layers: [["comics", "a.zip"]])
+    let rule = PathRule(name: "目录", prefix: book.parent!, settings: BookSettings(pageMode: .double))
+    try await store.updatePathRules { $0.append(rule) }
+    #expect(await store.resolve(for: book).pageMode == .double)
+    #expect(await store.pathRules() == [rule])
+    let envelope = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: directory.url.appending(path: "path-rules.json"))) as? [String: Any])
+    #expect(envelope["version"] as? Int == 1)
+    try await settingsWait { events.values.contains(.pathRules) }
+    #expect(await (try FileSettingsStore(directory: directory.url)).resolve(for: book).pageMode == .double)
+}
+
 @Test func aThousandBookMemoriesCoalesceFlushAndSurviveReopening() async throws {
     let directory = try SettingsDirectory()
     let memories = (0..<1000).map { index in
