@@ -1,6 +1,6 @@
 # MacView 工作约定
 
-MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）。本文件是在本仓库工作的约定，Claude 与 Codex 共用。
+MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）。本文件是在本仓库工作的约定，设计侧和各执行方共用。
 
 ## 文档
 
@@ -16,10 +16,10 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 
 ## 分工
 
-- 2026-11-01 起恢复 Codex，按规格目录分阶段执行：
-  - T 任务由 Codex 的阶段主控执行，工作范围是规格目录里的 `stage-<n>.md`。
+- 按规格目录分阶段执行：
+  - T 任务由后端阶段主控执行，工作范围是规格目录里的 `stage-<n>.md`。2026-11-03 起后端暂由 Cursor CLI（`grok-4.7-xhigh`）执行。
   - Claude 是设计侧主控：写阶段详细设计、审核阶段总结，负责 F 任务的设计；F 任务的执行方按额度另定。
-  - 当前需求 s1-core 的规格目录是 `.worktree/s1-core/.spec/`（不入库），需求 worktree 为 `.worktree/s1-core`，分支 `feat/s1-core`。
+  - 当前需求的规格目录是需求 worktree 里的 `.spec/`（不入库），需求 worktree 为 `.worktree/<需求名>`，分支 `feat/<需求名>`。
 - 任务 ID 中，T 表示 Core 任务（`Packages/`、`Fixtures/`、mvbench、脚本），F 表示 App 任务（`App/`）。
 - 修改公开接口时，同步更新 architecture.md §4。
 
@@ -58,6 +58,7 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 - Swift 6 语言模式，完整并发检查，零警告。
 - 单元测试用 Swift Testing。
 - 性能数据来自 mvbench 与 signpost；界面性能用 `xctrace`（Animation Hitches）采集。
+- App 没有测试目标，界面行为用 `-MVSelfTest`、`-MVDockSelfTest` 自检。点击和拖动要走真实事件路径（经 `NSApp.sendEvent` 发送），`performClick` 测不到依赖当前事件的逻辑；读模型也证明不了屏幕上的显示，这类结果由用户确认。
 
 ## 依赖
 
