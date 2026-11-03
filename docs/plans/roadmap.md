@@ -4,7 +4,7 @@
 - 架构与关口：[architecture.md](../architecture.md)
 - 工作约定：[AGENTS.md](../../AGENTS.md)
 
-任务 ID 中，T 表示 Core 任务，F 表示 App 任务；2026-11-01 起 T 任务由 Codex 按规格目录分阶段执行，分工见 [AGENTS.md](../../AGENTS.md)。
+任务 ID 中，T 表示 Core 任务，F 表示 App 任务；T 任务按规格目录分阶段执行，执行方与分工见 [AGENTS.md](../../AGENTS.md)。
 
 进度记录方式：
 - 状态取值：未开始、进行中、已完成、阻塞（注明原因）。
@@ -24,17 +24,19 @@
 - 阶段 3 独立验收通过；S1-T5（图像管线）与 S1-T6（阅读模型）均已完成，176 项测试通过，零编译警告。
 - S1-T5 独立复测 C3.2 为 78.68 ms、C3.3 为 19.76 ms，均达标；C3.4 因 NFS 未在线而未验证。
 - 阶段 5 的实现完成（S1-F3、S1-F1、S1-F2）。App 已接入真实服务，真实服务自检中英文各 23 PASS、0 FAIL、0 SKIP；Mock 自检中英文各 32 PASS、0 FAIL、0 SKIP，停靠自检三阶段分别为 54、6、4 PASS，均为 0 FAIL、0 SKIP。
-  - 待用户录制：C5.2（画布，触控板滚动与改尺寸）、C5.12（停靠，拖动面板与改尺寸）。
-  - 未测：真实鼠标拖动手势。
 - 阶段 4 的 S1-T8 已完成。首次独立验收中 220 项测试及八组 GUI 自检通过；三项修复后的受影响测试 56/56 及真实服务自检通过，见[报告](../reports/S1-T8.md)。
-- 下一步：由设计侧综合评估关口 G1。
+- 关口 G1 通过（2026-11-03），依据是 `5c1136f` 上的 227 项测试（`make test` 连续 10 轮通过）、整体验收和用户手动验收：
+  - 契约稳定：六条跨模块决定与代码一致，S2 不需要改动现有契约。
+  - 预算：首图 P95 88.09 ms（预算 150 ms），已缓存首屏 P95 25.67 ms（预算 100 ms）。
+  - 未验证，归 S2-T2 在 G2 前补齐：Animation Hitches 录制（C5.2、C5.12），NFS 吞吐（C1.10、C3.4）。自动场景的帧时间 P99 在网格改尺寸和两种条的停走、改尺寸阶段是 16.67 ms，录制不达标时 S7 滚动验收不通过。
+- 下一步：S2。
 
 ## 关口
 
 | 关口 | 时机 | 状态 |
 |---|---|---|
 | G0 | S0 完成 | 已完成（2026-11-01） |
-| G1 | S1 完成 | 未开始 |
+| G1 | S1 完成 | 已完成（2026-11-03） |
 | G2 | S2 完成（P0 完成） | 未开始 |
 | G3–G5 | S3–S5 各阶段末 | 未开始 |
 | G6 | 发布前 | 未开始 |
@@ -64,15 +66,22 @@ S1 的任务都在 G0 之后开始，前置列只列阶段内的依赖。
 | S1-T6 | MVReading：BookLoader（渐进、过滤、排序、递归、穿透、探测顺序）、Bookshelf、PageFrameEngine、ReaderSession | S1-T7 | [S1-T6](tasks/S1-T6.md)、[报告](../reports/S1-T6.md) | 已完成 |
 | S1-T7 | MVSettings 与 MVCommands：JSON 存储与重载、分层解析、路径规则、书记忆、命令登记、按键序列解析，以及 P0 的默认命令、绑定和菜单 | — | [S1-T7](tasks/S1-T7.md)、[报告](../reports/S1-T7.md) | 已完成 |
 | S1-T8 | MVServices 组合根，加跨模块集成测试：打开 zip 书、翻页、生成缩略图、设置落盘 | S1-T1、S1-T2、S1-T5、S1-T6 | [S1-T8](tasks/S1-T8.md)、[报告](../reports/S1-T8.md) | 已完成 |
-| S1-F1 | App 外壳：生命周期、窗口与标签、服务容器（先接 Mock）、MenuBuilder、InputRouter、String Catalog（开发语言为简体中文，补英文） | — | [S1-F1](tasks/S1-F1.md)、[报告](../reports/S1-F1.md) | 已完成（菜单显示与真实拖放待用户目测） |
-| S1-F2 | 停靠面板框架：三个停靠区、面板栈、拖动换区、浮动面板、全屏自动隐藏、布局持久化 | S1-F1 | [S1-F2](tasks/S1-F2.md)、[报告](../reports/S1-F2.md) | 实现完成；C5.12 待用户录制，真实鼠标拖动未测 |
-| S1-F3 | 画布引擎正式版：四种 LayoutModel、锚点保持、可见范围回报 | S0-F1 | [S1-F3](tasks/S1-F3.md)、[报告](../reports/S1-F3.md) | 实现完成；C5.2 待用户录制 |
+| S1-F1 | App 外壳：生命周期、窗口与标签、服务容器（先接 Mock）、MenuBuilder、InputRouter、String Catalog（开发语言为简体中文，补英文） | — | [S1-F1](tasks/S1-F1.md)、[报告](../reports/S1-F1.md) | 已完成 |
+| S1-F2 | 停靠面板框架：三个停靠区、面板栈、拖动换区、浮动面板、全屏自动隐藏、布局持久化 | S1-F1 | [S1-F2](tasks/S1-F2.md)、[报告](../reports/S1-F2.md) | 已完成（C5.12 录制归 S2-T2） |
+| S1-F3 | 画布引擎正式版：四种 LayoutModel、锚点保持、可见范围回报 | S0-F1 | [S1-F3](tasks/S1-F3.md)、[报告](../reports/S1-F3.md) | 已完成（C5.2 录制归 S2-T2） |
 
 排序原则：按关键路径和风险排序。性能链（S1-T1、S1-T3、S1-T4 → S1-T5）优先，F 系列在 Mock 上穿插进行。
 
 ## S2 P0 集成与验收（关口 G2 = P0 完成）
 
 S2 的任务都在 G1 之后开始，前置列只列阶段内的依赖。
+
+S1 留给 S2 的事项：
+
+- S2-T1：`PrefetchRanges` 的 `neighborBooks`、`shelfCovers` 还没有被读取；补测 NFS 吞吐（C1.10、C3.4）。
+- S2-F1：`viewerDecodeFrames` 的视口预解码；`ArchiveProvider.fileURL` 只保留最近一次租约，同时打开两份解出的文件时前一份 URL 可能失效。
+- S2-F3：App 没有订阅 `SettingsStore.changes()`，`settings.json` 的解析错误不显示，违反「状态可见」；接入后验证「缺少全局字段」的英文文字。
+- S2-T2：录制 C5.2、C5.12；`-MVSelfTest` 的 Mock 模式在中文输入法下固定失败「字母进入了文本框」，改为在非 ASCII 输入法下跳过。
 
 | ID | 内容 | 前置 | 状态 |
 |---|---|---|---|
