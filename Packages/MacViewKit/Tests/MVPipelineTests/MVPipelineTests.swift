@@ -240,18 +240,22 @@ import Testing
     environment.registry.control.gate = gate
     let session = SessionID()
     environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [PrefetchItem(identity: identity, renditions: [], priority: .background)]), session: session)
-    try await eventually { environment.registry.control.reads.count == 2 }
+    try await eventuallyForCancellationResume("等待第二次读取") { environment.registry.control.reads.count == 2 }
     environment.pipeline.cancelAll(session: session)
-    try await Task.sleep(for: .milliseconds(20))
+    try await eventuallyForCancellationResume("等待取消后保留前缀") {
+        environment.caches.raw.value(for: identity.cacheKey)?.count == 4 << 20
+    }
     let prefix = try #require(environment.caches.raw.value(for: identity.cacheKey))
     #expect(prefix.count == 4 << 20)
     await gate.release()
     environment.registry.control.gate = nil
-    try await Task.sleep(for: .milliseconds(20))
     let previous = environment.registry.control.reads.count
     environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [PrefetchItem(identity: identity, renditions: [], priority: .near)]), session: session)
-    try await eventually { environment.caches.raw.value(for: identity.cacheKey)?.count == Int(identity.size) }
+    try await eventuallyForCancellationResume("等待续读开始") {
+        environment.registry.control.reads.count > previous
+    }
     #expect(environment.registry.control.reads.dropFirst(previous).first?.range.lowerBound == Int64(prefix.count))
+    try await eventuallyForCancellationResume("等待原始缓存完整") { environment.caches.raw.value(for: identity.cacheKey)?.count == Int(identity.size) }
     environment.pipeline.cancelAll(session: session)
 }
 
@@ -398,7 +402,21 @@ private func eventually(_ predicate: () async throws -> Bool) async throws {
     throw PipelineTestFailure.timedOut
 }
 
+private func eventuallyForCancellationResume(
+    _ description: String,
+    fileID: StaticString = #fileID,
+    line: UInt = #line,
+    _ predicate: () async throws -> Bool
+) async throws {
+    for _ in 0..<6_000 {
+        if try await predicate() { return }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+    throw CancellationResumeTestFailure.timedOut("\(description)（\(fileID):\(line)）")
+}
+
 private enum PipelineTestFailure: Error { case timedOut }
+private enum CancellationResumeTestFailure: Error { case timedOut(String) }
 
 /// 真实文件来源的计数外壳；不替换文件解析、调度或解码。
 private final class PipelineEnvironment: Sendable {
