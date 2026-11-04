@@ -143,26 +143,31 @@ public struct ResolvedBookSettings: Codable, Sendable, Hashable {
 public struct CacheBudgets: Codable, Sendable, Hashable {
     /// L0：近期读取的原始文件字节。
     public var rawBytes: Int64
-    /// L1：显示尺寸图与原图的解码结果。
+    /// 可见请求的解码结果。
     public var decodedBytes: Int64
+    public var thumbnailMemoryBytes: Int64
+    public var preloadBytes: Int64
     /// L2：缩略图。
     public var thumbnailBytes: Int64
     /// L3：浏览图，可以关闭。
     public var browseBytes: Int64
     public var browseCacheEnabled: Bool
 
-    public init(rawBytes: Int64, decodedBytes: Int64, thumbnailBytes: Int64, browseBytes: Int64, browseCacheEnabled: Bool) {
+    public init(rawBytes: Int64, decodedBytes: Int64, thumbnailBytes: Int64, browseBytes: Int64, browseCacheEnabled: Bool,
+                thumbnailMemoryBytes: Int64 = 512 << 20, preloadBytes: Int64 = 512 << 20) {
         self.rawBytes = rawBytes
         self.decodedBytes = decodedBytes
+        self.thumbnailMemoryBytes = thumbnailMemoryBytes
+        self.preloadBytes = preloadBytes
         self.thumbnailBytes = thumbnailBytes
         self.browseBytes = browseBytes
         self.browseCacheEnabled = browseCacheEnabled
     }
 
-    /// L1 取 2 GB 与物理内存 10% 中较小的一个。
+    /// 可见解码缓存取 1 GB 与物理内存 5% 中较小的一个。
     public static let `default` = CacheBudgets(
         rawBytes: 512 << 20,
-        decodedBytes: min(2 << 30, Int64(ProcessInfo.processInfo.physicalMemory / 10)),
+        decodedBytes: min(1 << 30, Int64(ProcessInfo.processInfo.physicalMemory / 20)),
         thumbnailBytes: 10 << 30,
         browseBytes: 50 << 30,
         browseCacheEnabled: true

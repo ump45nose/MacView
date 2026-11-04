@@ -49,6 +49,84 @@ import Testing
     #expect(environment.pipeline.sourceDecodeCount == 0)
 }
 
+@Test func backgroundBasesStayOutOfMemoryAndThumbnailsHaveTheirOwnBudget() async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let identity = try await environment.identity("image/size/3600x5400.jpg")
+    _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .book)
+    try await eventually { environment.pipeline.memory.inFlightBytes == 0 }
+    #expect(environment.caches.decoded.totalCost == 0)
+    #expect(environment.caches.preload.totalCost == 0)
+    #expect(environment.caches.thumbnailMemory.totalCost > 0)
+    let before = environment.pipeline.memory
+    environment.caches.thumbnailMemory.setBudget(0)
+    #expect(environment.pipeline.memory.thumbnailMemoryBytes == 0)
+    #expect(environment.pipeline.memory.rawBytes == before.rawBytes)
+    #expect(environment.caches.decoded.budget == 64 << 20)
+    #expect(environment.caches.preload.budget == 512 << 20)
+    await environment.pipeline.shutdown()
+}
+
+@Test func inFlightBudgetBoundsBackgroundAndPromotesOrCancelsWaiters() async throws {
+    let budget = InFlightBudget(limit: 100)
+    #expect(try await budget.acquire(80, context: RequestContext(.book)))
+    #expect(try await budget.acquire(30, context: RequestContext(.background)))
+    #expect(budget.snapshot.bytes == 110) // 只允许跨过额度的这一张。
+    let context = RequestContext(.background)
+    let promoted = Task { try await budget.acquire(20, context: context) }
+    try await eventually { budget.snapshot.waiting == 1 }
+    context.setPriority(.visible)
+    #expect(try await promoted.value == false)
+    let cancelled = Task { try await budget.acquire(10, context: RequestContext(.book)) }
+    try await eventually { budget.snapshot.waiting == 1 }
+    cancelled.cancel()
+    await #expect(throws: CancellationError.self) { try await cancelled.value }
+    #expect(budget.snapshot.waiting == 0)
+    budget.release(130)
+    #expect(budget.snapshot.bytes == 0)
+}
+
+@Test func derivativeBacklogIsBoundedAndForegroundCanDeferThenRepair() async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    // 其他在途工作占住额度；剩余空间只准入一张真实基础图。
+    let occupied = environment.pipeline.inFlight.limit - 1
+    _ = try await environment.pipeline.inFlight.acquire(occupied, context: RequestContext(.visible))
+    let gate = DispatchSemaphore(value: 0), blocked = Atomic(false)
+    let disk = Task {
+        try await environment.index.diskOperations.perform { blocked.store(true, ordering: .relaxed); gate.wait() }
+    }
+    defer { gate.signal() }
+    try await eventually { blocked.load(ordering: .relaxed) }
+    var identities: [ContentIdentity] = []
+    for index in 0..<6 { identities.append(try await environment.copyIdentity("image/size/3600x5400.jpg", index: index)) }
+    let tasks = identities.map { identity in Task { try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .book) } }
+    try await eventually { environment.pipeline.memory.waitingTasks == 5 && environment.caches.thumbnailMemory.totalCost > 0 }
+    #expect(environment.pipeline.sourceDecodeCount == 1)
+    let base = try await ImageDecoder().image(Data(contentsOf: Fixtures.url("image/size/3600x5400.jpg")),
+                                               target: DisplayTarget(pixelSize: PixelSize(width: 450, height: 675)))
+    #expect(environment.pipeline.memory.inFlightBytes <= environment.pipeline.inFlight.limit + Int64(base.image.bytesPerRow * base.image.height))
+    #expect(environment.caches.decoded.totalCost == 0 && environment.caches.preload.totalCost == 0)
+    let waiting = try #require(identities.indices.first { environment.caches.thumbnailMemory.value(for: identities[$0].cacheKey + "|thumb|128") == nil })
+    let visible = try await environment.pipeline.thumbnail(for: identities[waiting], maxPixel: 128, priority: .visible)
+    #expect(visible.image.height == 128)
+    #expect(try await environment.caches.thumbnails.data(for: identities[waiting].cacheKey) == nil)
+    #expect(environment.pipeline.memory.waitingTasks == 4)
+    // 取消仍在额度前排队的请求，不必等慢衍生件完成。
+    for task in tasks { task.cancel() }
+    for task in tasks { _ = try? await task.value }
+    try await eventually { environment.pipeline.memory.waitingTasks == 0 }
+    environment.pipeline.inFlight.release(occupied)
+    gate.signal()
+    try await disk.value
+    try await eventually { environment.pipeline.memory.inFlightBytes == 0 }
+    let decodes = environment.pipeline.sourceDecodeCount
+    _ = try await environment.pipeline.thumbnail(for: identities[waiting], maxPixel: 128, priority: .visible)
+    try await eventually { try await environment.caches.thumbnails.data(for: identities[waiting].cacheKey) != nil }
+    #expect(environment.pipeline.sourceDecodeCount == decodes)
+    await environment.pipeline.shutdown()
+}
+
 @Test func actualSourceIdentityOwnsAllCacheEntries() async throws {
     let environment = try PipelineEnvironment()
     defer { environment.clean() }
@@ -71,8 +149,8 @@ import Testing
     let values = try await environment.caches.metadata.values(in: actual.location.parent!)
     #expect(values[stale.cacheKey] == nil)
     #expect(values[actual.cacheKey]?.pixelSize == PixelSize(width: 3600, height: 5400))
-    #expect(environment.caches.decoded.value(for: stale.cacheKey + "|thumb|128") == nil)
-    #expect(environment.caches.decoded.value(for: actual.cacheKey + "|thumb|128") != nil)
+    #expect(environment.caches.thumbnailMemory.value(for: stale.cacheKey + "|thumb|128") == nil)
+    #expect(environment.caches.thumbnailMemory.value(for: actual.cacheKey + "|thumb|128") != nil)
 }
 
 @Test func progressiveDeliveryUsesAllThreeStagesAndSkipsLowerCachedQuality() async throws {

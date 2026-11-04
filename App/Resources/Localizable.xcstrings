@@ -925,6 +925,16 @@
         }
       }
     },
+    "可见页的显示尺寸图和原图；默认取 1 GB 与内存的 5% 中较小者": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display-sized and original images for visible pages; defaults to the smaller of 1 GB and 5% of memory"
+          }
+        }
+      }
+    },
     "右侧停靠区": {
       "localizations": {
         "en": {
@@ -1863,16 +1873,6 @@
         }
       }
     },
-    "显示尺寸图和原图；默认取 2 GB 与内存的 10% 中较小者": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Display-sized and original images; defaults to the smaller of 2 GB and 10% of memory"
-          }
-        }
-      }
-    },
     "显示或隐藏书架": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2031,6 +2031,16 @@
         }
       }
     },
+    "查看器前后页帧的预解码结果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Predecoded page frames before and after the current viewer frame"
+          }
+        }
+      }
+    },
     "查看器当前页帧的前后": {
       "localizations": {
         "en": {
@@ -2155,6 +2165,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Browse image cache limit"
+          }
+        }
+      }
+    },
+    "浏览图预载": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image Preloading"
+          }
+        }
+      }
+    },
+    "浏览图预载内存上限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image Preloading Memory Limit"
           }
         }
       }
@@ -2423,12 +2453,12 @@
         }
       }
     },
-    "系统内存紧张时，两者会暂时收缩到上限的 50% 或 25%。": {
+    "系统内存紧张时，四项缓存会暂时收缩到上限的 50% 或 25%。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When system memory is tight, both shrink temporarily to 50% or 25% of the limit."
+            "value": "When system memory is tight, all four caches shrink temporarily to 50% or 25% of the limit."
           }
         }
       }
@@ -2533,6 +2563,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Thumbnails"
+          }
+        }
+      }
+    },
+    "缩略图内存上限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thumbnail Memory Limit"
+          }
+        }
+      }
+    },
+    "缩略图内存缓存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thumbnail Memory Cache"
           }
         }
       }

@@ -89,7 +89,8 @@ public struct CoreConfiguration: Sendable {
             raw: MemoryCache(budget: budgets.rawBytes), decoded: MemoryCache(budget: budgets.decodedBytes),
             thumbnails: try DiskCache(tier: .thumbnails, cacheDirectory: configuration.cacheDirectory, budget: budgets.thumbnailBytes, index: index),
             browse: try budgets.browseCacheEnabled ? DiskCache(tier: .browse, cacheDirectory: configuration.cacheDirectory, budget: budgets.browseBytes, index: index) : nil,
-            metadata: MetadataIndex(index: index))
+            metadata: MetadataIndex(index: index), thumbnailMemory: MemoryCache(budget: budgets.thumbnailMemoryBytes),
+            preload: MemoryCache(budget: budgets.preloadBytes))
         let directories = DirectoryCache(index: index)
         let pipeline = FileImagePipeline(sources: sources, decoder: ImageDecoder(), caches: caches,
                                          configuration: PipelineConfiguration(browseBounds: configuration.browseBounds, maxDecodeLongSide: global.maxDecodeLongSide))
@@ -137,6 +138,8 @@ public struct CoreConfiguration: Sendable {
         let fraction = event.contains(.critical) ? 0.25 : 0.5
         runtime.caches.raw.trim(toFraction: fraction)
         runtime.caches.decoded.trim(toFraction: fraction)
+        runtime.caches.thumbnailMemory.trim(toFraction: fraction)
+        runtime.caches.preload.trim(toFraction: fraction)
         (pipeline as? FileImagePipeline)?.cancelBackgroundPrefetch()
     }
 
@@ -148,6 +151,8 @@ public struct CoreConfiguration: Sendable {
         (pipeline as? FileImagePipeline)?.setMaxDecodeLongSide(global.maxDecodeLongSide)
         runtime.caches.raw.setBudget(budget.rawBytes)
         runtime.caches.decoded.setBudget(budget.decodedBytes)
+        runtime.caches.thumbnailMemory.setBudget(budget.thumbnailMemoryBytes)
+        runtime.caches.preload.setBudget(budget.preloadBytes)
         do {
             try await runtime.caches.thumbnails.setBudget(budget.thumbnailBytes)
             guard !Task.isCancelled else { return }

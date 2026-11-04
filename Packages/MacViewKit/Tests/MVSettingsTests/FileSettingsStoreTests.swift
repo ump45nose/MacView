@@ -100,6 +100,7 @@ import Testing
     let event = await iterator.next()
     #expect(event.map { if case let .fileError(file, message) = $0 {
         file == "settings.json" && message.contains("defaultBook.sort.ascending") && message.contains("prefetch")
+            && message.contains("cache.thumbnailMemoryBytes") && message.contains("cache.preloadBytes")
     } else { false } } == true)
     #expect(try Data(contentsOf: file) == data)
 }

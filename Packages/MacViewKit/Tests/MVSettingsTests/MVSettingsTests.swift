@@ -24,6 +24,8 @@ import Testing
     let global = GlobalSettings.default
     #expect(try JSONDecoder().decode(GlobalSettings.self, from: JSONEncoder().encode(global)) == global)
     #expect(global.cache.rawBytes == 512 << 20)
-    #expect(global.cache.decodedBytes == min(2 << 30, Int64(ProcessInfo.processInfo.physicalMemory / 10)))
+    #expect(global.cache.decodedBytes == min(1 << 30, Int64(ProcessInfo.processInfo.physicalMemory / 20)))
+    #expect(global.cache.thumbnailMemoryBytes == 512 << 20)
+    #expect(global.cache.preloadBytes == 512 << 20)
     #expect(global.prefetch.neighborBooks == 2)
 }

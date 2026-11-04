@@ -149,7 +149,9 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 | 层 | 介质 | 内容 | 默认预算 |
 |---|---|---|---|
 | L0 | 内存 | 近期读取的原始文件字节；换尺寸重新解码时不必再读 NAS | 512 MB |
-| L1 | 内存 | 显示尺寸图和原图的解码结果 | min(2 GB, 10% 内存) |
+| 解码缓存 | 内存 | `visible` 请求产出或用到的基础图和显示图 | min(1 GB, 5% 内存) |
+| 缩略图内存缓存 | 内存 | 任何优先级的缩略图和视频封面 | 512 MB |
+| 浏览图预载 | 内存 | `near` 请求产出的基础图和显示图 | 512 MB |
 | L2 | SSD | 缩略图 | 10 GB |
 | L3 | SSD（可关） | 浏览图 | 50 GB |
 | 索引 | SQLite | 元数据（尺寸、帧数、时长、拍摄时间）、目录列表、L2/L3 的位置与访问时间 | — |
@@ -159,7 +161,9 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 写入时先写临时文件再改名，最后更新索引。
   - 启动时不扫描缓存目录。
 - 元数据索引用定长列，按容器查询，不做泛型存储：泛型 Codable 逐条解码 JSON，1 万项约 28 ms，超出 20 ms 的预算。
-- 内存压力：收到系统的内存压力事件时，把 L0/L1 收缩到预算的 50% 或 25%。
+- 内存预算：`CacheBudgets.rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes` 分别控制以上四块内存。`visible` 命中预载时搬到解码缓存；低于 `near` 的基础图和显示图不进缓存。App 的缩略图 `NSCache` 按图像字节计成本，额度跟随 `thumbnailMemoryBytes`，与管线主要共享图像对象。
+- 内存压力：收到系统的内存压力事件时，把四块内存同时收缩到各自预算的 50% 或 25%。
+- 基础图从解码前到衍生件写完计入内部 512 MB 在途额度。低于 `near` 的请求等额度，允许最后一张跨过额度；等待可取消，前台加入时立即提升并准入。`visible`、`near` 不等额度，满额时先交付且不排衍生件，下次访问再补。
 - 目录缓存：
   - 先返回上次的结果，同时在后台校验，NAS 目录因此能秒开。
   - 首次枚举时按到达顺序渐进显示，枚举完成后一次性排序，并保持可见锚点不动。
@@ -465,8 +469,10 @@ public protocol ImagePipeline: Sendable {
 }
 public struct PipelineCaches: Sendable {
     public var raw: MemoryCache<String, Data>; public var decoded: MemoryCache<String, RenderedImage>
+    public var thumbnailMemory: MemoryCache<String, RenderedImage>; public var preload: MemoryCache<String, RenderedImage>
     public var thumbnails: DiskCache; public var browse: DiskCache?; public var metadata: MetadataIndex
-    public init(raw: MemoryCache<String, Data>, decoded: MemoryCache<String, RenderedImage>, thumbnails: DiskCache, browse: DiskCache?, metadata: MetadataIndex)
+    public init(raw: MemoryCache<String, Data>, decoded: MemoryCache<String, RenderedImage>, thumbnails: DiskCache, browse: DiskCache?, metadata: MetadataIndex,
+                thumbnailMemory: MemoryCache<String, RenderedImage> = MemoryCache(budget: 512 << 20), preload: MemoryCache<String, RenderedImage> = MemoryCache(budget: 512 << 20))
 }   // 生命周期、预算与 flush 由组合根管理
 public struct PipelineConfiguration: Sendable {
     public var thumbnailLongSide: Int; public var browseBounds: PixelSize; public var maxDecodeLongSide: Int
@@ -478,12 +484,24 @@ public final class FileImagePipeline: ImagePipeline {
     public func shutdown() async   // 停止接收新工作，新请求抛 CancellationError；取消并排空读取、解码和缓存写入，包括独立衍生件任务
 }
 
+public struct PipelineMemorySnapshot: Sendable {
+    public var rawBytes: Int64; public var decodedBytes: Int64; public var thumbnailMemoryBytes: Int64; public var preloadBytes: Int64
+    public var inFlightBytes: Int64; public var waitingTasks: Int
+}
 extension FileImagePipeline {
+    public var memory: PipelineMemorySnapshot { get }   // 四块缓存实际字节、基础图在途字节和等额度任务数
+    public var thumbnailMemoryBudget: Int64 { get }
     public var maxDecodeLongSide: Int { get }
     public func setMaxDecodeLongSide(_ value: Int)   // 由 MVServices 在全局设置变化时调用
 }
 
 // MVSettings
+public struct CacheBudgets: Codable, Sendable, Hashable {
+    public var rawBytes: Int64; public var decodedBytes: Int64; public var thumbnailMemoryBytes: Int64; public var preloadBytes: Int64
+    public var thumbnailBytes: Int64; public var browseBytes: Int64; public var browseCacheEnabled: Bool
+    public init(rawBytes: Int64, decodedBytes: Int64, thumbnailBytes: Int64, browseBytes: Int64, browseCacheEnabled: Bool,
+                thumbnailMemoryBytes: Int64 = 512 << 20, preloadBytes: Int64 = 512 << 20)
+}   // 默认值见 §3.4；设置文件缺字段时 FileSettingsStore 补默认值
 public enum BrowseMode: String, Codable, Sendable { case paged, waterfall, verticalStrip, horizontalStrip }
 public enum PageMode: String, Codable, Sendable { case single, double }
 public enum ReadingDirection: String, Codable, Sendable { case leftToRight, rightToLeft }
@@ -633,7 +651,7 @@ public struct CoreConfiguration: Sendable {
     public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
 // make 创建空 CommandRegistry，命令处理器由 App 登记。组合根统一订阅内存压力和全局设置变化：
-// warning/critical 将 L0/L1 收缩至预算的 50%/25% 并取消 background 预取；设置变化更新 L0–L3 预算，L3 开关下次启动生效。
+// warning/critical 将四块内存缓存收缩至预算的 50%/25% 并取消 background 预取；设置变化更新全部缓存预算，L3 开关下次启动生效。
 // MVTestSupport：extension CoreServices { static func makeMock(_ options: MockOptions = MockOptions()) -> CoreServices }
 
 // MVLayout：App 侧的纯计算，不依赖 AppKit

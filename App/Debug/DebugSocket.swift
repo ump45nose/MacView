@@ -358,7 +358,7 @@ final class DebugCommands: Sendable {
 
     private func windowIsFront(_ window: NSWindow?) -> Bool {
         guard let window else { return false }
-        return window.isKeyWindow && NSApp.isActive && window.occlusionState.contains(.visible)
+        return window.isVisible && window.isKeyWindow && NSApp.isActive && window.occlusionState.contains(.visible)
     }
 
     // MARK: state
@@ -369,6 +369,7 @@ final class DebugCommands: Sendable {
             fileErrors.append(.object(["file": .string("layout.json"), "message": .string(problem.detail)]))
         }
         let budgets = await app.services?.settings.global().cache
+        let memory = (app.services?.pipeline as? FileImagePipeline)?.memory
         return .object([
             "windows": .array(app.controllers.map(windowState)),
             "volumes": .array(volumes.map(volumeState)),
@@ -376,7 +377,13 @@ final class DebugCommands: Sendable {
             "residentBytes": .number(Double(Self.residentBytes())),
             "cacheBudgets": budgets.map { .object([
                 "rawBytes": .number(Double($0.rawBytes)), "decodedBytes": .number(Double($0.decodedBytes)),
+                "thumbnailMemoryBytes": .number(Double($0.thumbnailMemoryBytes)), "preloadBytes": .number(Double($0.preloadBytes)),
                 "thumbnailDiskBytes": .number(Double($0.thumbnailBytes)), "browseDiskBytes": .number(Double($0.browseBytes)),
+            ]) } ?? .null,
+            "memory": memory.map { .object([
+                "rawBytes": .number(Double($0.rawBytes)), "decodedBytes": .number(Double($0.decodedBytes)),
+                "thumbnailMemoryBytes": .number(Double($0.thumbnailMemoryBytes)), "preloadBytes": .number(Double($0.preloadBytes)),
+                "inFlightBytes": .number(Double($0.inFlightBytes)), "waitingTasks": .number(Double($0.waitingTasks)),
             ]) } ?? .null,
         ])
     }

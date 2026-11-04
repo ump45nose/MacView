@@ -3,6 +3,7 @@ import MVCommands
 import MVFoundation
 import MVLayout
 import MVPipeline
+import MVSettings
 
 /// 面板的四种样式。旧的 layout.json 只有 `list` 和 `grid`。
 enum CollectionStyle: String, Codable, CaseIterable {
@@ -605,16 +606,22 @@ private final class CollectionRowImages {
 
     init(pipeline: any ImagePipeline) {
         self.pipeline = pipeline
-        cache.countLimit = 512
+        updateCacheBudget()
     }
 
     func cached(_ identity: ContentIdentity) -> CGImage? {
-        cache.object(forKey: identity.cacheKey as NSString)?.image
+        updateCacheBudget()
+        return cache.object(forKey: identity.cacheKey as NSString)?.image
     }
 
     func load(_ identity: ContentIdentity, maxPixel: Int) async throws -> CGImage {
         let image = try await pipeline.thumbnail(for: identity, maxPixel: maxPixel, priority: .visible).image
-        cache.setObject(CGImageBox(image), forKey: identity.cacheKey as NSString)
+        updateCacheBudget()
+        cache.setObject(CGImageBox(image), forKey: identity.cacheKey as NSString, cost: image.bytesPerRow * image.height)
         return image
+    }
+
+    private func updateCacheBudget() {
+        cache.totalCostLimit = max(1, Int((pipeline as? FileImagePipeline)?.thumbnailMemoryBudget ?? CacheBudgets.default.thumbnailMemoryBytes))
     }
 }

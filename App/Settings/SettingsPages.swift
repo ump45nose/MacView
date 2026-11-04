@@ -307,15 +307,31 @@ struct CacheSettingsPage: View {
                         )
                     }
                     SettingsDivider()
-                    SettingsRow(title: String(localized: "解码结果"), detail: String(localized: "显示尺寸图和原图；默认取 2 GB 与内存的 10% 中较小者")) {
+                    SettingsRow(title: String(localized: "解码结果"), detail: String(localized: "可见页的显示尺寸图和原图；默认取 1 GB 与内存的 5% 中较小者")) {
                         SettingsPopup(
                             label: String(localized: "解码结果内存上限"),
                             options: budgetOptions([512, 1024, 2048, 4096, 8192].map { $0 * Self.mb }, current: model.global.cache.decodedBytes),
                             selection: global(model, \.cache.decodedBytes)
                         )
                     }
+                    SettingsDivider()
+                    SettingsRow(title: String(localized: "缩略图内存缓存"), detail: String(localized: "书架、页面列表和瀑布流使用")) {
+                        SettingsPopup(
+                            label: String(localized: "缩略图内存上限"),
+                            options: budgetOptions([128, 256, 512, 1024, 2048].map { $0 * Self.mb }, current: model.global.cache.thumbnailMemoryBytes),
+                            selection: global(model, \.cache.thumbnailMemoryBytes)
+                        )
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: String(localized: "浏览图预载"), detail: String(localized: "查看器前后页帧的预解码结果")) {
+                        SettingsPopup(
+                            label: String(localized: "浏览图预载内存上限"),
+                            options: budgetOptions([128, 256, 512, 1024, 2048].map { $0 * Self.mb }, current: model.global.cache.preloadBytes),
+                            selection: global(model, \.cache.preloadBytes)
+                        )
+                    }
                 }
-                Text("系统内存紧张时，两者会暂时收缩到上限的 50% 或 25%。")
+                Text("系统内存紧张时，四项缓存会暂时收缩到上限的 50% 或 25%。")
                     .font(.system(size: 11))
                     .foregroundStyle(Color(nsColor: Theme.text2))
                     .padding(.horizontal, 12)
