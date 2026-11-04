@@ -13,7 +13,6 @@ public final class FileImagePipeline: ImagePipeline {
         var identity: ContentIdentity
         var base: RenderedImage
         var originalSize: PixelSize
-        var coverage: PixelSize
         var derivatives: Task<Void, any Error>
     }
     private struct PrefetchKey: Hashable, Sendable {
@@ -384,9 +383,11 @@ public final class FileImagePipeline: ImagePipeline {
     private func bundle(_ identity: ContentIdentity, target: DisplayTarget?, context: RequestContext) async throws -> Bundle {
         try lifetime.checkRunning()
         let key = identity.cacheKey
-        var requestedBounds = caches.browse == nil ? PixelSize(width: configuration.thumbnailLongSide, height: configuration.thumbnailLongSide) : configuration.browseBounds
-        requestedBounds.width = max(requestedBounds.width, configuration.thumbnailLongSide, target?.pixelSize.width ?? 0)
-        requestedBounds.height = max(requestedBounds.height, configuration.thumbnailLongSide, target?.pixelSize.height ?? 0)
+        var requestedBounds = target?.pixelSize ?? PixelSize(width: 1, height: 1)
+        if caches.browse == nil {
+            requestedBounds.width = max(requestedBounds.width, configuration.thumbnailLongSide)
+            requestedBounds.height = max(requestedBounds.height, configuration.thumbnailLongSide)
+        }
         let pair = try state.withLock { state -> (UUID, SharedWork<Bundle>) in
             try lifetime.checkRunning()
             var bounds = state.bundleBounds[key] ?? requestedBounds
@@ -412,11 +413,14 @@ public final class FileImagePipeline: ImagePipeline {
             // 在原始读取完成后才确定解码尺寸；读取期间进入的不同渲染件合并到同一最大尺寸。
             let bounds = state.withLock { $0.bundleBounds[key]! }
             let requiredSize = size.fitting(within: bounds)
-            if ImageDecoder.needsTiling(requiredSize, maxDecodeLongSide: maxDecodeLongSide) { throw MediaError.requiresTiling(size) }
-            // 保留 ImageDecoder 的 DCT 缩小级别，目标滤镜和锐化只在各自最终缩放时应用。
-            let ratio = min(Double(size.width) / Double(requiredSize.width), Double(size.height) / Double(requiredSize.height))
+            let browseSize = size.fitting(within: caches.browse == nil ? bounds : configuration.browseBounds)
+            let largest = PixelSize(width: max(requiredSize.width, browseSize.width), height: max(requiredSize.height, browseSize.height))
+            if ImageDecoder.needsTiling(largest, maxDecodeLongSide: maxDecodeLongSide) { throw MediaError.requiresTiling(size) }
+            // 浏览图允许小 20%，显示目标仍只允许小 10%；各算一级后取较细的一级。
+            let displayRatio = min(Double(size.width) / Double(requiredSize.width), Double(size.height) / Double(requiredSize.height)) / 0.9
+            let browseRatio = min(Double(size.width) / Double(browseSize.width), Double(size.height) / Double(browseSize.height)) / 0.8
             var factor = 1
-            while factor < 8, Double(factor * 2) * 0.9 <= ratio { factor *= 2 }
+            while factor < 8, Double(factor * 2) <= min(displayRatio, browseRatio) { factor *= 2 }
             let decodeSize = PixelSize(width: (size.width + factor - 1) / factor, height: (size.height + factor - 1) / factor)
             let baseKey = Self.key(loaded.identity, DisplayTarget(pixelSize: decodeSize))
             let bytes = Int64(IOSurfaceAlignProperty(kIOSurfaceBytesPerRow, decodeSize.width * 4) * decodeSize.height)
@@ -433,7 +437,7 @@ public final class FileImagePipeline: ImagePipeline {
             }
             if !derivativesAllowed {
                 _ = state.withLock { $0.deferredDerivatives.insert(loaded.identity.cacheKey) }
-                return Bundle(identity: loaded.identity, base: base, originalSize: size, coverage: requiredSize, derivatives: Task<Void, any Error> {})
+                return Bundle(identity: loaded.identity, base: base, originalSize: size, derivatives: Task<Void, any Error> {})
             }
             _ = state.withLock { $0.deferredDerivatives.remove(loaded.identity.cacheKey) }
             // Bundle 交付后衍生件仍独立运行；在生命周期关口内登记，直到写入队列真正结束。
@@ -449,7 +453,7 @@ public final class FileImagePipeline: ImagePipeline {
                     }
                     if let browse = caches.browse {
                         group.addTask {
-                            let image = try await self.resize(base, target: DisplayTarget(pixelSize: size.fitting(within: self.configuration.browseBounds)), quality: .browse, priority: work.priority)
+                            let image = try await self.resize(base, target: DisplayTarget(pixelSize: size.fitting(within: self.configuration.browseBounds).fitting(within: decodeSize)), quality: .browse, priority: work.priority)
                             let data = try await self.encode(image, priority: work.priority)
                             try await self.store(data, in: browse, for: loaded.identity.cacheKey)
                         }
@@ -458,13 +462,14 @@ public final class FileImagePipeline: ImagePipeline {
                 }
             }
             ownsReservation = false
-            return Bundle(identity: loaded.identity, base: base, originalSize: size, coverage: requiredSize, derivatives: derivatives)
+            return Bundle(identity: loaded.identity, base: base, originalSize: size, derivatives: derivatives)
         }
         if let target {
             let required = value.originalSize.fitting(within: target.pixelSize)
-            let available = value.coverage
-            // 解码已经开始后才提出更大的尺寸时，下一轮使用 L0；不重复文件读取。
-            if !Self.contains(available, required) { return try await bundle(value.identity, target: target, context: context) }
+            // 迟到目标仍按显示图的 90% 要求检查实际像素；不够时下一轮使用 L0，不重复文件读取。
+            if Double(value.base.image.width) < Double(required.width) * 0.9 || Double(value.base.image.height) < Double(required.height) * 0.9 {
+                return try await bundle(value.identity, target: target, context: context)
+            }
         }
         return value
     }
