@@ -54,6 +54,9 @@ import Testing
             generated += 1
         }
         #expect(generated == identities.count)
+        let pipeline = try #require(services!.pipeline as? FileImagePipeline)
+        let sessionID = try #require(session?.id)
+        try await waitUntil { pipeline.prefetchInFlightCount(session: sessionID) == 0 }
         await fixture.shutdown(services!)
         session = nil
         services = nil
@@ -152,7 +155,7 @@ import Testing
         let fixture = try ServiceFixture()
         defer { fixture.clean() }
         var initial = GlobalSettings.default
-        initial.cache = CacheBudgets(rawBytes: 80, decodedBytes: 80, thumbnailBytes: 100, browseBytes: 100, browseCacheEnabled: true)
+        initial.cache = CacheBudgets(rawBytes: 80, decodedBytes: 80, thumbnailBytes: 100, browseBytes: 100, browseCacheEnabled: true, thumbnailMemoryBytes: 80, preloadBytes: 80)
         try fixture.writeSettings(initial)
         let services = try await fixture.make()
         let caches = try #require(services.runtime?.caches)
@@ -160,21 +163,30 @@ import Testing
         for index in 0..<8 {
             caches.raw.insert(Data(count: 10), for: "raw-\(index)", cost: 10)
             caches.decoded.insert(image, for: "decoded-\(index)", cost: 10)
+            caches.thumbnailMemory.insert(image, for: "thumbnail-\(index)", cost: 10)
+            caches.preload.insert(image, for: "preload-\(index)", cost: 10)
         }
         services.handleMemoryPressure(.warning)
         #expect(caches.raw.totalCost == 40 && caches.decoded.totalCost == 40)
+        #expect(caches.thumbnailMemory.totalCost == 40 && caches.preload.totalCost == 40)
         #expect(caches.raw.budget == 80 && caches.decoded.budget == 80)
         services.handleMemoryPressure(.critical)
         #expect(caches.raw.totalCost == 20 && caches.decoded.totalCost == 20)
+        #expect(caches.thumbnailMemory.totalCost == 20 && caches.preload.totalCost == 20)
+        try await services.settings.updateGlobal { $0.cache.thumbnailMemoryBytes = 15 }
+        try await waitUntil { caches.thumbnailMemory.budget == 15 }
+        #expect(caches.thumbnailMemory.totalCost == 10)
+        #expect(caches.raw.budget == 80 && caches.decoded.budget == 80 && caches.preload.budget == 80)
+        #expect(caches.raw.totalCost == 20 && caches.decoded.totalCost == 20 && caches.preload.totalCost == 20)
         try await caches.thumbnails.store(Data(count: 30), for: "before")
         try await caches.browse?.store(Data(count: 30), for: "before")
         try await services.settings.updateGlobal {
-            $0.cache = CacheBudgets(rawBytes: 15, decodedBytes: 15, thumbnailBytes: 20, browseBytes: 20, browseCacheEnabled: false)
+            $0.cache = CacheBudgets(rawBytes: 15, decodedBytes: 15, thumbnailBytes: 20, browseBytes: 20, browseCacheEnabled: false, thumbnailMemoryBytes: 15, preloadBytes: 15)
         }
         try await waitUntil {
             let thumbnail = try await caches.thumbnails.data(for: "before")
             let browse = try await caches.browse?.data(for: "before")
-            return caches.raw.budget == 15 && caches.decoded.budget == 15 && thumbnail == nil && browse == nil
+            return caches.raw.budget == 15 && caches.decoded.budget == 15 && caches.preload.budget == 15 && thumbnail == nil && browse == nil
         }
         #expect(caches.raw.totalCost == 10 && caches.decoded.totalCost == 10)
         try await caches.thumbnails.store(Data(count: 21), for: "oversized")

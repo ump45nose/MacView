@@ -3,6 +3,7 @@ import MVFoundation
 import MVIO
 import MVMedia
 import MVPipeline
+import MVSettings
 import os
 import QuartzCore
 
@@ -66,8 +67,8 @@ final class CanvasImageLoader: NSObject {
         self.pipeline = pipeline
         self.source = source
         self.view = view
-        // 约 256 MB 的已解码图像，相当于 L1 的一小部分。
-        cache.totalCostLimit = 256 << 20
+        super.init()
+        updateCacheBudget()
     }
 
     var inFlight: Int {
@@ -75,7 +76,8 @@ final class CanvasImageLoader: NSObject {
     }
 
     func cached(_ identity: ContentIdentity) -> CanvasImage? {
-        cache.object(forKey: IdentityKey(identity))
+        updateCacheBudget()
+        return cache.object(forKey: IdentityKey(identity))
     }
 
     func state(of identity: ContentIdentity) -> State {
@@ -145,6 +147,7 @@ final class CanvasImageLoader: NSObject {
     }
 
     private func receive(_ rendered: RenderedImage, for identity: ContentIdentity) {
+        updateCacheBudget()
         let image = CanvasImage(rendered)
         let key = IdentityKey(identity)
         // 渐进交付时只换成更精确或更清晰的图。
@@ -163,6 +166,11 @@ final class CanvasImageLoader: NSObject {
             self.link = link
         }
         link?.isPaused = false
+    }
+
+    private func updateCacheBudget() {
+        // 与管线持有相同的图像对象，只限制引用保留量，不另加一份预算。
+        cache.totalCostLimit = max(1, Int((pipeline as? FileImagePipeline)?.thumbnailMemoryBudget ?? CacheBudgets.default.thumbnailMemoryBytes))
     }
 
     private func finish(_ identity: ContentIdentity, id: UInt64, failed: Bool) {
