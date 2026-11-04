@@ -201,6 +201,26 @@ struct ArchiveFixtureTests {
         #expect(try await environment.extractFiles().isEmpty)
     }
 
+    @Test("扩展名是 .gz、文件头是 RAR5 或 7z 时打开失败并带上实际格式")
+    func disguisedGzip() async throws {
+        let environment = try ArchiveEnvironment()
+        defer { environment.clean() }
+        let rar5: [UInt8] = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]
+        let sevenZip: [UInt8] = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C]
+        let samples = [("rar5.gz", rar5, "RAR"), ("seven.gz", sevenZip, "7z")]
+        for (name, header, format) in samples {
+            var data = Data(header)
+            data.append(Data(count: 24))
+            let file = environment.directory.url.appending(path: name)
+            try data.write(to: file)
+            let location = try await environment.registry.location(for: file)
+            await #expect(throws: IOError.unsupportedFormat(location, format)) {
+                _ = try await entries(environment.provider, in: location)
+            }
+            #expect(try await environment.extractFiles().isEmpty)
+        }
+    }
+
     private func check(_ facts: ArchiveFacts, in archive: Location, provider: ArchiveProvider) async throws {
         var actual: [String: Entry] = [:]
         func walk(_ container: Location, prefix: String) async throws {
