@@ -81,6 +81,8 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private let rowImages: CollectionRowImages
     /// 列表和表格里加载失败的项，显示错误文字；点击时重试。
     private var failures: [ContentIdentity: String] = [:]
+    /// 可见区还是空的时候通知被跳过，等视图出现或下一次绘制再试。
+    private var visibleThumbnailsPending = false
 
     init(pipeline: any ImagePipeline, style: CollectionStyle, itemExtent: Double, secondColumn: String, thumbSize: CGSize) {
         self.pipeline = pipeline
@@ -162,6 +164,18 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         super.layout()
         messageLabel.frame = bounds.insetBy(dx: 16, dy: 16).divided(atDistance: 60, from: .minYEdge).slice
         notifyVisibleThumbnails()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else { return }
+        layoutSubtreeIfNeeded()
+        notifyVisibleThumbnails()
+    }
+
+    override func viewWillDraw() {
+        super.viewWillDraw()
+        if visibleThumbnailsPending { notifyVisibleThumbnails() }
     }
 
     private func styleChanged() {
@@ -383,7 +397,11 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     }
 
     private func notifyVisibleThumbnails() {
-        guard visibleItemsHaveThumbnails() else { return }
+        guard visibleItemsHaveThumbnails() else {
+            visibleThumbnailsPending = true
+            return
+        }
+        visibleThumbnailsPending = false
         onVisibleThumbnails?()
     }
 
