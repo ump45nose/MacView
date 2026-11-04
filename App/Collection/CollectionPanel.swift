@@ -78,8 +78,12 @@ class CollectionPanel: DockPanel {
             self.collection = collection
             host.setCollection(collection)
         }
+        collection?.onVisibleThumbnails = { [weak self] in self?.visibleThumbnailsArrived() }
         windowChanged()
     }
+
+    /// 可见项都有缩略图。子类用来记首屏用时。
+    func visibleThumbnailsArrived() {}
 
     /// 改变样式；样式控件、⋯ 菜单和自检共用。
     func setStyle(_ style: CollectionStyle) {

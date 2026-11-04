@@ -81,6 +81,13 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private(set) var normalFrame = NSRect.zero
     private var healthTask: Task<Void, Never>?
     private var volumes: [VolumeHealth] = []
+    /// 这次打开的起点。调试接口在 `open` 之前记下；没有经过调试接口时，由页面列表在书出现时记下。
+    private var firstScreenStart: ContinuousClock.Instant?
+    private var firstScreenBook: Location?
+    /// 调试接口的这次打开要等页面列表，书架封面不能抢先记成首屏。
+    private var firstScreenExpectsBook = false
+    /// 从这次打开到首屏可见项都有缩略图的毫秒。还没到是 nil。
+    private(set) var firstScreenThumbnailMilliseconds: Double?
 
     init(services: CoreServices, catalog: CommandCatalog, dispatcher: CommandDispatcher, dock dockCoordinator: DockCoordinator, isMock: Bool) {
         self.services = services
@@ -201,6 +208,44 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window?.toolbar?.validateVisibleItems()
         updateVolumeStatus()
         onSessionChange?()
+    }
+
+    /// 调试接口在打开之前调用，把起点放在 `open` 之前。
+    func beginFirstScreenThumbnails() {
+        firstScreenStart = .now
+        firstScreenThumbnailMilliseconds = nil
+        firstScreenBook = nil
+        firstScreenExpectsBook = true
+    }
+
+    /// 没有打开的书时，书架自己开始计封面。已经在等一本书的首屏时不重置。
+    func beginShelfThumbnails() {
+        guard session.book == nil, !firstScreenExpectsBook else { return }
+        firstScreenStart = .now
+        firstScreenThumbnailMilliseconds = nil
+        firstScreenBook = nil
+    }
+
+    /// 书第一次出现时补记起点。调试接口已经记过这次打开时，不把起点往后推。
+    func noteFirstScreenBook(_ location: Location) {
+        if firstScreenBook == location { return }
+        if firstScreenStart == nil || firstScreenBook != nil {
+            firstScreenStart = .now
+            firstScreenThumbnailMilliseconds = nil
+        }
+        firstScreenBook = location
+    }
+
+    /// 页面列表的可见项都有缩略图，或没有打开的书时书架可见项都有封面。
+    func finishFirstScreenThumbnails(fromPageList: Bool) {
+        if fromPageList {
+            guard let book = session.book?.location, firstScreenBook == book else { return }
+        } else if session.book != nil || firstScreenExpectsBook || firstScreenBook != nil {
+            return
+        }
+        guard firstScreenThumbnailMilliseconds == nil, let start = firstScreenStart else { return }
+        firstScreenExpectsBook = false
+        firstScreenThumbnailMilliseconds = (ContinuousClock.now - start).milliseconds
     }
 
     // MARK: 卷状态
