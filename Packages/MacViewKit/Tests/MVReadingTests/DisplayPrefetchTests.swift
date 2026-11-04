@@ -93,7 +93,7 @@ struct DisplayPrefetchTests {
             let identity = pages[pair.element.page].entry.identity
             let target = pair.target
             let key = identity.cacheKey + "|display|\(target.pixelSize.width)x\(target.pixelSize.height)|\(target.filter.rawValue)|\(target.sharpen.bitPattern)"
-            try await waitUntilCached(caches.decoded, key: key, page: index)
+            try await waitUntilCached(caches.preload, key: key, page: index)
             let hit = try await Task.detached {
                 let opens = registry.opens(for: identity)
                 let reads = registry.reads(for: identity)
@@ -105,6 +105,8 @@ struct DisplayPrefetchTests {
                 guard let elapsed else { throw DisplayPrefetchTimeout(page: index, key: key) }
                 return Hit(elapsed: elapsed, opened: registry.opens(for: identity) - opens, read: registry.reads(for: identity) - reads)
             }.value
+            #expect(caches.decoded.value(for: key) != nil)
+            #expect(caches.preload.value(for: key) == nil)
             #expect(hit.opened == 0, "第 \(index) 页 image(for:) 增加了 \(hit.opened) 次 open")
             #expect(hit.read == 0, "第 \(index) 页 image(for:) 增加了 \(hit.read) 次 read")
             samples.append(hit.elapsed)
