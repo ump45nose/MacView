@@ -418,6 +418,7 @@ final class DebugCommands: Sendable {
             "prefetchIdle": .bool(prefetchInFlightCount(controller) == 0),
             "prefetchInFlightCount": .number(Double(prefetchInFlightCount(controller))),
             "windowFront": .bool(windowIsFront(controller.window)),
+            "hudVisible": .bool(!viewer.hud.isHiddenOrHasHiddenAncestor),
             "responsiveScrolling": .bool(CanvasView.isCompatibleWithResponsiveScrolling),
             "docksVisible": .bool(DockEdge.allCases.contains { controller.dock.dockLayout.isShowing($0) }),
             "firstScreenThumbnailMilliseconds": controller.firstScreenThumbnailMilliseconds.map { .number($0) } ?? .null,

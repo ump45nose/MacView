@@ -87,6 +87,12 @@ final class ViewerHUD: NSView {
 
     override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
+    override var isHidden: Bool {
+        didSet {
+            guard isHidden != oldValue else { return }
+            if isHidden { cancel() } else { refresh() }
+        }
+    }
 
     override func updateLayer() {
         layer?.backgroundColor = Theme.hud.cgColor
@@ -101,6 +107,7 @@ final class ViewerHUD: NSView {
 
     /// 当前页帧在中间，前后各四个；右开时阅读顺序从右往左。
     func refresh() {
+        guard !isHidden else { return }
         let frames = session.frames
         guard session.settings.browseMode == .paged, frames.indices.contains(session.currentFrame), let pages = session.book?.pages else { return }
         if bookLocation != session.book?.location {
