@@ -65,6 +65,8 @@ public final class FileImagePipeline: ImagePipeline {
     private let maxDecode: Mutex<Int>
     private let scheduler: IOScheduler?
     private let state = Mutex(State())
+    /// 各会话尚未结束的预取任务数，和 `state.sessions` 里的任务分开记，避免在持有 `state` 时等待任务收尾。
+    private let prefetchInFlight = Mutex<[SessionID: Int]>([:])
     private let lifetime = PipelineLifetime()
 
     public init(sources: any SourceRegistry, decoder: ImageDecoder, caches: PipelineCaches, configuration: PipelineConfiguration) {
@@ -454,6 +456,11 @@ public final class FileImagePipeline: ImagePipeline {
         }
     }
 
+    /// 该会话还没结束的预取任务数。任务结束后归零，就算空闲。
+    public func prefetchInFlightCount(session: SessionID) -> Int {
+        prefetchInFlight.withLock { $0[session] ?? 0 }
+    }
+
     public func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID) {
         state.withLock { state in
             guard (try? lifetime.checkRunning()) != nil else { return }
@@ -473,13 +480,18 @@ public final class FileImagePipeline: ImagePipeline {
                     current[key] = old
                 } else {
                     let context = RequestContext(item.priority)
+                    changePrefetchInFlight(session, by: 1)
                     guard let task = try? lifetime.start(priority: item.priority.taskPriority, operation: { [self] in
+                        defer { self.changePrefetchInFlight(session, by: -1) }
                         do {
                             try lifetime.checkRunning()
                             try await prefetch(item, context: context)
                         }
                         catch { /* 预取没有交付通道；下次前台请求从真实边界重新报错。 */ }
-                    }) else { continue }
+                    }) else {
+                        changePrefetchInFlight(session, by: -1)
+                        continue
+                    }
                     current[key] = Prefetch(item: item, context: context, task: task)
                 }
             }
@@ -522,6 +534,13 @@ public final class FileImagePipeline: ImagePipeline {
 
     /// 组合根达到退出期限时先关闭准入，不等待仍被 I/O 占住的任务。
     package func beginShutdown() { lifetime.stop() }
+
+    private func changePrefetchInFlight(_ session: SessionID, by delta: Int) {
+        prefetchInFlight.withLock { counts in
+            let next = (counts[session] ?? 0) + delta
+            if next <= 0 { counts[session] = nil } else { counts[session] = next }
+        }
+    }
 
     private func prefetch(_ item: PrefetchItem, context: RequestContext) async throws {
         if item.renditions.isEmpty {

@@ -98,6 +98,8 @@ final class CanvasView: NSScrollView {
 
     /// 滚动停止或可见项变化后（去抖）回报，交给 `ReaderSession.visibleRangeChanged` 或面板的预取计划。
     var onVisibleRangeChange: ((CanvasVisibleRange) -> Void)?
+    /// 有图层内容被设上（缓存命中或异步到达）。
+    var onImageApplied: (() -> Void)?
     var onSelectionChange: ((Set<Int>) -> Void)?
     /// 双击或回车。
     var onActivate: ((Int) -> Void)?
@@ -147,6 +149,7 @@ final class CanvasView: NSScrollView {
             guard let index = tileIndex[identity], let tile = tiles[index] else { return false }
             tile.layer.contentsGravity = contentGravity
             tile.layer.contents = image.contents
+            onImageApplied?()
             return true
         }
         loader.onFailure = { [unowned self] identity in
@@ -422,6 +425,7 @@ final class CanvasView: NSScrollView {
         case .idle, .loading, .loaded:
             layer.contentsGravity = contentGravity
             layer.contents = loader.cached(identity)?.contents
+            if layer.contents != nil { onImageApplied?() }
         }
         setOverlays(items[index], on: layer)
         tiles[index] = Tile(layer: layer, identity: identity)
@@ -507,6 +511,13 @@ final class CanvasView: NSScrollView {
     private func showError(on layer: CALayer) {
         layer.contentsGravity = .center
         layer.contents = errorImage
+    }
+
+    /// 当前视口里的项是否都已经有图层内容。
+    func visibleItemsHaveContents() -> Bool {
+        let shown = tiles.filter { $0.value.layer.frame.intersects(viewport) }
+        guard !shown.isEmpty else { return false }
+        return shown.allSatisfy { $0.value.layer.contents != nil }
     }
 
     /// 按项在屏幕上的像素尺寸请求。显示图要宽高比才能定目标尺寸；网格的单元是正方形，按宽高比放进单元。

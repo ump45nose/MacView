@@ -55,7 +55,14 @@ final class PageListPanel: CollectionPanel {
         }
     }
 
+    override func visibleThumbnailsArrived() {
+        owner?.finishFirstScreenThumbnails(fromPageList: true)
+    }
+
     override func reload() {
+        if let location = owner?.session.book?.location {
+            owner?.noteFirstScreenBook(location)
+        }
         guard let session = owner?.session, let book = session.book else {
             order = []
             collection?.setItems([], current: nil)

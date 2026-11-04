@@ -41,6 +41,8 @@ final class TiledPageLayer {
     /// 累计移出视口而丢弃的块数。
     private(set) var discardedTiles = 0
     var activeTiles: Int { tiles.count }
+    /// 仍挂着任务的块数。
+    var inFlightTiles: Int { tiles.values.reduce(0) { $0 + ($1.task == nil ? 0 : 1) } }
     /// 最近一批请求里最大的块（原图像素）。
     private(set) var largestRequest = CGSize.zero
 
