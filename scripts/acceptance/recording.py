@@ -7,7 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-MIN_FREE_BYTES = 40_000_000_000
+MIN_FREE_BYTES = 60_000_000_000
 DATA_VOLUME = Path("/System/Volumes/Data")
 
 
@@ -28,7 +28,7 @@ def begin(path):
               "space": {"volume": str(DATA_VOLUME), "freeBytes": free, "requiredBytes": MIN_FREE_BYTES},
               "ready": free >= MIN_FREE_BYTES, "added": [], "cleanupComplete": False}
     if not report["ready"]:
-        report.update(verdict="environment", reason="数据卷可用空间不足 40 GB")
+        report.update(verdict="environment", reason="数据卷可用空间不足 60 GB")
     save(path, report)
     return report
 
