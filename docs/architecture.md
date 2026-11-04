@@ -166,6 +166,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 取图：
   - `image(for:target:)` 依次交付三个阶段：缩略图放大的占位 → 浏览图 → 精确尺寸。
   - 主区瀑布流按列宽调用它，由管线在缩略图、浏览图和原图之间选择来源；画廊面板用 `thumbnail`。
+  - 未命中磁盘缩略图时，前台 `thumbnail` 取得并缩放基础图后返回；衍生件由管线生命周期管理，在后台完成写入。冷缩略图预取复用同一份工作，但仍等衍生件写完才算预取完成。
 - 预取计划以会话为单位整体替换：移除的取消，保留的重排，新增的入队。
 - 前台请求加入预取已启动的工作时，整条链路提升到前台优先级：通过续体等待的地方（`SharedWork`、`ContentWork`）由管线调 `escalatePriority(to:)`，只升不降；`Task.value` 和任务组由运行时传递。已入队的任务提升后仍留在原 QoS 的队列里，所以解码、缩放和编码都走 `ImageDecoder` 的限流器：等待项按当前任务优先级出队，提升后立即前移。任务优先级不能统一成一档，否则可见页的解码要排在预取后面。
 - 默认预取范围（都可配置；S2-T1 已按此实现，默认值不变）：
@@ -301,14 +302,15 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 
     | 命令 | 参数 | 结果 |
     |---|---|---|
-    | `perform` | `command`（CommandID）、`arguments?` | 经 `CommandRegistry` 在前台窗口执行 |
+    | `perform` | `command`（CommandID）、`arguments?` | 经 `CommandRegistry` 在前台窗口执行；`panel.settings` 用 `panel`（`bookshelf` 或 `pageList`）、`style?`、`itemExtent?` 修改面板设置 |
     | `open` | `path`、`page?`（从 0 开始） | 打开完成后返回窗口状态；打不开时 `ok: false` |
     | `resize` | `width`、`height`（点，内容区） | 调整前台窗口，返回窗口状态 |
-    | `scroll` | `dx`、`dy`（点，负的 `dy` 向下）、`steps`、`intervalMs` | 按 began、changed、ended 生成滚轮事件，经 `NSApp.sendEvent` 发到查看器中央，全部发完后返回 |
-    | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes` |
+    | `scroll` | `dx`、`dy`（点，负的 `dy` 向下）、`steps`、`intervalMs`；连续滚动另用 `durationMs` | 按 began、changed、ended 生成滚轮事件，经 `NSApp.sendEvent` 发到查看器中央；`durationMs > 0` 时持续滚动，到边界后反向。返回 `events`、`windowFront`、`responsiveScrolling`，连续滚动还返回 `scrollMovements` |
+    | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes`、`cacheBudgets`（原始字节和解码内存预算、缩略图和浏览图磁盘预算） |
     | `quit` | — | 正常退出流程 |
 
-  - `windows[]`：`book`、`page`、`frame`、`frameCount`、`browseMode`、`scaleMode`、`zoom`、`viewport`（点）、`visibleRange`（`[起, 止)`，分页模式是当前页帧）、`loadError`、`lastDisplay`（`{page, quality, milliseconds}`，从翻页调用到目标质量图设到图层的用时，只有分页模式）。
+  - `windows[]`：`book`、`page`、`frame`、`frameCount`、`browseMode`、`scaleMode`、`zoom`、`viewport`（点）、`visibleRange`（`[起, 止)`，分页模式是当前页帧）、`loadError`（整本书或当前分页的加载错误）、`lastDisplay`（`{page, quality, milliseconds}`，从翻页调用到目标质量图设到图层的用时，只有分页模式）。
+  - 验收用只读字段：`prefetchIdle`、`prefetchInFlightCount`、`windowFront`、`responsiveScrolling`、`docksVisible`、`firstScreenThumbnailMilliseconds`、`itemCount`；`panels` 返回书架和页面列表的 `style`、`itemExtent`、`sort`，`tiles` 返回当前分块的 `requested`、`cancelled`、`inFlight` 计数。
   - 合成滚动和屏幕状态有关：屏幕锁定时事件不生效。
 - 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。
 - 观测：用 os_signpost 标记帧时间和请求延迟，用 Instruments 的 Animation Hitches 验收。

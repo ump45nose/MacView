@@ -1,0 +1,43 @@
+{
+  "baseCommit": "01318f1",
+  "diagnosticCodeCommit": "7e42358",
+  "workspaceHeadAtDiagnosis": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "sourceTrace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record/record.trace",
+  "sourceTraceRole": "第一轮 scroll-cold 旧录制；本文件仅用于 W3.3 故障定位，不代替最终场景验收结论",
+  "method": {
+    "mainThreadParser": "scripts/acceptance/run.py:main_thread_samples",
+    "signpostParser": "scripts/canvas-hitches.py:export",
+    "mainThreadIdentification": "time-profile 表 thread 列中 Main Thread 或 com.apple.main-thread；还原 id/ref 后读取 stack 列",
+    "knownSymbols": [
+      "CFRunLoop",
+      "NSApplication"
+    ],
+    "imageReadOrDecodeScope": "read/pread/readv/vnode_read、FileByteSource、ImageIO、CGImageSource、AppleJPEG、IIORead、IIOImage；open/stat 等其他文件操作另计"
+  },
+  "timeProfile": {
+    "schema": "time-profile",
+    "mainThreadSamples": 4057,
+    "knownSymbolSamples": 3548,
+    "fileReadOrImageIO": 0,
+    "tableSamples": 58653,
+    "examples": [],
+    "otherMainThreadFileOperations": 1,
+    "otherFileOperationExamples": [
+      "__open 0x19be75681 libsystem_kernel.dylib open 0x19be8095f libsystem_kernel.dylib BomSys_open 0x1a6ac24c7 CoreUI BOMStorageOpenWithSys 0x1a6ac1d6b CoreUI -[CUICommonAssetStorage initWithPath:forWriting:] 0x1a6ac1bb7 CoreUI -[CUIStructuredThemeStore initWithPath:] 0x1a6ac1b1f CoreUI __RunTimeThemeRefForBundleIdentifierAndName_block_invoke 0x1a6ac19c7 CoreUI PerformBlockWithThemeRefCache 0x1a6ac18a3 CoreUI +[CUIThemeFacet themeNamed:forBundleIdentifier:error:] 0x1a6ac1773 CoreUI CUICoreThemeRenderer::CUICoreThemeRenderer(__CFDictionary const*) 0x1a6ac135f CoreUI CUIRenderer::Create(__CFDictionary const*) 0x1a6ac125b CoreUI NSCreateCoreUIRenderer 0x1a0501273 AppKit -[NSAppearance initWithAppearanceNamed:bundle:] 0x1a050104f AppKit -[NSBuiltinAppearance initWithBundleResourceName:publicName:catalystName:] 0x1a12929fb AppKit _NSFaultInObject 0x19d62dbd3 Foundation +[NSAppearance _darkAquaAppearance] 0x1a050090b AppKit +[NSAppearance appearanceNamed:] 0x1a0500517 AppKit -[NSMenuBarItemView appearance] 0x1a0d11b8f AppKit -[NSMenuBarItemView effectiveAppearance] 0x1a0d11b03 AppKit -[NSView _viewDidChangeAppearance:] 0x1a054d0c7 AppKit -[NSView _setSuperview:] 0x1a054beef AppKit -[NSView addSubview:] 0x1a054b75f AppKit -[_NSMenuBarBackingView setArrangedSubviews:] 0x1a0b58247 AppKit -[_NSMenuBarBackingView initWithArrangedSubviews:] 0x1a0b57fef AppKit -[NSMenuBarImpl _newMenuBarStackViewWithAppearance:] 0x1a1226b03 AppKit -[NSMenuBarImpl ensureRepresentationViewForDisplayID:] 0x1a1225"
+    ]
+  },
+  "osSignpost": {
+    "schema": "os-signpost",
+    "rows": 0
+  },
+  "findings": [
+    "旧解析选择 time-sample 导致主线程样本为0；带符号的 time-profile 表可验证主线程样本与已知符号样本均非0。",
+    "图片读取/解码匹配为0；另有1个主线程样本含系统 CoreUI/AppKit 首次加载 darkAqua 主题资源的 open 调用，不能表述为整个主线程绝对零文件操作。",
+    "os-signpost 导出表为0行，旧轮 settle 没有可用样本；不能把0毫秒当作停止延迟通过。"
+  ],
+  "limitations": [
+    "属于旧提交的录制诊断，不证明本轮产品性能达标。",
+    "统计来自采样栈，图片读取/解码为0表示该匹配范围在所采样本中未命中。",
+    "旧录制路径属于工作区临时目录，完整验收可能覆盖；本JSON保存此次重解析统计及示例栈。"
+  ]
+}
