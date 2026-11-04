@@ -2098,11 +2098,12 @@ def run_scene(scene, out, commit, base_env):
                 return
         try:
             mount, _ = ensure_nfs()
+            album = find_samples(mount)[0] if mount else None
         except (OSError, subprocess.TimeoutExpired) as exc:
             write_report(out, scene, commit, env, {"unavailable": True, "nfsError": str(exc)}, "unverified")
             return
-        if mount:
-            authorization = preflight_nas_access(mount)
+        if album:
+            authorization = preflight_nas_access(album)
             env["nasAuthorization"] = authorization
             if not authorization["ready"]:
                 write_report(out, scene, commit, env,
