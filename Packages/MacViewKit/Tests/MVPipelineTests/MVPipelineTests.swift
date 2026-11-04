@@ -57,6 +57,11 @@ import Testing
     stale.size = 1
     stale.modificationNanos -= 1
     _ = try await environment.pipeline.thumbnail(for: stale, maxPixel: 128, priority: .visible)
+    try await eventually {
+        let thumbnail = try await environment.caches.thumbnails.data(for: actual.cacheKey)
+        let browse = try await environment.caches.browse?.data(for: actual.cacheKey)
+        return thumbnail != nil && browse != nil
+    }
     #expect(environment.caches.raw.value(for: stale.cacheKey) == nil)
     #expect(environment.caches.raw.value(for: actual.cacheKey)?.count == Int(actual.size))
     #expect(try await environment.caches.thumbnails.data(for: stale.cacheKey) == nil)
@@ -95,6 +100,7 @@ import Testing
     defer { environment.clean() }
     let identity = try await environment.identity("image/size/3600x5400.jpg")
     _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .visible)
+    try await eventually { try await environment.caches.thumbnails.data(for: identity.cacheKey) != nil }
     environment.caches.raw.setBudget(0)
     environment.caches.decoded.setBudget(0)
     environment.registry.control.reset()
@@ -222,6 +228,7 @@ import Testing
     defer { environment.clean() }
     let identity = try await environment.identity("image/size/3600x5400.jpg")
     _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .visible)
+    try await eventually { try await environment.caches.thumbnails.data(for: identity.cacheKey) != nil }
     environment.caches.raw.setBudget(0)
     environment.caches.raw.setBudget(64 << 20)
     environment.registry.control.reset()
