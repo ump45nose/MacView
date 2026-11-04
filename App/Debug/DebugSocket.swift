@@ -410,6 +410,11 @@ final class DebugCommands: Sendable {
                 : .array([.number(Double(visible.lowerBound)), .number(Double(visible.upperBound))]),
             "loadError": pageLoadError(controller).map { .string($0) } ?? .null,
             "lastDisplay": .null,
+            "pageSlots": .array(viewer.paged.slots.map { .object([
+                "page": .number(Double($0.element.page)),
+                "quality": $0.quality.map { .string(Self.name(of: $0)) } ?? .null,
+                "hasImage": .bool($0.contents != nil),
+            ]) }),
             "prefetchIdle": .bool(prefetchInFlightCount(controller) == 0),
             "prefetchInFlightCount": .number(Double(prefetchInFlightCount(controller))),
             "windowFront": .bool(windowIsFront(controller.window)),

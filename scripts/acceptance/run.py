@@ -25,6 +25,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+os.environ["TMPDIR"] = str(ROOT / "build" / "acceptance" / "tmp") + "/"
+Path(os.environ["TMPDIR"]).mkdir(parents=True, exist_ok=True)
 SAMPLE_LINK = ROOT / "Fixtures" / "local" / "sample-set"
 SAMPLE_TARGET = Path("/Users/yuwk/WorkSpace/Code/Github/MacView/Fixtures/local/sample-set")
 TREE = ROOT / "Fixtures" / "local" / "generated" / "tree" / "10000"
@@ -833,14 +835,26 @@ def hide_docks(client):
         client.request("perform", {"command": "panel.docks.toggle"})
 
 
-def wait_exact(client, page, timeout=20):
+def wait_exact(client, page, timeout=20, prime=False):
+    """初始页只等真实图层就绪；计时页必须取得 lastDisplay。"""
     deadline = time.monotonic() + timeout
+    state = None
     while time.monotonic() < deadline:
-        display = window_of(client.request("state", timeout=5)).get("lastDisplay")
-        if display and int(display.get("page", -1)) == int(page) and display.get("quality") == "exact":
+        try:
+            state = client.request("state", timeout=5)
+        except TimeoutError as exc:
+            exc.measured = {"lastState": state, "expectedPage": page}
+            raise
+        window = window_of(state)
+        if prime and int(window.get("page", -1)) == int(page) and any(
+                slot.get("page") == int(page) and slot.get("quality") == "exact" and slot.get("hasImage") is True
+                for slot in window.get("pageSlots", [])):
+            return None
+        display = window.get("lastDisplay")
+        if not prime and display and int(display.get("page", -1)) == int(page) and display.get("quality") == "exact":
             return float(display["milliseconds"])
         time.sleep(0.01)
-    raise TimeoutError(f"第 {page} 页没有 exact 显示")
+    raise MeasurementError(f"第 {page} 页没有 exact 显示", {"lastState": state, "expectedPage": page})
 
 
 def wait_frame(client, frame, timeout=20):
@@ -899,7 +913,7 @@ def scene_first_image():
         hide_docks(app.client)
         opened = app.client.request("open", {"path": path, "page": 0}, timeout=120)
         count = int(opened["frameCount"])
-        wait_exact(app.client, 0)
+        wait_exact(app.client, 0, prime=True)
         # 初始第0页已访问，30次计时只选择其余不同页。
         pages = [page + 1 for page in distinct_pages(count - 1, 30)]
         samples = []
