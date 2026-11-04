@@ -1,0 +1,202 @@
+{
+  "scene": "preloaded-flip",
+  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+  "env": {
+    "load": {
+      "oneMinute": 4.0185546875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 7.275390625
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 82.1609305,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T11:13:01Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 864,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 91.968631458,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "lastDisplayP95Milliseconds": 8.33,
+    "flips": 100
+  },
+  "measured": {
+    "flips": 100,
+    "p95": 2.609792,
+    "milliseconds": [
+      1.405792,
+      1.607291,
+      1.426958,
+      4.648417,
+      1.344541,
+      1.392959,
+      1.427833,
+      1.368083,
+      1.533833,
+      1.556333,
+      1.492,
+      1.448583,
+      1.699042,
+      2.42675,
+      2.485458,
+      2.568417,
+      2.208042,
+      2.355959,
+      2.358,
+      2.600792,
+      2.271583,
+      2.483791,
+      2.183291,
+      2.173083,
+      2.001917,
+      2.000333,
+      2.494792,
+      2.06525,
+      2.195166,
+      2.015833,
+      1.99,
+      2.040708,
+      2.159917,
+      2.184375,
+      2.228833,
+      2.249833,
+      2.218042,
+      5.7925,
+      2.078417,
+      2.550583,
+      2.528125,
+      2.376208,
+      1.989083,
+      2.521375,
+      2.436291,
+      2.053083,
+      2.244375,
+      2.178208,
+      2.202458,
+      2.181542,
+      2.086042,
+      2.035917,
+      2.005,
+      2.10225,
+      5.841084,
+      2.242417,
+      2.171916,
+      2.059,
+      2.215083,
+      2.2705,
+      2.183458,
+      2.522583,
+      2.685833,
+      2.609792,
+      2.291542,
+      2.256125,
+      2.640334,
+      2.35375,
+      2.556333,
+      2.219333,
+      2.373167,
+      2.271958,
+      2.202166,
+      2.416417,
+      2.116292,
+      2.493917,
+      2.048375,
+      2.371125,
+      2.426791,
+      2.26825,
+      2.101666,
+      2.124041,
+      1.914958,
+      1.686834,
+      1.017625,
+      1.136833,
+      1.22475,
+      1.262,
+      1.308458,
+      1.296084,
+      1.298875,
+      1.412875,
+      1.484916,
+      1.363,
+      1.471083,
+      1.369833,
+      1.559875,
+      2.332375,
+      2.325083,
+      2.121333
+    ],
+    "refreshHz": 59.93998718261719,
+    "artifactEvidence": {
+      "runnerPID": 69455,
+      "runnerExitCode": 0,
+      "rawRunnerLog": "first-image: fail -> docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: pass -> docs/reports/bench/S2-T2-preloaded-flip.json\nnas-throughput: pass -> docs/reports/bench/S2-T2-nas-throughput.json\ncached-first-screen: unverified -> docs/reports/bench/S2-T2-cached-first-screen.json\nlarge-dir: fail -> docs/reports/bench/S2-T2-large-dir.json\nnas-fault: unverified -> docs/reports/bench/S2-T2-nas-fault.json\ntiles-cancel: pass -> docs/reports/bench/S2-T2-tiles-cancel.json\npanel-restart: pass -> docs/reports/bench/S2-T2-panel-restart.json\n",
+      "rawAppLogs": {
+        "preloaded-flip-69455": "2026-11-04 19:13:02.265 MacView[69486:7286193] WARNING <NSToolbarItem: 0x79a6552200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 19:13:02.317 MacView[69486:7286193] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+      }
+    }
+  },
+  "verdict": "pass"
+}

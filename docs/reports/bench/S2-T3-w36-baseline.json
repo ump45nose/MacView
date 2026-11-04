@@ -1,0 +1,131 @@
+{
+  "scene": "first-image-segmented",
+  "codeState": "baseline",
+  "commit": "79c98043a7767e7283fdadca50968e3a3bc28e3a",
+  "env": {
+    "load": {
+      "oneMinute": 5.27294921875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": true,
+      "idleSeconds": 3886.094629,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "lastDisplayP95Milliseconds": 150,
+    "samples": 30
+  },
+  "measurementDefinition": {
+    "readAndMetadataAwaitMilliseconds": "bundle 等待完整 content；含读取、元数据探测/入库、任务调度和并发排队",
+    "decodeAwaitMilliseconds": "bundle 基础图 decode await；含 ImageIO 解码、32位 IOSurface 归一化、任务调度/排队和 L1 登记，并非纯CPU用时",
+    "resizeAwaitMilliseconds": "exact 缩放 await；含 vImage 缩放及专用队列排队，并非纯CPU用时",
+    "endToEndMilliseconds": "现有 lastDisplay：session 翻页开始到 exact 图设到 CALayer.contents 后回报",
+    "layerAndOtherMilliseconds": "端到端减上述三段；包含管线其余工作、主线程调度和图层提交，不代表纯图层CPU用时"
+  },
+  "buildProvenance": {
+    "commit": "79c98043a7767e7283fdadca50968e3a3bc28e3a",
+    "label": "old-size-strategy-with-temporary-await-timing-and-readonly-app-counters",
+    "sourceSHA256": {
+      "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift": "f2c6fec310f425800509170601ee866612ee80165b6b6c4afdf6dd606a0f9fe2",
+      "App/Collection/CollectionView.swift": "047ad5bd4a98ddf5c15cba6c0d6397e3fe67f93224a2ed11de2cfdf8f7f00422",
+      "App/Collection/CollectionPanel.swift": "c793b4d7837e5f909449f151611b30e37c43c39791e453befb3323954363ed75",
+      "App/Collection/BookshelfPanel.swift": "5d06a7d54274ed27c6e8f57c69b1debcad1092e7d545bddab876f8ea4299f943",
+      "App/Debug/DebugSocket.swift": "072ce484e2f4923d442baafa4f6fe4b0010011cca793a97e8677be3159fbe948"
+    },
+    "buildCommand": [
+      "xcodebuild",
+      "-quiet",
+      "-project",
+      "MacView.xcodeproj",
+      "-scheme",
+      "MacView",
+      "-configuration",
+      "Debug",
+      "-destination",
+      "platform=macOS,arch=arm64",
+      "-derivedDataPath",
+      "build/DerivedData-w36",
+      "-clonedSourcePackagesDirPath",
+      "build/DerivedData/SourcePackages",
+      "-skipPackageUpdates",
+      "-onlyUsePackageVersionsFromResolvedFile",
+      "SWIFT_OPTIMIZATION_LEVEL=-O",
+      "build"
+    ],
+    "buildExitCode": 0,
+    "swiftCompilerWarningCount": 0,
+    "testsRun": false,
+    "appSHA256": "4926dd7b8842220e017a4c0979cfbf78118e69dabd7a23e5ac79575029849103",
+    "acceptanceDriverLoadedBeforePauseSHA256": "7c804690bf6b388d92d374ebac62ca04e6b517b14dc080f7a4f596bfe587aa03",
+    "diagnosticDriverLoadedSHA256": "25508994c38cef56467ae7a683098977bce1fbd19783244be32731d749565772"
+  },
+  "diagnosticDriverSHA256": "25508994c38cef56467ae7a683098977bce1fbd19783244be32731d749565772",
+  "acceptanceDriverSHA256": "7c804690bf6b388d92d374ebac62ca04e6b517b14dc080f7a4f596bfe587aa03",
+  "measured": {
+    "reason": "环境在20分钟内未满足"
+  },
+  "verdict": "environment",
+  "acceptanceDriverOnDiskAtEvidenceSHA256": "d618363c73aa42ecb739246da2378d67f6d8f457cc154f507dde6d14b155cda4",
+  "readinessWait": {
+    "processStartedAt": "2026-11-04T11:56:24Z",
+    "limitSeconds": 1200,
+    "deadlineApproximateToSecond": "2026-11-04T12:16:24Z",
+    "completedAt": "2026-11-04T12:16:25.932796+00:00",
+    "pollIntervalSeconds": 2,
+    "deadlineNotes": "内部monotonic绝对deadline未额外埋点；以秒级进程启动时刻推定20分钟截止，同一PID暂停/恢复未重置。"
+  },
+  "finalCoreSourceMapping": {
+    "path": "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift",
+    "finalSHA256": "f3727db12c39b5182d706180bf56eaf2cb9a89ec753358430eb29a9832bfe5df",
+    "profiledAfterSHA256": "c05e7f1f1fbd8b42902f20e8a77380c52f0c5aa0e9f38775ea45154c9986ddfd",
+    "profiledAfterToFinal": "仅移除24行临时计时代码；通过在最终文件重新插入同一埋点后SHA256与after构建来源完全匹配验证。",
+    "timingOnlyRemovalVerifiedBySHA256": true,
+    "baselineToFinal": "baseline仍是旧解码策略，除移除计时外还包含W3.6功能策略变更，不可将baseline映射称为仅移除计时。",
+    "performanceEvidenceScope": "仅真实管线定位对照，临时计时版数据不是最终无埋点App的性能验收。GUI first-image未验证。"
+  },
+  "finalCoreValidation": {
+    "command": [
+      "swift",
+      "test",
+      "--package-path",
+      "Packages/MacViewKit",
+      "--disable-xctest",
+      "--filter",
+      "MVPipelineTests"
+    ],
+    "passedTests": 26,
+    "swiftWarningCount": 0,
+    "c311": {
+      "dimensionTest": "browseAndDisplayChooseDecodeLevelsIndependently",
+      "dimensionCases": 5,
+      "lateTargetTest": "displayJoiningAfterDecodeLevelSelectionReusesSufficientBasePixels",
+      "lateTargetCases": 1,
+      "lateTargetTestLimitation": "已有条件可确认解码级别已选且decode排队；消费者绑定是私有状态，故第二消费者入场仍使用30ms调度窗口，繁忙环境下存在时序局限，未新增公共或诊断API。"
+    },
+    "fullMakeTest": "本轮未跑，由最终独立验收执行。",
+    "finalNoProfilingDebugOAppBuild": "未重复构建，由最终独立验收执行；临时计时版old/after Debug-O构建及runner均0条Swift warning。",
+    "testSourceSHA256": "5669d8f0c43d3c004deaa582f4c21453b94e3562f48bbdd4d035f7cbe5f6dae3"
+  },
+  "temporaryArtifactsRemoved": [
+    "build/w36-core",
+    "build/DerivedData-w36"
+  ],
+  "runnerCompilerEnvironment": {
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "SDK": "MacOSX27.2.sdk"
+  }
+}

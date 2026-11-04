@@ -1,0 +1,189 @@
+{
+  "scene": "first-image",
+  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+  "env": {
+    "load": {
+      "oneMinute": 4.107421875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 4.0185546875
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 77.95403975,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T11:12:57Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 864,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 82.120574625,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "lastDisplayP95Milliseconds": 150,
+    "samples": 30
+  },
+  "measured": {
+    "samples": 30,
+    "p95": 180.852167,
+    "milliseconds": [
+      78.718125,
+      71.787167,
+      71.888,
+      64.044042,
+      70.3165,
+      179.67975,
+      75.414667,
+      180.852167,
+      72.889541,
+      78.042,
+      79.141625,
+      74.24575,
+      69.152167,
+      183.901708,
+      175.29975,
+      168.844875,
+      67.226292,
+      67.080417,
+      71.108875,
+      67.738,
+      77.538542,
+      70.887792,
+      78.274,
+      72.921667,
+      68.449,
+      72.421291,
+      69.995083,
+      69.810083,
+      69.746959,
+      106.6255
+    ],
+    "pages": [
+      1,
+      4,
+      7,
+      10,
+      12,
+      15,
+      18,
+      21,
+      24,
+      27,
+      30,
+      32,
+      35,
+      38,
+      41,
+      44,
+      47,
+      50,
+      53,
+      55,
+      58,
+      61,
+      64,
+      67,
+      70,
+      73,
+      75,
+      78,
+      81,
+      84
+    ],
+    "frameCount": 85,
+    "prefetchDisabled": true,
+    "panelsHidden": true,
+    "initialState": {
+      "memory": {
+        "decodedBytes": 25190400,
+        "inFlightBytes": 0,
+        "preloadBytes": 0,
+        "rawBytes": 24399067,
+        "thumbnailMemoryBytes": 0,
+        "waitingTasks": 0
+      },
+      "hudVisible": false
+    },
+    "finalState": {
+      "memory": {
+        "decodedBytes": 1062199040,
+        "inFlightBytes": 19699200,
+        "preloadBytes": 0,
+        "rawBytes": 317820655,
+        "thumbnailMemoryBytes": 0,
+        "waitingTasks": 0
+      },
+      "hudVisible": false
+    },
+    "refreshHz": 59.93998718261719,
+    "artifactEvidence": {
+      "runnerPID": 69455,
+      "runnerExitCode": 0,
+      "rawRunnerLog": "first-image: fail -> docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: pass -> docs/reports/bench/S2-T2-preloaded-flip.json\nnas-throughput: pass -> docs/reports/bench/S2-T2-nas-throughput.json\ncached-first-screen: unverified -> docs/reports/bench/S2-T2-cached-first-screen.json\nlarge-dir: fail -> docs/reports/bench/S2-T2-large-dir.json\nnas-fault: unverified -> docs/reports/bench/S2-T2-nas-fault.json\ntiles-cancel: pass -> docs/reports/bench/S2-T2-tiles-cancel.json\npanel-restart: pass -> docs/reports/bench/S2-T2-panel-restart.json\n",
+      "rawAppLogs": {
+        "first-image-69455": "2026-11-04 19:12:58.061 MacView[69462:7285871] WARNING <NSToolbarItem: 0x769e5e2200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 19:12:58.114 MacView[69462:7285871] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+      }
+    }
+  },
+  "verdict": "fail"
+}

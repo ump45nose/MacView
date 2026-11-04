@@ -1,12 +1,11 @@
 {
   "scene": "nas-fault",
-  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+  "commit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
   "env": {
     "load": {
-      "oneMinute": 9.89990234375,
+      "oneMinute": 9.7763671875,
       "limit": 10,
-      "limitSource": "sysctl -n hw.physicalcpu",
-      "during": 10.96826171875
+      "limitSource": "sysctl -n hw.physicalcpu"
     },
     "displayMode": {
       "width": 1728,
@@ -19,12 +18,38 @@
     },
     "refreshHz": 59.93998718261719,
     "screen": {
-      "locked": false,
-      "idleSeconds": 156.483616333,
+      "locked": true,
+      "idleSeconds": 4872.938509125,
       "inputDuringRun": false,
       "externalDisplay": false
     },
-    "collectedAt": "2026-11-04T11:14:14Z",
+    "admissionCarryForward": {
+      "evidence": "docs/reports/bench/S2-T3-w36-baseline.json",
+      "waitAlreadyExhausted": true,
+      "currentProbe": {
+        "locked": true,
+        "idleSeconds": 4851.280235541,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      },
+      "continuedWithoutRepeatingWait": true
+    },
+    "frozenApp": {
+      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+      "sha256": "03c85e17f6b77f3a82775885b5dd587bc5345e2a186966e5f980f0d0d6c8d07f",
+      "signature": {
+        "returnCode": 0,
+        "cdhash": "4034361909fe65509c2018d3ad1d36cee5b54759",
+        "rawOutput": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30356 flags=0x2(adhoc) hashes=938+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=4034361909fe65509c2018d3ad1d36cee5b54759\nCandidateCDHashFull sha256=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nHash choices=sha256\nCMSDigest=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=4034361909fe65509c2018d3ad1d36cee5b54759\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+      }
+    },
+    "frozenMvbench": {
+      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Packages/MacViewKit/.build/release/mvbench",
+      "sha256": "106bfbb57e5d7a225856cd920b2bfef1f0eb0861295f4ff11fc3bf1ffeea8715"
+    },
+    "collectedAt": "2026-11-04T12:32:52Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -34,7 +59,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 864,
+        "linkSpeedMbps": 680,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -61,23 +86,7 @@
         "path": "/Users/yuwk/MacViewBench/nfs",
         "source": "192.168.31.201:/fs/1000/nfs"
       }
-    ],
-    "screenAfter": {
-      "locked": false,
-      "idleSeconds": 187.969404458,
-      "inputDuringRun": false,
-      "externalDisplay": false
-    },
-    "refreshHzAfter": 59.93998718261719,
-    "displayModeAfter": {
-      "width": 1728,
-      "height": 1080,
-      "pixelWidth": 3456,
-      "pixelHeight": 2160,
-      "refreshHz": 59.93998718261719,
-      "builtin": true,
-      "externalDisplay": false
-    }
+    ]
   },
   "budget": {
     "maxRoundTripMilliseconds": 250,
@@ -85,18 +94,8 @@
     "quitSeconds": 3
   },
   "measured": {
-    "error": "读取超时",
-    "unavailable": true,
-    "artifactEvidence": {
-      "runnerPID": 69455,
-      "runnerExitCode": 0,
-      "rawRunnerLog": "first-image: fail -> docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: pass -> docs/reports/bench/S2-T2-preloaded-flip.json\nnas-throughput: pass -> docs/reports/bench/S2-T2-nas-throughput.json\ncached-first-screen: unverified -> docs/reports/bench/S2-T2-cached-first-screen.json\nlarge-dir: fail -> docs/reports/bench/S2-T2-large-dir.json\nnas-fault: unverified -> docs/reports/bench/S2-T2-nas-fault.json\ntiles-cancel: pass -> docs/reports/bench/S2-T2-tiles-cancel.json\npanel-restart: pass -> docs/reports/bench/S2-T2-panel-restart.json\n",
-      "rawAppLogs": {
-        "nas-fault-69455": "2026-11-04 19:14:16.892 MacView[69813:7291855] WARNING <NSToolbarItem: 0x793fd42300> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 19:14:16.942 MacView[69813:7291855] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
-      },
-      "rawProxyLog": "代理：forward\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 1 次）：Resource busy\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 2 次）：Resource busy\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 3 次）：Resource busy\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 4 次）：Resource busy\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 5 次）：Resource busy\n已卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount，代理已停止\n",
-      "injectionSamplesUnavailableReason": "读取超时发生在初始open/预备阶段，没有完成六次故障注入；代理最终成功卸载并退出。"
-    }
+    "environment": true,
+    "reason": "屏幕锁定或锁定状态未知，环境准入等待已耗尽"
   },
-  "verdict": "unverified"
+  "verdict": "environment"
 }
