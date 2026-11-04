@@ -1,0 +1,106 @@
+{
+  "scene": "panel-restart",
+  "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "env": {
+    "load": {
+      "oneMinute": 26.27587890625,
+      "limit": 6.0,
+      "during": 26.27587890625
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 176.964465125,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T07:57:58Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 178.647923375,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "matchesQuit": true
+  },
+  "measured": {
+    "before": {
+      "bookshelf": {
+        "itemExtent": 180,
+        "sort": null,
+        "style": "grid"
+      },
+      "pageList": {
+        "itemExtent": 80,
+        "sort": null,
+        "style": "table"
+      }
+    },
+    "after": {
+      "bookshelf": {
+        "itemExtent": 180,
+        "sort": null,
+        "style": "grid"
+      },
+      "pageList": {
+        "itemExtent": 80,
+        "sort": null,
+        "style": "table"
+      }
+    },
+    "matched": true,
+    "refreshHz": 59.93998718261719
+  },
+  "verdict": "pass"
+}

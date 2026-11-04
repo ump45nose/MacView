@@ -1,0 +1,101 @@
+{
+  "scene": "main-thread",
+  "commit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+  "env": {
+    "load": {
+      "oneMinute": 7.6787109375,
+      "limit": 6.0,
+      "during": 5.94287109375
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 1172.402947125,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T08:20:49Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 680,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 1234.215542583,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "mainThreadFileReadOrImageIO": 0
+  },
+  "measured": {
+    "mainThreadSamples": 5145,
+    "knownSymbolSamples": 5028,
+    "fileReadOrImageIO": 0,
+    "schema": "time-profile",
+    "tableSamples": 7777,
+    "examples": [],
+    "otherMainThreadFileOperations": 4,
+    "otherFileOperationExamples": [
+      "fstat 0x19be8343d libsystem_kernel.dylib specialized readBytesFromFile<A>(path:reportProgress:maxLength:options:attributesToRead:attributes:) 0x19de234af Foundation specialized static NSData._readBytes(fromPath:maxLength:bytes:length:didMap:options:reportProgress:) 0x19db06b2b Foundation @objc static NSData._readBytes(fromPath:maxLength:bytes:length:didMap:options:reportProgress:) 0x19db05507 Foundation -[_NSBPlistMappedData initWithFileURL:error:] 0x19d79209f Foundation __NSCreateBPlistMappedDataFromURL 0x19d791e1b Foundation _CFBundleCreateMappedBPlistFile 0x19c0c19c3 CoreFoundation _CFBundleCreateMappedOrLoadedPlistData 0x19c01fa8f CoreFoundation _CFBundleGetStringsSources 0x19c0c1bf7 CoreFoundation _copyStringTable 0x19c0c33db CoreFoundation _CFBundleCopyLocalizedStringForLocalizationTableURLAndMarkdownOption 0x19c0c2b67 CoreFoundation CFBundleCopyLocalizedStringForLocalization 0x19bf60d33 CoreFoundation -[NSBundle localizedStringForKey:value:table:] 0x19d64caeb Foundation -[NSAccessibilityAttributeAccessorInfo getAttributeValue:forObject:] 0x1a05ae5fb AppKit ___NSAccessibilityEntryPointValueForAttribute_block_invoke.772 0x1a178338f AppKit NSAccessibilityPerformEntryPointObject 0x1a178174b AppKit _NSAccessibilityEntryPointValueForAttribute 0x1a07791f3 AppKit -[NSObject(NSAccessibilityInternal) _accessibilityValueForAttribute:clientError:] 0x1a088ae27 AppKit CopyAppKitUIElementAttributeValueNoCatch 0x1a0890c57 AppKit CopyMultipleAttributeValues 0x1a088f72b AppKit _AXXMIGCo",
+      "__open_nocancel 0x19be7593d libsystem_kernel.dylib open$NOCANCEL 0x19be8a023 libsystem_kernel.dylib __opendir2 0x19bd945f3 libsystem_c.dylib _CFIterateDirectory 0x19bf10baf CoreFoundation _CFBundleReadDirectory 0x19bf42fab CoreFoundation _createQueryTableAtPath 0x19bf42b17 CoreFoundation _copyQueryTable 0x19bf42243 CoreFoundation _copyResourceURLsFromBundle 0x19bf41b57 CoreFoundation _CFBundleCopyFindResources 0x19bf40f27 CoreFoundation CFBundleCopyResourceURL 0x19bf408e7 CoreFoundation _CFBundleGetStringsSources 0x19c0c1bb7 CoreFoundation _copyStringTable 0x19c0c33db CoreFoundation _CFBundleCopyLocalizedStringForLocalizationTableURLAndMarkdownOption 0x19c0c2b67 CoreFoundation CFBundleCopyLocalizedStringForLocalization 0x19bf60d33 CoreFoundation AXLocalizedStringForLocale 0x1c4e6a3ff libAccessibility.dylib AXNSLocalizedStringForLocale 0x1c4e6a313 libAccessibility.dylib AXSSAccessibilityDescriptionForSymbolName 0x1cbd23657 AccessibilitySharedSupport -[NSImage(NSSymbolImages) _symbolDescription] 0x1a12c3647 AppKit -[NSImage _providedAccessibilityDescription] 0x1a0520deb AppKit -[NSButtonCell(NSButtonCellAccessibility) _accessibilityIncludeDescriptionAttribute] 0x1a0581eff AppKit -[NSButtonCell(NSButtonCellAccessibility) accessibilityAttributeNames] 0x1a0581b93 AppKit ___NSAccessibilityEntryPointIsAttributeSupported_block_invoke 0x1a1782bc3 AppKit NSAccessibilityPerformEntryPointBOOL 0x1a17818bb AppKit _NSAccessibilityEntryPointIsAttributeSupported 0x1a0775237 AppKit NSAccessibi",
+      "__open_nocancel 0x19be7593d libsystem_kernel.dylib open$NOCANCEL 0x19be8a023 libsystem_kernel.dylib __opendir2 0x19bd945f3 libsystem_c.dylib _CFIterateDirectory 0x19bf10baf CoreFoundation _CFBundleReadDirectory 0x19bf42fab CoreFoundation _createQueryTableAtPath 0x19bf42877 CoreFoundation _copyQueryTable 0x19bf42243 CoreFoundation _copyResourceURLsFromBundle 0x19bf41b57 CoreFoundation _CFBundleCopyFindResources 0x19bf41153 CoreFoundation CFBundleCopyResourceURL 0x19bf408e7 CoreFoundation _CFBundleGetStringsSources 0x19c0c1e67 CoreFoundation _copyStringTable 0x19c0c33db CoreFoundation _CFBundleCopyLocalizedStringForLocalizationTableURLAndMarkdownOption 0x19c0c2b67 CoreFoundation CFBundleCopyLocalizedStringForLocalization 0x19bf60d33 CoreFoundation AXLocalizedStringForLocale 0x1c4e6a3ff libAccessibility.dylib AXNSLocalizedStringForLocale 0x1c4e6a313 libAccessibility.dylib AXSSAccessibilityDescriptionForSymbolName 0x1cbd23657 AccessibilitySharedSupport -[NSImage(NSSymbolImages) _symbolDescription] 0x1a12c3647 AppKit -[NSImage _providedAccessibilityDescription] 0x1a0520deb AppKit -[NSButtonCell(NSButtonCellAccessibility) _accessibilityIncludeDescriptionAttribute] 0x1a0581eff AppKit -[NSButtonCell(NSButtonCellAccessibility) accessibilityAttributeNames] 0x1a0581b93 AppKit ___NSAccessibilityEntryPointIsAttributeSupported_block_invoke 0x1a1782bc3 AppKit NSAccessibilityPerformEntryPointBOOL 0x1a17818bb AppKit _NSAccessibilityEntryPointIsAttributeSupported 0x1a0775237 AppKit NSAccessibi",
+      "stat 0x19be808fd libsystem_kernel.dylib _FileManagerImpl._fileExists(_:) 0x19db61283 Foundation @objc _NSFileManagerBridge.fileExists(atPath:) 0x19db4d847 Foundation isLaunchdOptionIn() 0x1a946eb27 HIToolbox -[IMKClient_Modern shouldUseXPC] 0x1a946eccb HIToolbox __inputMethodKitUsesXPC_block_invoke 0x1a6ca9183 ViewBridge _dispatch_client_callout 0x19bd1259f libdispatch.dylib _dispatch_once_callout 0x19bcfb623 libdispatch.dylib __38-[NSRemoteView _advanceToConfigPhase:]_block_invoke.cold.2 0x1a6ce441b ViewBridge __38-[NSRemoteView _advanceToConfigPhase:]_block_invoke 0x1a6ca3c97 ViewBridge __40-[NSRemoteView _informAuxServiceOfSelf:]_block_invoke.1414 0x1a6c95953 ViewBridge __invoking___ 0x19bf59673 CoreFoundation -[NSInvocation invoke] 0x19bf594ff CoreFoundation __vbuDeferNSXPCInvocationOntoMainThread_block_invoke 0x1a6cccce7 ViewBridge __vbuDeferBlockOntoMainThread_block_invoke_2 0x1a6cccaf7 ViewBridge invocation function for block in wrapBlockWithVoucher(void () block_pointer) 0x1a34f0de3 HIServices _ZL24deferredBlockOpportunity_block_invoke_2 0x1a34f09ff HIServices __CFRUNLOOP_IS_CALLING_OUT_TO_A_BLOCK__ 0x19bf7a4af CoreFoundation __CFRunLoopDoBlocks 0x19bf7a3ef CoreFoundation __CFRunLoopRun 0x19bf791cf CoreFoundation _CFRunLoopRunSpecificWithOptions 0x19c05382b CoreFoundation RunCurrentEventLoopInMode 0x1a93ac58f HIToolbox ReceiveNextEventCommon 0x1a93af91b HIToolbox _BlockUntilNextEventMatchingListInMode 0x1a953237f HIToolbox _DPSBlockUntilNextEventMatchingListInMode 0x1"
+    ],
+    "refreshHz": 59.93998718261719
+  },
+  "verdict": "pass"
+}

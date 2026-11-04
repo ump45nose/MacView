@@ -1,11 +1,12 @@
 {
   "scene": "panel-restart",
-  "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
   "env": {
     "load": {
-      "oneMinute": 26.27587890625,
-      "limit": 6.0,
-      "during": 26.27587890625
+      "oneMinute": 10.96826171875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 10.96826171875
     },
     "displayMode": {
       "width": 1728,
@@ -19,11 +20,11 @@
     "refreshHz": 59.93998718261719,
     "screen": {
       "locked": false,
-      "idleSeconds": 176.964465125,
+      "idleSeconds": 188.99665125,
       "inputDuringRun": false,
       "externalDisplay": false
     },
-    "collectedAt": "2026-11-04T07:57:58Z",
+    "collectedAt": "2026-11-04T11:14:48Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -56,7 +57,7 @@
     "volumes": [],
     "screenAfter": {
       "locked": false,
-      "idleSeconds": 178.647923375,
+      "idleSeconds": 190.119831458,
       "inputDuringRun": false,
       "externalDisplay": false
     },
@@ -100,7 +101,15 @@
       }
     },
     "matched": true,
-    "refreshHz": 59.93998718261719
+    "refreshHz": 59.93998718261719,
+    "artifactEvidence": {
+      "runnerPID": 69455,
+      "runnerExitCode": 0,
+      "rawRunnerLog": "first-image: fail -> docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: pass -> docs/reports/bench/S2-T2-preloaded-flip.json\nnas-throughput: pass -> docs/reports/bench/S2-T2-nas-throughput.json\ncached-first-screen: unverified -> docs/reports/bench/S2-T2-cached-first-screen.json\nlarge-dir: fail -> docs/reports/bench/S2-T2-large-dir.json\nnas-fault: unverified -> docs/reports/bench/S2-T2-nas-fault.json\ntiles-cancel: pass -> docs/reports/bench/S2-T2-tiles-cancel.json\npanel-restart: pass -> docs/reports/bench/S2-T2-panel-restart.json\n",
+      "rawAppLogs": {
+        "panel-restart-69455": "2026-11-04 19:14:49.106 MacView[70331:7294464] WARNING <NSToolbarItem: 0x7b344d6200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 19:14:49.156 MacView[70331:7294464] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-04 19:14:49.656 MacView[70335:7294507] WARNING <NSToolbarItem: 0x7a18526200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 19:14:49.705 MacView[70335:7294507] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+      }
+    }
   },
   "verdict": "pass"
 }

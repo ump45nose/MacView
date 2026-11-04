@@ -1,10 +1,12 @@
 {
   "scene": "nas-fault",
-  "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
   "env": {
     "load": {
-      "oneMinute": 33.66552734375,
-      "limit": 6.0
+      "oneMinute": 9.89990234375,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 10.96826171875
     },
     "displayMode": {
       "width": 1728,
@@ -18,11 +20,11 @@
     "refreshHz": 59.93998718261719,
     "screen": {
       "locked": false,
-      "idleSeconds": 111.122569583,
+      "idleSeconds": 156.483616333,
       "inputDuringRun": false,
       "externalDisplay": false
     },
-    "collectedAt": "2026-11-04T07:56:52Z",
+    "collectedAt": "2026-11-04T11:14:14Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -32,7 +34,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 720,
+        "linkSpeedMbps": 864,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -59,7 +61,23 @@
         "path": "/Users/yuwk/MacViewBench/nfs",
         "source": "192.168.31.201:/fs/1000/nfs"
       }
-    ]
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 187.969404458,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
   },
   "budget": {
     "maxRoundTripMilliseconds": 250,
@@ -67,7 +85,18 @@
     "quitSeconds": 3
   },
   "measured": {
-    "reason": "环境在 20 分钟内没有满足"
+    "error": "读取超时",
+    "unavailable": true,
+    "artifactEvidence": {
+      "runnerPID": 69455,
+      "runnerExitCode": 0,
+      "rawRunnerLog": "first-image: fail -> docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: pass -> docs/reports/bench/S2-T2-preloaded-flip.json\nnas-throughput: pass -> docs/reports/bench/S2-T2-nas-throughput.json\ncached-first-screen: unverified -> docs/reports/bench/S2-T2-cached-first-screen.json\nlarge-dir: fail -> docs/reports/bench/S2-T2-large-dir.json\nnas-fault: unverified -> docs/reports/bench/S2-T2-nas-fault.json\ntiles-cancel: pass -> docs/reports/bench/S2-T2-tiles-cancel.json\npanel-restart: pass -> docs/reports/bench/S2-T2-panel-restart.json\n",
+      "rawAppLogs": {
+        "nas-fault-69455": "2026-11-04 19:14:16.892 MacView[69813:7291855] WARNING <NSToolbarItem: 0x793fd42300> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 19:14:16.942 MacView[69813:7291855] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+      },
+      "rawProxyLog": "代理：forward\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 1 次）：Resource busy\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 2 次）：Resource busy\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 3 次）：Resource busy\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 4 次）：Resource busy\n卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount 失败（第 5 次）：Resource busy\n已卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount，代理已停止\n",
+      "injectionSamplesUnavailableReason": "读取超时发生在初始open/预备阶段，没有完成六次故障注入；代理最终成功卸载并退出。"
+    }
   },
-  "verdict": "environment"
+  "verdict": "unverified"
 }

@@ -302,7 +302,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 连续和瀑布模式包 `CanvasView`，分页和连续之间切换时保持当前页。瀑布流尺寸按窗口保存在 `session.json`。
   - `CanvasView` 在 Debug 构建开了 `-MVViewerSelfTest` 或 `-MVDebugSocket` 时关掉响应式滚动，否则收不到合成事件；帧时间验收要看这一点。
 - 调试接口（`App/Debug/DebugSocket.swift`，只在 Debug 构建编译，只在传 `-MVDebugSocket <路径>` 时开启，权限 0600）：
-  - Unix 域套接字，一行一个 JSON。请求 `{"id":1,"command":"state","args":{}}`，响应 `{"id":1,"ok":true,"result":{…}}` 或 `{"id":1,"ok":false,"error":"…"}`。一次一个连接，命令按顺序在主线程执行。路径不能超过 103 字节，太长时用相对路径。
+  - Unix 域套接字，一行一个 JSON。请求 `{"id":1,"command":"state","args":{}}`，响应 `{"id":1,"ok":true,"result":{…}}` 或 `{"id":1,"ok":false,"error":"…"}`。一次一个连接，命令按顺序在主线程执行。验收以 `open -n` 启动独立实例，套接字使用不超过 103 字节的绝对路径；support、cache 和 layout 均指向隔离目录，按本次实例的 PID 管理，退出结果以进程实际退出为准。
 
     | 命令 | 参数 | 结果 |
     |---|---|---|
@@ -310,11 +310,12 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     | `open` | `path`、`page?`（从 0 开始） | 打开完成后返回窗口状态；打不开时 `ok: false` |
     | `resize` | `width`、`height`（点，内容区） | 调整前台窗口，返回窗口状态 |
     | `scroll` | `dx`、`dy`（点，负的 `dy` 向下）、`steps`、`intervalMs`；连续滚动另用 `durationMs` | 按 began、changed、ended 生成滚轮事件，经 `NSApp.sendEvent` 发到查看器中央；`durationMs > 0` 时持续滚动，到边界后反向。返回 `events`、`windowFront`、`responsiveScrolling`，连续滚动还返回 `scrollMovements` |
-    | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes`、`cacheBudgets`（原始字节和解码内存预算、缩略图和浏览图磁盘预算） |
+    | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes`、`memory`、`cacheBudgets` |
     | `quit` | — | 正常退出流程 |
 
   - `windows[]`：`book`、`page`、`frame`、`frameCount`、`browseMode`、`scaleMode`、`zoom`、`viewport`（点）、`visibleRange`（`[起, 止)`，分页模式是当前页帧）、`loadError`（整本书或当前分页的加载错误）、`lastDisplay`（`{page, quality, milliseconds}`，从翻页调用到目标质量图设到图层的用时，只有分页模式）。
-  - 验收用只读字段：`prefetchIdle`、`prefetchInFlightCount`、`windowFront`、`responsiveScrolling`、`docksVisible`、`firstScreenThumbnailMilliseconds`、`itemCount`；`panels` 返回书架和页面列表的 `style`、`itemExtent`、`sort`，`tiles` 返回当前分块的 `requested`、`cancelled`、`inFlight` 计数。
+  - 验收用只读字段：`prefetchIdle`、`prefetchInFlightCount`、`windowFront`、`responsiveScrolling`、`docksVisible`、`hudVisible`、`firstScreenThumbnailMilliseconds`、`itemCount`；`pageSlots` 返回各页的 `page`、`hasImage` 和 `quality`，可确认初始页图层已就绪。`panels` 返回书架和页面列表的 `style`、`itemExtent`、`sort`，`tiles` 返回当前分块的 `requested`、`cancelled`、`inFlight` 计数。
+  - `memory` 返回 `rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes`、`inFlightBytes` 和 `waitingTasks`；`cacheBudgets` 返回对应四项内存预算以及 `thumbnailDiskBytes`、`browseDiskBytes` 两项磁盘预算。
   - 合成滚动和屏幕状态有关：屏幕锁定时事件不生效。
 - 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。
 - 观测：用 os_signpost 标记帧时间和请求延迟，用 Instruments 的 Animation Hitches 验收。
