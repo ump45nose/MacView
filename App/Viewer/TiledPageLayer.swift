@@ -5,7 +5,7 @@ import MVPipeline
 import MVReading
 import QuartzCore
 
-/// 超大图放大后的分块层，垫在它下面的是整图的适合尺寸。只请求可见的块；视图停下 100 ms 后补发，移出视口的取消。
+/// 超大图放大后的分块层，垫在它下面的是整图的适合尺寸。只请求可见的块；移出视口的马上取消，停下 100 ms 后再补发新块。
 ///
 /// 块按 1/2ⁿ 的级别对齐，每块输出约 1024 像素。半页时层比页宽一倍，由页的 `masksToBounds` 裁出。
 @MainActor
@@ -69,6 +69,7 @@ final class TiledPageLayer {
             clear()
         }
         for tile in tiles.values { tile.layer.frame = frame(of: tile.rect) }
+        cancelOutsideVisible()
         scheduleSync()
     }
 
@@ -91,6 +92,40 @@ final class TiledPageLayer {
     private func frame(of rect: CGRect) -> CGRect {
         let ratio = whole.width / Double(sourceSize.width)
         return CGRect(x: whole.minX + rect.minX * ratio, y: whole.minY + rect.minY * ratio, width: rect.width * ratio, height: rect.height * ratio)
+    }
+
+    private func tileSide() -> Double? {
+        guard level > 0 else { return nil }
+        return Self.tileOutput / level
+    }
+
+    /// 当前视口覆盖的块。源或级别还没定下来时返回 nil，调用方先不要动已有的块。
+    private func wantedTiles() -> Set<Key>? {
+        guard !visible.isEmpty else { return [] }
+        guard source != nil, let side = tileSide(), whole.width > 0 else { return nil }
+        let ratio = Double(sourceSize.width) / whole.width
+        let columns = Int(floor((visible.minX - whole.minX) * ratio / side))..<Int(ceil((visible.maxX - whole.minX) * ratio / side))
+        let rows = Int(floor((visible.minY - whole.minY) * ratio / side))..<Int(ceil((visible.maxY - whole.minY) * ratio / side))
+        var wanted = Set<Key>()
+        for column in columns {
+            for row in rows { wanted.insert(Key(column: column, row: row)) }
+        }
+        return wanted
+    }
+
+    private func cancelOutsideVisible() {
+        guard let wanted = wantedTiles() else { return }
+        cancel(outside: wanted)
+    }
+
+    private func cancel(outside wanted: Set<Key>) {
+        for (key, tile) in tiles where !wanted.contains(key) {
+            if tile.task != nil { cancelledTiles += 1 }
+            discardedTiles += 1
+            tile.task?.cancel()
+            tile.layer.removeFromSuperlayer()
+            tiles[key] = nil
+        }
     }
 
     private func scheduleSync() {
@@ -120,22 +155,8 @@ final class TiledPageLayer {
             }
             return
         }
-        guard !visible.isEmpty, whole.width > 0 else { return }
-        let side = Self.tileOutput / level
-        let ratio = Double(sourceSize.width) / whole.width
-        let columns = Int(floor((visible.minX - whole.minX) * ratio / side))...Int(floor((visible.maxX - whole.minX - 0.5) * ratio / side))
-        let rows = Int(floor((visible.minY - whole.minY) * ratio / side))...Int(floor((visible.maxY - whole.minY - 0.5) * ratio / side))
-        var wanted = Set<Key>()
-        for column in columns {
-            for row in rows { wanted.insert(Key(column: column, row: row)) }
-        }
-        for (key, tile) in tiles where !wanted.contains(key) {
-            if tile.task != nil { cancelledTiles += 1 }
-            discardedTiles += 1
-            tile.task?.cancel()
-            tile.layer.removeFromSuperlayer()
-            tiles[key] = nil
-        }
+        guard let wanted = wantedTiles(), let side = tileSide() else { return }
+        cancel(outside: wanted)
         let level = level
         largestRequest = .zero
         for key in wanted where tiles[key] == nil {
@@ -159,8 +180,9 @@ final class TiledPageLayer {
                     CATransaction.commit()
                     tiles[key]?.task = nil
                 } catch {
-                    guard !Task.isCancelled else { return }
-                    self?.onFailure?(error)
+                    guard let self, !Task.isCancelled else { return }
+                    tiles[key]?.task = nil
+                    onFailure?(error)
                 }
             }
             tiles[key] = Tile(layer: layer, rect: rect, task: task)
