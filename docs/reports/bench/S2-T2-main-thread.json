@@ -1,55 +1,30 @@
 {
   "scene": "main-thread",
-  "commit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+  "commit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
   "env": {
     "load": {
-      "oneMinute": 9.29296875,
+      "oneMinute": 35.7587890625,
       "limit": 10,
-      "limitSource": "sysctl -n hw.physicalcpu"
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 36.6201171875
     },
     "displayMode": {
-      "width": 1728,
+      "width": 1920,
       "height": 1080,
-      "pixelWidth": 3456,
+      "pixelWidth": 3840,
       "pixelHeight": 2160,
-      "refreshHz": 59.93998718261719,
-      "builtin": true,
-      "externalDisplay": false
+      "refreshHz": 60.0,
+      "builtin": false,
+      "externalDisplay": true
     },
-    "refreshHz": 59.93998718261719,
+    "refreshHz": 60.0,
     "screen": {
-      "locked": true,
-      "idleSeconds": 4851.822268666,
-      "inputDuringRun": false,
-      "externalDisplay": false
+      "locked": false,
+      "idleSeconds": 0.050974125,
+      "inputDuringRun": true,
+      "externalDisplay": true
     },
-    "admissionCarryForward": {
-      "evidence": "docs/reports/bench/S2-T3-w36-baseline.json",
-      "waitAlreadyExhausted": true,
-      "currentProbe": {
-        "locked": true,
-        "idleSeconds": 4851.280235541,
-        "inputDuringRun": false,
-        "externalDisplay": false
-      },
-      "continuedWithoutRepeatingWait": true
-    },
-    "frozenApp": {
-      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
-      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
-      "sha256": "03c85e17f6b77f3a82775885b5dd587bc5345e2a186966e5f980f0d0d6c8d07f",
-      "signature": {
-        "returnCode": 0,
-        "cdhash": "4034361909fe65509c2018d3ad1d36cee5b54759",
-        "rawOutput": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30356 flags=0x2(adhoc) hashes=938+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=4034361909fe65509c2018d3ad1d36cee5b54759\nCandidateCDHashFull sha256=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nHash choices=sha256\nCMSDigest=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=4034361909fe65509c2018d3ad1d36cee5b54759\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
-      }
-    },
-    "frozenMvbench": {
-      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
-      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Packages/MacViewKit/.build/release/mvbench",
-      "sha256": "106bfbb57e5d7a225856cd920b2bfef1f0eb0861295f4ff11fc3bf1ffeea8715"
-    },
-    "collectedAt": "2026-11-04T12:32:31Z",
+    "collectedAt": "2026-11-04T14:19:10Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -59,7 +34,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 720,
+        "linkSpeedMbps": 864,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -86,13 +61,109 @@
         "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
         "source": "/dev/disk3s5"
       }
-    ]
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 0.033511833,
+      "inputDuringRun": true,
+      "externalDisplay": true
+    },
+    "refreshHzAfter": 60.0,
+    "displayModeAfter": {
+      "width": 1920,
+      "height": 1080,
+      "pixelWidth": 3840,
+      "pixelHeight": 2160,
+      "refreshHz": 60.0,
+      "builtin": false,
+      "externalDisplay": true
+    }
   },
   "budget": {
     "mainThreadFileReadOrImageIO": 0
   },
   "measured": {
-    "reason": "环境在 20 分钟内没有满足"
+    "mainThreadSamples": 4221,
+    "knownSymbolSamples": 3948,
+    "fileReadOrImageIO": 0,
+    "schema": "time-profile",
+    "tableSamples": 6312,
+    "examples": [],
+    "otherMainThreadFileOperations": 0,
+    "otherFileOperationExamples": [],
+    "recording": {
+      "rawDirectory": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
+      "existing": {
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments2pt8rm.ktrace": {
+          "bytes": 11028213384,
+          "allocatedBytes": 11028213760
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsC2jyvX.ktrace": {
+          "bytes": 2317752736,
+          "allocatedBytes": 2317754368
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsF1VQ7E.ktrace": {
+          "bytes": 13740328296,
+          "allocatedBytes": 13740331008
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsFAhWnQ.ktrace": {
+          "bytes": 12355078240,
+          "allocatedBytes": 12355080192
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsM7EDH9.ktrace": {
+          "bytes": 2165883584,
+          "allocatedBytes": 2165886976
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsNVhe6o.ktrace": {
+          "bytes": 19123722272,
+          "allocatedBytes": 19123724288
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsWcyXHP.ktrace": {
+          "bytes": 11538689976,
+          "allocatedBytes": 11538690048
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsYOtxPy.ktrace": {
+          "bytes": 11885084288,
+          "allocatedBytes": 11885084672
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsgJwc6h.ktrace": {
+          "bytes": 12468539208,
+          "allocatedBytes": 12468539392
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsoZiLrq.ktrace": {
+          "bytes": 15144266368,
+          "allocatedBytes": 15144267776
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsx8ZKd8.ktrace": {
+          "bytes": 12051517856,
+          "allocatedBytes": 12051521536
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsxyZXe6.ktrace": {
+          "bytes": 12079605864,
+          "allocatedBytes": 12079607808
+        }
+      },
+      "space": {
+        "volume": "/System/Volumes/Data",
+        "freeBytes": 53674180608,
+        "requiredBytes": 40000000000
+      },
+      "ready": true,
+      "added": [
+        {
+          "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments7cYhNM.ktrace",
+          "bytes": 28438206184,
+          "allocatedBytes": 28450160640,
+          "result": "deleted"
+        }
+      ],
+      "cleanupComplete": true,
+      "addedBytes": 28438206184,
+      "deletedBytes": 28438206184,
+      "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record/record.trace",
+      "traceDeleted": true
+    },
+    "refreshHz": 60.0
   },
-  "verdict": "environment"
+  "verdict": "pass"
 }
