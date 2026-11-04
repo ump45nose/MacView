@@ -1,0 +1,1178 @@
+{
+  "stage": "S2-stage3-third-acceptance",
+  "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+  "startedAt": "2026-11-04T12:28:23.190646+00:00",
+  "baselineEvidence": "rootTaskBaseline (embedded; original build/w3-control/baseline.json removed after embedding)",
+  "preservedPreviousEvidence": [
+    "docs/reports/bench/before-w36/S2-T2-panel-restart.json",
+    "docs/reports/bench/before-w36/S2-T2-settle.json",
+    "docs/reports/bench/before-w36/S2-T2-nas-throughput.json",
+    "docs/reports/bench/before-w36/S2-T2-preloaded-flip.json",
+    "docs/reports/bench/before-w36/S2-T2-tiles-cancel.json",
+    "docs/reports/bench/before-w36/S2-T2-large-dir.json",
+    "docs/reports/bench/before-w36/S2-T2-memory-30min.json",
+    "docs/reports/bench/before-w36/S2-T2-nas-fault.json",
+    "docs/reports/bench/before-w36/S2-T2-main-thread.json",
+    "docs/reports/bench/before-w36/S2-T2-first-image.json",
+    "docs/reports/bench/before-w36/S2-stage3-checks.json",
+    "docs/reports/bench/before-w36/S2-T2-scroll-cached.json",
+    "docs/reports/bench/before-w36/S2-T2-scroll-cold.json",
+    "docs/reports/bench/before-w36/S2-T2-cached-first-screen.json"
+  ],
+  "initialBuildEntries": [
+    "DerivedData",
+    "acceptance",
+    "stage-1-work",
+    "stage4-repair",
+    "w3-control",
+    "w36-acceptance"
+  ],
+  "initialUUIDDirectories": [
+    "build/stage4-repair/pipeline-tests/04449F88-3292-43DA-B17F-D4605FF36507",
+    "build/stage4-repair/pipeline-tests/0E255468-3A2F-4E57-A5F1-8CDE6B0A6C8C",
+    "build/stage4-repair/pipeline-tests/12E82A85-F60B-438A-A220-69CC1B3CD85A",
+    "build/stage4-repair/pipeline-tests/2491410E-CDA3-4C88-9A25-B00EC2F64E80",
+    "build/stage4-repair/pipeline-tests/33BDC3FC-2F6A-46AE-957E-4691AC560330",
+    "build/stage4-repair/pipeline-tests/38110E16-F5A9-4277-9B45-0E1D46F43A32",
+    "build/stage4-repair/pipeline-tests/40E0E4EC-73C5-460A-8359-8A1ACA282C55",
+    "build/stage4-repair/pipeline-tests/5A54E68D-B533-4993-B35D-2F106F61A1E5",
+    "build/stage4-repair/pipeline-tests/5F25E7F1-52D0-433C-88B1-C44CC054432A",
+    "build/stage4-repair/pipeline-tests/65B557B0-358B-4028-B0B7-404A7CA5EEA2",
+    "build/stage4-repair/pipeline-tests/7C9431FF-E034-4CDA-9751-48D80B53A2A4",
+    "build/stage4-repair/pipeline-tests/87AF9F5E-28D1-47C8-B585-09E68C00E025",
+    "build/stage4-repair/pipeline-tests/90826EE8-C5F9-4143-8E55-089C86947F27",
+    "build/stage4-repair/pipeline-tests/9344A9F9-1D7E-402C-B0FA-1A2F62F2CAA2",
+    "build/stage4-repair/pipeline-tests/DC7D630B-D506-4C06-8EF8-C2F405CB894A",
+    "build/stage4-repair/pipeline-tests/DF1FD61D-3F9C-4FCA-A875-43AE7F1C1FC6",
+    "build/stage4-repair/pipeline-tests/E1CE9CC3-6C31-41B3-A54B-7C620CB98E35",
+    "build/stage4-repair/pipeline-tests/EFE802F9-815E-4C96-BF58-D68D05BBADB7"
+  ],
+  "checks": {
+    "C3.1": {
+      "verdict": "pass",
+      "evidence": "unitTests.rawLog；visibleWaitingDecodeStartsBeforeNear、videoPosterReadsAtTheGivenPriority通过"
+    },
+    "C3.2": {
+      "verdict": "pass",
+      "iterations": 100,
+      "p95UpperBoundMilliseconds": 8,
+      "sourceOpenDelta": 0,
+      "sourceReadDelta": 0,
+      "evidence": "DisplayPrefetchTests.prefetchedDisplayHitsMemoryCache通过；只记录断言上界，测试不输出逐次计时"
+    },
+    "C3.3": {
+      "verdict": "pass",
+      "executedThisRound": false,
+      "evidence": "before-w36原中文Mock31 PASS/1指定中文输入SKIP、ASCII Mock32 PASS/0 SKIP；对应SelfTest.swift源码blob未改，复用关系与旧原始输出可追溯；详见affectedSelfTests.reuse"
+    },
+    "C3.4": {
+      "verdict": "environment",
+      "formalJSONs": 13,
+      "verdictCases": 88,
+      "evidence": "所有13个run_scene已顺序调用并生成字段完整的冻结提交JSON；88项预算/环境判定通过；12个GUI场景未通过锁屏准入，4录制与smoke未真实运行，因此不能声称整套运行链已实证通过"
+    },
+    "C3.5": {
+      "verdict": "unverified",
+      "sceneVerdicts": {
+        "pass": 1,
+        "environment": 12
+      },
+      "evidence": "NFS吞吐95.5208%通过；12项冻结App性能/GUI场景受环境阻塞；W3.6只有单测和headless诊断，首图上屏未实证；W3.7尚未修复且无新的因果对照，需交回设计侧，不能把诊断工具当产品修复"
+    },
+    "C3.6": {
+      "verdict": "environment",
+      "unitTests": 252,
+      "swiftWarnings": 0,
+      "unitVerdict": "pass",
+      "appAndReleaseBuildVerdict": "pass",
+      "evidence": "冻结42ccbcf全make test与明确release/App构建成功，零Swift警告；受影响Viewer/Panel真实事件自检因锁屏未运行；Mock/Settings旧结果仅按源码映射复用"
+    },
+    "C3.7": {
+      "verdict": "pass",
+      "evidence": "最终清理复核通过",
+      "details": "cleanupVerification; parentCaffeinateStop; original72765/10SMB/12ktrace/14UUID preserved; no task NFS/helper/proxy/App/build/recording; PID5513 exited; original three build directories only."
+    },
+    "C3.8": {
+      "verdict": "pass",
+      "evidence": "backgroundBasesStayOutOfMemoryAndThumbnailsHaveTheirOwnBudget、memoryPressureAndBudgets、prefetchedDisplayHitsMemoryCache通过"
+    },
+    "C3.9": {
+      "verdict": "pass",
+      "evidence": "inFlightBudgetBoundsBackgroundAndPromotesOrCancelsWaiters、derivativeBacklogIsBoundedAndForegroundCanDeferThenRepair通过，覆盖额度加一张图上界、前台不等/补衍生件、取消等待"
+    },
+    "C3.10": {
+      "verdict": "environment",
+      "corePreloadedVerdict": "pass",
+      "evidence": "C3.2仍100次P95≤8ms且零源读；本轮preloaded-flip与memory-30min均未通过锁屏准入，未运行1800秒/无leaks和vmmap，不能沿用上一轮性能样本为当前通过"
+    },
+    "C3.11": {
+      "verdict": "pass",
+      "unitCases": 5,
+      "lateDisplayJoin": "pass",
+      "evidence": "browseAndDisplayChooseDecodeLevelsIndependently 5组真实CGImage像素/显示精确尺寸/L3编码尺寸断言通过：横2145×1430→2700×1800基础图，横3240×2160→5400×3600，横无显示目标→2700×1800；竖953×1430及无目标→1800×2700；浏览图均不超过基础图；迟到目标sourceDecodeCount=1、source opens=1",
+      "firstImageEndToEndVerdict": "environment",
+      "headlessDiagnosisOnly": true
+    },
+    "C3.12": {
+      "verdict": "environment",
+      "memoryDurationSeconds": 0,
+      "stateSamples": 0,
+      "monitorCheckVerdict": "pass",
+      "productRepairStatus": "尚未修复",
+      "evidence": "1秒预算、3/8/13秒采样、120秒等待与原始动作/末次state记录的合成检查通过；当前锁屏没有真实30分钟GUI运行、新因果证据或前后对照，监测工具不能替代产品修复"
+    }
+  },
+  "baseline": {
+    "mount": "/dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk3s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk3s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk3s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk2s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk2s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk2s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, protect, root data)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n//yuwk@192.168.31.201/Adult on /Volumes/Adult (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/BackUp on /Volumes/BackUp (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Book on /Volumes/Book (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Cache on /Volumes/Cache (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Code on /Volumes/Code (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Learn on /Volumes/Learn (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Media on /Volumes/Media (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Music on /Volumes/Music (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Picture on /Volumes/Picture (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/plaud-daily on /Volumes/plaud-daily (smbfs, nodev, nosuid, mounted by yuwk)\ndevices -- file:///Users/yuwk/Library/Containers/com.apple.CoreDevice.CoreDeviceService/Data/ on /Users/yuwk/Library/Developer/CoreDevice/DeviceFS (devicefs, local, nodev, nosuid, noowners, noatime, quarantine, nobrowse, fskit, mounted by yuwk)\n"
+  },
+  "unitTests": {
+    "command": "TMPDIR=<workspace>/build/w36-acceptance/tmp/ make test",
+    "exitCode": 0,
+    "tests": 252,
+    "packageCounts": [
+      30,
+      20,
+      18,
+      10,
+      26,
+      26,
+      15,
+      35,
+      20,
+      12,
+      11,
+      16,
+      13
+    ],
+    "swiftWarnings": 0,
+    "rawLog": "swift test --package-path Packages/MacViewKit --disable-xctest\nBuilding for debugging...\n[Computing dependencies]\n[Using on-disk description]\n[1 / 214] MVFoundation\n[25 / 186]\n[36 / 193] MVFoundation\n[51 / 210] ArgumentParser\n[70 / 211] MVFoundationTests-product\n[74 / 214] MVCommandsTests-product\n[85 / 222] MVCommandsTests-product\n[100 / 236] MVIO\n[120 / 246] MVFoundationTests-product\n[122 / 246] MVCommandsTests-product\n[126 / 247] MVCache\n[142 / 256] MVCache\n[163 / 273] MVArchive\n[173 / 273] MVIOTests-product\n[175 / 275] MVIOTests-product\n[200 / 292] MVLayout\n[220 / 300] mvtest-writer-product\n[228 / 305] MVSettingsTests-product\n[233 / 305] MVLayoutTests-product\n[237 / 308] MVLayoutTests-product\n[241 / 312] MVCacheTests-product\n[255 / 322] MVSettingsTests-product\n[270 / 331] MVLayoutTests-product\n[272 / 331] MVCacheTests-product\n[278 / 332] MVServices\n[286 / 336] MVTestSupport\n[288 / 337] MVTestSupport\n[335 / 371] MVMediaTests-product\n[344 / 383] MVArchiveTests-product\n[350 / 385] MVServicesTests-product\n[357 / 389] MVTestSupportTests-product\n[381 / 407] MVPipelineTests-product\n[387 / 410] MVArchiveTests-product\n[394 / 415] MVTestSupportTests-product\n[398 / 415]\n[404 / 415] MVArchiveTests-product\n[406 / 415] mvbench-product\n[417 / 425] mvbench\n[421 / 427] mvbenchTests-product\n[423 / 429] mvbenchTests-product\n[430 / 432] mvbenchTests-product\n[439 / 440] MVServicesTests-product\n[453 / 454] MVCommandsTests-product\nBuild complete! (8.46秒)\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Suite MountSourceTests started.\n◇ Suite IOArgumentTests started.\n◇ Test percentilesInterpolateBetweenRanks() started.\n◇ Suite FixturesTests started.\n◇ Suite FaultProxyTests started.\n◇ Suite FixtureArchiveTests started.\n◇ Test mountSourceDropsUserName(source:expected:) started.\n◇ Suite PosixFilesTests started.\n◇ Test durationConvertsToMilliseconds() started.\n◇ Test measureRecordsEachRun() started.\n◇ Test emptySamplesHaveNoSummary() started.\n◇ Test readCombinesPipelineOptionsOnlyForSMB2() started.\n◇ Test byteCountAcceptsUnits(text:bytes:) started.\n◇ Test nfsSourceSplitsServerAndExport() started.\n◇ Test singleSampleIsEveryPercentile() started.\n◇ Test relativePathIsMeasuredFromMountPoint() started.\n◇ Test collectsLocalVolume() started.\n◇ Test byteCountRejectsInvalidText(text:) started.\n◇ Test sampleNamesKeepOnlyAlbumNumbers(path:name:) started.\n◇ Test batchRejectsNestedBatch() started.\n◇ Test committedFixturesMatchTheManifest() started.\n◇ Test samplePathsKeepOnlyAlbumNumbers() started.\n◇ Test smbSourceSplitsUserServerAndShare() started.\n◇ Test paxRecordLengthIncludesItsOwnDigits() started.\n◇ Test proxyForwardsPausesAndDrops() started.\n◇ Test committedFixturesStayWithinTwentyMebibytes() started.\n◇ Test regeneratingReproducesTheCommittedManifest() started.\n◇ Test controlLinesRoundTrip() started.\n◇ Test zipRoundTripsThroughBsdtar() started.\n◇ Test readWholeAndProbeReadTheFile() started.\n◇ Test orientationSixRotatesClockwise() started.\n◇ Test orientationMappingRoundTrips(orientation:) started.\n◇ Test case passing 2 arguments source → \"//yuwk@192.168.31.201/Picture\", expected → \"//192.168.31.201/Picture\" to mountSourceDropsUserName(source:expected:) started.\n◇ Test case passing 2 arguments source → \"192.168.31.201:/fs/1000/nfs\", expected → \"192.168.31.201:/fs/1000/nfs\" to mountSourceDropsUserName(source:expected:) started.\n◇ Test localFixturesMatchTheManifest() started.\n◇ Test case passing 2 arguments source → \"//GUEST:@nas.local/Media\", expected → \"//nas.local/Media\" to mountSourceDropsUserName(source:expected:) started.\n◇ Test bothListingMethodsSeeEveryEntry() started.\n◇ Test sampleFilesSkipHiddenEntriesAndDirectories() started.\n◇ Test case passing 2 arguments source → \"/dev/disk3s1s1\", expected → \"/dev/disk3s1s1\" to mountSourceDropsUserName(source:expected:) started.\n◇ Test case passing 2 arguments source → \"//192.168.31.201/Picture\", expected → \"//192.168.31.201/Picture\" to mountSourceDropsUserName(source:expected:) started.\n◇ Test case passing 2 arguments text → \"65536\", bytes → 65536 to byteCountAcceptsUnits(text:bytes:) started.\n◇ Test networkCountersIncludeLoopback() started.\n◇ Test case passing 2 arguments text → \"1m\", bytes → 1048576 to byteCountAcceptsUnits(text:bytes:) started.\n◇ Test case passing 2 arguments text → \"64K\", bytes → 65536 to byteCountAcceptsUnits(text:bytes:) started.\n◇ Test case passing 2 arguments text → \"8M\", bytes → 8388608 to byteCountAcceptsUnits(text:bytes:) started.\n◇ Test case passing 1 argument text → \"\" to byteCountRejectsInvalidText(text:) started.\n◇ Test case passing 2 arguments text → \"2G\", bytes → 2147483648 to byteCountAcceptsUnits(text:bytes:) started.\n◇ Test case passing 1 argument text → \"K\" to byteCountRejectsInvalidText(text:) started.\n◇ Test case passing 1 argument text → \"0\" to byteCountRejectsInvalidText(text:) started.\n◇ Test case passing 1 argument text → \"-1M\" to byteCountRejectsInvalidText(text:) started.\n◇ Test case passing 2 arguments path → \"/x/[XiuRen秀人网] 2022.06.10 No.5133 某人[85P]\", name → \"No.5133\" to sampleNamesKeepOnlyAlbumNumbers(path:name:) started.\n◇ Test case passing 1 argument text → \"1.5M\" to byteCountRejectsInvalidText(text:) started.\n✔ Test durationConvertsToMilliseconds() passed after 0.001 seconds.\n◇ Test case passing 1 argument text → \"1T\" to byteCountRejectsInvalidText(text:) started.\n◇ Test case passing 2 arguments path → \"/x/[XIUREN秀人网]2022.06.21 VOL.5171 某人\", name → \"No.5171\" to sampleNamesKeepOnlyAlbumNumbers(path:name:) started.\n◇ Test case passing 2 arguments path → \"/x/[Xiuren秀人网]2022.12.14 NO.5995 某人[88+1P／584MB]\", name → \"No.5995\" to sampleNamesKeepOnlyAlbumNumbers(path:name:) started.\n◇ Test case passing 2 arguments path → \"/Volumes/Picture/YY/秀人/5001-6000\", name → \"5001-6000\" to sampleNamesKeepOnlyAlbumNumbers(path:name:) started.\n✔ Test emptySamplesHaveNoSummary() passed after 0.001 seconds.\n✔ Test measureRecordsEachRun() passed after 0.001 seconds.\n✔ Test percentilesInterpolateBetweenRanks() passed after 0.002 seconds.\n◇ Test case passing 1 argument orientation → 1 to orientationMappingRoundTrips(orientation:) started.\n◇ Test case passing 1 argument orientation → 2 to orientationMappingRoundTrips(orientation:) started.\n◇ Test case passing 1 argument orientation → 3 to orientationMappingRoundTrips(orientation:) started.\n◇ Test case passing 1 argument orientation → 4 to orientationMappingRoundTrips(orientation:) started.\n◇ Test case passing 1 argument orientation → 5 to orientationMappingRoundTrips(orientation:) started.\n◇ Test case passing 1 argument orientation → 6 to orientationMappingRoundTrips(orientation:) started.\n◇ Test case passing 1 argument orientation → 7 to orientationMappingRoundTrips(orientation:) started.\n◇ Test case passing 1 argument orientation → 8 to orientationMappingRoundTrips(orientation:) started.\n✔ Test mountSourceDropsUserName(source:expected:) with 5 test cases passed after 0.004 seconds.\n✔ Test singleSampleIsEveryPercentile() passed after 0.008 seconds.\n✔ Test nfsSourceSplitsServerAndExport() passed after 0.010 seconds.\n✔ Test byteCountAcceptsUnits(text:bytes:) with 5 test cases passed after 0.010 seconds.\n✔ Test byteCountRejectsInvalidText(text:) with 6 test cases passed after 0.010 seconds.\n✔ Test sampleNamesKeepOnlyAlbumNumbers(path:name:) with 4 test cases passed after 0.010 seconds.\n✔ Test smbSourceSplitsUserServerAndShare() passed after 0.010 seconds.\n✔ Test paxRecordLengthIncludesItsOwnDigits() passed after 0.010 seconds.\n✔ Test controlLinesRoundTrip() passed after 0.010 seconds.\n✔ Test samplePathsKeepOnlyAlbumNumbers() passed after 0.010 seconds.\n✔ Test readWholeAndProbeReadTheFile() passed after 0.010 seconds.\n✔ Test orientationSixRotatesClockwise() passed after 0.010 seconds.\n✔ Test orientationMappingRoundTrips(orientation:) with 8 test cases passed after 0.010 seconds.\n✔ Test batchRejectsNestedBatch() passed after 0.010 seconds.\n✔ Test committedFixturesStayWithinTwentyMebibytes() passed after 0.010 seconds.\n✔ Test sampleFilesSkipHiddenEntriesAndDirectories() passed after 0.010 seconds.\n✔ Test networkCountersIncludeLoopback() passed after 0.010 seconds.\n✔ Test zipRoundTripsThroughBsdtar() passed after 0.016 seconds.\n✔ Suite FixtureArchiveTests passed after 0.016 seconds.\n✔ Test collectsLocalVolume() passed after 0.020 seconds.\n✔ Test readCombinesPipelineOptionsOnlyForSMB2() passed after 0.026 seconds.\n✔ Suite IOArgumentTests passed after 0.026 seconds.\n✔ Test relativePathIsMeasuredFromMountPoint() passed after 0.068 seconds.\n✔ Suite MountSourceTests passed after 0.068 seconds.\n✔ Test bothListingMethodsSeeEveryEntry() passed after 0.090 seconds.\n✔ Suite PosixFilesTests passed after 0.091 seconds.\n✔ Test localFixturesMatchTheManifest() passed after 0.208 seconds.\n✔ Test committedFixturesMatchTheManifest() passed after 0.261 seconds.\n✔ Test proxyForwardsPausesAndDrops() passed after 0.325 seconds.\n✔ Suite FaultProxyTests passed after 0.326 seconds.\n✔ Test regeneratingReproducesTheCommittedManifest() passed after 1.441 seconds.\n✔ Suite FixturesTests passed after 1.441 seconds.\n✔ Test run with 30 tests in 6 suites passed after 1.441 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Suite MockSourceTests started.\n◇ Suite MockPipelineTests started.\n◇ Suite MockSettingsTests started.\n◇ Suite ReaderSessionTests started.\n◇ Suite MockReadingTests started.\n◇ Test treeLocationsFollowArchiveLayers() started.\n◇ Test volumeFollowsTheScriptAndBlocksAccess() started.\n◇ Test mockServicesDeliverPageFiftyInThreeStages() started.\n◇ Test resolvesRulesBySpecificityThenBookMemory() started.\n◇ Test cancelledRequestsLeaveTheQueue() started.\n◇ Test providerEnumeratesInBatchesAndFindsArchiveEntries() started.\n◇ Test firstVisitsWaitForThroughputAndRevisitsDoNot() started.\n◇ Test missingBookReportsTheError() started.\n◇ Test animatedVideoAndTiledSources() started.\n◇ Test opensAtTheRequestedPageAndNavigates() started.\n◇ Test opensNeighborBooksInShelfOrder() started.\n◇ Test prefetchPlansAreKeptPerSession() started.\n◇ Test visibleRequestsJumpAheadOfBackgroundOnes() started.\n◇ Test upscaledTargetsGetTheOriginalWhenAllowed() started.\n◇ Test bookshelfListsBooksCoversNeighborsAndPassesThrough() started.\n◇ Test changesStreamReportsUpdatesAndFileErrors() started.\n◇ Test injectedFailuresSurfaceAsIOErrors() started.\n◇ Test settingChangesGoToTheBookLayer() started.\n◇ Test loaderEmitsArrivalsThenSortedThenMetadata() started.\n◇ Test loaderFollowsTheSortSpec() started.\n✔ Test prefetchPlansAreKeptPerSession() passed after 0.001 seconds.\n✔ Test changesStreamReportsUpdatesAndFileErrors() passed after 0.001 seconds.\n✔ Test loaderEmitsArrivalsThenSortedThenMetadata() passed after 0.005 seconds.\n✔ Test loaderFollowsTheSortSpec() passed after 0.005 seconds.\n✔ Test missingBookReportsTheError() passed after 0.006 seconds.\n✔ Test settingChangesGoToTheBookLayer() passed after 0.006 seconds.\n✔ Test opensAtTheRequestedPageAndNavigates() passed after 0.006 seconds.\n✔ Test opensNeighborBooksInShelfOrder() passed after 0.008 seconds.\n✔ Suite ReaderSessionTests passed after 0.008 seconds.\n✔ Test injectedFailuresSurfaceAsIOErrors() passed after 0.012 seconds.\n✔ Test treeLocationsFollowArchiveLayers() passed after 0.019 seconds.\n✔ Test resolvesRulesBySpecificityThenBookMemory() passed after 0.019 seconds.\n✔ Suite MockSettingsTests passed after 0.019 seconds.\n✔ Test upscaledTargetsGetTheOriginalWhenAllowed() passed after 0.029 seconds.\n✔ Test bookshelfListsBooksCoversNeighborsAndPassesThrough() passed after 0.051 seconds.\n✔ Suite MockReadingTests passed after 0.051 seconds.\n✔ Test providerEnumeratesInBatchesAndFindsArchiveEntries() passed after 0.052 seconds.\n✔ Test animatedVideoAndTiledSources() passed after 0.058 seconds.\n✔ Test cancelledRequestsLeaveTheQueue() passed after 0.110 seconds.\n✔ Test visibleRequestsJumpAheadOfBackgroundOnes() passed after 0.213 seconds.\n✔ Test volumeFollowsTheScriptAndBlocksAccess() passed after 0.275 seconds.\n✔ Suite MockSourceTests passed after 0.275 seconds.\n✔ Test firstVisitsWaitForThroughputAndRevisitsDoNot() passed after 0.325 seconds.\n✔ Suite MockPipelineTests passed after 0.325 seconds.\n✔ Test mockServicesDeliverPageFiftyInThreeStages() passed after 0.688 seconds.\n✔ Test run with 20 tests in 5 suites passed after 0.688 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Test stateDatabaseOpenSucceedsAfterWriteLockReleased() started.\n◇ Test aThousandBookMemoriesCoalesceFlushAndSurviveReopening() started.\n◇ Test globalRulesAndMemoryMergeByFieldAcrossArchiveLayers() started.\n◇ Test documentDefaultsWriteOnlyOnUpdateAndKeepEnvelope() started.\n◇ Test sigkillDuringSettingsWritesLeavesACompleteDocument() started.\n◇ Test pathRuleMatchingOrdersBySpecificityThenOriginalOrder() started.\n◇ Test periodicMemoryWritesPersistWithoutExplicitFlush() started.\n◇ Test updatePathRulesIsVisibleToResolveAndEmitsPathRules() started.\n◇ Test layerJSONHoldsOnlyOverriddenFields() started.\n◇ Test startupErrorsAreDeliveredToLateSubscribers() started.\n◇ Test layersOverrideFieldByField() started.\n◇ Test concurrentDocumentUpdatesDoNotLoseChanges() started.\n◇ Test directoryAndFileMonitoringSurviveAtomicReplacementAndInPlaceWrites() started.\n◇ Test externalSettingsAndRulesEmitTheirOwnChangesWithinOneSecond() started.\n◇ Test concurrentOpenAndClosePreservesBookMemory() started.\n◇ Test missingGlobalFieldsAreFilledAndReportedWithoutRewritingTheFile() started.\n◇ Test globalDefaultsRoundTripAndFollowTheBudgets() started.\n◇ Test malformedAndFutureDocumentsKeepTheLastGoodValue() started.\n✔ Test pathRuleMatchingOrdersBySpecificityThenOriginalOrder() passed after 0.004 seconds.\n✔ Test layerJSONHoldsOnlyOverriddenFields() passed after 0.003 seconds.\n✔ Test layersOverrideFieldByField() passed after 0.003 seconds.\n✔ Test globalDefaultsRoundTripAndFollowTheBudgets() passed after 0.040 seconds.\n✔ Test missingGlobalFieldsAreFilledAndReportedWithoutRewritingTheFile() passed after 0.041 seconds.\n✔ Test startupErrorsAreDeliveredToLateSubscribers() passed after 0.041 seconds.\n✔ Test documentDefaultsWriteOnlyOnUpdateAndKeepEnvelope() passed after 0.049 seconds.\n✔ Test globalRulesAndMemoryMergeByFieldAcrossArchiveLayers() passed after 0.049 seconds.\n✔ Test updatePathRulesIsVisibleToResolveAndEmitsPathRules() passed after 0.049 seconds.\n✔ Test concurrentDocumentUpdatesDoNotLoseChanges() passed after 0.049 seconds.\n✔ Test concurrentOpenAndClosePreservesBookMemory() passed after 0.051 seconds.\n✔ Test aThousandBookMemoriesCoalesceFlushAndSurviveReopening() passed after 0.089 seconds.\n✔ Test externalSettingsAndRulesEmitTheirOwnChangesWithinOneSecond() passed after 0.144 seconds.\n✔ Test stateDatabaseOpenSucceedsAfterWriteLockReleased() passed after 0.257 seconds.\n✔ Test malformedAndFutureDocumentsKeepTheLastGoodValue() passed after 0.271 seconds.\n✔ Test periodicMemoryWritesPersistWithoutExplicitFlush() passed after 0.276 seconds.\n✔ Test directoryAndFileMonitoringSurviveAtomicReplacementAndInPlaceWrites() passed after 0.412 seconds.\n✔ Test sigkillDuringSettingsWritesLeavesACompleteDocument() passed after 0.530 seconds.\n✔ Test run with 18 tests in 0 suites passed after 0.530 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Suite CoreIntegrationTests started.\n◇ Test \"真实 ZIP 完成枚举、自然排序和探测，第十页输出精确尺寸 IOSurface\" started.\nS1-T8 make 0.01164325 seconds\nS1-T8 shutdown 0.002693167 seconds\n✔ Test \"真实 ZIP 完成枚举、自然排序和探测，第十页输出精确尺寸 IOSurface\" passed after 0.214 seconds.\n◇ Test \"整书缩略图重建后由 L2 交付，源 ZIP 已删除\" started.\nS1-T8 make 0.007593042 seconds\nS1-T8 shutdown 0.000727042 seconds\nS1-T8 make 0.035855458 seconds\nS1-T8 shutdown 0.000403916 seconds\n✔ Test \"整书缩略图重建后由 L2 交付，源 ZIP 已删除\" passed after 0.346 seconds.\n◇ Test \"书层单双页和排序立即退出后恢复\" started.\nS1-T8 make 0.006095458 seconds\nS1-T8 shutdown 0.004149542 seconds\nS1-T8 make 0.004704083 seconds\nS1-T8 shutdown 0.003624083 seconds\n✔ Test \"书层单双页和排序立即退出后恢复\" passed after 0.310 seconds.\n◇ Test \"真实嵌套 ZIP 和 tar.gz 能打开、探测和翻页\" started.\nS1-T8 make 0.005796917 seconds\nS1-T8 shutdown 0.001132291 seconds\n✔ Test \"真实嵌套 ZIP 和 tar.gz 能打开、探测和翻页\" passed after 0.269 seconds.\n◇ Test \"外部原子改写 settings.json 后现有会话重新解析\" started.\nS1-T8 make 0.005654 seconds\nS1-T8 shutdown 0.000941875 seconds\n✔ Test \"外部原子改写 settings.json 后现有会话重新解析\" passed after 0.391 seconds.\n◇ Test \"翻页后立即 shutdown，同一缓存目录反复重建并恢复最新页\" started.\nS1-T8 make 0.005513917 seconds\nS1-T8 shutdown 0.002019167 seconds\nS1-T8 make 0.004277292 seconds\nS1-T8 shutdown 0.004612333 seconds\nS1-T8 make 0.005228958 seconds\nS1-T8 shutdown 0.010942125 seconds\nS1-T8 make 0.003938917 seconds\nS1-T8 shutdown 0.049212166 seconds\nS1-T8 make 0.005373625 seconds\nS1-T8 shutdown 0.045713583 seconds\nS1-T8 make 0.00366275 seconds\nS1-T8 shutdown 0.002774334 seconds\nS1-T8 make 0.00553525 seconds\nS1-T8 shutdown 0.004140875 seconds\nS1-T8 make 0.003762417 seconds\nS1-T8 shutdown 0.030886958 seconds\nS1-T8 make 0.005477667 seconds\nS1-T8 shutdown 0.039324917 seconds\nS1-T8 make 0.003711708 seconds\nS1-T8 shutdown 0.032705375 seconds\nS1-T8 make 0.004950833 seconds\nS1-T8 shutdown 0.042866917 seconds\nS1-T8 make 0.00374925 seconds\nS1-T8 shutdown 0.002960291 seconds\n✔ Test \"翻页后立即 shutdown，同一缓存目录反复重建并恢复最新页\" passed after 0.727 seconds.\n◇ Test \"内存 warning/critical 收缩到预算50%/25%，全局预算影响L0至L3\" started.\nS1-T8 make 0.005685292 seconds\nS1-T8 shutdown 0.000153792 seconds\nS1-T8 make 0.003404125 seconds\nS1-T8 shutdown 0.000125875 seconds\nS1-T8 make 0.003502083 seconds\nS1-T8 shutdown 9.5208e-05 seconds\n✔ Test \"内存 warning/critical 收缩到预算50%/25%，全局预算影响L0至L3\" passed after 0.067 seconds.\n◇ Test \"辅助进程真实 FIFO 读取卡住时 shutdown 仍在一秒内返回\" started.\nS1-T8 make 0.005595417 seconds\nS1-T8 shutdown 0.000362042 seconds\n✔ Test \"辅助进程真实 FIFO 读取卡住时 shutdown 仍在一秒内返回\" passed after 0.413 seconds.\n◇ Test \"缓存落盘队列卡住也在一秒内返回，取消后不开始后续步骤\" started.\nS1-T8 make 0.005691791 seconds\nS1-T8 shutdown 0.905318375 seconds\n✔ Test \"缓存落盘队列卡住也在一秒内返回，取消后不开始后续步骤\" passed after 0.958 seconds.\n◇ Test \"Mock 保留原构造入口，没有 keybindings 存储，组合根只弱持有会话\" started.\n✔ Test \"Mock 保留原构造入口，没有 keybindings 存储，组合根只弱持有会话\" passed after 0.066 seconds.\n✔ Suite CoreIntegrationTests passed after 3.766 seconds.\n✔ Test run with 10 tests in 1 suite passed after 3.766 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Suite PageFrameFitTests started.\n◇ Suite PageFrameTests started.\n◇ Suite DisplayPrefetchTests started.\n◇ Suite FileReadingTests started.\n◇ Test \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test \"空书与全未知宽高比\" started.\n◇ Test \"半页的解码尺寸是整页比例，两半共用同一个目标\" started.\n◇ Suite ReadingSessionTests started.\n◇ Test \"对照样例、宽高比未知、仅缩小与长边上限\" started.\n◇ Test \"original、fixed 随屏幕缩放倍率变化，devicePixel 不变；超过源尺寸的部分不解码\" started.\n◇ Test \"分页预解码后下一页帧命中 L1，100 次里第 95 次不超过 8ms\" started.\n◇ Test \"真实书架、缓存首批、排序相邻书、封面和穿透\" started.\n◇ Test \"七种缩放模式 × 单页、双页、半页 × 竖屏与横屏\" started.\n◇ Test \"递归深度、系统条目过滤、单层穿透与全部排序键\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.asIs) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test \"实际 zip 的 __MACOSX 与 AppleDouble 不成为页面\" started.\n◇ Test \"慢来源重新枚举前，缓存 sorted 与命中元数据先交付\" started.\n◇ Test \"缓存后后台 diff 只在内容变化时再发 sorted\" started.\n◇ Test \"flush 不等去抖就保存最新页和书设置，并取消旧的待保存快照\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.single) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test \"真实一万项目录渐进交付、后台排序、缓存立即 sorted\" started.\n◇ Test \"先用容器元数据缓存，再从目标页补齐整个前缀后探测后续\" started.\n◇ Test \"缺元数据的页不预解码，落入前后窗口后随元数据出现\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.split) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.asIs) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test \"切书立即保存第50页，重开按身份恢复；缺失身份回退序号\" started.\n◇ Test \"连续模式只排已知元数据最长前缀，目标页不被早到的后缀夺走\" started.\n◇ Test \"视口回报后预解码前后页帧，换视口替换目标；非分页与缺元数据不预解码\" started.\n◇ Test \"切书和改排序取消旧的相邻枚举，失败不写入 loadError\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.single) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test \"书设置去抖一秒保存；清除覆盖后重新解析继承值\" started.\n◇ Test \"全部导航、相邻书与外部设置变更\" started.\n◇ Test \"分页原始字节、整书缩略图/元数据与三种连续模式的可见范围预取\" started.\n◇ Test \"析构保存最新位置并取消本会话预取，不影响另一会话\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.split) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.asIs) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test \"相邻书与目录封面按书架排序进入同一份预取计划\" started.\n◇ Test \"元数据和第二次 sorted 改变页帧后仍按页身份保持位置\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.single) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.split) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.asIs) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.single) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.single, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.split) to \"单双页×方向×首页单页×全部宽页策略\" started.\n✔ Test \"空书与全未知宽高比\" passed after 0.001 seconds.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.asIs) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.single) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.split) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.asIs) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.single) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.leftToRight, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.split) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.asIs) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.single) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: false, widePage: MVSettings.WidePagePolicy.split) to \"单双页×方向×首页单页×全部宽页策略\" started.\n✔ Test \"半页的解码尺寸是整页比例，两半共用同一个目标\" passed after 0.001 seconds.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.asIs) to \"单双页×方向×首页单页×全部宽页策略\" started.\n✔ Test \"original、fixed 随屏幕缩放倍率变化，devicePixel 不变；超过源尺寸的部分不解码\" passed after 0.001 seconds.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.single) to \"单双页×方向×首页单页×全部宽页策略\" started.\n◇ Test case passing 1 argument layout → PageLayout(pageMode: MVSettings.PageMode.double, direction: MVSettings.ReadingDirection.rightToLeft, firstPageSingle: true, widePage: MVSettings.WidePagePolicy.split) to \"单双页×方向×首页单页×全部宽页策略\" started.\n✔ Test \"对照样例、宽高比未知、仅缩小与长边上限\" passed after 0.001 seconds.\n✔ Test \"七种缩放模式 × 单页、双页、半页 × 竖屏与横屏\" passed after 0.001 seconds.\n✔ Test \"单双页×方向×首页单页×全部宽页策略\" with 24 test cases passed after 0.001 seconds.\n✔ Suite PageFrameFitTests passed after 0.002 seconds.\n✔ Suite PageFrameTests passed after 0.001 seconds.\n✔ Test \"先用容器元数据缓存，再从目标页补齐整个前缀后探测后续\" passed after 0.014 seconds.\n✔ Test \"实际 zip 的 __MACOSX 与 AppleDouble 不成为页面\" passed after 0.016 seconds.\n✔ Test \"缓存后后台 diff 只在内容变化时再发 sorted\" passed after 0.017 seconds.\n✔ Test \"递归深度、系统条目过滤、单层穿透与全部排序键\" passed after 0.023 seconds.\n✔ Test \"真实书架、缓存首批、排序相邻书、封面和穿透\" passed after 0.024 seconds.\n✔ Test \"慢来源重新枚举前，缓存 sorted 与命中元数据先交付\" passed after 0.425 seconds.\n✔ Test \"缺元数据的页不预解码，落入前后窗口后随元数据出现\" passed after 3.389 seconds.\n✔ Test \"flush 不等去抖就保存最新页和书设置，并取消旧的待保存快照\" passed after 3.391 seconds.\n✔ Test \"视口回报后预解码前后页帧，换视口替换目标；非分页与缺元数据不预解码\" passed after 3.392 seconds.\n✔ Test \"分页原始字节、整书缩略图/元数据与三种连续模式的可见范围预取\" passed after 3.396 seconds.\n✔ Test \"析构保存最新位置并取消本会话预取，不影响另一会话\" passed after 3.397 seconds.\n✔ Test \"连续模式只排已知元数据最长前缀，目标页不被早到的后缀夺走\" passed after 3.398 seconds.\n✔ Test \"元数据和第二次 sorted 改变页帧后仍按页身份保持位置\" passed after 3.397 seconds.\n✔ Test \"切书立即保存第50页，重开按身份恢复；缺失身份回退序号\" passed after 3.398 seconds.\n✔ Test \"全部导航、相邻书与外部设置变更\" passed after 3.401 seconds.\n✔ Test \"切书和改排序取消旧的相邻枚举，失败不写入 loadError\" passed after 3.473 seconds.\n✔ Test \"分页预解码后下一页帧命中 L1，100 次里第 95 次不超过 8ms\" passed after 3.758 seconds.\n✔ Suite DisplayPrefetchTests passed after 3.759 seconds.\n✔ Test \"相邻书与目录封面按书架排序进入同一份预取计划\" passed after 3.861 seconds.\n✔ Test \"书设置去抖一秒保存；清除覆盖后重新解析继承值\" passed after 5.761 seconds.\n✔ Suite ReadingSessionTests passed after 5.761 seconds.\n✔ Test \"真实一万项目录渐进交付、后台排序、缓存立即 sorted\" passed after 8.258 seconds.\n✔ Suite FileReadingTests passed after 8.258 seconds.\n✔ Test run with 26 tests in 5 suites passed after 8.258 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Test inFlightBudgetBoundsBackgroundAndPromotesOrCancelsWaiters() started.\n◇ Test shutdownWaitsForCancelledConsumersActualReadToEnd() started.\n◇ Test backgroundBasesStayOutOfMemoryAndThumbnailsHaveTheirOwnBudget() started.\n◇ Test sufficientDiskRenditionDeliversExactWithoutOpeningTheSource() started.\n◇ Test tilesAnimationAndLocalVideoUseExistingMediaImplementations() started.\n◇ Test differentFiltersAndSharpeningProduceDistinctL1Entries() started.\n◇ Test concurrentRenditionsShareTheReadAndSourceDecode() started.\n◇ Test cancellationKeepsTheReadPrefixAndTheNextRequestResumesIt() started.\n◇ Test visibleWaitingDecodeStartsBeforeNear() started.\n◇ Test cancellingOneSubscriberKeepsAnotherAlive() started.\n◇ Test progressiveDeliveryUsesAllThreeStagesAndSkipsLowerCachedQuality() started.\n◇ Test actualSourceIdentityOwnsAllCacheEntries() started.\n◇ Test memoryPressureCancelsOnlyBackgroundPrefetchAcrossSessions() started.\n◇ Test videoPosterReadsAtTheGivenPriority() started.\n◇ Test networkVideoUsesByteSourceBridgeAndArchivedVideoUsesFileURL() started.\n◇ Test derivativeBacklogIsBoundedAndForegroundCanDeferThenRepair() started.\n◇ Test shutdownDrainsIndependentDerivativesAndQueuedDiskWrites() started.\n◇ Test batchFailureDoesNotInterruptOtherItems() started.\n◇ Test replacingPrefetchAddsRemovesAndChangesPriority() started.\n◇ Test metadataOnlyReadsAHeaderAndThenUsesTheIndex() started.\n◇ Test cancellingAPrefetchSessionDoesNotCancelOtherSessionsOrForeground() started.\n◇ Test foregroundThumbnailJoiningPrefetchReturnsWithinLimit(_:) started.\n◇ Test rawAndRenditionPrefetchForTheSameIdentityBothTakeEffect() started.\n◇ Test shutdownRejectsCachedRequestsAndManagedMediaSources() started.\n◇ Test browseAndDisplayChooseDecodeLevelsIndependently(_:) started.\n◇ Test displayJoiningAfterDecodeLevelSelectionReusesSufficientBasePixels() started.\n◇ Test case passing 1 argument priority → .adjacent to foregroundThumbnailJoiningPrefetchReturnsWithinLimit(_:) started.\n◇ Test case passing 1 argument sample → DecodeLevelCase(landscape: true, target: Optional(MVFoundation.PixelSize(width: 3240, height: 2160)), base: MVFoundation.PixelSize(width: 5400, height: 3600), browse: MVFoundation.PixelSize(width: 3240, height: 2160)) to browseAndDisplayChooseDecodeLevelsIndependently(_:) started.\n◇ Test case passing 1 argument sample → DecodeLevelCase(landscape: true, target: Optional(MVFoundation.PixelSize(width: 2145, height: 1430)), base: MVFoundation.PixelSize(width: 2700, height: 1800), browse: MVFoundation.PixelSize(width: 2700, height: 1800)) to browseAndDisplayChooseDecodeLevelsIndependently(_:) started.\n◇ Test case passing 1 argument sample → DecodeLevelCase(landscape: true, target: nil, base: MVFoundation.PixelSize(width: 2700, height: 1800), browse: MVFoundation.PixelSize(width: 2700, height: 1800)) to browseAndDisplayChooseDecodeLevelsIndependently(_:) started.\n◇ Test case passing 1 argument sample → DecodeLevelCase(landscape: false, target: Optional(MVFoundation.PixelSize(width: 953, height: 1430)), base: MVFoundation.PixelSize(width: 1800, height: 2700), browse: MVFoundation.PixelSize(width: 1440, height: 2160)) to browseAndDisplayChooseDecodeLevelsIndependently(_:) started.\n◇ Test case passing 1 argument sample → DecodeLevelCase(landscape: false, target: nil, base: MVFoundation.PixelSize(width: 1800, height: 2700), browse: MVFoundation.PixelSize(width: 1440, height: 2160)) to browseAndDisplayChooseDecodeLevelsIndependently(_:) started.\n✔ Test inFlightBudgetBoundsBackgroundAndPromotesOrCancelsWaiters() passed after 0.046 seconds.\n✔ Test visibleWaitingDecodeStartsBeforeNear() passed after 0.092 seconds.\n✔ Test batchFailureDoesNotInterruptOtherItems() passed after 0.093 seconds.\n✔ Test shutdownWaitsForCancelledConsumersActualReadToEnd() passed after 0.099 seconds.\n✔ Test cancellingOneSubscriberKeepsAnotherAlive() passed after 0.115 seconds.\n✔ Test metadataOnlyReadsAHeaderAndThenUsesTheIndex() passed after 0.116 seconds.\n✔ Test cancellingAPrefetchSessionDoesNotCancelOtherSessionsOrForeground() passed after 0.116 seconds.\n✔ Test networkVideoUsesByteSourceBridgeAndArchivedVideoUsesFileURL() passed after 0.137 seconds.\n✔ Test sufficientDiskRenditionDeliversExactWithoutOpeningTheSource() passed after 0.238 seconds.\n✔ Test actualSourceIdentityOwnsAllCacheEntries() passed after 0.246 seconds.\n✔ Test rawAndRenditionPrefetchForTheSameIdentityBothTakeEffect() passed after 0.248 seconds.\n✔ Test tilesAnimationAndLocalVideoUseExistingMediaImplementations() passed after 0.249 seconds.\n✔ Test concurrentRenditionsShareTheReadAndSourceDecode() passed after 0.251 seconds.\n✔ Test shutdownRejectsCachedRequestsAndManagedMediaSources() passed after 0.263 seconds.\n✔ Test backgroundBasesStayOutOfMemoryAndThumbnailsHaveTheirOwnBudget() passed after 0.274 seconds.\n✔ Test replacingPrefetchAddsRemovesAndChangesPriority() passed after 0.334 seconds.\n✔ Test shutdownDrainsIndependentDerivativesAndQueuedDiskWrites() passed after 0.363 seconds.\n✔ Test cancellationKeepsTheReadPrefixAndTheNextRequestResumesIt() passed after 0.399 seconds.\n✔ Test derivativeBacklogIsBoundedAndForegroundCanDeferThenRepair() passed after 0.516 seconds.\n✔ Test differentFiltersAndSharpeningProduceDistinctL1Entries() passed after 0.531 seconds.\n✔ Test progressiveDeliveryUsesAllThreeStagesAndSkipsLowerCachedQuality() passed after 0.578 seconds.\n✔ Test displayJoiningAfterDecodeLevelSelectionReusesSufficientBasePixels() passed after 0.611 seconds.\n✔ Test memoryPressureCancelsOnlyBackgroundPrefetchAcrossSessions() passed after 0.666 seconds.\n✔ Test browseAndDisplayChooseDecodeLevelsIndependently(_:) with 5 test cases passed after 0.681 seconds.\n✔ Test videoPosterReadsAtTheGivenPriority() passed after 0.734 seconds.\n◇ Test case passing 1 argument priority → .background to foregroundThumbnailJoiningPrefetchReturnsWithinLimit(_:) started.\n✔ Test foregroundThumbnailJoiningPrefetchReturnsWithinLimit(_:) with 2 test cases passed after 1.994 seconds.\n✔ Test run with 26 tests in 0 suites passed after 1.995 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Test originalsBeyondTheLimitRequireTiling() started.\n◇ Test animationsReportFramesAndTimings(_:) started.\n◇ Test videosReportDurationSizeAndPoster(_:) started.\n◇ Test escalatedWaitingDecodeStartsBeforeLowerPriorityItems() started.\n◇ Test outputsKeepWideGamutAndNormalizeOtherModels() started.\n◇ Test renditionsGetMorePreciseInDeclarationOrder() started.\n◇ Test waitingDecodesStartByTaskPriority() started.\n◇ Test tooShortGIFDelaysBecomeTheDefault() started.\n◇ Test everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test renditionsRoundTrip(_:) started.\n◇ Test nearestKeepsHardEdgesWhenEnlarging() started.\n◇ Test orientationsDecodeUpright(_:) started.\n◇ Test outputsLiveInColorTaggedSurfaces() started.\n◇ Test tilesCoverRegionsAtTheRequestedScale() started.\n◇ Test case passing 1 argument path → \"animated/uneven.gif\" to animationsReportFramesAndTimings(_:) started.\n◇ Test staticHeadersAreEnoughButAnimationsNeedTheWholeFile() started.\n◇ Test case passing 1 argument path → \"animated/loop.png\" to animationsReportFramesAndTimings(_:) started.\n◇ Test case passing 1 argument path → \"animated/loop.gif\" to animationsReportFramesAndTimings(_:) started.\n◇ Test case passing 1 argument path → \"animated/loop.webp\" to animationsReportFramesAndTimings(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"local/generated/video/h264.mov\", purpose: \"视频：H.264，mov；2 秒，30 帧/秒\", image: nil, video: Optional(MVTestSupport.VideoFacts(codec: \"avc1\", pixelSize: MVFoundation.PixelSize(width: 1280, height: 720), rotation: 0, duration: 2.0, frameRate: 30.0)), archive: nil, directory: nil) to videosReportDurationSizeAndPoster(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/format/baseline.jpg\", purpose: \"基线 JPEG\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 480, height: 720), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: Optional(false), colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"local/generated/video/h264.mp4\", purpose: \"视频：H.264，mp4；2 秒，30 帧/秒\", image: nil, video: Optional(MVTestSupport.VideoFacts(codec: \"avc1\", pixelSize: MVFoundation.PixelSize(width: 1280, height: 720), rotation: 0, duration: 2.0, frameRate: 30.0)), archive: nil, directory: nil) to videosReportDurationSizeAndPoster(_:) started.\n◇ Test case passing 1 argument encoding → .heic to renditionsRoundTrip(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"local/generated/video/hevc.mp4\", purpose: \"视频：HEVC，mp4；2 秒，30 帧/秒\", image: nil, video: Optional(MVTestSupport.VideoFacts(codec: \"hvc1\", pixelSize: MVFoundation.PixelSize(width: 1280, height: 720), rotation: 0, duration: 2.0, frameRate: 30.0)), archive: nil, directory: nil) to videosReportDurationSizeAndPoster(_:) started.\n◇ Test case passing 1 argument encoding → .jpeg to renditionsRoundTrip(_:) started.\n◇ Test case passing 1 argument orientation → 2 to orientationsDecodeUpright(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/format/progressive.jpg\", purpose: \"渐进 JPEG\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 480, height: 720), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: Optional(true), colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"local/generated/video/hevc.mov\", purpose: \"视频：HEVC，mov；2 秒，30 帧/秒\", image: nil, video: Optional(MVTestSupport.VideoFacts(codec: \"hvc1\", pixelSize: MVFoundation.PixelSize(width: 1280, height: 720), rotation: 0, duration: 2.0, frameRate: 30.0)), archive: nil, directory: nil) to videosReportDurationSizeAndPoster(_:) started.\n◇ Test case passing 1 argument orientation → 3 to orientationsDecodeUpright(_:) started.\n◇ Test case passing 1 argument orientation → 4 to orientationsDecodeUpright(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/format/image.png\", purpose: \"PNG\", image: Optional(MVTestSupport.ImageFacts(type: \"public.png\", pixelSize: MVFoundation.PixelSize(width: 480, height: 720), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"local/generated/video/h264.m4v\", purpose: \"视频：H.264，m4v；2 秒，30 帧/秒\", image: nil, video: Optional(MVTestSupport.VideoFacts(codec: \"avc1\", pixelSize: MVFoundation.PixelSize(width: 1280, height: 720), rotation: 0, duration: 2.0, frameRate: 30.0)), archive: nil, directory: nil) to videosReportDurationSizeAndPoster(_:) started.\n◇ Test case passing 1 argument orientation → 5 to orientationsDecodeUpright(_:) started.\n◇ Test case passing 1 argument orientation → 6 to orientationsDecodeUpright(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/format/image.heic\", purpose: \"HEIC；硬件编码，重新生成时字节可能不同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.heic\", pixelSize: MVFoundation.PixelSize(width: 480, height: 720), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument orientation → 7 to orientationsDecodeUpright(_:) started.\n◇ Test case passing 1 argument orientation → 8 to orientationsDecodeUpright(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/format/image.avif\", purpose: \"AVIF；重新生成时字节可能不同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.avif\", pixelSize: MVFoundation.PixelSize(width: 480, height: 720), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/format/image.tiff\", purpose: \"TIFF，LZW 压缩\", image: Optional(MVTestSupport.ImageFacts(type: \"public.tiff\", pixelSize: MVFoundation.PixelSize(width: 480, height: 720), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/format/image.webp\", purpose: \"WebP，用 cwebp 生成\", image: Optional(MVTestSupport.ImageFacts(type: \"org.webmproject.webp\", pixelSize: MVFoundation.PixelSize(width: 480, height: 720), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"local/generated/video/rotated.mov\", purpose: \"视频：H.264，轨道变换旋转 90°、显示为竖屏，与竖着拍的手机视频一样；2 秒，30 帧/秒\", image: nil, video: Optional(MVTestSupport.VideoFacts(codec: \"avc1\", pixelSize: MVFoundation.PixelSize(width: 720, height: 1280), rotation: 90, duration: 2.0, frameRate: 30.0)), archive: nil, directory: nil) to videosReportDurationSizeAndPoster(_:) started.\n✔ Test renditionsGetMorePreciseInDeclarationOrder() passed after 0.016 seconds.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/format/image.psd\", purpose: \"PSD 合成图\", image: Optional(MVTestSupport.ImageFacts(type: \"com.adobe.photoshop-image\", pixelSize: MVFoundation.PixelSize(width: 480, height: 720), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/orientation/2.jpg\", purpose: \"EXIF 方向 2：像素按逆变换存放，正确处理方向后与方向 1 看起来相同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 2, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: Optional([\"#FF0000\", \"#00FF00\", \"#0000FF\", \"#FFFF00\"]))), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/orientation/1.jpg\", purpose: \"EXIF 方向 1：像素按逆变换存放，正确处理方向后与方向 1 看起来相同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: Optional([\"#FF0000\", \"#00FF00\", \"#0000FF\", \"#FFFF00\"]))), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/orientation/3.jpg\", purpose: \"EXIF 方向 3：像素按逆变换存放，正确处理方向后与方向 1 看起来相同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 3, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: Optional([\"#FF0000\", \"#00FF00\", \"#0000FF\", \"#FFFF00\"]))), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n✔ Test tooShortGIFDelaysBecomeTheDefault() passed after 0.017 seconds.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/orientation/4.jpg\", purpose: \"EXIF 方向 4：像素按逆变换存放，正确处理方向后与方向 1 看起来相同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 4, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: Optional([\"#FF0000\", \"#00FF00\", \"#0000FF\", \"#FFFF00\"]))), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/orientation/5.jpg\", purpose: \"EXIF 方向 5：像素按逆变换存放，正确处理方向后与方向 1 看起来相同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 5, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: Optional([\"#FF0000\", \"#00FF00\", \"#0000FF\", \"#FFFF00\"]))), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/orientation/6.jpg\", purpose: \"EXIF 方向 6：像素按逆变换存放，正确处理方向后与方向 1 看起来相同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 6, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: Optional([\"#FF0000\", \"#00FF00\", \"#0000FF\", \"#FFFF00\"]))), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/orientation/7.jpg\", purpose: \"EXIF 方向 7：像素按逆变换存放，正确处理方向后与方向 1 看起来相同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 7, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: Optional([\"#FF0000\", \"#00FF00\", \"#0000FF\", \"#FFFF00\"]))), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/orientation/8.jpg\", purpose: \"EXIF 方向 8：像素按逆变换存放，正确处理方向后与方向 1 看起来相同\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 8, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: Optional([\"#FF0000\", \"#00FF00\", \"#0000FF\", \"#FFFF00\"]))), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/aspect/square-1x1.jpg\", purpose: \"宽高比：正方形\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 600, height: 600), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/aspect/landscape-3x2.jpg\", purpose: \"宽高比：横图\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 600, height: 400), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/aspect/portrait-2x3.jpg\", purpose: \"宽高比：竖图，写真图集的常见比例\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 400, height: 600), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/aspect/wide-16x9.jpg\", purpose: \"宽高比：宽屏横图\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 640, height: 360), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/aspect/tall-9x16.jpg\", purpose: \"宽高比：手机竖屏截图\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 360, height: 640), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/aspect/panorama-8x1.jpg\", purpose: \"宽高比：超宽全景\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 2400, height: 300), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/aspect/strip-1x12.jpg\", purpose: \"宽高比：超长条漫\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 300, height: 3600), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/size/1x1.png\", purpose: \"尺寸：最小的图\", image: Optional(MVTestSupport.ImageFacts(type: \"public.png\", pixelSize: MVFoundation.PixelSize(width: 1, height: 1), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/size/64x64.png\", purpose: \"尺寸：小图标\", image: Optional(MVTestSupport.ImageFacts(type: \"public.png\", pixelSize: MVFoundation.PixelSize(width: 64, height: 64), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/size/3600x5400.jpg\", purpose: \"尺寸：写真图集的典型尺寸\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 3600, height: 5400), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"local/generated/image/20000x20000.jpg\", purpose: \"尺寸：超过 GPU 纹理上限（16384）和显示解码上限的大图\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 20000, height: 20000), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/color/display-p3.jpg\", purpose: \"Display P3 色域，内嵌配置文件\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 300, height: 450), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: Optional(\"RGB\"), depth: nil, hasAlpha: nil, profileName: Optional(\"Display P3\"), quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/color/gray.jpg\", purpose: \"灰度 JPEG，扫描的漫画常见\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 300, height: 450), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: Optional(\"Gray\"), depth: Optional(8), hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/color/cmyk.jpg\", purpose: \"CMYK JPEG，印刷用的扫描件常见\", image: Optional(MVTestSupport.ImageFacts(type: \"public.jpeg\", pixelSize: MVFoundation.PixelSize(width: 300, height: 450), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: Optional(\"CMYK\"), depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/color/alpha.png\", purpose: \"带透明通道，四周透明\", image: Optional(MVTestSupport.ImageFacts(type: \"public.png\", pixelSize: MVFoundation.PixelSize(width: 300, height: 450), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: Optional(true), profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"image/color/16bit.png\", purpose: \"每个分量 16 位\", image: Optional(MVTestSupport.ImageFacts(type: \"public.png\", pixelSize: MVFoundation.PixelSize(width: 300, height: 450), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: Optional(16), hasAlpha: Optional(false), profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"animated/loop.gif\", purpose: \"GIF 动图，12 帧，无限循环\", image: Optional(MVTestSupport.ImageFacts(type: \"com.compuserve.gif\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 1, frameCount: 12, frameDelays: Optional([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]), loopCount: Optional(0), progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"animated/uneven.gif\", purpose: \"GIF 动图，各帧时长不同，循环 3 次\", image: Optional(MVTestSupport.ImageFacts(type: \"com.compuserve.gif\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 1, frameCount: 4, frameDelays: Optional([0.05, 0.2, 0.5, 1.0]), loopCount: Optional(3), progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"animated/single.gif\", purpose: \"只有一帧的 GIF\", image: Optional(MVTestSupport.ImageFacts(type: \"com.compuserve.gif\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 1, frameCount: 1, frameDelays: nil, loopCount: nil, progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"animated/loop.png\", purpose: \"APNG 动图，12 帧，无限循环\", image: Optional(MVTestSupport.ImageFacts(type: \"public.png\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 1, frameCount: 12, frameDelays: Optional([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]), loopCount: Optional(0), progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n◇ Test case passing 1 argument fixture → Fixture(path: \"animated/loop.webp\", purpose: \"WebP 动图，12 帧，无限循环，用 img2webp 生成\", image: Optional(MVTestSupport.ImageFacts(type: \"org.webmproject.webp\", pixelSize: MVFoundation.PixelSize(width: 240, height: 160), orientation: 1, frameCount: 12, frameDelays: Optional([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]), loopCount: Optional(0), progressive: nil, colorModel: nil, depth: nil, hasAlpha: nil, profileName: nil, quadrants: nil)), video: nil, archive: nil, directory: nil) to everyImageFixtureProbesAndDecodes(_:) started.\n✔ Test staticHeadersAreEnoughButAnimationsNeedTheWholeFile() passed after 0.021 seconds.\n✔ Test nearestKeepsHardEdgesWhenEnlarging() passed after 0.022 seconds.\n✔ Test animationsReportFramesAndTimings(_:) with 4 test cases passed after 0.040 seconds.\n✔ Test outputsKeepWideGamutAndNormalizeOtherModels() passed after 0.045 seconds.\n✔ Test orientationsDecodeUpright(_:) with 7 test cases passed after 0.060 seconds.\n✔ Test waitingDecodesStartByTaskPriority() passed after 0.064 seconds.\n✔ Test escalatedWaitingDecodeStartsBeforeLowerPriorityItems() passed after 0.067 seconds.\n✔ Test outputsLiveInColorTaggedSurfaces() passed after 0.069 seconds.\n✔ Test tilesCoverRegionsAtTheRequestedScale() passed after 0.101 seconds.\n✔ Test videosReportDurationSizeAndPoster(_:) with 6 test cases passed after 0.151 seconds.\n✔ Test originalsBeyondTheLimitRequireTiling() passed after 0.152 seconds.\n✔ Test everyImageFixtureProbesAndDecodes(_:) with 37 test cases passed after 0.345 seconds.\n✔ Test renditionsRoundTrip(_:) with 2 test cases passed after 0.400 seconds.\n✔ Test run with 15 tests in 0 suites passed after 0.400 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Suite ViewerTransformTests started.\n◇ Test droppingIntoASplitStackUsesTheSplitPosition() started.\n◇ Test rightToLeftStripAnchorFollowsTheGrowingLeftEdge() started.\n◇ Test horizontalStripRunsAlongReadingDirection() started.\n◇ Test movesFollowTheGeometryOfEachLayout() started.\n◇ Test sanitizingDropsUnknownAndDuplicatePanels() started.\n◇ Test placedItemsNeverMoveWhileRatiosArriveInBatches() started.\n◇ Test verticalStripIsOneCenteredColumnCappedByItemExtent() started.\n◇ Test crossWindowMoveRemovesFromTheSourceAndInsertsWithItsSettings() started.\n◇ Test togglingAreas() started.\n◇ Test anchorSurvivesLayoutKindChangesAndStaysInsideTheViewport() started.\n◇ Test movingIntoACollapsedAreaExpandsItAndShowsThePanel() started.\n◇ Test removingAPanelDropsItsWeightAndSelection() started.\n◇ Test restoringClampsSoTheAnchorItemIsFullyVisible() started.\n◇ Test movingBetweenAreasInsertsAtTheVisiblePositionAndCarriesSettings() started.\n◇ Test movingToTheEndOfAnArea() started.\n◇ Test floatingOutAndDockingBack() started.\n◇ Test visibleIndexSkipsHiddenPanels() started.\n◇ Test masonryColumnsFollowItemExtentAndEachItemGoesToTheShortestColumn() started.\n◇ Test adoptingFloatingRemovesDockedCopies() started.\n◇ Test togglingPanels() started.\n◇ Test changingAPlacedRatioRelaysOutFromScratch() started.\n◇ Test itemsInRectMatchesABruteForceScanForEveryKind() started.\n◇ Test codableRoundTripAndKeyedDictionaries() started.\n◇ Test onlyTheLongestKnownPrefixIsPlaced() started.\n◇ Test itemCrossingTheLeadingEdgeKeepsItsProportionalPosition() started.\n◇ Test floatingSettingsFollowThePanel() started.\n◇ Test floatingAFloatingPanelAgainKeepsItsHome() started.\n◇ Test togglingStyleKeepsPanelsSelectionAndWeights() started.\n◇ Test gridUsesSquareCellsAndPlacesItemsWhoseRatioIsUnknown() started.\n◇ Test movingWithinTheSameAreaKeepsTheDropPosition() started.\n◇ Test reorderAnchorPrefersTheSelectionThenTheCenterItem() started.\n◇ Test leadingAnchorKeepsTheTopItemInPlaceWhenWidthChanges() started.\n◇ Test \"放大时光标处的内容不动\" started.\n◇ Test \"小于视口时居中，大于视口时不留空\" started.\n◇ Test \"平移受边界限制；倍数有上下限\" started.\n✔ Test horizontalStripRunsAlongReadingDirection() passed after 0.002 seconds.\n✔ Test verticalStripIsOneCenteredColumnCappedByItemExtent() passed after 0.002 seconds.\n✔ Test togglingAreas() passed after 0.002 seconds.\n✔ Test movingIntoACollapsedAreaExpandsItAndShowsThePanel() passed after 0.002 seconds.\n✔ Test droppingIntoASplitStackUsesTheSplitPosition() passed after 0.002 seconds.\n✔ Test movingToTheEndOfAnArea() passed after 0.002 seconds.\n✔ Test sanitizingDropsUnknownAndDuplicatePanels() passed after 0.002 seconds.\n✔ Test movingBetweenAreasInsertsAtTheVisiblePositionAndCarriesSettings() passed after 0.002 seconds.\n✔ Test visibleIndexSkipsHiddenPanels() passed after 0.002 seconds.\n✔ Test rightToLeftStripAnchorFollowsTheGrowingLeftEdge() passed after 0.002 seconds.\n✔ Test adoptingFloatingRemovesDockedCopies() passed after 0.002 seconds.\n✔ Test floatingOutAndDockingBack() passed after 0.002 seconds.\n✔ Test togglingPanels() passed after 0.002 seconds.\n✔ Test codableRoundTripAndKeyedDictionaries() passed after 0.002 seconds.\n✔ Test onlyTheLongestKnownPrefixIsPlaced() passed after 0.002 seconds.\n✔ Test itemCrossingTheLeadingEdgeKeepsItsProportionalPosition() passed after 0.002 seconds.\n✔ Test floatingSettingsFollowThePanel() passed after 0.002 seconds.\n✔ Test floatingAFloatingPanelAgainKeepsItsHome() passed after 0.002 seconds.\n✔ Test togglingStyleKeepsPanelsSelectionAndWeights() passed after 0.002 seconds.\n✔ Test gridUsesSquareCellsAndPlacesItemsWhoseRatioIsUnknown() passed after 0.002 seconds.\n✔ Test movingWithinTheSameAreaKeepsTheDropPosition() passed after 0.002 seconds.\n✔ Test movesFollowTheGeometryOfEachLayout() passed after 0.003 seconds.\n✔ Test restoringClampsSoTheAnchorItemIsFullyVisible() passed after 0.003 seconds.\n✔ Test \"放大时光标处的内容不动\" passed after 0.001 seconds.\n✔ Test \"小于视口时居中，大于视口时不留空\" passed after 0.001 seconds.\n✔ Test \"平移受边界限制；倍数有上下限\" passed after 0.001 seconds.\n✔ Suite ViewerTransformTests passed after 0.003 seconds.\n✔ Test removingAPanelDropsItsWeightAndSelection() passed after 0.003 seconds.\n✔ Test crossWindowMoveRemovesFromTheSourceAndInsertsWithItsSettings() passed after 0.003 seconds.\n✔ Test masonryColumnsFollowItemExtentAndEachItemGoesToTheShortestColumn() passed after 0.004 seconds.\n✔ Test changingAPlacedRatioRelaysOutFromScratch() passed after 0.004 seconds.\n✔ Test reorderAnchorPrefersTheSelectionThenTheCenterItem() passed after 0.011 seconds.\n✔ Test anchorSurvivesLayoutKindChangesAndStaysInsideTheViewport() passed after 0.019 seconds.\n✔ Test leadingAnchorKeepsTheTopItemInPlaceWhenWidthChanges() passed after 0.023 seconds.\n✔ Test itemsInRectMatchesABruteForceScanForEveryKind() passed after 0.057 seconds.\n✔ Test placedItemsNeverMoveWhileRatiosArriveInBatches() passed after 0.130 seconds.\n✔ Test run with 35 tests in 1 suite passed after 0.130 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Test volumePathsRoundTrip() started.\n◇ Test timeoutsDegradeTheVolumeUntilAProbeSucceeds() started.\n◇ Test filesReadInChunksAndReportMissingFiles() started.\n◇ Test listingReturnsEveryEntryWithAttributes() started.\n◇ Test helperMessagesRoundTrip() started.\n◇ Test networkRootsComeFromTheMountSource() started.\n◇ Test localFileURLsBecomeLocalLocations() started.\n◇ Test cancellingAChunkedReadStopsBetweenChunks() started.\n◇ Test videosLoadThroughTheResourceLoader() started.\n◇ Test cancellingTheCallerRemovesAQueuedRequest() started.\n◇ Test probeLooksUpAMissingNameUnderTheMountPoint() started.\n◇ Test queuedRequestsStartByPriority() started.\n◇ Test helperProcessRunsRequestsAndIsReplacedAfterAbandon() started.\n◇ Test entryKindsFollowTheExtension() started.\n◇ Test readerDetectsChangedFiles() started.\n◇ Test readerReopensAfterAReadError() started.\n◇ Test childrenArriveInBatchesBeforeTheListingEnds() started.\n◇ Test groupsCanBeCancelledAndReprioritized() started.\n◇ Test visibleIsTheHighestPriority() started.\n◇ Test networkVolumesUseTheHelper() started.\n✔ Test volumePathsRoundTrip() passed after 0.001 seconds.\n✔ Test networkRootsComeFromTheMountSource() passed after 0.001 seconds.\n✔ Test helperMessagesRoundTrip() passed after 0.001 seconds.\n✔ Test entryKindsFollowTheExtension() passed after 0.001 seconds.\n✔ Test localFileURLsBecomeLocalLocations() passed after 0.001 seconds.\n✔ Test visibleIsTheHighestPriority() passed after 0.001 seconds.\n✔ Test cancellingAChunkedReadStopsBetweenChunks() passed after 0.001 seconds.\n✔ Test networkVolumesUseTheHelper() passed after 0.001 seconds.\n✔ Test readerDetectsChangedFiles() passed after 0.002 seconds.\n✔ Test listingReturnsEveryEntryWithAttributes() passed after 0.003 seconds.\n✔ Test probeLooksUpAMissingNameUnderTheMountPoint() passed after 0.003 seconds.\n✔ Test readerReopensAfterAReadError() passed after 0.003 seconds.\n✔ Test cancellingTheCallerRemovesAQueuedRequest() passed after 0.008 seconds.\n✔ Test queuedRequestsStartByPriority() passed after 0.008 seconds.\n✔ Test groupsCanBeCancelledAndReprioritized() passed after 0.008 seconds.\n✔ Test helperProcessRunsRequestsAndIsReplacedAfterAbandon() passed after 0.024 seconds.\n✔ Test childrenArriveInBatchesBeforeTheListingEnds() passed after 0.032 seconds.\n✔ Test videosLoadThroughTheResourceLoader() passed after 0.136 seconds.\n✔ Test timeoutsDegradeTheVolumeUntilAProbeSucceeds() passed after 0.465 seconds.\n✔ Test filesReadInChunksAndReportMissingFiles() passed after 0.645 seconds.\n✔ Test run with 20 tests in 0 suites passed after 0.645 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Test subsystemMatchesBundleIdentifier() started.\n◇ Suite NameOrderTests started.\n◇ Suite ContentIdentityTests started.\n◇ Test jsonValueDecodesPlainJSON() started.\n◇ Suite LocationTests started.\n◇ Test entryReadsLocationSizeAndDateFromIdentity() started.\n◇ Test signpostCategoriesFollowPipelineStages() started.\n◇ Test \"真实 Finder 按名称排序对照（中文拼音部分除外）\" started.\n◇ Test jsonRoundTrip(location:) started.\n◇ Test cacheKeyIsStable() started.\n◇ Test \"自然数字、中文拼音、全角数字及中英文混排保持全序\" started.\n◇ Test prefixMatchesWholeComponentsAndArchiveContents() started.\n◇ Test navigatesAcrossArchiveLayers() started.\n◇ Test cacheKeyChangesWithEveryField() started.\n◇ Test jsonKeepsRootAndLayers() started.\n✔ Test subsystemMatchesBundleIdentifier() passed after 0.001 seconds.\n✔ Test signpostCategoriesFollowPipelineStages() passed after 0.001 seconds.\n◇ Test case passing 1 argument location → /Users/me/a.jpg to jsonRoundTrip(location:) started.\n◇ Test case passing 1 argument location → /export/Picture/a.zip!/inner/b.zip!/001.jpg to jsonRoundTrip(location:) started.\n✔ Test entryReadsLocationSizeAndDateFromIdentity() passed after 0.001 seconds.\n◇ Test case passing 1 argument location → web:feed to jsonRoundTrip(location:) started.\n◇ Test case passing 1 argument location → /export to jsonRoundTrip(location:) started.\n✔ Test navigatesAcrossArchiveLayers() passed after 0.001 seconds.\n✔ Test prefixMatchesWholeComponentsAndArchiveContents() passed after 0.001 seconds.\n✔ Test cacheKeyIsStable() passed after 0.001 seconds.\n✔ Test jsonKeepsRootAndLayers() passed after 0.001 seconds.\n✔ Test jsonRoundTrip(location:) with 4 test cases passed after 0.001 seconds.\n✔ Suite LocationTests passed after 0.001 seconds.\n✔ Test jsonValueDecodesPlainJSON() passed after 0.001 seconds.\n✔ Test cacheKeyChangesWithEveryField() passed after 0.001 seconds.\n✔ Suite ContentIdentityTests passed after 0.001 seconds.\n✔ Test \"自然数字、中文拼音、全角数字及中英文混排保持全序\" passed after 0.007 seconds.\n✔ Test \"真实 Finder 按名称排序对照（中文拼音部分除外）\" passed after 0.785 seconds.\n✔ Suite NameOrderTests passed after 0.785 seconds.\n✔ Test run with 12 tests in 3 suites passed after 0.785 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Suite CommandRegistryTests started.\n◇ Test userBindingsReplaceAllDefaultsForTheirCommandAndRoundTripAsAFileValue() started.\n◇ Test scopePrefixesWinAndTextInputAcceptsOnlyItsExplicitBindings() started.\n◇ Test twoKeySequencesMatchWithinTheDefaultTimeoutAndResetAfterIt() started.\n◇ Test conflictsIncludeEqualSequencesAndPrefixesOnlyInTheSameScope() started.\n◇ Test scopeBindingsWinAndTextInputDoesNotFallBackToGlobal() started.\n◇ Test bindingJSONUsesPlainValues() started.\n◇ Test menuModelRoundTrips() started.\n◇ Test p0CommandsHaveTitlesCategoriesAndMenuEntries() started.\n◇ Test registeringAgainReplacesTheHandlerAndKeepsTheOrder() started.\n◇ Test defaultBindingsHaveNoConflictsAndSupportMacNavigation() started.\n◇ Test performsOnlyRegisteredAndEnabledCommands() started.\n✔ Test scopeBindingsWinAndTextInputDoesNotFallBackToGlobal() passed after 0.001 seconds.\n✔ Test twoKeySequencesMatchWithinTheDefaultTimeoutAndResetAfterIt() passed after 0.001 seconds.\n✔ Test scopePrefixesWinAndTextInputAcceptsOnlyItsExplicitBindings() passed after 0.001 seconds.\n✔ Test conflictsIncludeEqualSequencesAndPrefixesOnlyInTheSameScope() passed after 0.001 seconds.\n✔ Test menuModelRoundTrips() passed after 0.001 seconds.\n✔ Test bindingJSONUsesPlainValues() passed after 0.001 seconds.\n✔ Test registeringAgainReplacesTheHandlerAndKeepsTheOrder() passed after 0.003 seconds.\n✔ Test userBindingsReplaceAllDefaultsForTheirCommandAndRoundTripAsAFileValue() passed after 0.004 seconds.\n✔ Test performsOnlyRegisteredAndEnabledCommands() passed after 0.004 seconds.\n✔ Suite CommandRegistryTests passed after 0.004 seconds.\n✔ Test defaultBindingsHaveNoConflictsAndSupportMacNavigation() passed after 0.004 seconds.\n✔ Test p0CommandsHaveTitlesCategoriesAndMenuEntries() passed after 0.005 seconds.\n✔ Test run with 11 tests in 1 suite passed after 0.005 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Test metadataBatchIsCompleteAndUpdatesPersist() started.\n◇ Test memoryConcurrentAccessPreservesCost() started.\n◇ Test memoryPressureTrimKeepsConfiguredBudget() started.\n◇ Test diskEvictionUsesPendingReadsAndRuntimeBudget() started.\n◇ Test failedAccessFlushRetainsPendingBatch() started.\n◇ Test memoryLRUUsesCostAndPromotesHits() started.\n◇ Test accessesArrivingDuringFlushAreRescheduled() started.\n◇ Test memoryRejectsOversizeAndShrinksImmediately() started.\n◇ Test evictionConcurrentReadsAndWritesStayWithinBudget() started.\n◇ Test directoryDiffUsesLocationsAndContentIdentities() started.\n◇ Test diskReadsAreIndexedAndWritesReplaceAtomically() started.\n◇ Test startupOnlyClearsTemporaryFilesAndEvictionSweepsOldOrphans() started.\n◇ Test killedWriterLeavesOnlyCompleteIndexedFiles(delayMilliseconds:) started.\n◇ Test diskTiersAndIndexesSurviveReopening() started.\n◇ Test accessTimesFlushAsOneBatchAndOnTimer() started.\n◇ Test accessCountAlsoTriggersBatchFlush() started.\n◇ Test case passing 1 argument delayMilliseconds → 0 to killedWriterLeavesOnlyCompleteIndexedFiles(delayMilliseconds:) started.\n◇ Test case passing 1 argument delayMilliseconds → 23 to killedWriterLeavesOnlyCompleteIndexedFiles(delayMilliseconds:) started.\n◇ Test case passing 1 argument delayMilliseconds → 67 to killedWriterLeavesOnlyCompleteIndexedFiles(delayMilliseconds:) started.\n✔ Test memoryPressureTrimKeepsConfiguredBudget() passed after 0.018 seconds.\n✔ Test memoryRejectsOversizeAndShrinksImmediately() passed after 0.018 seconds.\n✔ Test memoryLRUUsesCostAndPromotesHits() passed after 0.018 seconds.\n✔ Test directoryDiffUsesLocationsAndContentIdentities() passed after 0.027 seconds.\n✔ Test failedAccessFlushRetainsPendingBatch() passed after 0.027 seconds.\n✔ Test startupOnlyClearsTemporaryFilesAndEvictionSweepsOldOrphans() passed after 0.028 seconds.\n✔ Test diskReadsAreIndexedAndWritesReplaceAtomically() passed after 0.032 seconds.\n✔ Test accessCountAlsoTriggersBatchFlush() passed after 0.036 seconds.\n✔ Test diskTiersAndIndexesSurviveReopening() passed after 0.043 seconds.\n✔ Test diskEvictionUsesPendingReadsAndRuntimeBudget() passed after 0.043 seconds.\n✔ Test memoryConcurrentAccessPreservesCost() passed after 0.044 seconds.\n✔ Test metadataBatchIsCompleteAndUpdatesPersist() passed after 0.055 seconds.\n✔ Test killedWriterLeavesOnlyCompleteIndexedFiles(delayMilliseconds:) with 3 test cases passed after 0.273 seconds.\n✔ Test evictionConcurrentReadsAndWritesStayWithinBudget() passed after 0.549 seconds.\n✔ Test accessTimesFlushAsOneBatchAndOnTimer() passed after 1.064 seconds.\n✔ Test accessesArrivingDuringFlushAreRescheduled() passed after 2.359 seconds.\n✔ Test run with 16 tests in 0 suites passed after 2.359 seconds.\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Suite \"压缩包真实夹具\" started.\n◇ Suite \"tar 二进制 PAX 扩展值\" started.\n◇ Suite \"解出缓存启动轮换\" started.\n◇ Test \"gzip 单文件大小来自解压结果\" started.\n◇ Test \"未知键允许非 UTF-8 字节，已知键和条目内容仍正确\" started.\n◇ Test \"持有 fileLease 期间，再次交付和超出预算都不淘汰该文件\" started.\n◇ Test \"gzip CRC 损坏不留解出文件\" started.\n◇ Test \"deflate 随机区间、EOF 及完整 CRC\" started.\n◇ Test \"清单中的全部归档、子目录及嵌套内容\" started.\n◇ Test \"registry 认领归档容器，entry/open/fileURL 仍指向归档文件\" started.\n◇ Test \"stored 的端到端来源读取量不超过条目加 64 KB\" started.\n◇ Test \"解出缓存按 LRU 淘汰，租约中的文件不删除\" started.\n◇ Test \"stored 内包保持范围映射，deflate 内包才解出\" started.\n◇ Test \"读中取消 gzip 时移除部分文件\" started.\n◇ Test \"构造只轮换目录，后台回收旧内容和崩溃遗留，预算从空开始\" started.\n◇ Test case passing 1 argument type → 120 to \"未知键允许非 UTF-8 字节，已知键和条目内容仍正确\" started.\n◇ Test case passing 1 argument type → 103 to \"未知键允许非 UTF-8 字节，已知键和条目内容仍正确\" started.\n◇ Test \"扩展名是 .gz、文件头是 RAR5 或 7z 时打开失败并带上实际格式\" started.\n✔ Test \"未知键允许非 UTF-8 字节，已知键和条目内容仍正确\" with 2 test cases passed after 0.007 seconds.\n✔ Suite \"tar 二进制 PAX 扩展值\" passed after 0.008 seconds.\n✔ Test \"扩展名是 .gz、文件头是 RAR5 或 7z 时打开失败并带上实际格式\" passed after 0.013 seconds.\n✔ Test \"读中取消 gzip 时移除部分文件\" passed after 0.014 seconds.\n✔ Test \"构造只轮换目录，后台回收旧内容和崩溃遗留，预算从空开始\" passed after 0.015 seconds.\n✔ Suite \"解出缓存启动轮换\" passed after 0.015 seconds.\n✔ Test \"解出缓存按 LRU 淘汰，租约中的文件不删除\" passed after 0.015 seconds.\n✔ Test \"stored 的端到端来源读取量不超过条目加 64 KB\" passed after 0.039 seconds.\n✔ Test \"gzip CRC 损坏不留解出文件\" passed after 0.067 seconds.\n✔ Test \"registry 认领归档容器，entry/open/fileURL 仍指向归档文件\" passed after 0.067 seconds.\n✔ Test \"gzip 单文件大小来自解压结果\" passed after 0.067 seconds.\n✔ Test \"持有 fileLease 期间，再次交付和超出预算都不淘汰该文件\" passed after 0.080 seconds.\n✔ Test \"deflate 随机区间、EOF 及完整 CRC\" passed after 0.091 seconds.\n✔ Test \"stored 内包保持范围映射，deflate 内包才解出\" passed after 0.095 seconds.\n✔ Test \"清单中的全部归档、子目录及嵌套内容\" passed after 0.147 seconds.\n✔ Suite \"压缩包真实夹具\" passed after 0.147 seconds.\n✔ Test run with 13 tests in 3 suites passed after 0.147 seconds.\n"
+  },
+  "architectureAudit": {
+    "verdict": "pass",
+    "frozenCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+    "pipelineSHA256": "f3727db12c39b5182d706180bf56eaf2cb9a89ec753358430eb29a9832bfe5df",
+    "W3.6": "分别按浏览图80%、显示目标90%算DCT级别取较细者；浏览图尺寸受基础图约束；迟到目标按真实基础图像素判定复用；architecture §3.3同步。",
+    "W3.7": "e8f9e97仅增加只读计数及run.py停顿监测；CollectionView.reloadTable封装保持原刷新行为；无新因果定位与产品修复。",
+    "scope": "无新依赖；只读状态仍经DebugSocket；预算未改；仅验收，不修改源码。"
+  },
+  "affectedSelfTests": {
+    "viewer": {
+      "verdict": "environment",
+      "executed": false,
+      "reason": "冻结提交新增Core解码策略及Collection只读计数需GUI回归；锁屏不启动open -n，未把历史Viewer/Panel算作本轮通过。"
+    },
+    "panel": {
+      "verdict": "environment",
+      "executed": false,
+      "reason": "冻结提交新增Core解码策略及Collection只读计数需GUI回归；锁屏不启动open -n，未把历史Viewer/Panel算作本轮通过。"
+    },
+    "reuse": {
+      "source": "docs/reports/bench/before-w36/S2-stage3-checks.json",
+      "baseCommit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+      "mapping": "git diff 3e417a1..42ccbcf -- App显示仅Collection的DEBUG计数及DebugSocket只读状态；App/Debug/SelfTest.swift、App/Debug/SettingsSelfTest.swift和App/Settings树未变。Mock中文/ASCII与Settings旧记录可复用分支行为；非本轮执行。",
+      "originalRuns": "before-w36.gui",
+      "historicalRunSummaries": [
+        {
+          "name": "mock-chinese",
+          "exitCode": 0,
+          "passes": 31,
+          "failures": [],
+          "skips": [
+            "SKIP 字母进入了文本框（com.tencent.inputmethod.wetype.pinyin，zh-Hans，字母会进入组合文本）"
+          ],
+          "summary": [
+            "SELFTEST OK"
+          ],
+          "verdict": "pass"
+        },
+        {
+          "name": "mock-ascii",
+          "exitCode": 0,
+          "passes": 32,
+          "failures": [],
+          "skips": [],
+          "summary": [
+            "SELFTEST OK"
+          ],
+          "verdict": "pass"
+        },
+        {
+          "name": "settings",
+          "exitCode": 0,
+          "passes": 25,
+          "failures": [],
+          "skips": [],
+          "summary": [
+            "SELFTEST OK"
+          ],
+          "verdict": "pass"
+        }
+      ]
+    }
+  },
+  "verdictChecks": {
+    "command": "python3 -I scripts/acceptance/run.py --check-verdicts (imported checker)",
+    "exitCode": 0,
+    "cases": 88,
+    "rawOutput": "check-verdicts: ok (88 cases)\n"
+  },
+  "memoryMonitorCheck": {
+    "verdict": "pass",
+    "scope": "合成时钟检查调度和诊断字段，仅工具检查，不能证明产品主线程或30分钟内存达标",
+    "results": [
+      {
+        "injectedResponseSeconds": 0.25,
+        "sampleStartSeconds": [],
+        "timedOut": false,
+        "maxRoundTripMilliseconds": 250.0,
+        "stalls": []
+      },
+      {
+        "injectedResponseSeconds": 14.5,
+        "sampleStartSeconds": [
+          3.0,
+          8.0,
+          13.0
+        ],
+        "timedOut": false,
+        "maxRoundTripMilliseconds": 14500.0,
+        "stalls": [
+          {
+            "requestID": 1,
+            "phase": "synthetic-check",
+            "pid": 0,
+            "startedElapsedSeconds": 0.0,
+            "startedUnixSeconds": 1700000100.0,
+            "lastState": {
+              "marker": "injected-previous"
+            },
+            "inFlightActions": [
+              {
+                "requestID": 2,
+                "command": "scroll",
+                "phase": "synthetic-check",
+                "sentMonotonic": 99.5,
+                "action": {
+                  "index": 7,
+                  "type": "scroll"
+                },
+                "ageSeconds": 1.5
+              }
+            ],
+            "samples": [
+              {
+                "path": "synthetic-no-file",
+                "synthetic": true,
+                "startedElapsedSeconds": 3.0
+              },
+              {
+                "path": "synthetic-no-file",
+                "synthetic": true,
+                "startedElapsedSeconds": 8.0
+              },
+              {
+                "path": "synthetic-no-file",
+                "synthetic": true,
+                "startedElapsedSeconds": 13.0
+              }
+            ],
+            "durationSeconds": 14.5,
+            "returned": true
+          }
+        ]
+      },
+      {
+        "injectedResponseSeconds": null,
+        "sampleStartSeconds": [
+          3.0,
+          8.0,
+          13.0
+        ],
+        "timedOut": true,
+        "maxRoundTripMilliseconds": 120000.0,
+        "stalls": [
+          {
+            "requestID": 1,
+            "phase": "synthetic-check",
+            "pid": 0,
+            "startedElapsedSeconds": 0.0,
+            "startedUnixSeconds": 1700000100.0,
+            "lastState": {
+              "marker": "injected-previous"
+            },
+            "inFlightActions": [
+              {
+                "requestID": 2,
+                "command": "scroll",
+                "phase": "synthetic-check",
+                "sentMonotonic": 99.5,
+                "action": {
+                  "index": 7,
+                  "type": "scroll"
+                },
+                "ageSeconds": 1.5
+              }
+            ],
+            "samples": [
+              {
+                "path": "synthetic-no-file",
+                "synthetic": true,
+                "startedElapsedSeconds": 3.0
+              },
+              {
+                "path": "synthetic-no-file",
+                "synthetic": true,
+                "startedElapsedSeconds": 8.0
+              },
+              {
+                "path": "synthetic-no-file",
+                "synthetic": true,
+                "startedElapsedSeconds": 13.0
+              }
+            ],
+            "durationSeconds": 120.0,
+            "returned": false
+          }
+        ]
+      }
+    ],
+    "harnessCorrection": "第一次私有检查遗漏模拟sample的path字段，已纠正后完整重跑，未触发真实App或改源码。",
+    "snapshotCodeAudit": "scene_memory finally调用monitor.evidence和memory_process_snapshot；leaks超时180秒、vmmap --summary超时60秒；1800秒场景判定保持不变。"
+  },
+  "recordingCheck": {
+    "verdict": "pass",
+    "scope": "真实40GB准入和旧raw名单；新增raw占用/无占用删除使用工作区内私有夹具；未录制不能代替四场景及smoke",
+    "actualBefore": {
+      "rawDirectory": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
+      "existing": {
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments2pt8rm.ktrace": {
+          "bytes": 11028213384,
+          "allocatedBytes": 11028213760
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsC2jyvX.ktrace": {
+          "bytes": 2317752736,
+          "allocatedBytes": 2317754368
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsF1VQ7E.ktrace": {
+          "bytes": 13740328296,
+          "allocatedBytes": 13740331008
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsFAhWnQ.ktrace": {
+          "bytes": 12355078240,
+          "allocatedBytes": 12355080192
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsM7EDH9.ktrace": {
+          "bytes": 2165883584,
+          "allocatedBytes": 2165886976
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsNVhe6o.ktrace": {
+          "bytes": 19123722272,
+          "allocatedBytes": 19123724288
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsWcyXHP.ktrace": {
+          "bytes": 11538689976,
+          "allocatedBytes": 11538690048
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsYOtxPy.ktrace": {
+          "bytes": 11885084288,
+          "allocatedBytes": 11885084672
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsgJwc6h.ktrace": {
+          "bytes": 12468539208,
+          "allocatedBytes": 12468539392
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsoZiLrq.ktrace": {
+          "bytes": 15144266368,
+          "allocatedBytes": 15144267776
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsx8ZKd8.ktrace": {
+          "bytes": 12051517856,
+          "allocatedBytes": 12051521536
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsxyZXe6.ktrace": {
+          "bytes": 12079605864,
+          "allocatedBytes": 12079607808
+        }
+      },
+      "space": {
+        "volume": "/System/Volumes/Data",
+        "freeBytes": 56659316736,
+        "requiredBytes": 40000000000
+      },
+      "ready": true,
+      "added": [],
+      "cleanupComplete": false
+    },
+    "actualAfter": {
+      "rawDirectory": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
+      "existing": {
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments2pt8rm.ktrace": {
+          "bytes": 11028213384,
+          "allocatedBytes": 11028213760
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsC2jyvX.ktrace": {
+          "bytes": 2317752736,
+          "allocatedBytes": 2317754368
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsF1VQ7E.ktrace": {
+          "bytes": 13740328296,
+          "allocatedBytes": 13740331008
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsFAhWnQ.ktrace": {
+          "bytes": 12355078240,
+          "allocatedBytes": 12355080192
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsM7EDH9.ktrace": {
+          "bytes": 2165883584,
+          "allocatedBytes": 2165886976
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsNVhe6o.ktrace": {
+          "bytes": 19123722272,
+          "allocatedBytes": 19123724288
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsWcyXHP.ktrace": {
+          "bytes": 11538689976,
+          "allocatedBytes": 11538690048
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsYOtxPy.ktrace": {
+          "bytes": 11885084288,
+          "allocatedBytes": 11885084672
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsgJwc6h.ktrace": {
+          "bytes": 12468539208,
+          "allocatedBytes": 12468539392
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsoZiLrq.ktrace": {
+          "bytes": 15144266368,
+          "allocatedBytes": 15144267776
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsx8ZKd8.ktrace": {
+          "bytes": 12051517856,
+          "allocatedBytes": 12051521536
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsxyZXe6.ktrace": {
+          "bytes": 12079605864,
+          "allocatedBytes": 12079607808
+        }
+      },
+      "space": {
+        "volume": "/System/Volumes/Data",
+        "freeBytes": 56659316736,
+        "requiredBytes": 40000000000
+      },
+      "ready": true,
+      "added": [],
+      "cleanupComplete": true,
+      "addedBytes": 0,
+      "deletedBytes": 0
+    },
+    "syntheticHeldResult": {
+      "rawDirectory": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-acceptance/recording-cleanup",
+      "existing": {
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-acceptance/recording-cleanup/instruments-old.ktrace": {
+          "bytes": 15,
+          "allocatedBytes": 4096
+        }
+      },
+      "added": [
+        {
+          "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-acceptance/recording-cleanup/instruments-new.ktrace",
+          "bytes": 15,
+          "allocatedBytes": 4096,
+          "result": "in-use",
+          "lsofExitCode": 0,
+          "lsof": "COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF      NODE NAME\nPython  17664 yuwk    4r   REG   1,15       15 150599691 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-acceptance/recording-cleanup/instruments-new.ktrace\n",
+          "lsofError": ""
+        }
+      ],
+      "cleanupComplete": false,
+      "addedBytes": 15,
+      "deletedBytes": 0
+    },
+    "syntheticReleasedResult": {
+      "rawDirectory": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-acceptance/recording-cleanup",
+      "existing": {
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-acceptance/recording-cleanup/instruments-old.ktrace": {
+          "bytes": 15,
+          "allocatedBytes": 4096
+        }
+      },
+      "added": [
+        {
+          "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-acceptance/recording-cleanup/instruments-new.ktrace",
+          "bytes": 15,
+          "allocatedBytes": 4096,
+          "result": "deleted"
+        }
+      ],
+      "cleanupComplete": true,
+      "addedBytes": 15,
+      "deletedBytes": 15
+    },
+    "sourceAudit": "record-trackpad.sh在xctrace前begin、EXIT trap中finish；汇总完成后run.py删除自动record.trace；用户手动trace保留。"
+  },
+  "selfTestSourceMapping": {
+    "App/Debug/SelfTest.swift": {
+      "3e417a1": "00e3c08aacc89042688332465972651b40d2976b",
+      "42ccbcf": "00e3c08aacc89042688332465972651b40d2976b"
+    },
+    "App/Debug/SettingsSelfTest.swift": {
+      "3e417a1": "6d46848cb083d109825a30cfa4d70207e33a899b",
+      "42ccbcf": "6d46848cb083d109825a30cfa4d70207e33a899b"
+    },
+    "App/Settings": {
+      "3e417a1": "1a67540c0c294f4320caba8d5f8aed03152cf2e2",
+      "42ccbcf": "1a67540c0c294f4320caba8d5f8aed03152cf2e2"
+    }
+  },
+  "releaseBuild": {
+    "command": "swift build --package-path Packages/MacViewKit -c release --product mvbench",
+    "exitCode": 0,
+    "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+    "swiftWarnings": 0,
+    "allWarningLines": [],
+    "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Packages/MacViewKit/.build/release/mvbench",
+    "sha256": "106bfbb57e5d7a225856cd920b2bfef1f0eb0861295f4ff11fc3bf1ffeea8715",
+    "modifiedNs": 1793795404099753743,
+    "rawLog": "Building for production...\n[Computing dependencies]\n[18 / 61] ArgumentParserToolInfo\n[20 / 62] MVFoundation\n[24 / 64] ArgumentParserToolInfo\n[27 / 66] ArgumentParser\n[29 / 67] MVFoundation\n[34 / 71] MVCommands\n[38 / 74] MVMedia\n[40 / 72] MVIO\n[45 / 75] MVArchive\n[46 / 76] MVArchive\n[48 / 72] ArgumentParser\n[50 / 68] GRDB\n[54 / 71] MVSettings\n[57 / 73] MVCache\n[60 / 75] MVPipeline\n[62 / 76] MVSettings\n[63 / 75] MVPipeline\n[73 / 84] MVReading\n[75 / 85] MVReading\n[78 / 87] MVServices\n[80 / 88] MVServices\n[83 / 90] MVTestSupport\n[85 / 91] MVTestSupport\n[88 / 91] mvbench-product\n[89 / 92] mvbench-product\n[91 / 92] mvbench-product\n[92 / 92] mvbench-product\nBuild complete! (50.42秒)\n"
+  },
+  "appBuild": {
+    "command": "xcodegen generate --quiet && xcodebuild -quiet -project MacView.xcodeproj -scheme MacView -configuration Debug -destination platform=macOS,arch=arm64 -derivedDataPath <workspace>/build/DerivedData-profile -clonedSourcePackagesDirPath <workspace>/build/DerivedData/SourcePackages -skipPackageUpdates -onlyUsePackageVersionsFromResolvedFile SWIFT_OPTIMIZATION_LEVEL=-O build",
+    "exitCode": 0,
+    "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+    "swiftWarnings": 0,
+    "allWarningLines": [],
+    "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+    "sha256": "03c85e17f6b77f3a82775885b5dd587bc5345e2a186966e5f980f0d0d6c8d07f",
+    "modifiedNs": 1793795461468518966,
+    "rawLog": "2026-11-04 20:30:23.298 xcodebuild[17082:7544995]  DVTErrorPresenter: Unable to load simulator devices.\nDomain: DVTCoreSimulatorAdditionsErrorDomain\nCode: 3\nFailure Reason: The version of the CoreSimulator framework installed on this Mac is out-of-date and not supported by this version of Xcode.\nRecovery Suggestion: Please ensure that you have installed all available updates to your Mac's software, and that you are running the most recent version of Xcode supported by macOS.\n--\nCoreSimulator is out of date. Current version (1174.9.2) is older than build version (1174.21.0).\nDomain: DVTCoreSimulatorAdditionsErrorDomain\nCode: 3\n--\n\n2026-11-04 20:30:23.298 xcodebuild[17082:7544995]  iOSSimulator: [SimServiceContext sharedServiceContextForDeveloperDir:error:] returned nil (Error Domain=DVTCoreSimulatorAdditionsErrorDomain Code=3 \"CoreSimulator is out of date. Current version (1174.9.2) is older than build version (1174.21.0).\" UserInfo={NSLocalizedDescription=CoreSimulator is out of date. Current version (1174.9.2) is older than build version (1174.21.0).}). Simulator device support disabled.\n",
+    "signature": {
+      "returnCode": 0,
+      "cdhash": "4034361909fe65509c2018d3ad1d36cee5b54759",
+      "rawOutput": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30356 flags=0x2(adhoc) hashes=938+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=4034361909fe65509c2018d3ad1d36cee5b54759\nCandidateCDHashFull sha256=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nHash choices=sha256\nCMSDigest=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=4034361909fe65509c2018d3ad1d36cee5b54759\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+    }
+  },
+  "finalAdmissionProbe": {
+    "collectedAt": "2026-11-04T12:32:13.191152+00:00",
+    "conditions": {
+      "load": {
+        "oneMinute": 12.01220703125,
+        "limit": 10,
+        "limitSource": "sysctl -n hw.physicalcpu"
+      },
+      "displayMode": {
+        "width": 1728,
+        "height": 1080,
+        "pixelWidth": 3456,
+        "pixelHeight": 2160,
+        "refreshHz": 59.93998718261719,
+        "builtin": true,
+        "externalDisplay": false
+      },
+      "refreshHz": 59.93998718261719,
+      "screen": {
+        "locked": true,
+        "idleSeconds": 4833.381861291,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      }
+    },
+    "priorExhaustedWaitEvidence": "docs/reports/bench/S2-T3-w36-baseline.json",
+    "noAdditionalTwentyMinuteWait": true
+  },
+  "sceneRun": {
+    "command": "TMPDIR=<workspace> python3 -I <workspace-private stdin harness>: import run.py; WAIT_EXHAUSTED=True only while still locked; run_scene for all 13 in original local/recording→1800sec memory→NAS order",
+    "startedAt": "2026-11-04T12:32:31.088844+00:00",
+    "sceneOrder": [
+      "first-image",
+      "preloaded-flip",
+      "scroll-cached",
+      "scroll-cold",
+      "main-thread",
+      "settle",
+      "large-dir",
+      "tiles-cancel",
+      "panel-restart",
+      "memory-30min",
+      "nas-throughput",
+      "cached-first-screen",
+      "nas-fault"
+    ],
+    "screenProbe": {
+      "locked": true,
+      "idleSeconds": 4851.280235541,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "waitCarryEvidence": "docs/reports/bench/S2-T3-w36-baseline.json",
+    "runtimeGUIProcessStarted": false,
+    "completed": [
+      "first-image",
+      "preloaded-flip",
+      "scroll-cached",
+      "scroll-cold",
+      "main-thread",
+      "settle",
+      "large-dir",
+      "tiles-cancel",
+      "panel-restart",
+      "memory-30min",
+      "nas-throughput",
+      "cached-first-screen",
+      "nas-fault"
+    ],
+    "finishedAt": "2026-11-04T12:32:52.746565+00:00",
+    "taskAppPIDs": [],
+    "exitCode": 0,
+    "formalJSONCount": 13,
+    "verdictCounts": {
+      "environment": 12,
+      "pass": 1
+    },
+    "results": {
+      "first-image": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-first-image.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "preloaded-flip": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-preloaded-flip.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "scroll-cached": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-scroll-cached.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "scroll-cold": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-scroll-cold.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "main-thread": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-main-thread.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "settle": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-settle.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "large-dir": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-large-dir.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "tiles-cancel": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-tiles-cancel.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "panel-restart": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-panel-restart.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "memory-30min": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-memory-30min.json",
+        "measured": {
+          "reason": "环境在 20 分钟内没有满足"
+        }
+      },
+      "nas-throughput": {
+        "verdict": "pass",
+        "evidence": "docs/reports/bench/S2-T2-nas-throughput.json",
+        "measured": {
+          "protocol": "nfs",
+          "c1_10": {
+            "verified": false,
+            "reason": "Picture 共享的 .gz 是改了扩展名的 RAR 或 7z，需求不做这些格式，不往 NAS 写样本"
+          },
+          "album": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+          "thumbnailToRawRatio": 0.9552077860745731,
+          "samples": 3,
+          "throughput": [
+            {
+              "pass": 1,
+              "rawMegabytesPerSecond": 83.89725037364333,
+              "thumbnailMegabytesPerSecond": 89.62715940275837,
+              "thumbnailsPerSecond": 26.98334184945896
+            },
+            {
+              "pass": 2,
+              "rawMegabytesPerSecond": 95.48001493299944,
+              "thumbnailMegabytesPerSecond": 89.78405660935994,
+              "thumbnailsPerSecond": 27.030577653752733
+            },
+            {
+              "pass": 3,
+              "rawMegabytesPerSecond": 93.83001343726606,
+              "thumbnailMegabytesPerSecond": 89.27538489826348,
+              "thumbnailsPerSecond": 26.87743587439559
+            }
+          ],
+          "refreshHz": 59.93998718261719
+        }
+      },
+      "cached-first-screen": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-cached-first-screen.json",
+        "measured": {
+          "environment": true,
+          "reason": "屏幕锁定或锁定状态未知，环境准入等待已耗尽"
+        }
+      },
+      "nas-fault": {
+        "verdict": "environment",
+        "evidence": "docs/reports/bench/S2-T2-nas-fault.json",
+        "measured": {
+          "environment": true,
+          "reason": "屏幕锁定或锁定状态未知，环境准入等待已耗尽"
+        }
+      }
+    },
+    "rawOutput": "first-image: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-preloaded-flip.json\nscroll-cached: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-scroll-cached.json\nscroll-cold: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-scroll-cold.json\nmain-thread: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-main-thread.json\nsettle: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-settle.json\nlarge-dir: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-large-dir.json\ntiles-cancel: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-tiles-cancel.json\npanel-restart: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-panel-restart.json\nmemory-30min: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-memory-30min.json\nnas-throughput: pass -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-nas-throughput.json\ncached-first-screen: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-cached-first-screen.json\nnas-fault: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-nas-fault.json\n",
+    "fourRecordingScenes": {
+      "verdict": "environment",
+      "enteredXctrace": false,
+      "reason": "最终屏幕locked=true；继承本轮已耗尽20分钟准入，未启动GUI、未录制、未生成新raw或trace"
+    },
+    "nasAppPreflight": {
+      "verdict": "environment",
+      "triggered": false,
+      "reason": "锁屏准入在ensure_nfs/preflight_nas_access之前退出，不代表新的网络卷授权拒绝或超时",
+      "sourceAudit": "冻结App cdhash已记录；源码按mtime_ns+cdhash复用单次预检，open -n启动隔离实例，经DebugSocket等待条目与tccd原始PROMPTING/RESULT；不点按钮、不更改TCC或IO超时。"
+    },
+    "memory": {
+      "verdict": "environment",
+      "durationSeconds": 0,
+      "stateSamples": 0,
+      "leaksRun": false,
+      "vmmapRun": false,
+      "reason": "未通过锁屏准入，未启动1800秒GUI负载；合成时钟检查不能替代此场景"
+    }
+  },
+  "recordSmoke": {
+    "verdict": "environment",
+    "executed": false,
+    "reason": "锁屏，不启动GUI；录制清理私有夹具检查已通过，但不代替真实smoke。"
+  },
+  "W3.6EvidenceBoundary": {
+    "unitTests": "5组像素级别/尺寸/浏览图断言+迟到目标复用通过",
+    "headlessEvidence": [
+      "docs/reports/bench/S2-T3-w36-headless-after-fullscreen.json",
+      "docs/reports/bench/S2-T3-w36-headless-after-window.json",
+      "docs/reports/bench/S2-T3-w36-headless-baseline-fullscreen.json",
+      "docs/reports/bench/S2-T3-w36-headless-baseline-window.json"
+    ],
+    "headlessScope": "只有读取、解码和缩放诊断，未测冻结App真实图层上屏，不能代替first-image 150ms验收。",
+    "firstImageEndToEnd": "environment"
+  },
+  "W3.7EvidenceBoundary": {
+    "status": "尚未修复",
+    "reason": "本轮提交增加停顿监测和只读计数，没有新的GUI因果证据或对应产品修复；锁屏导致无法跑满1800秒，也无修改前后完整对照。",
+    "previousFailureEvidence": "docs/reports/bench/before-w36/S2-T2-memory-30min.json",
+    "toolCheck": "memoryMonitorCheck仅验证诊断调度"
+  },
+  "beforeCleanup": {
+    "collectedAt": "2026-11-04T12:33:57.488911+00:00",
+    "mount": "/dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk3s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk3s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk3s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk2s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk2s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk2s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, protect, root data)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n//yuwk@192.168.31.201/Adult on /Volumes/Adult (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/BackUp on /Volumes/BackUp (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Book on /Volumes/Book (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Cache on /Volumes/Cache (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Code on /Volumes/Code (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Learn on /Volumes/Learn (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Media on /Volumes/Media (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Music on /Volumes/Music (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Picture on /Volumes/Picture (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/plaud-daily on /Volumes/plaud-daily (smbfs, nodev, nosuid, mounted by yuwk)\ndevices -- file:///Users/yuwk/Library/Containers/com.apple.CoreDevice.CoreDeviceService/Data/ on /Users/yuwk/Library/Developer/CoreDevice/DeviceFS (devicefs, local, nodev, nosuid, noowners, noatime, quarantine, nobrowse, fskit, mounted by yuwk)\n192.168.31.201:/fs/1000/nfs on /Users/yuwk/MacViewBench/nfs (nfs, nodev, nosuid, read-only, mounted by yuwk)\n",
+    "rootCaffeinatePID": 5513,
+    "rootCaffeinateOwnedByParent": true,
+    "originalUserAppPID": 72765,
+    "frozenAppSHA256After": "03c85e17f6b77f3a82775885b5dd587bc5345e2a186966e5f980f0d0d6c8d07f"
+  },
+  "cleanupActions": [
+    {
+      "command": "umount /Users/yuwk/MacViewBench/nfs",
+      "exitCode": 1,
+      "rawOutput": "umount(/Users/yuwk/MacViewBench/nfs): Resource busy -- try diskutil unmount"
+    },
+    {
+      "command": "/usr/sbin/lsof -nP +f -- /Users/yuwk/MacViewBench/nfs",
+      "exitCode": 1,
+      "rawOutput": ""
+    },
+    {
+      "command": "diskutil unmount /Users/yuwk/MacViewBench/nfs",
+      "exitCode": 0,
+      "rawOutput": "Unmount successful for /Users/yuwk/MacViewBench/nfs\n"
+    }
+  ],
+  "status": "acceptanceFinishedWithEnvironmentBlocks",
+  "cleanupUUIDs": {
+    "removed": [
+      {
+        "path": "build/stage4-repair/pipeline-tests/41F2F322-25A6-4EB6-9115-3149FF8066A4",
+        "birthAt": "2026-11-04T12:28:56.514876+00:00",
+        "source": "本验收开始后全make test新增",
+        "files": 0,
+        "removed": true
+      },
+      {
+        "path": "build/stage4-repair/pipeline-tests/44676AB2-6A5E-46DE-8D31-3EAFC14B4535",
+        "birthAt": "2026-11-04T12:28:56.542846+00:00",
+        "source": "本验收开始后全make test新增",
+        "files": 0,
+        "removed": true
+      },
+      {
+        "path": "build/stage4-repair/pipeline-tests/93600923-994B-443C-9DEE-C2FC98ACF9E9",
+        "birthAt": "2026-11-04T12:28:56.539955+00:00",
+        "source": "本验收开始后全make test新增",
+        "files": 0,
+        "removed": true
+      },
+      {
+        "path": "build/stage4-repair/pipeline-tests/2491410E-CDA3-4C88-9A25-B00EC2F64E80",
+        "birthAt": "2026-11-04T12:23:49.620999+00:00",
+        "source": "主控确认W36 20:23:49测试产生，根任务起始19:47；本验收开始时已存在，不是用户旧14目录",
+        "files": 0,
+        "removed": true
+      },
+      {
+        "path": "build/stage4-repair/pipeline-tests/40E0E4EC-73C5-460A-8359-8A1ACA282C55",
+        "birthAt": "2026-11-04T12:23:49.637897+00:00",
+        "source": "主控确认W36 20:23:49测试产生，根任务起始19:47；本验收开始时已存在，不是用户旧14目录",
+        "files": 0,
+        "removed": true
+      },
+      {
+        "path": "build/stage4-repair/pipeline-tests/65B557B0-358B-4028-B0B7-404A7CA5EEA2",
+        "birthAt": "2026-11-04T12:23:49.641388+00:00",
+        "source": "主控确认W36 20:23:49测试产生，根任务起始19:47；本验收开始时已存在，不是用户旧14目录",
+        "files": 0,
+        "removed": true
+      },
+      {
+        "path": "build/stage4-repair/pipeline-tests/9344A9F9-1D7E-402C-B0FA-1A2F62F2CAA2",
+        "birthAt": "2026-11-04T12:23:49.637215+00:00",
+        "source": "主控确认W36 20:23:49测试产生，根任务起始19:47；本验收开始时已存在，不是用户旧14目录",
+        "files": 0,
+        "removed": true
+      }
+    ],
+    "rootBaselineCount": 14,
+    "acceptanceStartCount": 18,
+    "differenceReason": "本验收开始时已包含同一根任务W36产生的4个临时UUID，主控提供birth/归属后统一清理",
+    "preserved": [
+      "04449F88-3292-43DA-B17F-D4605FF36507",
+      "0E255468-3A2F-4E57-A5F1-8CDE6B0A6C8C",
+      "12E82A85-F60B-438A-A220-69CC1B3CD85A",
+      "33BDC3FC-2F6A-46AE-957E-4691AC560330",
+      "38110E16-F5A9-4277-9B45-0E1D46F43A32",
+      "5A54E68D-B533-4993-B35D-2F106F61A1E5",
+      "5F25E7F1-52D0-433C-88B1-C44CC054432A",
+      "7C9431FF-E034-4CDA-9751-48D80B53A2A4",
+      "87AF9F5E-28D1-47C8-B585-09E68C00E025",
+      "90826EE8-C5F9-4143-8E55-089C86947F27",
+      "DC7D630B-D506-4C06-8EF8-C2F405CB894A",
+      "DF1FD61D-3F9C-4FCA-A875-43AE7F1C1FC6",
+      "E1CE9CC3-6C31-41B3-A54B-7C620CB98E35",
+      "EFE802F9-815E-4C96-BF58-D68D05BBADB7"
+    ]
+  },
+  "cleanupDirectories": [
+    {
+      "path": "build/w36-acceptance",
+      "existedBeforeRootTask": false,
+      "removed": true
+    },
+    {
+      "path": "build/acceptance",
+      "existedBeforeRootTask": false,
+      "removed": true
+    },
+    {
+      "path": "build/DerivedData-profile",
+      "existedBeforeRootTask": false,
+      "removed": true
+    },
+    {
+      "path": "MacView.xcodeproj",
+      "existedBeforeRootTask": false,
+      "removed": true
+    },
+    {
+      "path": "build/stage3-work",
+      "source": "全make test的ReadingTestSupport.swift和NameOrderTests.swift产生；birth=2026-11-04T20:28:47+08:00，任务前不存在，测试内容已自清为空",
+      "removed": true
+    },
+    {
+      "path": "build/w3-control",
+      "embeddedEvidenceKeys": [
+        "rootTaskBaseline",
+        "parentCaffeinateStop"
+      ],
+      "removed": true
+    }
+  ],
+  "cleanupDirectoryResultAt": "2026-11-04T12:36:09.835784+00:00",
+  "cleanupVerification": {
+    "collectedAt": "2026-11-04T12:39:08.353438+00:00",
+    "taskDirectories": {
+      "build/w36-acceptance": false,
+      "build/acceptance": false,
+      "build/DerivedData-profile": false,
+      "MacView.xcodeproj": false,
+      "build/stage3-work": false,
+      "build/w3-control": false
+    },
+    "preservedBuildDirectories": {
+      "build/DerivedData": true,
+      "build/stage-1-work": true,
+      "build/stage4-repair": true
+    },
+    "buildEntries": [
+      "DerivedData",
+      "stage-1-work",
+      "stage4-repair"
+    ],
+    "smbCount": 10,
+    "smbMountPoints": [
+      "/Volumes/Adult",
+      "/Volumes/BackUp",
+      "/Volumes/Book",
+      "/Volumes/Cache",
+      "/Volumes/Code",
+      "/Volumes/Learn",
+      "/Volumes/Media",
+      "/Volumes/Music",
+      "/Volumes/Picture",
+      "/Volumes/plaud-daily"
+    ],
+    "testNFSMounts": [],
+    "mountRaw": "/dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk3s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk3s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk3s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk2s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk2s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk2s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, protect, root data)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n//yuwk@192.168.31.201/Adult on /Volumes/Adult (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/BackUp on /Volumes/BackUp (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Book on /Volumes/Book (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Cache on /Volumes/Cache (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Code on /Volumes/Code (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Learn on /Volumes/Learn (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Media on /Volumes/Media (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Music on /Volumes/Music (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Picture on /Volumes/Picture (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/plaud-daily on /Volumes/plaud-daily (smbfs, nodev, nosuid, mounted by yuwk)\ndevices -- file:///Users/yuwk/Library/Containers/com.apple.CoreDevice.CoreDeviceService/Data/ on /Users/yuwk/Library/Developer/CoreDevice/DeviceFS (devicefs, local, nodev, nosuid, noowners, noatime, quarantine, nobrowse, fskit, mounted by yuwk)\n",
+    "taskProcessesRemaining": [],
+    "relatedMacViewProcesses": [
+      {
+        "pid": 72765,
+        "ppid": 1,
+        "command": "/Users/yuwk/WorkSpace/Code/Github/MacView/build/DerivedData/Build/Products/Debug/MacView.app/Contents/MacOS/MacView"
+      }
+    ],
+    "originalUserApp": {
+      "pid": 72765,
+      "ppid": 1,
+      "command": "/Users/yuwk/WorkSpace/Code/Github/MacView/build/DerivedData/Build/Products/Debug/MacView.app/Contents/MacOS/MacView"
+    },
+    "oldKtraceCount": 12,
+    "oldKtraceListUnchanged": true,
+    "oldKtraces": {
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments2pt8rm.ktrace": {
+        "bytes": 11028213384,
+        "allocatedBytes": 11028213760
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsC2jyvX.ktrace": {
+        "bytes": 2317752736,
+        "allocatedBytes": 2317754368
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsF1VQ7E.ktrace": {
+        "bytes": 13740328296,
+        "allocatedBytes": 13740331008
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsFAhWnQ.ktrace": {
+        "bytes": 12355078240,
+        "allocatedBytes": 12355080192
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsM7EDH9.ktrace": {
+        "bytes": 2165883584,
+        "allocatedBytes": 2165886976
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsNVhe6o.ktrace": {
+        "bytes": 19123722272,
+        "allocatedBytes": 19123724288
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsWcyXHP.ktrace": {
+        "bytes": 11538689976,
+        "allocatedBytes": 11538690048
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsYOtxPy.ktrace": {
+        "bytes": 11885084288,
+        "allocatedBytes": 11885084672
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsgJwc6h.ktrace": {
+        "bytes": 12468539208,
+        "allocatedBytes": 12468539392
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsoZiLrq.ktrace": {
+        "bytes": 15144266368,
+        "allocatedBytes": 15144267776
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsx8ZKd8.ktrace": {
+        "bytes": 12051517856,
+        "allocatedBytes": 12051521536
+      },
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsxyZXe6.ktrace": {
+        "bytes": 12079605864,
+        "allocatedBytes": 12079607808
+      }
+    },
+    "originalUUIDsPreserved": [
+      "04449F88-3292-43DA-B17F-D4605FF36507",
+      "0E255468-3A2F-4E57-A5F1-8CDE6B0A6C8C",
+      "12E82A85-F60B-438A-A220-69CC1B3CD85A",
+      "33BDC3FC-2F6A-46AE-957E-4691AC560330",
+      "38110E16-F5A9-4277-9B45-0E1D46F43A32",
+      "5A54E68D-B533-4993-B35D-2F106F61A1E5",
+      "5F25E7F1-52D0-433C-88B1-C44CC054432A",
+      "7C9431FF-E034-4CDA-9751-48D80B53A2A4",
+      "87AF9F5E-28D1-47C8-B585-09E68C00E025",
+      "90826EE8-C5F9-4143-8E55-089C86947F27",
+      "DC7D630B-D506-4C06-8EF8-C2F405CB894A",
+      "DF1FD61D-3F9C-4FCA-A875-43AE7F1C1FC6",
+      "E1CE9CC3-6C31-41B3-A54B-7C620CB98E35",
+      "EFE802F9-815E-4C96-BF58-D68D05BBADB7"
+    ],
+    "caffeinateProcesses": [],
+    "rootCaffeinatePID": 5513,
+    "rootCaffeinateOwnedByParent": true,
+    "rootCaffeinatePendingStop": false,
+    "rootCaffeinate5513Exists": false,
+    "verdict": "pass"
+  },
+  "finalConclusion": {
+    "verdict": "unverified",
+    "reason": "12个冻结App场景因锁屏没有实跑；W3.6 GUI首图与W3.7完整30分钟缺少新证据，W3.7尚未修复，G2不能通过。",
+    "sceneVerdicts": {
+      "pass": 1,
+      "environment": 12
+    },
+    "checks": {
+      "C3.1": "pass",
+      "C3.2": "pass",
+      "C3.3": "pass",
+      "C3.4": "environment",
+      "C3.5": "unverified",
+      "C3.6": "environment",
+      "C3.7": "pass",
+      "C3.8": "pass",
+      "C3.9": "pass",
+      "C3.10": "environment",
+      "C3.11": "pass",
+      "C3.12": "environment"
+    },
+    "unitTests": 252,
+    "swiftWarnings": 0,
+    "recordingAndNASAuthorization": "四录制未启动xctrace，NAS App预检未触发，均为环境阻塞而非新的授权失败",
+    "headlessEvidence": "仅诊断，不代替真实App上屏",
+    "cleanup": "pass"
+  },
+  "endedAt": "2026-11-04T12:39:08.353438+00:00",
+  "sampleSymlinkCleanupAudit": {
+    "path": "Fixtures/local/sample-set",
+    "exists": true,
+    "isSymlink": true,
+    "birthAt": "2026-11-04T04:30:21.517357+00:00",
+    "action": "任务前已有样本链接，保留"
+  },
+  "rootTaskBaseline": {
+    "startedAt": "2026-11-04T19:47:47.113071+08:00",
+    "head": "79c98043a7767e7283fdadca50968e3a3bc28e3a",
+    "mounts": "/dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk3s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk3s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk3s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk2s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk2s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk2s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, protect, root data)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n//yuwk@192.168.31.201/Adult on /Volumes/Adult (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/BackUp on /Volumes/BackUp (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Book on /Volumes/Book (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Cache on /Volumes/Cache (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Code on /Volumes/Code (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Learn on /Volumes/Learn (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Media on /Volumes/Media (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Music on /Volumes/Music (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Picture on /Volumes/Picture (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/plaud-daily on /Volumes/plaud-daily (smbfs, nodev, nosuid, mounted by yuwk)\ndevices -- file:///Users/yuwk/Library/Containers/com.apple.CoreDevice.CoreDeviceService/Data/ on /Users/yuwk/Library/Developer/CoreDevice/DeviceFS (devicefs, local, nodev, nosuid, noowners, noatime, quarantine, nobrowse, fskit, mounted by yuwk)\n",
+    "knownUserProcess": "72765 /Users/yuwk/WorkSpace/Code/Github/MacView/build/DerivedData/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\n",
+    "oldKtraceFiles": [
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments2pt8rm.ktrace",
+        "bytes": 11028213384,
+        "birth": 1793622559.0316806
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsC2jyvX.ktrace",
+        "bytes": 2317752736,
+        "birth": 1793623420.366502
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsF1VQ7E.ktrace",
+        "bytes": 13740328296,
+        "birth": 1793766789.0588033
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsFAhWnQ.ktrace",
+        "bytes": 12355078240,
+        "birth": 1793622004.0650673
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsM7EDH9.ktrace",
+        "bytes": 2165883584,
+        "birth": 1793623369.7587056
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsNVhe6o.ktrace",
+        "bytes": 19123722272,
+        "birth": 1793767764.7494378
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsWcyXHP.ktrace",
+        "bytes": 11538689976,
+        "birth": 1793622788.633913
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsYOtxPy.ktrace",
+        "bytes": 11885084288,
+        "birth": 1793622211.4870262
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsgJwc6h.ktrace",
+        "bytes": 12468539208,
+        "birth": 1793623169.458418
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsoZiLrq.ktrace",
+        "bytes": 15144266368,
+        "birth": 1793768219.7893038
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsx8ZKd8.ktrace",
+        "bytes": 12051517856,
+        "birth": 1793622387.0291374
+      },
+      {
+        "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsxyZXe6.ktrace",
+        "bytes": 12079605864,
+        "birth": 1793622964.983642
+      }
+    ],
+    "buildEntries": [
+      "stage-1-work",
+      "stage4-repair",
+      "DerivedData",
+      "w3-control"
+    ],
+    "caffeinatePID": 5513,
+    "originalBuildEntries": [
+      "DerivedData",
+      "stage-1-work",
+      "stage4-repair"
+    ],
+    "controlDirectoryOwnedByRootTask": true
+  },
+  "parentCaffeinateStop": {
+    "pid": 5513,
+    "command": "/usr/bin/caffeinate -d",
+    "signal": "SIGTERM",
+    "realExitObserved": true,
+    "waitSeconds": 0.00041595799999999405
+  }
+}

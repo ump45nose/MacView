@@ -1,0 +1,126 @@
+{
+  "scene": "nas-throughput",
+  "commit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+  "env": {
+    "load": {
+      "oneMinute": 9.29296875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": true,
+      "idleSeconds": 4851.280235541,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "admissionCarryForward": {
+      "evidence": "docs/reports/bench/S2-T3-w36-baseline.json",
+      "waitAlreadyExhausted": true,
+      "currentProbe": {
+        "locked": true,
+        "idleSeconds": 4851.280235541,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      },
+      "continuedWithoutRepeatingWait": true
+    },
+    "frozenApp": {
+      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+      "sha256": "03c85e17f6b77f3a82775885b5dd587bc5345e2a186966e5f980f0d0d6c8d07f",
+      "signature": {
+        "returnCode": 0,
+        "cdhash": "4034361909fe65509c2018d3ad1d36cee5b54759",
+        "rawOutput": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30356 flags=0x2(adhoc) hashes=938+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=4034361909fe65509c2018d3ad1d36cee5b54759\nCandidateCDHashFull sha256=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nHash choices=sha256\nCMSDigest=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=4034361909fe65509c2018d3ad1d36cee5b54759\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+      }
+    },
+    "frozenMvbench": {
+      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Packages/MacViewKit/.build/release/mvbench",
+      "sha256": "106bfbb57e5d7a225856cd920b2bfef1f0eb0861295f4ff11fc3bf1ffeea8715"
+    },
+    "collectedAt": "2026-11-04T12:32:31Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/MacViewBench/nfs",
+        "source": "/dev/disk3s5"
+      }
+    ]
+  },
+  "budget": {
+    "thumbnailToRawRatio": 0.9
+  },
+  "measured": {
+    "protocol": "nfs",
+    "c1_10": {
+      "verified": false,
+      "reason": "Picture 共享的 .gz 是改了扩展名的 RAR 或 7z，需求不做这些格式，不往 NAS 写样本"
+    },
+    "album": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+    "thumbnailToRawRatio": 0.9552077860745731,
+    "samples": 3,
+    "throughput": [
+      {
+        "pass": 1,
+        "rawMegabytesPerSecond": 83.89725037364333,
+        "thumbnailMegabytesPerSecond": 89.62715940275837,
+        "thumbnailsPerSecond": 26.98334184945896
+      },
+      {
+        "pass": 2,
+        "rawMegabytesPerSecond": 95.48001493299944,
+        "thumbnailMegabytesPerSecond": 89.78405660935994,
+        "thumbnailsPerSecond": 27.030577653752733
+      },
+      {
+        "pass": 3,
+        "rawMegabytesPerSecond": 93.83001343726606,
+        "thumbnailMegabytesPerSecond": 89.27538489826348,
+        "thumbnailsPerSecond": 26.87743587439559
+      }
+    ],
+    "refreshHz": 59.93998718261719
+  },
+  "verdict": "pass"
+}
