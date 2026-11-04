@@ -360,7 +360,7 @@ public protocol ContainerProvider: Sendable {
 }
 public enum VolumeState: Sendable, Equatable { case healthy, degraded(String), unavailable }
 public struct VolumeHealth: Sendable { public var root: Location.Root; public var state: VolumeState; public var inFlight: Int; public var stuck: Int }
-public enum IOError: Error, Sendable { case timeout, cancelled, volumeUnavailable(Location.Root), volumeDegraded(Location.Root), notFound(Location), unsupported(Location), corrupted(Location, String), underlying(String) }   // volumeDegraded：卷连续超时，暂停访问
+public enum IOError: Error, Sendable { case timeout, cancelled, volumeUnavailable(Location.Root), volumeDegraded(Location.Root), notFound(Location), unsupported(Location), unsupportedFormat(Location, String), corrupted(Location, String), underlying(String) }   // volumeDegraded：卷连续超时，暂停访问；unsupportedFormat：位置和实际格式名（RAR、7z）
 public protocol SourceRegistry: Sendable {
     func provider(for location: Location) throws -> any ContainerProvider
     func location(for fileURL: URL) async throws -> Location   // 打开面板与拖放的入口；要查询卷信息，所以是异步的

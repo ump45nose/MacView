@@ -12,6 +12,8 @@ struct GzipHeader {
         guard source.identity.size >= 18 else { throw IOError.corrupted(location, "gzip 文件不完整") }
         var reader = GzipHeaderReader(source: source, priority: priority)
         let fixed = try await reader.bytes(10)
+        // 扩展名是 .gz、文件头却是 RAR 或 7z 时，报实际格式，不当成 gzip 损坏。
+        if let format = Self.disguisedFormat(fixed) { throw IOError.unsupportedFormat(location, format) }
         guard fixed[0] == 0x1F, fixed[1] == 0x8B, fixed[2] == 8, fixed[3] & 0xE0 == 0 else { throw IOError.corrupted(location, "无效的 gzip 头部") }
         let flags = fixed[3]
         if flags & 4 != 0 {
@@ -33,6 +35,16 @@ struct GzipHeader {
         let mtime = fixed.archiveInteger(UInt32.self, at: 4)
         guard reader.position <= source.identity.size - 8 else { throw IOError.corrupted(location, "gzip 头部越界") }
         return GzipHeader(payloadOffset: reader.position, name: name, modificationNanos: mtime == 0 ? nil : Int64(mtime) * 1_000_000_000)
+    }
+
+    /// RAR4、RAR5 与 7z 的文件头。两种 RAR 都叫 RAR。
+    private static func disguisedFormat(_ header: Data) -> String? {
+        let rar5: [UInt8] = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]
+        let rar4: [UInt8] = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]
+        let sevenZip: [UInt8] = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C]
+        if header.starts(with: rar5) || header.starts(with: rar4) { return "RAR" }
+        if header.starts(with: sevenZip) { return "7z" }
+        return nil
     }
 }
 
