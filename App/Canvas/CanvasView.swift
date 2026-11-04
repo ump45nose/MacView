@@ -322,11 +322,15 @@ final class CanvasView: NSScrollView {
         let start = ContinuousClock.now
         let state = signposter.beginInterval("relayout")
         isRelayingOut = true
-        if geometry {
-            layout = CollectionLayout(kind: kind, viewportSize: contentView.bounds.size, itemExtent: itemExtent, spacing: spacing, direction: direction)
-        }
-        layout.setAspectRatios(ratios + footerRatio)
-        content.setFrameSize(layout.contentSize)
+        // 内容尺寸可能让非覆盖式滚动条出现或隐藏，期间的 clip 通知由本次重排接管。
+        // 先按最终视口完成布局，再以同一锚点定位和更新图层。
+        repeat {
+            if geometry || layout.viewportSize != contentView.bounds.size {
+                layout = CollectionLayout(kind: kind, viewportSize: contentView.bounds.size, itemExtent: itemExtent, spacing: spacing, direction: direction)
+            }
+            layout.setAspectRatios(ratios + footerRatio)
+            content.setFrameSize(layout.contentSize)
+        } while layout.viewportSize != contentView.bounds.size
         footerView?.isHidden = layout.count <= items.count
         if let footerView, let frame = layout.frame(of: items.count) { footerView.frame = frame }
         // 没有可见项可作锚点时（初次排版），停在第 0 项；右开的横向条因此从右端开始。
