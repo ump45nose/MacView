@@ -1,0 +1,88 @@
+{
+  "scene": "scroll-cold",
+  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+  "env": {
+    "collectedAt": "2026-11-04T11:12:57.241547+00:00",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 864,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "load": {
+      "oneMinute": 4.107421875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 77.565814791,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectionContext": "partial memory结束后补采的完整环境快照；该录制依赖场景未在最终提交执行，不是场景前后观测。"
+  },
+  "budget": {
+    "frameTimeP99Milliseconds": 8.33,
+    "refreshHz": 120,
+    "submitPlusRenderP99Milliseconds": 8.33
+  },
+  "measured": {
+    "unavailable": true,
+    "executedOnThisCommit": false,
+    "reason": "本机xctrace即使显式设置工作区TMPDIR仍将原始ktrace写入系统临时目录，违背所有非交付产物仅写工作区的硬性边界；本机文档未提供受支持的spool位置参数，root要求停止录制。该项需交回前提，不将未采样判为产品失败。",
+    "prerequisiteEvidence": [
+      "docs/reports/bench/S2-stage3-checks.json#smoke2",
+      "docs/reports/bench/S2-T3-instruments-temp.json"
+    ],
+    "historicalEvidenceOnly": [
+      "docs/reports/bench/before-w35/",
+      "docs/reports/bench/w35-initial/"
+    ],
+    "recordingDependency": "需要新的Animation Hitches/os_signpost录制",
+    "environmentSupplemented": true
+  },
+  "verdict": "unverified",
+  "collectedAt": "2026-11-04T11:12:57.241547+00:00"
+}
