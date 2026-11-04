@@ -44,9 +44,6 @@ final class BookshelfPanel: CollectionPanel {
 
     override var secondColumnTitle: String { String(localized: "类型") }
     override var thumbSize: CGSize { CGSize(width: 30, height: 42) }
-    #if DEBUG
-    override var debugSource: String? { directory?.description }
-    #endif
 
     private var sort: SortSpec { settings.sort ?? defaultSort }
 

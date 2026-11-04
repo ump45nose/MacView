@@ -36,10 +36,6 @@ class CollectionPanel: DockPanel {
     private let host = CollectionPanelView()
     /// 面板不在窗口里时不更新内容，回到窗口时一次补上。
     private var isStale = false
-    #if DEBUG
-    private(set) var debugRefreshCount = 0
-    var debugSource: String? { owner?.session.book?.location.description }
-    #endif
 
     var view: NSView { host }
     var boundSession: SessionID? { owner?.session.id }
@@ -128,9 +124,6 @@ class CollectionPanel: DockPanel {
 
     /// 刷新内容；面板不在窗口里时记下，回到窗口时补上。
     final func refresh() {
-        #if DEBUG
-        debugRefreshCount += 1
-        #endif
         guard host.window != nil else {
             isStale = true
             return
