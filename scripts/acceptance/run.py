@@ -424,6 +424,22 @@ def input_mark(events):
     return time.monotonic() - idle_seconds(events)
 
 
+def trace_clock_seconds():
+    """与显示链接和xctrace同一主机时基；macOS上的Python3.9 monotonic原点属于各自进程。"""
+    class Timebase(ctypes.Structure):
+        _fields_ = [("numer", ctypes.c_uint32), ("denom", ctypes.c_uint32)]
+    system = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+    system.mach_absolute_time.argtypes = []
+    system.mach_absolute_time.restype = ctypes.c_uint64
+    system.mach_timebase_info.argtypes = [ctypes.POINTER(Timebase)]
+    system.mach_timebase_info.restype = ctypes.c_int
+    info = Timebase()
+    status = system.mach_timebase_info(ctypes.byref(info))
+    if status != 0:
+        raise OSError(f"mach_timebase_info失败：{status}")
+    return system.mach_absolute_time() * info.numer / info.denom / 1e9
+
+
 def sample_conditions():
     try:
         display = display_probe()
@@ -474,13 +490,30 @@ def norm_id(value):
     return value
 
 
+class DebugTimeout(TimeoutError):
+    def __init__(self, detail):
+        self.detail = detail
+        super().__init__(f"调试响应超时：command={detail['command']} phase={detail['phase']} pid={detail['pid']}，等待{detail['responseWaitSeconds']:.3f}秒；sample={detail['sample']}")
+
+
+class MeasurementError(RuntimeError):
+    def __init__(self, message, measured):
+        self.measured = measured
+        super().__init__(message)
+
+
 class DebugClient:
-    def __init__(self, path):
+    def __init__(self, path, phase=None):
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.connect(path)
+        # macOS SDK sys/un.h：SOL_LOCAL=0，LOCAL_PEERPID=2。只认该连接的对端PID。
+        self.pid = int.from_bytes(self.sock.getsockopt(0, 2, 4), sys.byteorder, signed=True)
+        self.phase = phase or Path(path).name
         self.buf = b""
         self.inbox = {}
+        self.pending = {}
         self.next_id = 1
+        self.sampled_timeout = None
 
     def close(self):
         try:
@@ -493,6 +526,7 @@ class DebugClient:
         self.next_id += 1
         payload = json.dumps({"id": ident, "command": command, "args": args or {}}, ensure_ascii=False) + "\n"
         self.sock.sendall(payload.encode())
+        self.pending[ident] = {"command": command, "phase": self.phase, "arguments": args or {}}
         return ident
 
     def _read_line(self, timeout):
@@ -514,15 +548,42 @@ class DebugClient:
 
     def wait(self, ident, timeout):
         ident = norm_id(ident)
+        started = time.monotonic()
         deadline = time.monotonic() + timeout
-        while True:
-            if ident in self.inbox:
-                return self.inbox.pop(ident)
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise TimeoutError(f"等待响应 {ident} 超时")
-            message = self._read_line(remaining)
-            self.inbox[norm_id(message.get("id"))] = message
+        try:
+            while True:
+                if ident in self.inbox:
+                    self.pending.pop(ident, None)
+                    return self.inbox.pop(ident)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError(f"等待响应 {ident} 超时")
+                message = self._read_line(remaining)
+                self.inbox[norm_id(message.get("id"))] = message
+        except TimeoutError:
+            detail = {**self.pending.get(ident, {"command": "unknown", "phase": self.phase}),
+                      "pid": self.pid, "requestID": ident, "timeoutSeconds": timeout,
+                      "responseWaitSeconds": time.monotonic() - started}
+            # 计时在采样前结束；保留进程现场后才交给调用方清理，不延长响应预算。
+            # 仅在内存/滚动场景失败边界保留现场；NAS探针、退出及其余场景的计时不等采样。
+            capture = detail["phase"].startswith(("memory-30min:", "scroll-cold:", "scroll-cached:"))
+            if not capture or detail["command"] == "quit":
+                detail["sample"] = None
+                raise DebugTimeout(detail) from None
+            if self.sampled_timeout is None:
+                directory = ROOT / "build" / "acceptance" / "debug-timeouts"
+                directory.mkdir(parents=True, exist_ok=True)
+                sample = directory / f"{self.pid}-{os.getpid()}-{ident}.sample.txt"
+                try:
+                    result = subprocess.run(["/usr/bin/sample", str(self.pid), "1", "1", "-file", str(sample)],
+                                            capture_output=True, text=True, timeout=8)
+                    self.sampled_timeout = {"sample": str(sample), "sampleReturnCode": result.returncode,
+                                            "sampleDiagnostic": (result.stderr or result.stdout)[-1000:]}
+                except (subprocess.TimeoutExpired, OSError) as exc:
+                    self.sampled_timeout = {"sample": str(sample), "sampleError": str(exc)}
+            detail.update(self.sampled_timeout)
+            (Path(detail["sample"]).with_suffix(".json")).write_text(json.dumps(detail, ensure_ascii=False, indent=2) + "\n")
+            raise DebugTimeout(detail) from None
 
     def request(self, command, args=None, timeout=30):
         message = self.wait(self.send(command, args), timeout)
@@ -590,7 +651,7 @@ class App:
             if self.proc.poll() is not None:
                 raise RuntimeError(f"App 已退出，code={self.proc.returncode}，日志 {self.root / 'app.log'}")
             try:
-                return DebugClient(self.socket)
+                return DebugClient(self.socket, phase=self.name + ":startup")
             except (FileNotFoundError, ConnectionRefusedError, OSError) as exc:
                 last = str(exc)
                 time.sleep(0.05)
@@ -816,7 +877,11 @@ def record_scroll(scene):
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
-    subprocess.run(["scripts/acceptance/record-trackpad.sh", scene, str(out), "--automatic"], cwd=ROOT, check=True)
+    try:
+        subprocess.run(["scripts/acceptance/record-trackpad.sh", scene, str(out), "--automatic"], cwd=ROOT, check=True)
+    except subprocess.CalledProcessError as exc:
+        measured = json.loads((out / "error.json").read_text()) if (out / "error.json").exists() else {}
+        raise MeasurementError(str(exc), measured) from exc
     summary = json.loads((out / "hitches.json").read_text())
     phases = summary.get("phases") or []
     if not phases:
@@ -1345,23 +1410,27 @@ def scene_memory():
     sample = str(ensure_sample())
     other = str(HUGE_DIR)
     app = App("memory-30min", empty_cache=False).start()
+    samples, elapsed = [], []
+    index = 0
+    started = None
     try:
+        app.client.phase = "memory-30min:initial-open"
         app.client.request("open", {"path": sample}, timeout=120)
-        samples, elapsed = [], []
         direction = 1
         started = time.monotonic()
         end = started + 30 * 60
         tick = started
-        index = 0
         pending = None
         budgets = None
         while time.monotonic() < end:
+            app.client.phase = f"memory-30min:sample-{len(samples)}"
             state = app.client.request("state", timeout=10)
             samples.append(state.get("residentBytes"))
             elapsed.append(time.monotonic() - started)
             budgets = state.get("cacheBudgets")
             if pending in app.client.inbox:
                 response = app.client.inbox.pop(pending)
+                app.client.pending.pop(pending, None)
                 if not response.get("ok"):
                     raise RuntimeError(response.get("error") or response)
                 pending = None
@@ -1369,15 +1438,20 @@ def scene_memory():
                 action = index % 6
                 window = window_of(state)
                 if action < 3:
-                    app.client.request("perform", {"command": "view.paged"}, timeout=10)
+                    app.client.phase = f"memory-30min:flip-{index}"
+                    if window.get("browseMode") != "paged":
+                        app.client.request("perform", {"command": "view.paged"}, timeout=10)
                     frame, count = int(window["frame"]), int(window["frameCount"])
                     if count > 1 and ((direction > 0 and frame >= count - 1) or (direction < 0 and frame <= 0)):
                         direction = -direction
                     pending = app.client.send("perform", {"command": "frame.next" if direction > 0 else "frame.previous"})
                 elif action == 3:
-                    app.client.request("perform", {"command": "view.waterfall"}, timeout=10)
+                    app.client.phase = f"memory-30min:scroll-{index}"
+                    if window.get("browseMode") != "waterfall":
+                        app.client.request("perform", {"command": "view.waterfall"}, timeout=10)
                     pending = app.client.send("scroll", {"dy": -12, "durationMs": 500, "intervalMs": 8})
                 else:
+                    app.client.phase = f"memory-30min:switch-book-{index}"
                     pending = app.client.send("open", {"path": other if index % 12 == 4 else sample})
                 index += 1
             tick += 1
@@ -1398,6 +1472,12 @@ def scene_memory():
                 "cacheBudgets": budgets, "actions": index, "leaks": leak_count,
                 "leaksReturnCode": leaks.returncode, "leaksOutput": leaks_output,
                 "vmmapReturnCode": vmmap.returncode, "vmmap": vmmap_output}
+    except Exception as exc:
+        measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "actions": index,
+                    "durationSeconds": time.monotonic() - started if started is not None else 0}
+        if isinstance(exc, DebugTimeout):
+            measured["diagnostic"] = exc.detail
+        raise MeasurementError(str(exc), measured) from exc
     finally:
         app.stop()
 
@@ -1477,7 +1557,7 @@ def scene_panel_restart():
 
 
 def prepare_scroll(scene, socket_path):
-    client = DebugClient(socket_path)
+    client = DebugClient(socket_path, phase=scene + ":prepare")
     try:
         client.request("open", {"path": str(ensure_sample())}, timeout=180)
         client.request("perform", {"command": "view.waterfall"})
@@ -1497,11 +1577,11 @@ def prepare_scroll(scene, socket_path):
 def run_scroll(scene, socket_path, outdir, automatic=True, seconds=60):
     if scene not in ("scroll-cached", "scroll-cold"):
         raise SystemExit(f"不是滚动场景：{scene}")
-    client = DebugClient(socket_path)
+    client = DebugClient(socket_path, phase=scene + ":record")
     out = Path(outdir)
     before = sample_conditions()
     mark = input_mark(DURING_EVENTS)
-    started = time.monotonic()
+    started = trace_clock_seconds()
     try:
         if automatic:
             scroll = client.request("scroll", {"dy": -12, "durationMs": int(seconds * 1000), "intervalMs": 8}, timeout=seconds + 30)
@@ -1515,16 +1595,23 @@ def run_scroll(scene, socket_path, outdir, automatic=True, seconds=60):
         during = sample_conditions()
         during["before"] = before
         during["screen"]["inputDuringRun"] = input_mark(DURING_EVENTS) > mark + 0.5
-        window = window_of(client.request("state", timeout=5))
+        # 连续手势的响应已经带回窗口和响应式滚动状态，不为辅助字段再等一次state。
+        window = scroll if automatic else window_of(client.request("state", timeout=5))
         during["windowFront"] = window.get("windowFront") is True and scroll.get("windowFront", True)
         during["scrollMovements"] = scroll.get("scrollMovements")
         during["scrollEvents"] = scroll.get("events")
         during["driver"] = "synthetic" if automatic else "trackpad"
         during["responsiveScrolling"] = window.get("responsiveScrolling")
         (out / "during.json").write_text(json.dumps(during, ensure_ascii=False, indent=2) + "\n")
-        phase = {"phases": [{"name": scene, "start": started, "end": time.monotonic()}]}
-        (out / "phase.json").write_text(json.dumps(phase) + "\n")
+    except Exception as exc:
+        measured = {"error": str(exc)}
+        if isinstance(exc, DebugTimeout):
+            measured["diagnostic"] = exc.detail
+        (out / "error.json").write_text(json.dumps(measured, ensure_ascii=False, indent=2) + "\n")
+        raise
     finally:
+        phase = {"phases": [{"name": scene, "start": started, "end": trace_clock_seconds()}]}
+        (out / "phase.json").write_text(json.dumps(phase) + "\n")
         client.close()
 
 
@@ -1638,7 +1725,9 @@ def run_scene(scene, out, commit, base_env):
         else:
             measured = result
     except Exception as exc:
-        measured = {"error": str(exc)}
+        measured = {**getattr(exc, "measured", {}), "error": str(exc)}
+        if isinstance(exc, DebugTimeout):
+            measured["diagnostic"] = exc.detail
         if during is None and mark is not None:
             during = sampled_during(mark)
         env = merge_during(env, during)
