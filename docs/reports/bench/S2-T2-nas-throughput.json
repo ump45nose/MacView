@@ -1,55 +1,29 @@
 {
   "scene": "nas-throughput",
-  "commit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+  "commit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
   "env": {
     "load": {
-      "oneMinute": 9.29296875,
+      "oneMinute": 12.2939453125,
       "limit": 10,
       "limitSource": "sysctl -n hw.physicalcpu"
     },
     "displayMode": {
-      "width": 1728,
+      "width": 1920,
       "height": 1080,
-      "pixelWidth": 3456,
+      "pixelWidth": 3840,
       "pixelHeight": 2160,
-      "refreshHz": 59.93998718261719,
-      "builtin": true,
-      "externalDisplay": false
+      "refreshHz": 60.0,
+      "builtin": false,
+      "externalDisplay": true
     },
-    "refreshHz": 59.93998718261719,
+    "refreshHz": 60.0,
     "screen": {
-      "locked": true,
-      "idleSeconds": 4851.280235541,
+      "locked": false,
+      "idleSeconds": 24.4184005,
       "inputDuringRun": false,
-      "externalDisplay": false
+      "externalDisplay": true
     },
-    "admissionCarryForward": {
-      "evidence": "docs/reports/bench/S2-T3-w36-baseline.json",
-      "waitAlreadyExhausted": true,
-      "currentProbe": {
-        "locked": true,
-        "idleSeconds": 4851.280235541,
-        "inputDuringRun": false,
-        "externalDisplay": false
-      },
-      "continuedWithoutRepeatingWait": true
-    },
-    "frozenApp": {
-      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
-      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
-      "sha256": "03c85e17f6b77f3a82775885b5dd587bc5345e2a186966e5f980f0d0d6c8d07f",
-      "signature": {
-        "returnCode": 0,
-        "cdhash": "4034361909fe65509c2018d3ad1d36cee5b54759",
-        "rawOutput": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30356 flags=0x2(adhoc) hashes=938+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=4034361909fe65509c2018d3ad1d36cee5b54759\nCandidateCDHashFull sha256=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nHash choices=sha256\nCMSDigest=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=4034361909fe65509c2018d3ad1d36cee5b54759\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
-      }
-    },
-    "frozenMvbench": {
-      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
-      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Packages/MacViewKit/.build/release/mvbench",
-      "sha256": "106bfbb57e5d7a225856cd920b2bfef1f0eb0861295f4ff11fc3bf1ffeea8715"
-    },
-    "collectedAt": "2026-11-04T12:32:31Z",
+    "collectedAt": "2026-11-04T14:49:26Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -59,7 +33,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 720,
+        "linkSpeedMbps": 864,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -98,29 +72,29 @@
       "reason": "Picture 共享的 .gz 是改了扩展名的 RAR 或 7z，需求不做这些格式，不往 NAS 写样本"
     },
     "album": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
-    "thumbnailToRawRatio": 0.9552077860745731,
+    "thumbnailToRawRatio": 0.9608007042130119,
     "samples": 3,
     "throughput": [
       {
         "pass": 1,
-        "rawMegabytesPerSecond": 83.89725037364333,
-        "thumbnailMegabytesPerSecond": 89.62715940275837,
-        "thumbnailsPerSecond": 26.98334184945896
+        "rawMegabytesPerSecond": 52.282880766978735,
+        "thumbnailMegabytesPerSecond": 57.66489693875756,
+        "thumbnailsPerSecond": 17.360715626612034
       },
       {
         "pass": 2,
-        "rawMegabytesPerSecond": 95.48001493299944,
-        "thumbnailMegabytesPerSecond": 89.78405660935994,
-        "thumbnailsPerSecond": 27.030577653752733
+        "rawMegabytesPerSecond": 59.93134158380112,
+        "thumbnailMegabytesPerSecond": 51.18509252268943,
+        "thumbnailsPerSecond": 15.409892027587885
       },
       {
         "pass": 3,
-        "rawMegabytesPerSecond": 93.83001343726606,
-        "thumbnailMegabytesPerSecond": 89.27538489826348,
-        "thumbnailsPerSecond": 26.87743587439559
+        "rawMegabytesPerSecond": 55.495915800135336,
+        "thumbnailMegabytesPerSecond": 53.320514981716045,
+        "thumbnailsPerSecond": 16.052786821854387
       }
     ],
-    "refreshHz": 59.93998718261719
+    "refreshHz": 60.0
   },
   "verdict": "pass"
 }
