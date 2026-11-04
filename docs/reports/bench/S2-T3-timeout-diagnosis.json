@@ -1,0 +1,308 @@
+{
+  "baseCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "purpose": "本轮第一次修复的定位及短诊断；不替代main-thread/30分钟内存正式验收",
+  "beforeReports": [
+    {
+      "path": "docs/reports/bench/round2/S2-T2-main-thread.json",
+      "sha256": "464c79fea9ba3e31d6d3b2f03f59934260b4d4ce5f8c840159ca1eb0d20818ef"
+    },
+    {
+      "path": "docs/reports/bench/round2/S2-T2-memory-30min.json",
+      "sha256": "8bbd272e932070027dcbf27ec1653a99bfa91f6f5ec58590e5ffb2b992c8d513"
+    }
+  ],
+  "originalFailures": {
+    "main-thread": "连续scroll已返回，尾部仅取辅助状态的state(timeout=5)超时，录制脚本退出1。",
+    "memory-30min": "原报告只有调试响应超时，缺command/阶段/PID，无法判断open、state或perform中的哪条失败。"
+  },
+  "confirmedFindings": [
+    {
+      "finding": "Python3.9的monotonic时基不适合作为跨进程显示链接/xctrace时间戳。",
+      "python": "3.9.6 (default, Oct 19 2026, 19:18:13) \n[Clang 21.0.0 (clang-2100.4.1.1)]",
+      "processClockSamples": [
+        {
+          "pid": 15127,
+          "monotonicSeconds": 0.179974916,
+          "machHostSeconds": 159153.36199025
+        },
+        {
+          "pid": 15132,
+          "monotonicSeconds": 0.1380165,
+          "machHostSeconds": 159154.53439308333
+        }
+      ],
+      "previousSmokePhase": {
+        "start": 0.192727708,
+        "end": 1.712513333
+      },
+      "fix": "phase.json改为mach_absolute_time乘mach_timebase_info再换算秒；响应等待预算继续使用monotonic。"
+    },
+    {
+      "finding": "原失败trace无法导出。",
+      "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record/record.trace",
+      "exportExitCode": 10,
+      "exportError": "Trace is malformed; instrument run data is missing",
+      "cleanupGap": "失败trap原先发SIGINT后不等待xctrace保存；本轮补wait。该缺口与损坏现象一致，未证明它是state超时根因。"
+    },
+    {
+      "finding": "FileSettingsStore是final class而非actor；global()是nonisolated async，内部读取JSONDocumentStore的Mutex值。",
+      "conclusion": "async调用存在协作线程池往返；本轮没有复现其导致超时，不把它认定为根因，不修改state调度或快照架构。"
+    },
+    {
+      "finding": "每次flip前重复view.paged会进入ReaderSession.update，即使值相同也做layoutFrames、remember、prefetch。",
+      "fix": "内存场景按实际browseMode条件切换，保留动作与预算。"
+    }
+  ],
+  "beforeShortDiagnostic": {
+    "pid": 13085,
+    "stateSamples": 7,
+    "stateMilliseconds": [
+      1.3516249999998564,
+      2.9365840000004084,
+      3.297125000000456,
+      26.289124999999913,
+      1.254999999999562,
+      5.460667000000363,
+      0.3525839999998226
+    ],
+    "stateMaxMilliseconds": 26.289124999999913,
+    "timeoutReproduced": false,
+    "commands": [
+      {
+        "stage": "initial-open",
+        "command": "open",
+        "seconds": 1.196075542,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "after-open",
+        "command": "state",
+        "seconds": 0.0013516249999998564,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "waterfall",
+        "command": "perform",
+        "seconds": 0.0011870000000000491,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "short-scroll",
+        "command": "scroll",
+        "seconds": 4.311211,
+        "sample": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-timeout/short-scroll-before-sample.txt",
+        "ok": true
+      },
+      {
+        "stage": "after-scroll",
+        "command": "state",
+        "seconds": 0.0029365840000004084,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "paged",
+        "command": "perform",
+        "seconds": 0.002223500000000378,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "flip-0",
+        "command": "perform",
+        "seconds": 0.005446166999999669,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "after-flip-0",
+        "command": "state",
+        "seconds": 0.003297125000000456,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "flip-1",
+        "command": "perform",
+        "seconds": 0.0023009160000002638,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "after-flip-1",
+        "command": "state",
+        "seconds": 0.026289124999999913,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "flip-2",
+        "command": "perform",
+        "seconds": 0.006538707999999893,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "after-flip-2",
+        "command": "state",
+        "seconds": 0.001254999999999562,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "huge-open-state-0",
+        "command": "state",
+        "seconds": 0.005460667000000363,
+        "sample": null,
+        "ok": true
+      },
+      {
+        "stage": "huge-open-state-1",
+        "command": "state",
+        "seconds": 0.0003525839999998226,
+        "sample": null,
+        "ok": true
+      }
+    ],
+    "sampleContext": "在正常3秒连续手势期间按目标PID取1秒sample；不是超时现场。",
+    "sampleMainThreadSummary": "620个主线程样本，其中602在CFRunLoopServiceMachPort/mach_msg等待；未观察到主线程持续I/O阻塞。"
+  },
+  "afterShortDiagnostic": {
+    "pid": 15447,
+    "peerPID": 15447,
+    "stateSamples": 20,
+    "stateMilliseconds": [
+      0.5102919999995237,
+      3.0628750000003535,
+      0.717707999999817,
+      1.5950839999998578,
+      1.6545830000005424,
+      1.78025000000126,
+      2.0238750000007855,
+      2.1989579999992515,
+      0.4060839999997512,
+      1.4234169999998159,
+      1.7220840000007342,
+      0.36554200000082915,
+      1.6388330000012274,
+      1.5564999999995166,
+      1.6216249999985166,
+      0.9186249999970642,
+      1.6411249999990218,
+      0.3991670000011993,
+      1.0539590000000487,
+      0.7272090000007836
+    ],
+    "stateMaxMilliseconds": 3.0628750000003535,
+    "loopSeconds": 20.157148292,
+    "totalSeconds": 26.427998083,
+    "actions": [
+      "view.paged",
+      "flip",
+      "flip",
+      "flip",
+      "view.waterfall",
+      "scroll",
+      "open",
+      "view.paged",
+      "flip",
+      "flip",
+      "flip",
+      "view.waterfall",
+      "scroll",
+      "open",
+      "view.paged",
+      "flip",
+      "flip",
+      "flip",
+      "view.waterfall",
+      "scroll",
+      "open",
+      "view.paged",
+      "flip",
+      "flip"
+    ],
+    "pendingEntriesAtEnd": 1,
+    "scroll": {
+      "load": {
+        "oneMinute": 3.52392578125,
+        "limit": 6.0
+      },
+      "displayMode": {
+        "width": 1728,
+        "height": 1080,
+        "pixelWidth": 3456,
+        "pixelHeight": 2160,
+        "refreshHz": 59.93998718261719,
+        "builtin": true,
+        "externalDisplay": false
+      },
+      "refreshHz": 59.93998718261719,
+      "screen": {
+        "locked": false,
+        "idleSeconds": 818.835445583,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      },
+      "before": {
+        "load": {
+          "oneMinute": 3.3955078125,
+          "limit": 6.0
+        },
+        "displayMode": {
+          "width": 1728,
+          "height": 1080,
+          "pixelWidth": 3456,
+          "pixelHeight": 2160,
+          "refreshHz": 59.93998718261719,
+          "builtin": true,
+          "externalDisplay": false
+        },
+        "refreshHz": 59.93998718261719,
+        "screen": {
+          "locked": false,
+          "idleSeconds": 814.015765791,
+          "inputDuringRun": false,
+          "externalDisplay": false
+        }
+      },
+      "windowFront": false,
+      "scrollMovements": 180,
+      "scrollEvents": 295,
+      "driver": "synthetic",
+      "responsiveScrolling": false
+    },
+    "phase": {
+      "phases": [
+        {
+          "name": "scroll-cold",
+          "start": 159284.67168491666,
+          "end": 159289.48756570835
+        }
+      ]
+    },
+    "timeoutReproduced": false
+  },
+  "fixes": [
+    "自动滚动响应同时返回responsiveScrolling，run_scroll直接复用窗口/滚动状态，移除导致整段已录数据丢弃的辅助尾部state RPC。",
+    "调试连接用macOS LOCAL_PEERPID取得对端PID；超时包含command、phase、PID、请求号及采样前响应等待时间。",
+    "仅memory/scroll失败边界在目标进程清理前取sample；quit及NAS探针不等待采样，不改其预算与计时。",
+    "memory失败保留已有residentBytes、elapsed、动作数、持续时间和结构化诊断；消费异步响应时释放pending登记。"
+  ],
+  "validation": {
+    "pureVerdicts": "88 cases通过",
+    "shellSyntax": "通过",
+    "diffWhitespace": "通过",
+    "debugOptimizedBuildExitCode": 0,
+    "swiftWarningLines": []
+  },
+  "limitations": [
+    "原memory超时尚未复现，不能宣称本轮已解决真实主线程冻结。",
+    "前后短测负载、样本数量和采样开销不同，数值不能用于推算性能改善。",
+    "未运行新的30分钟内存测试或完整GUI性能基准；正式结论仍需独立验收。"
+  ],
+  "implementationCommit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6"
+}

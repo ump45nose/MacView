@@ -1,0 +1,74 @@
+{
+  "scene": "settle",
+  "commit": "01318f1898855f44c69f815904257b0b5399e101",
+  "env": {
+    "load": {
+      "oneMinute": 5.57568359375,
+      "limit": 6.0,
+      "during": 8.5537109375
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 410.558862,
+      "inputDuringRun": true,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T05:03:36Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ]
+  },
+  "budget": {
+    "settleRequestLatencyP99Milliseconds": 100
+  },
+  "measured": {
+    "settleRequestLatencyP99": 0.0,
+    "settles": 0,
+    "refreshHz": 59.93998718261719
+  },
+  "verdict": "environment"
+}

@@ -1,0 +1,81 @@
+{
+  "scene": "scroll-cached",
+  "commit": "01318f1898855f44c69f815904257b0b5399e101",
+  "env": {
+    "load": {
+      "oneMinute": 5.6318359375,
+      "limit": 6.0,
+      "during": 19.14892578125
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 120.0,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 232.467864125,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T04:48:33Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 680,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ]
+  },
+  "budget": {
+    "frameTimeP99Milliseconds": 8.33,
+    "refreshHz": 120,
+    "submitPlusRenderP99Milliseconds": 8.33
+  },
+  "measured": {
+    "hitches": 16,
+    "updateP99": 4.495,
+    "renderP99": 10.767,
+    "frameTimeP99": 16.667,
+    "refreshHz": 120.0,
+    "settleRequestLatencyP99": 0.0,
+    "settles": 0,
+    "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cached-record/record.trace"
+  },
+  "verdict": "fail"
+}

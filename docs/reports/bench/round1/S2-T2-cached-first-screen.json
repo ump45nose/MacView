@@ -1,0 +1,129 @@
+{
+  "scene": "cached-first-screen",
+  "commit": "01318f1898855f44c69f815904257b0b5399e101",
+  "env": {
+    "load": {
+      "oneMinute": 5.6904296875,
+      "limit": 6.0,
+      "during": 4.123046875
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 465.940953667,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T05:04:22Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      },
+      {
+        "fileSystem": "nfs",
+        "mountPoint": "/Users/yuwk/MacViewBench/nfs",
+        "path": "/Users/yuwk/MacViewBench/nfs",
+        "source": "192.168.31.201:/fs/1000/nfs"
+      }
+    ]
+  },
+  "budget": {
+    "firstScreenP95Milliseconds": 100,
+    "samplesPerRoot": 20
+  },
+  "measured": {
+    "localP95": null,
+    "localSamples": 12,
+    "localMilliseconds": [
+      79.033792,
+      233.947166,
+      null,
+      null,
+      71.86654100000001,
+      81.50087500000001,
+      null,
+      null,
+      null,
+      75.714375,
+      83.456333,
+      93.060292,
+      84.40575000000001,
+      79.288916,
+      69.68,
+      90.13083300000001,
+      null,
+      null,
+      null,
+      94.73025000000001
+    ],
+    "protocol": "nfs",
+    "nfsP95": null,
+    "nfsSamples": 14,
+    "nfsMilliseconds": [
+      85.259792,
+      95.520167,
+      85.142166,
+      61.750416,
+      89.221625,
+      86.27950000000001,
+      null,
+      85.965584,
+      87.99300000000001,
+      88.42416700000001,
+      110.31883300000001,
+      null,
+      87.21008400000001,
+      98.70245800000001,
+      85.22525,
+      null,
+      106.83650000000002,
+      null,
+      null,
+      null
+    ],
+    "nfsAlbum": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+    "refreshHz": 59.93998718261719
+  },
+  "verdict": "fail"
+}

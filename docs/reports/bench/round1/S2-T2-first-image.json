@@ -1,0 +1,108 @@
+{
+  "scene": "first-image",
+  "commit": "01318f1898855f44c69f815904257b0b5399e101",
+  "env": {
+    "load": {
+      "oneMinute": 5.755859375,
+      "limit": 6.0,
+      "during": 12.501953125
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 120.0,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 87.14454225,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T04:45:15Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 816,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ]
+  },
+  "budget": {
+    "lastDisplayP95Milliseconds": 150,
+    "samples": 30
+  },
+  "measured": {
+    "samples": 30,
+    "p95": 159.57425,
+    "milliseconds": [
+      95.073333,
+      47.852167,
+      81.2905,
+      54.602291,
+      74.831041,
+      69.488667,
+      45.833291,
+      32.585625,
+      58.504334,
+      44.955,
+      32.377458,
+      54.416167,
+      208.856708,
+      136.76275,
+      110.921042,
+      75.467416,
+      20.280292,
+      47.128541,
+      69.61625,
+      20.001584,
+      70.386125,
+      68.186125,
+      34.828042,
+      77.260584,
+      116.927333,
+      54.6895,
+      20.545792,
+      29.123375,
+      159.57425,
+      48.268125
+    ],
+    "frameCount": 85,
+    "refreshHz": 120.0
+  },
+  "verdict": "fail"
+}
