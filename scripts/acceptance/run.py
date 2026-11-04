@@ -914,14 +914,21 @@ def scene_first_image():
         opened = app.client.request("open", {"path": path, "page": 0}, timeout=120)
         count = int(opened["frameCount"])
         wait_exact(app.client, 0, prime=True)
+        state = app.client.request("state")
+        initial = {"memory": state.get("memory"), "hudVisible": window_of(state).get("hudVisible")}
+        if (initial["memory"] or {}).get("preloadBytes") != 0 or initial["hudVisible"] is not False:
+            return {"unavailable": True, "reason": "首图冷样本前提不满足：初始预载须为 0 且 HUD 隐藏", "initialState": initial}
         # 初始第0页已访问，30次计时只选择其余不同页。
         pages = [page + 1 for page in distinct_pages(count - 1, 30)]
         samples = []
         for page in pages:
             app.client.request("open", {"path": path, "page": page}, timeout=120)
             samples.append(wait_exact(app.client, page))
+        state = app.client.request("state")
+        final = {"memory": state.get("memory"), "hudVisible": window_of(state).get("hudVisible")}
         return {"samples": len(samples), "p95": p95(samples), "milliseconds": samples, "pages": pages,
-                "frameCount": count, "prefetchDisabled": True, "panelsHidden": True}
+                "frameCount": count, "prefetchDisabled": True, "panelsHidden": True,
+                "initialState": initial, "finalState": final}
     finally:
         app.stop()
 
