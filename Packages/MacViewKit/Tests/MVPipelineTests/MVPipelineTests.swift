@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import ImageIO
 @testable import MVCache
 import MVFoundation
 import MVIO
@@ -8,6 +9,81 @@ import MVTestSupport
 import Synchronization
 import Testing
 @testable import MVPipeline
+
+private struct DecodeLevelCase: Sendable {
+    var landscape: Bool
+    var target: PixelSize?
+    var base: PixelSize
+    var browse: PixelSize
+}
+
+@Test(arguments: [
+    DecodeLevelCase(landscape: true, target: PixelSize(width: 2145, height: 1430), base: PixelSize(width: 2700, height: 1800), browse: PixelSize(width: 2700, height: 1800)),
+    DecodeLevelCase(landscape: true, target: PixelSize(width: 3240, height: 2160), base: PixelSize(width: 5400, height: 3600), browse: PixelSize(width: 3240, height: 2160)),
+    DecodeLevelCase(landscape: true, target: nil, base: PixelSize(width: 2700, height: 1800), browse: PixelSize(width: 2700, height: 1800)),
+    DecodeLevelCase(landscape: false, target: PixelSize(width: 953, height: 1430), base: PixelSize(width: 1800, height: 2700), browse: PixelSize(width: 1440, height: 2160)),
+    DecodeLevelCase(landscape: false, target: nil, base: PixelSize(width: 1800, height: 2700), browse: PixelSize(width: 1440, height: 2160)),
+])
+private func browseAndDisplayChooseDecodeLevelsIndependently(_ sample: DecodeLevelCase) async throws {
+    let environment = try PipelineEnvironment(browseBounds: PixelSize(width: 3456, height: 2160))
+    defer { environment.clean() }
+    environment.caches.decoded.setBudget(128 << 20)
+    var identity = try await environment.identity("image/size/3600x5400.jpg")
+    if sample.landscape {
+        // 复用真实 JPEG，以 EXIF 方向得到同像素数的横图，覆盖方向归一化后的级别和尺寸。
+        let source = try #require(CGImageSourceCreateWithURL(Fixtures.url("image/size/3600x5400.jpg") as CFURL, nil))
+        let url = environment.root.appendingPathComponent("landscape.jpg")
+        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, "public.jpeg" as CFString, 1, nil))
+        CGImageDestinationAddImageFromSource(destination, source, 0, [kCGImagePropertyOrientation: 6] as CFDictionary)
+        #expect(CGImageDestinationFinalize(destination))
+        let location = try await environment.registry.location(for: url)
+        identity = try await environment.registry.base.provider(for: location).entry(at: location).identity
+    }
+    if let target = sample.target {
+        let images = try await collect(environment.pipeline.image(for: identity, target: DisplayTarget(pixelSize: target), allowOriginal: false, priority: .visible))
+        #expect(images.last?.quality == .exact)
+        #expect(images.last?.image.width == target.width && images.last?.image.height == target.height)
+    } else {
+        _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .visible)
+    }
+    let target = DisplayTarget(pixelSize: sample.base)
+    let key = identity.cacheKey + "|display|\(sample.base.width)x\(sample.base.height)|\(target.filter.rawValue)|\(target.sharpen.bitPattern)"
+    let base = try #require(environment.caches.decoded.value(for: key))
+    #expect(base.image.width == sample.base.width && base.image.height == sample.base.height)
+    #expect(environment.pipeline.sourceDecodeCount == 1)
+    try await eventually { try await environment.caches.browse?.data(for: identity.cacheKey) != nil }
+    let data = try #require(try await environment.caches.browse?.data(for: identity.cacheKey))
+    guard case let .metadata(metadata) = try MediaProbe.image(data, isComplete: true) else { Issue.record("浏览图应含尺寸"); return }
+    #expect(metadata.pixelSize == sample.browse)
+    #expect(metadata.pixelSize.width <= base.image.width && metadata.pixelSize.height <= base.image.height)
+    await environment.pipeline.shutdown()
+}
+
+@Test func displayJoiningAfterDecodeLevelSelectionReusesSufficientBasePixels() async throws {
+    let decoder = ImageDecoder(maxConcurrentDecodes: 1)
+    let environment = try PipelineEnvironment(browseBounds: PixelSize(width: 3456, height: 2160), decoder: decoder)
+    defer { environment.clean() }
+    let identity = try await environment.identity("image/size/3600x5400.jpg")
+    let gate = DispatchSemaphore(value: 0)
+    defer { gate.signal() }
+    let occupied = Task { try await decoder.perform { gate.wait() } }
+    try await waitUntil { decoder.limiter.runningCount == 1 }
+    // book 基础图不进 L1；错误重开 bundle 时会实际解码第二次，缓存不能遮住这个问题。
+    let thumbnail = Task { try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .book) }
+    try await eventually { environment.pipeline.sourceDecodeCount == 1 && decoder.limiter.waitingCount == 1 }
+    let target = PixelSize(width: 953, height: 1430)
+    let display = Task { try await collect(environment.pipeline.image(for: identity, target: DisplayTarget(pixelSize: target), allowOriginal: false, priority: .book)) }
+    try await Task.sleep(for: .milliseconds(30))
+    gate.signal()
+    try await occupied.value
+    _ = try await thumbnail.value
+    let images = try await display.value
+    #expect(images.last?.quality == .exact)
+    #expect(images.last?.image.width == target.width && images.last?.image.height == target.height)
+    #expect(environment.pipeline.sourceDecodeCount == 1)
+    #expect(environment.registry.control.opens == 1)
+    await environment.pipeline.shutdown()
+}
 
 @Test func concurrentRenditionsShareTheReadAndSourceDecode() async throws {
     let environment = try PipelineEnvironment()
