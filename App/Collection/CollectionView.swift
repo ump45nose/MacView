@@ -44,6 +44,20 @@ struct CollectionItem: Equatable {
 
 /// 统一的集合组件：列表和详情表格用 NSTableView，网格和瀑布流用画布。
 final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
+    #if DEBUG
+    struct DebugCounters {
+        var setItems = 0
+        var fullReloads = 0
+        var partialReloads = 0
+        var rowViewsCreated = 0
+        var cellViewRequests = 0
+        var layouts = 0
+    }
+    private(set) var debugCounters = DebugCounters()
+    var debugTableGeometry: (bounds: CGRect, visibleRect: CGRect, rows: NSRange) {
+        (table.bounds, table.visibleRect, table.rows(in: table.visibleRect))
+    }
+    #endif
     private static let tableColumn = NSUserInterfaceItemIdentifier("second")
     private static let sizeColumn = NSUserInterfaceItemIdentifier("size")
     private static let nameColumn = NSUserInterfaceItemIdentifier("name")
@@ -163,6 +177,9 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     override func layout() {
         super.layout()
+        #if DEBUG
+        debugCounters.layouts += 1
+        #endif
         messageLabel.frame = bounds.insetBy(dx: 16, dy: 16).divided(atDistance: 60, from: .minYEdge).slice
         notifyVisibleThumbnails()
     }
@@ -192,7 +209,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             tableScroll.frame = bounds
             addSubview(tableScroll, positioned: .below, relativeTo: messageLabel)
             configureTable()
-            table.reloadData()
+            reloadTable()
             revealCurrent()
             reportTableRange()
         }
@@ -225,6 +242,9 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     // MARK: 数据
 
     func setItems(_ newItems: [CollectionItem], current newCurrent: Int?) {
+        #if DEBUG
+        debugCounters.setItems += 1
+        #endif
         let old = items
         items = newItems
         current = newCurrent
@@ -234,11 +254,11 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         } else if old.count == newItems.count {
             let changed = IndexSet(old.indices.filter { old[$0] != newItems[$0] })
             if !changed.isEmpty {
-                table.reloadData(forRowIndexes: changed, columnIndexes: IndexSet(table.tableColumns.indices))
+                reloadTable(rows: changed)
             }
             updateRowHighlights()
         } else {
-            table.reloadData()
+            reloadTable()
             reportTableRange()
         }
         notifyVisibleThumbnails()
@@ -300,7 +320,21 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         canvas.retryFailed()
         guard !failures.isEmpty else { return }
         failures.removeAll()
-        table.reloadData()
+        reloadTable()
+    }
+
+    private func reloadTable(rows: IndexSet? = nil) {
+        if let rows {
+            #if DEBUG
+            debugCounters.partialReloads += 1
+            #endif
+            table.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(table.tableColumns.indices))
+        } else {
+            #if DEBUG
+            debugCounters.fullReloads += 1
+            #endif
+            table.reloadData()
+        }
     }
 
     // MARK: 表格
@@ -310,12 +344,18 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        #if DEBUG
+        debugCounters.rowViewsCreated += 1
+        #endif
         let view = CollectionRowBackground()
         view.isCurrent = row == current
         return view
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        #if DEBUG
+        debugCounters.cellViewRequests += 1
+        #endif
         guard items.indices.contains(row), let column = tableColumn?.identifier else { return nil }
         let item = items[row]
         let failure = failures[item.canvas.identity]
@@ -376,7 +416,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
                 guard !Task.isCancelled, !(error is CancellationError), let self else { return }
                 failures[identity] = ErrorText.describe(error)
                 if let row = items.firstIndex(where: { $0.canvas.identity == identity }) {
-                    table.reloadData(forRowIndexes: [row], columnIndexes: IndexSet(table.tableColumns.indices))
+                    reloadTable(rows: [row])
                 }
             }
         }
@@ -410,7 +450,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         let row = table.clickedRow
         guard items.indices.contains(row) else { return }
         if failures.removeValue(forKey: items[row].canvas.identity) != nil {
-            table.reloadData(forRowIndexes: [row], columnIndexes: IndexSet(table.tableColumns.indices))
+            reloadTable(rows: [row])
         }
         onActivate?(row)
     }

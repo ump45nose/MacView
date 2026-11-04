@@ -456,11 +456,40 @@ final class DebugCommands: Sendable {
             ?? (app.dock?.floatingWindows[id]?.panel as? CollectionPanel)
         guard let panel else { return .null }
         let settings = panel.settings
-        return .object([
+        var result: [String: JSONValue] = [
             "style": .string(settings.style.rawValue),
             "itemExtent": .number(settings.itemExtent),
             "sort": settings.sort.map(Self.sortValue) ?? .null,
-        ])
+            "source": panel.debugSource.map(JSONValue.string) ?? .null,
+            "refreshCount": .number(Double(panel.debugRefreshCount)),
+        ]
+        if let collection = panel.collection {
+            let counters = collection.debugCounters
+            let geometry = collection.debugTableGeometry
+            let rows = geometry.rows.location == NSNotFound ? [] : [geometry.rows.location, geometry.rows.location + geometry.rows.length]
+            result["collection"] = .object([
+                "items": .number(Double(collection.items.count)),
+                "tableRows": .number(Double(collection.rowCount)),
+                "inWindow": .bool(collection.window != nil),
+                "hidden": .bool(collection.isHiddenOrHasHiddenAncestor),
+                "bounds": Self.rectState(collection.bounds),
+                "tableBounds": Self.rectState(geometry.bounds),
+                "tableVisibleRect": Self.rectState(geometry.visibleRect),
+                "tableVisibleRows": .array(rows.map { .number(Double($0)) }),
+                "setItemsCount": .number(Double(counters.setItems)),
+                "fullReloadCount": .number(Double(counters.fullReloads)),
+                "partialReloadCount": .number(Double(counters.partialReloads)),
+                "rowViewsCreated": .number(Double(counters.rowViewsCreated)),
+                "cellViewRequests": .number(Double(counters.cellViewRequests)),
+                "layoutCount": .number(Double(counters.layouts)),
+            ])
+        }
+        return .object(result)
+    }
+
+    private static func rectState(_ rect: CGRect) -> JSONValue {
+        .object(["x": .number(rect.origin.x), "y": .number(rect.origin.y),
+                 "width": .number(rect.width), "height": .number(rect.height)])
     }
 
     private static func sortValue(_ sort: SortSpec) -> JSONValue {
