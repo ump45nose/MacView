@@ -48,9 +48,11 @@ WAIT_READY = 20 * 60
 
 SCENES = [
     "first-image", "preloaded-flip", "scroll-cached", "scroll-cold", "main-thread", "settle",
-    "nas-throughput", "cached-first-screen", "large-dir", "nas-fault", "memory-30min",
-    "tiles-cancel", "panel-restart",
+    "large-dir", "tiles-cancel", "panel-restart", "memory-30min",
+    "nas-throughput", "cached-first-screen", "nas-fault",
 ]
+NAS_SCENES = {"nas-throughput", "cached-first-screen", "nas-fault"}
+NAS_APP_SCENES = {"cached-first-screen", "nas-fault"}
 FOREGROUND = set(SCENES) - {"nas-throughput"}
 # 不看时序的场景只要求屏幕没锁。键鼠空闲、运行中输入、负载和外接显示器不参与判定。
 SCREEN_ONLY = {"main-thread", "memory-30min", "tiles-cancel", "panel-restart"}
@@ -77,9 +79,9 @@ BUDGETS = {
     "settle": {"settleRequestLatencyP99Milliseconds": 100},
     "nas-throughput": {"thumbnailToRawRatio": 0.9},
     "cached-first-screen": {"firstScreenP95Milliseconds": 100, "samplesPerRoot": 20},
-    "large-dir": {"maxRoundTripMilliseconds": 250, "itemCountChanges": 3},
+    "large-dir": {"maxRoundTripMilliseconds": 250, "totalItems": 10000, "intermediateItemCount": True},
     "nas-fault": {"maxRoundTripMilliseconds": 250, "errorWithinSeconds": 10, "quitSeconds": 3},
-    "memory-30min": {"deviation": 0.10, "leaks": 0, "ignoreFirstSeconds": 300},
+    "memory-30min": {"deviation": 0.10, "leaks": 0, "ignoreFirstSeconds": 300, "maxRoundTripMilliseconds": 1000},
     "tiles-cancel": {"cancelledGreaterThan": 0},
     "panel-restart": {"matchesQuit": True},
 }
@@ -128,10 +130,16 @@ def judge(scene, measured, env, budget=None):
     limits = dict(BUDGETS[scene])
     if budget:
         limits.update(budget)
+    if measured.get("environment"):
+        return "environment"
     if scene in FOREGROUND and env_problem(env, scene):
         return "environment"
     if scene in ("scroll-cached", "scroll-cold") and (not is_120(env.get("refreshHz")) or not is_120(env.get("refreshHzAfter"))):
         return "environment"
+    if scene == "memory-30min" and (measured.get("stateTimedOut") or
+            (measured.get("maxRoundTripMilliseconds") is not None and
+             exceeds(measured["maxRoundTripMilliseconds"], limits["maxRoundTripMilliseconds"]))):
+        return "fail"
     if measured.get("unavailable"):
         return "unverified"
     if scene == "first-image":
@@ -170,12 +178,14 @@ def judge(scene, measured, env, budget=None):
             return "fail"
         return "fail" if exceeds(local, limit) or exceeds(remote, limit) else "pass"
     if scene == "large-dir":
-        rtt, changes = measured.get("maxRoundTripMilliseconds"), measured.get("itemCountChanges")
+        rtt, counts = measured.get("maxRoundTripMilliseconds"), measured.get("itemCounts")
         if not measured.get("stateSamples"):
             return "unverified"
-        if rtt is None or changes is None:
+        if rtt is None or not counts:
             return "fail"
-        return "fail" if exceeds(rtt, limits["maxRoundTripMilliseconds"]) or changes < limits["itemCountChanges"] else "pass"
+        progressive = any(0 < count < limits["totalItems"] for count in counts)
+        complete = measured.get("openOk") is True and counts[-1] == limits["totalItems"]
+        return "pass" if not exceeds(rtt, limits["maxRoundTripMilliseconds"]) and progressive and complete else "fail"
     if scene == "nas-fault":
         if not measured.get("stateSamples") or not measured.get("injections"):
             return "unverified"
@@ -222,6 +232,10 @@ def judge_scroll(measured, env, limits):
 
 
 def judge_memory(measured, limits):
+    # 已观察到的主线程停顿就是失败；不能因终止后缺少泄漏结果改成未验证。
+    rtt = measured.get("maxRoundTripMilliseconds")
+    if measured.get("stateTimedOut") or (rtt is not None and exceeds(rtt, limits["maxRoundTripMilliseconds"])):
+        return "fail"
     leaks = measured.get("unexpectedLeakItems", measured.get("leaks"))
     if leaks is None:
         return "unverified"
@@ -239,6 +253,8 @@ def judge_memory(measured, limits):
     if len(tail) < 2:
         return "unverified"
     if measured.get("durationSeconds", 0) < 30 * 60:
+        return "unverified"
+    if rtt is None or not measured.get("stateSamples"):
         return "unverified"
     med = statistics.median(tail)
     if med <= 0:
@@ -299,7 +315,8 @@ def check_verdicts():
               "hitches": 0, "updateP99": 2.0, "renderP99": 2.0, "frameTimeP99": 8.33}
     memory = {"leaks": 0, "residentBytes": [100] * 1800,
               "memory": [dict.fromkeys(MEMORY_KEYS, 0)] * 1800,
-              "sampleElapsedSeconds": list(range(1800)), "durationSeconds": 1800}
+              "sampleElapsedSeconds": list(range(1800)), "durationSeconds": 1800,
+              "stateSamples": 1800, "maxRoundTripMilliseconds": 1000}
     valid = {
         "first-image": {"p95": 150, "samples": 30},
         "preloaded-flip": {"p95": 8.33, "flips": 100},
@@ -308,7 +325,7 @@ def check_verdicts():
         "settle": {"settles": 1, "settleRequestLatencyP99": 100},
         "nas-throughput": {"samples": 3, "thumbnailToRawRatio": 0.9},
         "cached-first-screen": {"localP95": 100, "nfsP95": 100, "localSamples": 20, "nfsSamples": 20},
-        "large-dir": {"stateSamples": 20, "maxRoundTripMilliseconds": 250, "itemCountChanges": 3},
+        "large-dir": {"stateSamples": 20, "maxRoundTripMilliseconds": 250, "itemCounts": [0, 8190, 10000], "openOk": True},
         "nas-fault": {"stateSamples": 20, "maxRoundTripMilliseconds": 250, "quitSeconds": 3,
                       "retrySucceeded": True, "errorWithin10Seconds": True, "quitReadInFlight": True,
                       "quitExitedNormally": True, "injections": [{"mode": mode, "seconds": seconds, "errorSeconds": 5, "readInFlight": True} for mode in ("pause", "drop") for seconds in (5, 15, 60)]},
@@ -547,6 +564,98 @@ class MeasurementError(RuntimeError):
         super().__init__(message)
 
 
+class MemoryStateMonitor:
+    """state 以 1 秒为预算，采样与响应等待并行，不因采样提前结束场景。"""
+    def __init__(self, started, directory):
+        self.started = started
+        self.directory = Path(directory)
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.last_state = None
+        self.state_snapshots = []
+        self.round_trips = []
+        self.stalls = []
+        self.sample_jobs = []
+        self.timed_out = False
+
+    def _sample(self, client, ident, stall):
+        path = self.directory / f"{client.pid}-{ident}-{len(stall['samples']) + 1}.sample.txt"
+        record = {"path": str(path), "startedElapsedSeconds": time.monotonic() - self.started}
+        stall["samples"].append(record)
+        try:
+            process = subprocess.Popen(["/usr/bin/sample", str(client.pid), "1", "1", "-file", str(path)],
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+            self.sample_jobs.append((process, record, time.monotonic()))
+        except OSError as exc:
+            record["error"] = str(exc)
+
+    def wait(self, client, ident):
+        request = client.pending[ident]
+        sent = request["sentMonotonic"]
+        deadline = sent + 120
+        stall = None
+        while True:
+            now = time.monotonic()
+            if now - sent >= 1 and stall is None:
+                stall = {"requestID": ident, "phase": request["phase"], "pid": client.pid,
+                         "startedElapsedSeconds": sent - self.started,
+                         "startedUnixSeconds": time.time() - (now - sent),
+                         "lastState": self.last_state,
+                         "inFlightActions": [{"requestID": pending_id, **pending,
+                                              "ageSeconds": now - pending["sentMonotonic"]}
+                                             for pending_id, pending in client.pending.items()
+                                             if pending["command"] != "state" and pending_id not in client.inbox],
+                         "samples": []}
+                self.stalls.append(stall)
+            if ident in client.inbox:
+                message = client.inbox.pop(ident)
+                client.pending.pop(ident, None)
+                duration = now - sent
+                self.round_trips.append(duration * 1000)
+                if stall is not None:
+                    stall.update(durationSeconds=duration, returned=True)
+                if message.get("ok"):
+                    self.last_state = message.get("result")
+                    elapsed = now - self.started
+                    if not self.state_snapshots or elapsed - self.state_snapshots[-1]["elapsedSeconds"] >= 60:
+                        self.state_snapshots.append({"elapsedSeconds": elapsed, "state": self.last_state})
+                return message
+            if stall is not None and len(stall["samples"]) < 3 and now - sent >= 3 + 5 * len(stall["samples"]):
+                self._sample(client, ident, stall)
+            if now >= deadline:
+                self.timed_out = True
+                duration = now - sent
+                self.round_trips.append(duration * 1000)
+                stall.update(durationSeconds=duration, returned=False)
+                detail = {**request, "pid": client.pid, "requestID": ident, "timeoutSeconds": 120,
+                          "responseWaitSeconds": duration,
+                          "sample": stall["samples"][0]["path"] if stall["samples"] else None}
+                raise DebugTimeout(detail)
+            next_boundary = sent + (1 if stall is None else 3 + 5 * len(stall["samples"]))
+            wake = min(deadline, next_boundary) if next_boundary > now else deadline
+            try:
+                message = client._read_line(wake - now)
+                client.inbox[norm_id(message.get("id"))] = message
+            except TimeoutError:
+                pass
+
+    def evidence(self):
+        for process, record, started in self.sample_jobs:
+            try:
+                _, diagnostic = process.communicate(timeout=max(0.1, 10 - (time.monotonic() - started)))
+                record.update(returnCode=process.returncode, diagnostic=diagnostic[-2000:])
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.communicate()
+                record["error"] = "sample 超过10秒未结束"
+            path = Path(record["path"])
+            if path.exists():
+                record["rawSample"] = path.read_text(errors="replace")
+        return {"stateSamples": len(self.round_trips), "stateRoundTripMilliseconds": self.round_trips,
+                "maxRoundTripMilliseconds": max(self.round_trips, default=None),
+                "stateTimedOut": self.timed_out, "stalls": self.stalls, "lastState": self.last_state,
+                "stateSnapshots": self.state_snapshots}
+
+
 class DebugClient:
     def __init__(self, path, phase=None):
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -559,6 +668,7 @@ class DebugClient:
         self.pending = {}
         self.next_id = 1
         self.sampled_timeout = None
+        self.memory_monitor = None
 
     def close(self):
         try:
@@ -566,12 +676,13 @@ class DebugClient:
         except OSError:
             pass
 
-    def send(self, command, args=None):
+    def send(self, command, args=None, action=None):
         ident = self.next_id
         self.next_id += 1
         payload = json.dumps({"id": ident, "command": command, "args": args or {}}, ensure_ascii=False) + "\n"
         self.sock.sendall(payload.encode())
-        self.pending[ident] = {"command": command, "phase": self.phase, "arguments": args or {}}
+        self.pending[ident] = {"command": command, "phase": self.phase, "arguments": args or {},
+                               "sentMonotonic": time.monotonic(), "action": action}
         return ident
 
     def _read_line(self, timeout):
@@ -593,6 +704,8 @@ class DebugClient:
 
     def wait(self, ident, timeout):
         ident = norm_id(ident)
+        if self.memory_monitor is not None and self.pending.get(ident, {}).get("command") == "state":
+            return self.memory_monitor.wait(self, ident)
         started = time.monotonic()
         deadline = time.monotonic() + timeout
         try:
@@ -630,8 +743,8 @@ class DebugClient:
             (Path(detail["sample"]).with_suffix(".json")).write_text(json.dumps(detail, ensure_ascii=False, indent=2) + "\n")
             raise DebugTimeout(detail) from None
 
-    def request(self, command, args=None, timeout=30):
-        message = self.wait(self.send(command, args), timeout)
+    def request(self, command, args=None, timeout=30, action=None):
+        message = self.wait(self.send(command, args, action=action), timeout)
         if not message.get("ok", False):
             raise RuntimeError(message.get("error") or message)
         return message.get("result")
@@ -965,11 +1078,29 @@ def record_scroll(scene):
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
+    trace = out / "record.trace"
+    measured = {}
     try:
         subprocess.run([str(ROOT / "scripts/acceptance/record-trackpad.sh"), scene, str(out), "--automatic"], cwd=ROOT, check=True)
-    except subprocess.CalledProcessError as exc:
-        measured = json.loads((out / "error.json").read_text()) if (out / "error.json").exists() else {}
+        measured, during = scroll_summary(out)
+        profile = json.loads((out / "main-thread.json").read_text()) if scene == "scroll-cold" else None
+        return measured, during, profile
+    except Exception as exc:
+        measured.update(json.loads((out / "error.json").read_text()) if (out / "error.json").exists() else {})
         raise MeasurementError(str(exc), measured) from exc
+    finally:
+        raw = json.loads((out / "raw-files.json").read_text()) if (out / "raw-files.json").exists() else {}
+        measured["recording"] = raw
+        if raw.get("ready") is False:
+            measured.update(environment=True, reason=raw.get("reason"))
+        # 帧时间和主线程汇总已经写进文件。自动验收的 trace 不留存，用户录制脚本仍保留。
+        if trace.exists():
+            shutil.rmtree(trace)
+        raw.update(trace=str(trace), traceDeleted=not trace.exists())
+        (out / "raw-files.json").write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n")
+
+
+def scroll_summary(out):
     summary = json.loads((out / "hitches.json").read_text())
     phases = summary.get("phases") or []
     if not phases:
@@ -999,7 +1130,7 @@ def record_scroll(scene):
         measured["windowFront"] = during["windowFront"]
     if "responsiveScrolling" in during:
         measured["responsiveScrolling"] = during["responsiveScrolling"]
-    return measured, during, out / "record.trace"
+    return measured, during
 
 
 COLD = {}
@@ -1010,7 +1141,7 @@ def cold_recording():
         raise COLD["error"]
     if "measured" not in COLD:
         try:
-            COLD["measured"], COLD["during"], COLD["trace"] = record_scroll("scroll-cold")
+            COLD["measured"], COLD["during"], COLD["mainThread"] = record_scroll("scroll-cold")
         except Exception as exc:
             COLD["error"] = exc
             raise
@@ -1029,13 +1160,14 @@ def scene_scroll_cold():
 
 def scene_main_thread():
     data = cold_recording()
-    return main_thread_samples(data["trace"]), data["during"]
+    return {**data["mainThread"], "recording": data["measured"].get("recording")}, data["during"]
 
 
 def scene_settle():
     data = cold_recording()
     measured = data["measured"]
-    return {"settleRequestLatencyP99": measured.get("settleRequestLatencyP99"), "settles": measured.get("settles")}, data["during"]
+    return {"settleRequestLatencyP99": measured.get("settleRequestLatencyP99"), "settles": measured.get("settles"),
+            "recording": measured.get("recording")}, data["during"]
 
 
 def trace_cell(element, ids):
@@ -1224,6 +1356,104 @@ def scene_nas_throughput():
     return measured
 
 
+def parse_network_tcc(output, pid):
+    lines = output.splitlines()
+    def request_id(line):
+        match = re.search(r"msgID=([^,\s]+)", line)
+        return match[1] if match else None
+    network = {request_id(line) for line in lines if "AUTHREQ_CTX:" in line and "kTCCServiceSystemPolicyNetworkVolumes" in line}
+    own = {request_id(line) for line in lines if "AUTHREQ_ATTRIBUTION:" in line
+           and "identifier=io.github.ump45nose.MacView," in line and f"pid={pid}," in line}
+    requests = [line for line in lines if request_id(line) in network & own]
+    prompting = [line for line in requests if "AUTHREQ_PROMPTING:" in line]
+    result = [line for line in requests if "AUTHREQ_RESULT:" in line]
+    decisions = {request_id(line) for line in requests if "AUTHREQ_CTX:" in line and "preflight=no" in line}
+    decisions.update(request_id(line) for line in prompting)
+    return {"prompting": prompting, "result": result, "requests": requests,
+            "denied": any(request_id(line) in decisions and re.search(r"authValue=0(?:,|\s)", line) for line in result)}
+
+
+def network_tcc_logs(started, pid):
+    start = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(started - 1))
+    try:
+        logged = subprocess.run(["/usr/bin/log", "show", "--style", "compact", "--start", start, "--info", "--debug",
+                                 "--predicate", 'process == "tccd" AND eventMessage CONTAINS "AUTHREQ_"'],
+                                capture_output=True, text=True, timeout=15)
+        report = parse_network_tcc(logged.stdout, pid)
+        report.update(returnCode=logged.returncode, diagnostic=logged.stderr.strip())
+        return report
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"prompting": [], "result": [], "requests": [], "denied": False, "error": str(exc)}
+
+
+NAS_ACCESS = {}
+
+
+def preflight_nas_access(directory):
+    """同一签名只预检一次；授权等待不占用性能计时，也不替用户处理弹窗。"""
+    binary = app_binary()
+    signed = subprocess.run(["/usr/bin/codesign", "-d", "--verbose=4", str(binary.parents[2])], capture_output=True, text=True)
+    cdhash = re.search(r"^CDHash=(.+)$", signed.stderr, re.M)
+    signature = {"binary": str(binary), "cdhash": cdhash[1] if cdhash else None,
+                 "returnCode": signed.returncode, "details": signed.stderr}
+    key = (binary.stat().st_mtime_ns, signature["cdhash"])
+    if key in NAS_ACCESS:
+        return NAS_ACCESS[key]
+    started_wall, started = time.time(), time.monotonic()
+    evidence = {"ready": False, "directory": str(directory), "signature": signature, "timeoutSeconds": WAIT_READY}
+    app = App("nas-authorization", prefetch_zero=True, empty_cache=True)
+    open_id, state_id = None, None
+    next_open = next_logs = 0
+    notified = False
+    errors = []
+    try:
+        app.start()
+        evidence["pid"] = app.pid
+        while time.monotonic() - started < WAIT_READY:
+            now = time.monotonic()
+            if now >= next_logs:
+                evidence["tccd"] = network_tcc_logs(started_wall, app.pid)
+                next_logs = time.monotonic() + 5
+                if evidence["tccd"]["prompting"] and not notified:
+                    print("网络卷权限弹窗已出现，等待用户答复（最多20分钟）。", flush=True)
+                    notified = True
+                if evidence["tccd"]["denied"]:
+                    evidence["reason"] = "用户拒绝网络卷访问授权"
+                    break
+            if open_id is None and now >= next_open:
+                open_id = app.client.send("open", {"path": str(directory)})
+            if state_id is None:
+                state_id = app.client.send("state")
+            try:
+                message = app.client.wait(state_id, min(1, max(0.01, WAIT_READY - (time.monotonic() - started))))
+                state_id = None
+                window = window_of(message.get("result") or {})
+                if message.get("ok") and int(window.get("itemCount") or 0) > 0:
+                    evidence.update(ready=True, itemCount=window["itemCount"])
+                    break
+            except TimeoutError:
+                pass
+            if open_id in app.client.inbox:
+                message = app.client.inbox.pop(open_id)
+                app.client.pending.pop(open_id, None)
+                if not message.get("ok"):
+                    errors.append(message.get("error"))
+                open_id = None
+                next_open = time.monotonic() + 2
+            time.sleep(0.25)
+        if not evidence["ready"]:
+            evidence.setdefault("reason", "网络卷授权预检在20分钟内没有读出条目")
+    except (RuntimeError, TimeoutError, ConnectionError, OSError) as exc:
+        evidence["reason"] = str(exc)
+    finally:
+        app.stop()
+        evidence.update(waitSeconds=time.monotonic() - started, openErrors=errors)
+        if app.pid is not None:
+            evidence["tccd"] = network_tcc_logs(started_wall, app.pid)
+    NAS_ACCESS[key] = evidence
+    return evidence
+
+
 def wait_first_screen(client, timeout=15):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -1317,6 +1547,7 @@ def scene_large_dir():
             "maxRoundTripMilliseconds": max(rtts) if rtts else None,
             "itemCountChanges": transitions,
             "itemCounts": counts,
+            "intermediateItemCounts": [count for count in counts if 0 < count < BUDGETS["large-dir"]["totalItems"]],
             "openOk": bool(opened and opened.get("ok")),
         }
     finally:
@@ -1503,11 +1734,30 @@ def scene_nas_fault():
         log.close()
 
 
-def scene_memory():
+def memory_process_snapshot(pid):
+    measured = {}
+    for name, arguments, timeout in (("leaks", ["leaks", str(pid)], 180),
+                                      ("vmmap", ["vmmap", "--summary", str(pid)], 60)):
+        try:
+            result = subprocess.run(arguments, capture_output=True, text=True, timeout=timeout)
+            output = result.stdout + result.stderr
+            measured[name + "ReturnCode"] = result.returncode
+            measured["leaksOutput" if name == "leaks" else "vmmap"] = output
+            if name == "leaks":
+                measured.update(parse_leaks(output))
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            measured[name + "Error"] = str(exc)
+    return measured
+
+
+def scene_memory(duration_seconds=1800, name="memory-30min"):
     sample = str(ensure_sample())
     other = str(HUGE_DIR)
-    app = App("memory-30min", empty_cache=False).start()
+    app = App(name, empty_cache=False).start()
     samples, elapsed, memory = [], [], []
+    monitor = None
+    failure = None
+    budgets = None
     index = 0
     started = None
     try:
@@ -1515,69 +1765,84 @@ def scene_memory():
         app.client.request("open", {"path": sample}, timeout=120)
         direction = 1
         started = time.monotonic()
-        end = started + 30 * 60
+        end = started + duration_seconds
         tick = started
         pending = None
-        budgets = None
+        pending_mode = False
+        monitor = MemoryStateMonitor(started, ROOT / "build" / "w37" / f"stalls-{app.pid}")
+        app.client.memory_monitor = monitor
         while time.monotonic() < end:
-            app.client.phase = f"memory-30min:sample-{len(samples)}"
-            state = app.client.request("state", timeout=10)
-            samples.append(state.get("residentBytes"))
-            memory.append(state.get("memory"))
-            elapsed.append(time.monotonic() - started)
-            budgets = state.get("cacheBudgets")
+            resident_sample = time.monotonic() >= tick
+            app.client.phase = f"memory-30min:{'sample' if resident_sample else 'mode-probe'}-{len(samples)}"
+            state = app.client.request("state", timeout=120)
+            if resident_sample:
+                samples.append(state.get("residentBytes"))
+                memory.append(state.get("memory"))
+                elapsed.append(time.monotonic() - started)
+                budgets = state.get("cacheBudgets")
+                tick += 1
+                if tick < time.monotonic():
+                    tick = time.monotonic()
             if pending in app.client.inbox:
                 response = app.client.inbox.pop(pending)
                 app.client.pending.pop(pending, None)
                 if not response.get("ok"):
                     raise RuntimeError(response.get("error") or response)
                 pending = None
+                pending_mode = False
             if pending is None:
                 action = index % 6
                 window = window_of(state)
                 if action < 3:
                     app.client.phase = f"memory-30min:flip-{index}"
                     if window.get("browseMode") != "paged":
-                        app.client.request("perform", {"command": "view.paged"}, timeout=10)
-                    frame, count = int(window["frame"]), int(window["frameCount"])
-                    if count > 1 and ((direction > 0 and frame >= count - 1) or (direction < 0 and frame <= 0)):
-                        direction = -direction
-                    pending = app.client.send("perform", {"command": "frame.next" if direction > 0 else "frame.previous"})
+                        pending = app.client.send("perform", {"command": "view.paged"}, action={"index": index, "type": "mode-paged"})
+                        pending_mode = True
+                    else:
+                        frame, count = int(window["frame"]), int(window["frameCount"])
+                        if count > 1 and ((direction > 0 and frame >= count - 1) or (direction < 0 and frame <= 0)):
+                            direction = -direction
+                        pending = app.client.send("perform", {"command": "frame.next" if direction > 0 else "frame.previous"},
+                                                  action={"index": index, "type": "flip"})
                 elif action == 3:
                     app.client.phase = f"memory-30min:scroll-{index}"
                     if window.get("browseMode") != "waterfall":
-                        app.client.request("perform", {"command": "view.waterfall"}, timeout=10)
-                    pending = app.client.send("scroll", {"dy": -12, "durationMs": 500, "intervalMs": 8})
+                        pending = app.client.send("perform", {"command": "view.waterfall"}, action={"index": index, "type": "mode-waterfall"})
+                        pending_mode = True
+                    else:
+                        pending = app.client.send("scroll", {"dy": -12, "durationMs": 500, "intervalMs": 8},
+                                                  action={"index": index, "type": "scroll"})
                 else:
                     app.client.phase = f"memory-30min:switch-book-{index}"
-                    pending = app.client.send("open", {"path": other if index % 12 == 4 else sample})
-                index += 1
-            tick += 1
-            if tick < time.monotonic():
-                tick = time.monotonic()
-            time.sleep(max(0, min(tick, end) - time.monotonic()))
-        duration = time.monotonic() - started
-        pid = str(app.pid)
-        leaks = subprocess.run(["leaks", pid], capture_output=True, text=True, timeout=180)
-        vmmap = subprocess.run(["vmmap", "--summary", pid], capture_output=True, text=True, timeout=60)
-        leaks_output = leaks.stdout + leaks.stderr
-        vmmap_output = vmmap.stdout + vmmap.stderr
-        (app.root / "leaks.txt").write_text(leaks_output)
-        (app.root / "vmmap.txt").write_text(vmmap_output)
-        measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "durationSeconds": duration, "memory": memory,
-                "cacheBudgets": budgets, "actions": index, **parse_leaks(leaks_output),
-                "leaksReturnCode": leaks.returncode, "leaksOutput": leaks_output,
-                "vmmapReturnCode": vmmap.returncode, "vmmap": vmmap_output}
-        return {**measured, **memory_metrics(measured)}
+                    pending = app.client.send("open", {"path": other if index % 12 == 4 else sample},
+                                              action={"index": index, "type": "switch-book"})
+                if not pending_mode:
+                    index += 1
+            # 模式响应也由 state 驱动。快响应只让出 50ms，不额外消耗一整个动作周期；
+            # 慢响应仍每秒采 resident，并由同一监测器记录主线程停顿。
+            wake = min(tick, time.monotonic() + 0.05) if pending_mode else tick
+            time.sleep(max(0, min(wake, end) - time.monotonic()))
     except Exception as exc:
-        measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "actions": index, "memory": memory,
-                    "durationSeconds": time.monotonic() - started if started is not None else 0}
-        measured.update(memory_metrics(measured))
-        if isinstance(exc, DebugTimeout):
-            measured["diagnostic"] = exc.detail
-        raise MeasurementError(str(exc), measured) from exc
+        failure = exc
     finally:
-        app.stop()
+        # 停顿已经构成失败，也保留目标进程的最终泄漏和虚拟内存证据。
+        duration = time.monotonic() - started if started is not None else 0
+        measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "actions": index,
+                    "memory": memory, "durationSeconds": duration, "cacheBudgets": budgets}
+        try:
+            if monitor is not None:
+                measured.update(monitor.evidence())
+            measured.update(memory_process_snapshot(app.pid))
+            measured.update(memory_metrics(measured))
+            if failure is not None:
+                measured["error"] = str(failure)
+                if isinstance(failure, DebugTimeout):
+                    measured["diagnostic"] = failure.detail
+                if not measured.get("stateTimedOut"):
+                    raise MeasurementError(str(failure), measured) from failure
+        finally:
+            app.stop()
+    return measured
 
 
 def scene_tiles_cancel():
@@ -1822,6 +2087,27 @@ def run_scene(scene, out, commit, base_env):
     # mvbench 的字段和本机探针都留在 env 里；探针放在后面，避免被环境 JSON 覆盖。
     for key in ("load", "displayMode", "refreshHz", "screen"):
         env[key] = base_env[key]
+    if scene in NAS_APP_SCENES:
+        if screen_locked() is not False:
+            current, ready = wait_ready(scene)
+            for key in ("load", "displayMode", "refreshHz", "screen"):
+                env[key] = current[key]
+            if not ready:
+                write_report(out, scene, commit, env,
+                             {"environment": True, "reason": "屏幕锁定或锁定状态未知，环境准入等待已耗尽"}, "environment")
+                return
+        try:
+            mount, _ = ensure_nfs()
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            write_report(out, scene, commit, env, {"unavailable": True, "nfsError": str(exc)}, "unverified")
+            return
+        if mount:
+            authorization = preflight_nas_access(mount)
+            env["nasAuthorization"] = authorization
+            if not authorization["ready"]:
+                write_report(out, scene, commit, env,
+                             {"environment": True, "reason": authorization["reason"]}, "environment")
+                return
     during = None
     mark = None
     if scene in FOREGROUND:
@@ -1869,6 +2155,7 @@ def parse_args(argv):
     parser.add_argument("--smoke-scroll", nargs=3, metavar=("SCENE", "SOCKET", "OUT"))
     parser.add_argument("--quit-app", metavar="SOCKET")
     parser.add_argument("--launch-app", nargs=5, metavar=("SOCKET", "SUPPORT", "CACHE", "LAYOUT", "LOG"))
+    parser.add_argument("--main-thread-summary", nargs=2, metavar=("TRACE", "OUT"))
     return parser.parse_args(argv)
 
 
@@ -1880,6 +2167,10 @@ def main(argv):
     os.chdir(ROOT)
     if args.launch_app:
         print(launch_app(*[str(Path(path).resolve()) for path in args.launch_app]))
+        return 0
+    if args.main_thread_summary:
+        trace, output = args.main_thread_summary
+        Path(output).write_text(json.dumps(main_thread_samples(trace), ensure_ascii=False, indent=2) + "\n")
         return 0
     if args.quit_app:
         quit_app(args.quit_app)
@@ -1896,10 +2187,14 @@ def main(argv):
     if args.smoke_scroll:
         run_scroll(*args.smoke_scroll, automatic=False, seconds=1)
         return 0
-    scenes = args.scenes or list(SCENES)
+    requested = args.scenes or list(SCENES)
     unknown = [scene for scene in args.scenes if scene not in SCENES]
     if unknown:
         raise SystemExit(f"未知场景：{', '.join(unknown)}")
+    # 同一冻结 App 的网络卷授权只在本地与内存场景完成后触发。
+    scenes = ([scene for scene in requested if scene not in NAS_SCENES and scene != "memory-30min"]
+              + [scene for scene in requested if scene == "memory-30min"]
+              + [scene for scene in requested if scene in NAS_SCENES])
     subprocess.Popen(["caffeinate", "-d", "-w", str(os.getpid())])
     if any(scene in FOREGROUND for scene in scenes):
         app_binary()  # 构建在环境准入之前完成，嵌套录制只复用已冻结的二进制。

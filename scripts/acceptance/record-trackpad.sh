@@ -9,8 +9,6 @@ scene=${1:?需要场景}
 out=${2:?需要输出目录}
 mode=${3:---manual}
 cd "$(dirname "$0")/../.."
-export TMPDIR="$PWD/build/acceptance/record-tmp-$$/"
-mkdir -p "$TMPDIR"
 mkdir -p "$out"
 out=$(cd "$out" && pwd)
 case "$scene" in
@@ -22,11 +20,43 @@ case "$mode" in
 *) echo "第三个参数需要是 --automatic 或 --smoke" >&2; exit 2 ;;
 esac
 
+if [ -e "$out/record.trace" ] || [ -e "$out/raw-files.json" ]; then
+	echo "输出目录已有录制或原始文件名单，请使用新的输出目录" >&2
+	exit 2
+fi
+mkdir -p "$PWD/build/acceptance"
+work=$(mktemp -d "$PWD/build/acceptance/trackpad.XXXXXX")
+export TMPDIR="$work/tmp/"
+mkdir -p "$TMPDIR"
 derived="$PWD/build/DerivedData-profile"
 socket="$PWD/build/t-$$.sock"
-support="$PWD/build/acceptance/trackpad-$$/support"
-cache="$PWD/build/acceptance/trackpad-$$/cache"
-layout="$PWD/build/acceptance/trackpad-$$/layout.json"
+support="$work/support"
+cache="$work/cache"
+layout="$work/layout.json"
+pid=""
+trace=""
+raw_manifest=""
+cleanup() {
+	status=$?
+	trap - EXIT INT TERM
+	if [ -n "$trace" ]; then
+		kill -INT "$trace" 2>/dev/null || true
+		wait "$trace" 2>/dev/null || true
+		trace=""
+	fi
+	if [ -n "$raw_manifest" ]; then
+		python3 -I "$PWD/scripts/acceptance/recording.py" finish "$raw_manifest" || status=1
+	fi
+	if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+		kill "$pid" 2>/dev/null || true
+	fi
+	rm -f "$socket"
+	rm -rf "$work"
+	exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 mkdir -p "$out" "$support" "$(dirname "$layout")"
 if [ "$scene" = "scroll-cold" ]; then
 	rm -rf "$cache" "$support"
@@ -42,21 +72,7 @@ if [ ! -x "$derived/Build/Products/Debug/MacView.app/Contents/MacOS/MacView" ]; 
 		-destination "platform=macOS,arch=$(uname -m)" -derivedDataPath "$derived" SWIFT_OPTIMIZATION_LEVEL=-O build
 fi
 
-pid=""
-trace=""
 caffeinate -d -w $$ &
-cleanup() {
-	if [ -n "$trace" ]; then
-		kill -INT "$trace" 2>/dev/null || true
-		wait "$trace" 2>/dev/null || true
-		trace=""
-	fi
-	if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-		kill "$pid" 2>/dev/null || true
-	fi
-	rm -f "$socket"
-}
-trap cleanup EXIT INT TERM
 
 pid=$(python3 -I "$PWD/scripts/acceptance/run.py" --launch-app "$socket" "$support" "$cache" "$layout" "$out/app.log")
 printf '%s\n' "$pid" >"$out/app.pid"
@@ -77,7 +93,8 @@ done
 
 python3 -I "$PWD/scripts/acceptance/run.py" --prepare-scroll "$scene" "$socket" >"$out/window-before.json"
 
-rm -rf "$out/record.trace"
+raw_manifest="$out/raw-files.json"
+python3 -I "$PWD/scripts/acceptance/recording.py" begin "$raw_manifest"
 if [ "$scene" = "scroll-cold" ]; then
 	xcrun xctrace record --template 'Animation Hitches' --instrument os_signpost --instrument 'Time Profiler' \
 		--attach "$pid" --output "$out/record.trace" >"$out/xctrace.log" 2>&1 &
@@ -111,6 +128,9 @@ kill -INT "$trace" 2>/dev/null || true
 wait "$trace" || true
 trace=""
 python3 -I "$PWD/scripts/canvas-hitches.py" "$out/record.trace" "$out/phase.json" "$out/hitches.json" >/dev/null
+if [ "$scene" = "scroll-cold" ]; then
+	python3 -I "$PWD/scripts/acceptance/run.py" --main-thread-summary "$out/record.trace" "$out/main-thread.json"
+fi
 
 python3 -I "$PWD/scripts/acceptance/run.py" --quit-app "$socket" || true
 i=0
@@ -126,4 +146,3 @@ if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
 fi
 pid=""
 rm -f "$socket"
-trap - EXIT INT TERM
