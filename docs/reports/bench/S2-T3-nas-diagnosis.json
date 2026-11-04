@@ -1,0 +1,303 @@
+{
+  "scene": "nas-open-diagnosis",
+  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+  "collectedAt": "2026-11-04T11:19:18Z",
+  "scope": "只读源码/签名/挂载/统一日志核对；一个open -n隔离App、一次同图集open、期限前主进程和明确子进程各采样1秒；未构建、未改源码、未改系统设置或NAS。",
+  "finding": {
+    "actualFailurePhase": "cached-first-screen在NFS首次预热open期间失败；nas-fault在初始open/预备阶段失败，尚未注入故障。本次定位到helper执行FileOperations.list的目录open调用，尚未返回第一批条目。",
+    "supportedByStack": "helper正常进入AppDelegate.main→IOHelper.runIfRequested→FrameIO.read；3个工作线程均为IOHelper请求处理→FileOperations.list(FileOperations.swift:69)→open→__open。主App主线程采样全在NSApplication事件循环，helper收帧线程等socket，未见入口/协议停滞。",
+    "exactDirectoryArguments": "调试open命令路径为throughput通过的同一NFS album；采样未提取3个list请求的具体path，不能将3条栈都断言为album本身。",
+    "sampleLimitation": "本次采样后open在6.115秒返回open: Interrupted system call，未精确复现此前10秒读取超时。不能排除采样对阻塞调用的影响，不能据此替代两个验收场景结果。",
+    "appResponsive": "state响应0.8095毫秒；图集条目为0、首屏时间为空。退出0.0834秒、正常code=0，主App/helper均消失。",
+    "signatureAndPrivacy": "App为adhoc签名，仅com.apple.security.get-task-allow=true，未启用App Sandbox；project.yml:54为ENABLE_APP_SANDBOX: NO。Info.plist无UsageDescription。TCC日志出现本次helper归属本次App的SystemPolicyAllFiles预检拒绝；这是Full Disk Access预检，单独不能证明网络卷授权拒绝或目录阻塞原因，未获得NetworkVolumes授权判定。",
+    "cliComparison": "已有CLI同NFS图集吞吐比96.7846%；CLI/App都使用HelperConnection以posix_spawn启动宿主可执行文件，MVIO_HELPER=1，socketpair协议、4元数据/4大读通道、10秒期限相同。CLI是MVBenchMain.main入口，App是AppDelegate.main入口；本次栈已证明App helper入口确实运行。通过吞吐不能证明另一时刻、App身份和目录打开前提相同。",
+    "rootCauseStatus": "已定位目录open内阻塞；其更底层原因（系统文件访问授权/内核或NFS目录打开）尚未确定，证据不足以提出产品源码修改。",
+    "recommendedAction": "本轮不改产品源码，不调整超时/挂载配置；由设计侧核实open -n App身份的系统文件访问前提后，再重跑NFS首屏与故障场景。"
+  },
+  "existingAcceptanceEvidence": {
+    "cachedFirstScreen": "docs/reports/bench/S2-T2-cached-first-screen.json",
+    "nasFault": "docs/reports/bench/S2-T2-nas-fault.json",
+    "nasThroughput": "docs/reports/bench/S2-T2-nas-throughput.json",
+    "modifiedByThisDiagnosis": false
+  },
+  "reproduction": {
+    "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+    "startedAt": "2026-11-04T11:19:18Z",
+    "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+    "sourceScene": "cached-first-screen NFS warmup/open",
+    "samples": [
+      {
+        "pid": 73510,
+        "startedAfterOpenSeconds": 1.5699637500000003,
+        "finishedAfterOpenSeconds": 3.078380291,
+        "returncode": 0,
+        "diagnostic": "Sampling process 73510 for 1 second with 1 millisecond of run time between samples\nSampling completed, processing symbols...\nSample analysis of process 73510 written to file /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nas-diagnosis-73505/pid-73510.sample.txt\n",
+        "rawSampleSHA256": "208027bf50345ed6f06e537490f038b56724030ffb9ed35a69287b67832d55e1",
+        "sampleHeaderAndCallGraph": "Analysis of sampling MacView (pid 73510) every 1 millisecond\nProcess:         MacView [73510]\nPath:            /Users/USER/*/MacView.app/Contents/MacOS/MacView\nLoad Address:    0x102704000\nIdentifier:      io.github.ump45nose.MacView\nVersion:         0.1.0 (1)\nCode Type:       ARM64\nPlatform:        macOS\nParent Process:  launchd [1]\nTarget Type:     live task\n\nDate/Time:       2026-11-04 19:19:20.918 +0800\nLaunch Time:     2026-11-04 19:19:18.820 +0800\nOS Version:      macOS 27.0.1 (26A434)\nReport Version:  7\nAnalysis Tool:   /usr/bin/sample\n\nPhysical footprint:         40.2M\nPhysical footprint (peak):  41.0M\nIdle exit:                  untracked\n----\n\nCall graph:\n    759 Thread_7312515   DispatchQueue_1: com.apple.main-thread  (serial)\n    + 759 start  (in dyld) + 6688  [0x19bae3e80]\n    +   759 main  (in MacView) + 12  [0x102713bd8]  AppDelegate.swift:0\n    +     759 specialized static AppDelegate.main()  (in MacView) + 180  [0x102716da8]  AppDelegate.swift:53\n    +       759 -[NSApplication run]  (in AppKit) + 396  [0x1a052390c]\n    +         759 -[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]  (in AppKit) + 292  [0x1a0da826c]\n    +           759 -[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]  (in AppKit) + 780  [0x1a0da8748]\n    +             759 _DPSNextEvent  (in AppKit) + 580  [0x1a05304fc]\n    +               759 _DPSBlockUntilNextEventMatchingListInMode  (in AppKit) + 292  [0x1a087329c]\n    +                 759 _BlockUntilNextEventMatchingListInMode  (in HIToolbox) + 48  [0x1a9532380]\n    +                   759 ReceiveNextEventCommon  (in HIToolbox) + 492  [0x1a93af91c]\n    +                     759 RunCurrentEventLoopInMode  (in HIToolbox) + 320  [0x1a93ac590]\n    +                       759 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 536  [0x19c05382c]\n    +                         759 __CFRunLoopRun  (in CoreFoundation) + 1172  [0x19bf79334]\n    +                           759 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x19bf7aaec]\n    +                             759 mach_msg  (in libsystem_kernel.dylib) + 24  [0x19be74fac]\n    +                               759 mach_msg_overwrite  (in libsystem_kernel.dylib) + 480  [0x19be7da28]\n    +                                 759 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x19be878e0]\n    +                                   759 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x19be74c20]\n    759 Thread_7312534\n    + 759 start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n    +   759 _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n    +     759 __workq_kernreturn  (in libsystem_kernel.dylib) + 8  [0x19be769ec]\n    759 Thread_7312535\n    + 759 start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n    +   759 _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n    +     759 __workq_kernreturn  (in libsystem_kernel.dylib) + 8  [0x19be769ec]\n    759 Thread_7312542\n    + 759 start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n    +   759 _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n    +     759 __workq_kernreturn  (in libsystem_kernel.dylib) + 8  [0x19be769ec]\n    759 Thread_7312563\n    + 759 start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n    +   759 _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n    +     759 __workq_kernreturn  (in libsystem_kernel.dylib) + 8  [0x19be769ec]\n    759 Thread_7312569: com.apple.NSEventThread\n    + 759 thread_start  (in libsystem_pthread.dylib) + 8  [0x19beb4cec]\n    +   759 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x19beb9d00]\n    +     759 _NSEventThread  (in AppKit) + 184  [0x1a0654844]\n    +       759 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 536  [0x19c05382c]\n    +         759 __CFRunLoopRun  (in CoreFoundation) + 1172  [0x19bf79334]\n    +           759 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x19bf7aaec]\n    +             759 mach_msg  (in libsystem_kernel.dylib) + 24  [0x19be74fac]\n    +               759 mach_msg_overwrite  (in libsystem_kernel.dylib) + 480  [0x19be7da28]\n    +                 759 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x19be878e0]\n    +                   759 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x19be74c20]\n    759 Thread_7312604\n    + 759 start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n    +   759 _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n    +     759 __workq_kernreturn  (in libsystem_kernel.dylib) + 8  [0x19be769ec]\n    759 Thread_7312605\n    + 759 start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n    +   759 _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n    +     759 __workq_kernreturn  (in libsystem_kernel.dylib) + 8  [0x19be769ec]\n    759 Thread_7312606\n    + 759 start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n    +   759 _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n    +     759 __workq_kernreturn  (in libsystem_kernel.dylib) + 8  [0x19be769ec]\n    759 Thread_7312607\n    + 759 start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n    +   759 _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n    +     759 __workq_kernreturn  (in libsystem_kernel.dylib) + 8  [0x19be769ec]\n    759 Thread_7312612: MacView.DebugSocket\n    + 759 thread_start  (in libsystem_pthread.dylib) + 8  [0x19beb4cec]\n    +   759 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x19beb9d00]\n    +     759 __NSThread__start__  (in Foundation) + 732  [0x19d676ca8]\n    +       759 thunk for @escaping @callee_guaranteed @Sendable () -> ()  (in MacView) + 28  [0x102729c94]  /<compiler-generated>:0\n    +         759 DebugSocket.serve()  (in MacView) + 712  [0x102767c90]  DebugSocket.swift:68\n    +           759 DebugSocket.handle(_:)  (in MacView) + 308  [0x102767f70]  DebugSocket.swift:78\n    +             759 read  (in libsystem_kernel.dylib) + 8  [0x19be75910]\n    759 Thread_7312613\n    + 759 start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n    +   759 _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n    +     759 __workq_kernreturn  (in libsystem_kernel.dylib) + 8  [0x19be769ec]\n    759 Thread_7312640: MVIO helper 73514\n    + 759 thread_start  (in libsystem_pthread.dylib) + 8  [0x19beb4cec]\n    +   759 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x19beb9d00]\n    +     759 __NSThread__start__  (in Foundation) + 732  [0x19d676ca8]\n    +       759 thunk for @escaping @callee_guaranteed @Sendable () -> ()  (in MacView) + 28  [0x1028d8eb8]  /<compiler-generated>:0\n    +         759 partial apply for closure #4 in HelperConnection.init(executable:)  (in MacView) + 48  [0x1028de928]  /<compiler-generated>:0\n    +           759 static FrameIO.read(_:)  (in MacView) + 32  [0x1028ea434]  HelperProtocol.swift:258\n    +             759 specialized static FrameIO.readExactly(_:_:)  (in MacView) + 256  [0x1028ebeac]  HelperProtocol.swift:281\n    +               759 read  (in libsystem_kernel.dylib) + 8  [0x19be75910]\n    759 Thread_7312641\n      759 thread_start  (in libsystem_pthread.dylib) + 8  [0x19beb4cec]\n        759 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x19beb9d00]\n          759 __NSThread__block_start__  (in Foundation) + 76  [0x19d8341bc]\n            759 thunk for @escaping @callee_guaranteed @Sendable () -> ()  (in MacView) + 28  [0x1028d8eb8]  /<compiler-generated>:0\n              759 partial apply for closure #5 in HelperConnection.init(executable:)  (in MacView) + 40  [0x1028debac]  /<compiler-generated>:0\n                759 __wait4  (in libsystem_kernel.dylib) + 8  [0x19be7c4d0]\n\nTotal number in stack (recursive counted multiple, when >=5):\n        9       __workq_kernreturn  (in libsystem_kernel.dylib) + 0  [0x19be769e4]\n        9       _pthread_wqthread  (in libsystem_pthread.dylib) + 368  [0x19beb5fe8]\n        9       start_wqthread  (in libsystem_pthread.dylib) + 8  [0x19beb4ce0]\n\nSort by top of stack, same collapsed (when >= 5):\n        __workq_kernreturn  (in libsystem_kernel.dylib)        6831\n        mach_msg2_trap  (in libsystem_kernel.dylib)        1518\n        read  (in libsystem_kernel.dylib)        1518\n        __wait4  (in libsystem_kernel.dylib)        759\n\n",
+        "binaryImagesOmitted": true
+      },
+      {
+        "pid": 73514,
+        "startedAfterOpenSeconds": 1.570079083,
+        "finishedAfterOpenSeconds": 2.870091,
+        "returncode": 0,
+        "diagnostic": "Sampling process 73514 for 1 second with 1 millisecond of run time between samples\nSampling completed, processing symbols...\nSample analysis of process 73514 written to file /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nas-diagnosis-73505/pid-73514.sample.txt\n",
+        "rawSampleSHA256": "d5d6d827c8ef344ba4c307f5b8c28a350ff69cea60fc9e5d9f9c1c9f8616bcb0",
+        "sampleHeaderAndCallGraph": "Analysis of sampling MacView (pid 73514) every 1 millisecond\nProcess:         MacView [73514]\nPath:            /Users/USER/*/MacView.app/Contents/MacOS/MacView\nLoad Address:    0x1001ac000\nIdentifier:      io.github.ump45nose.MacView\nVersion:         0.1.0 (1)\nCode Type:       ARM64\nPlatform:        macOS\nParent Process:  MacView [73510]\nTarget Type:     live task\n\nDate/Time:       2026-11-04 19:19:20.912 +0800\nLaunch Time:     2026-11-04 19:19:19.295 +0800\nOS Version:      macOS 27.0.1 (26A434)\nReport Version:  7\nAnalysis Tool:   /usr/bin/sample\n\nPhysical footprint:         2081K\nPhysical footprint (peak):  2081K\nIdle exit:                  untracked\n----\n\nCall graph:\n    781 Thread_7312639   DispatchQueue_1: com.apple.main-thread  (serial)\n    + 781 start  (in dyld) + 6688  [0x19bae3e80]\n    +   781 main  (in MacView) + 12  [0x1001bbbd8]  AppDelegate.swift:0\n    +     781 specialized static AppDelegate.main()  (in MacView) + 24  [0x1001bed0c]  AppDelegate.swift:48\n    +       781 static IOHelper.runIfRequested()  (in MacView) + 44  [0x100394e54]  IOHelper.swift:14\n    +         781 specialized static IOHelper.run(input:output:)  (in MacView) + 516  [0x1003959c8]  IOHelper.swift:29\n    +           781 static FrameIO.read(_:)  (in MacView) + 32  [0x100392434]  HelperProtocol.swift:258\n    +             781 specialized static FrameIO.readExactly(_:_:)  (in MacView) + 256  [0x100393eac]  HelperProtocol.swift:281\n    +               781 read  (in libsystem_kernel.dylib) + 8  [0x19be75910]\n    781 Thread_7312642\n    + 781 thread_start  (in libsystem_pthread.dylib) + 8  [0x19beb4cec]\n    +   781 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x19beb9d00]\n    +     781 __NSThread__block_start__  (in Foundation) + 76  [0x19d8341bc]\n    +       781 thunk for @escaping @callee_guaranteed @Sendable () -> ()  (in MacView) + 28  [0x100380eb8]  /<compiler-generated>:0\n    +         781 partial apply for closure #2 in static IOHelper.run(input:output:)  (in MacView) + 392  [0x100395c80]  /<compiler-generated>:0\n    +           781 static FileOperations.list(_:batch:)  (in MacView) + 76  [0x1003878d4]  FileOperations.swift:69\n    +             781 _fcntl_overlay_open  (in libswiftDarwin.dylib) + 24  [0x1c91b3d50]\n    +               781 open  (in libsystem_kernel.dylib) + 64  [0x19be80960]\n    +                 781 __open  (in libsystem_kernel.dylib) + 8  [0x19be75680]\n    781 Thread_7312643\n    + 781 thread_start  (in libsystem_pthread.dylib) + 8  [0x19beb4cec]\n    +   781 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x19beb9d00]\n    +     781 __NSThread__block_start__  (in Foundation) + 76  [0x19d8341bc]\n    +       781 thunk for @escaping @callee_guaranteed @Sendable () -> ()  (in MacView) + 28  [0x100380eb8]  /<compiler-generated>:0\n    +         781 partial apply for closure #2 in static IOHelper.run(input:output:)  (in MacView) + 392  [0x100395c80]  /<compiler-generated>:0\n    +           781 static FileOperations.list(_:batch:)  (in MacView) + 76  [0x1003878d4]  FileOperations.swift:69\n    +             781 _fcntl_overlay_open  (in libswiftDarwin.dylib) + 24  [0x1c91b3d50]\n    +               781 open  (in libsystem_kernel.dylib) + 64  [0x19be80960]\n    +                 781 __open  (in libsystem_kernel.dylib) + 8  [0x19be75680]\n    781 Thread_7312644\n      781 thread_start  (in libsystem_pthread.dylib) + 8  [0x19beb4cec]\n        781 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x19beb9d00]\n          781 __NSThread__block_start__  (in Foundation) + 76  [0x19d8341bc]\n            781 thunk for @escaping @callee_guaranteed @Sendable () -> ()  (in MacView) + 28  [0x100380eb8]  /<compiler-generated>:0\n              781 partial apply for closure #2 in static IOHelper.run(input:output:)  (in MacView) + 392  [0x100395c80]  /<compiler-generated>:0\n                781 static FileOperations.list(_:batch:)  (in MacView) + 76  [0x1003878d4]  FileOperations.swift:69\n                  781 _fcntl_overlay_open  (in libswiftDarwin.dylib) + 24  [0x1c91b3d50]\n                    781 open  (in libsystem_kernel.dylib) + 64  [0x19be80960]\n                      781 __open  (in libsystem_kernel.dylib) + 8  [0x19be75680]\n\nTotal number in stack (recursive counted multiple, when >=5):\n\nSort by top of stack, same collapsed (when >= 5):\n        __open  (in libsystem_kernel.dylib)        2343\n        read  (in libsystem_kernel.dylib)        781\n\n",
+        "binaryImagesOmitted": true
+      }
+    ],
+    "album": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+    "appPID": 73510,
+    "privateRoot": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nas-diagnosis-73505",
+    "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-73505-0.sock",
+    "processesBeforeDeadline": [
+      "73510     1 S    /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView -MVDebugSocket /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-73505-0.sock -MVSupportDirectory /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nas-diagnosis-73505/support -MVCacheDirectory /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nas-diagnosis-73505/cache -MVLayoutFile /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nas-diagnosis-73505/layout.json",
+      "73514 73510 S    /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView"
+    ],
+    "helperPIDs": [
+      73514
+    ],
+    "stateWhileOpen": {
+      "cacheBudgets": {
+        "browseDiskBytes": 53687091200,
+        "decodedBytes": 1073741824,
+        "preloadBytes": 536870912,
+        "rawBytes": 536870912,
+        "thumbnailDiskBytes": 10737418240,
+        "thumbnailMemoryBytes": 536870912
+      },
+      "fileErrors": [],
+      "memory": {
+        "decodedBytes": 0,
+        "inFlightBytes": 0,
+        "preloadBytes": 0,
+        "rawBytes": 0,
+        "thumbnailMemoryBytes": 0,
+        "waitingTasks": 0
+      },
+      "residentBytes": 126746624,
+      "volumes": [
+        {
+          "inFlight": 0,
+          "root": "fs/1000/nfs",
+          "state": "healthy",
+          "stuck": 0
+        }
+      ],
+      "windows": [
+        {
+          "book": "fs/1000/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+          "browseMode": "paged",
+          "docksVisible": true,
+          "firstScreenThumbnailMilliseconds": null,
+          "frame": 0,
+          "frameCount": 0,
+          "hudVisible": false,
+          "itemCount": 0,
+          "lastDisplay": null,
+          "loadError": null,
+          "page": 0,
+          "pageSlots": [],
+          "panels": {
+            "bookshelf": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            },
+            "pageList": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            }
+          },
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "responsiveScrolling": false,
+          "scaleMode": "fitWindow",
+          "tiles": {
+            "cancelled": 0,
+            "inFlight": 0,
+            "requested": 0
+          },
+          "viewport": {
+            "height": 767,
+            "width": 698
+          },
+          "visibleRange": [],
+          "windowFront": true,
+          "zoom": 1
+        }
+      ]
+    },
+    "stateRoundTripMilliseconds": 0.8094999999999075,
+    "openResponse": {
+      "error": "open: Interrupted system call",
+      "id": 2,
+      "ok": false
+    },
+    "openElapsedSeconds": 6.115003124999999,
+    "stateAfterOpen": {
+      "cacheBudgets": {
+        "browseDiskBytes": 53687091200,
+        "decodedBytes": 1073741824,
+        "preloadBytes": 536870912,
+        "rawBytes": 536870912,
+        "thumbnailDiskBytes": 10737418240,
+        "thumbnailMemoryBytes": 536870912
+      },
+      "fileErrors": [],
+      "memory": {
+        "decodedBytes": 0,
+        "inFlightBytes": 0,
+        "preloadBytes": 0,
+        "rawBytes": 0,
+        "thumbnailMemoryBytes": 0,
+        "waitingTasks": 0
+      },
+      "residentBytes": 127172608,
+      "volumes": [
+        {
+          "inFlight": 0,
+          "root": "fs/1000/nfs",
+          "state": "healthy",
+          "stuck": 0
+        }
+      ],
+      "windows": [
+        {
+          "book": "fs/1000/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+          "browseMode": "paged",
+          "docksVisible": true,
+          "firstScreenThumbnailMilliseconds": null,
+          "frame": 0,
+          "frameCount": 0,
+          "hudVisible": false,
+          "itemCount": 0,
+          "lastDisplay": null,
+          "loadError": "open: Interrupted system call",
+          "page": 0,
+          "pageSlots": [],
+          "panels": {
+            "bookshelf": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            },
+            "pageList": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            }
+          },
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "responsiveScrolling": false,
+          "scaleMode": "fitWindow",
+          "tiles": {
+            "cancelled": 0,
+            "inFlight": 0,
+            "requested": 0
+          },
+          "viewport": {
+            "height": 767,
+            "width": 698
+          },
+          "visibleRange": [],
+          "windowFront": true,
+          "zoom": 1
+        }
+      ]
+    },
+    "quitSeconds": 0.08343345800000002,
+    "quitExitedNormally": true,
+    "appLog": "2026-11-04 19:19:19.101 MacView[73510:7312515] WARNING <NSToolbarItem: 0x76dc55a200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 19:19:19.152 MacView[73510:7312515] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n",
+    "processesAfterQuit": [],
+    "unifiedLogCommand": [
+      "/usr/bin/log",
+      "show",
+      "--start",
+      "2026-11-04 19:19:18",
+      "--end",
+      "2026-11-04 19:19:27",
+      "--style",
+      "compact",
+      "--info",
+      "--debug",
+      "--predicate",
+      "(process == \"tccd\" AND (eventMessage CONTAINS \"28600.182\" OR eventMessage CONTAINS \"SystemPolicyNetworkVolumes\" OR eventMessage CONTAINS[c] \"prompt\")) OR (process == \"sandboxd\" AND eventMessage CONTAINS \"73514\")"
+    ],
+    "unifiedLogResult": {
+      "returncode": 0,
+      "stdout": "2026-11-04 19:19:19.320 Df tccd[170:6f949a] [com.apple.TCC:access] REQUEST: tccd_uid=0, sender_pid=28600, sender_uid=0, sender_auid=-1, function=TCCAccessRequest, msgID=28600.1821\n2026-11-04 19:19:19.321 I  tccd[170:6f949a] [com.apple.TCC:access] REQUEST_MSG: msgID=28600.1821, msg={\n\tservice=\"kTCCServiceSystemPolicyAllFiles\"\n\tTCCD_MSG_SPI_VERSION=2 (0x2)\n\tfunction=\"TCCAccessRequest\"\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_RECORD_UPGRADE_POLICY_POLICY_KEY=1 (0x1)\n\tTCCD_MSG_REQUEST_TYPE_KEY=0 (0x0)\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_PROMPT_RIGHTS_MASK_KEY=5 (0x5)\n\tTCC_MSG_REQUEST_AUTHORIZATION_SUBJECT_CREDENTIAL_DICTIONARY_KEY={\n\t\tTCCD_MSG_CREDENTIAL_AUTHENTICATOR_TYPE_KEY=1 (0x1)\n\t\tTCCD_MSG_CREDENTIAL_AUTHENTICATOR_AUDIT_TOKEN_KEY={pid:73514, auid:501, euid:501}\n\t}\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_USAGE_STRING_POLICY_KEY=2 (0x2)\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_PROMPT_POLICY_KEY=2 (0x2)\n\tTCCD_MSG_ID=\"28600.1821\"\n}\n2026-11-04 19:19:19.323 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_CTX: msgID=28600.1821, function=TCCAccessRequest, service=kTCCServiceSystemPolicyAllFiles, preflight=yes, query=1, client_dict=(null), daemon_dict=<private>\n2026-11-04 19:19:19.323 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_ATTRIBUTION: msgID=28600.1821, attribution={responsible={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=73510, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, accessing={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=73514, auid=501, euid=501, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, requesting={TCCDProcess: identifier=com.apple.sandboxd, pid=28600, auid=0, euid=0, binary_path=/usr/libexec/sandboxd}, },\n2026-11-04 19:19:19.337 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_SUBJECT: msgID=28600.1821, subject=io.github.ump45nose.MacView,\n2026-11-04 19:19:19.338 I  tccd[170:6f949a] [com.apple.TCC:access] -[TCCDPlatformMacOS promptingPolicyForIdentity:accessingService:withAttributionChain:]: promptPolicy = 0; isApplePlatformBinary = 0\n2026-11-04 19:19:19.338 I  tccd[170:6f949a] [com.apple.TCC:access] Handling access request to kTCCServiceSystemPolicyAllFiles, from Sub:{io.github.ump45nose.MacView}Resp:{TCCDProcess: identifier=io.github.ump45nose.MacView, pid=73510, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, ReqResult(Auth Right: Denied (Service Policy), promptType: 1,DB Action:None, UpdateVerifierData)\n2026-11-04 19:19:19.338 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_RESULT: msgID=28600.1821, authValue=0, authReason=5, authVersion=1, desired_auth=0, error=(null),\n2026-11-04 19:19:19.338 I  tccd[170:6f949a] [com.apple.TCC:access] REPLY_MSG: msg={\n\tprompt_type=1 (0x1)\n\tauth_value=0 (0x0)\n\tresult=false\n\tauth_version=1 (0x1)\n\tauth_reason=5 (0x5)\n}\n2026-11-04 19:19:19.338 Df tccd[170:6f949a] [com.apple.TCC:access] REPLY: (0) function=TCCAccessRequest, msgID=28600.1821\n2026-11-04 19:19:19.338 Df tccd[170:6f949a] [com.apple.TCC:access] REQUEST: tccd_uid=0, sender_pid=28600, sender_uid=0, sender_auid=-1, function=TCCAccessRequest, msgID=28600.1822\n2026-11-04 19:19:19.338 I  tccd[170:6f949a] [com.apple.TCC:access] REQUEST_MSG: msgID=28600.1822, msg={\n\tservice=\"kTCCServiceSystemPolicyAllFiles\"\n\tTCCD_MSG_SPI_VERSION=2 (0x2)\n\tfunction=\"TCCAccessRequest\"\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_RECORD_UPGRADE_POLICY_POLICY_KEY=1 (0x1)\n\tTCCD_MSG_REQUEST_TYPE_KEY=0 (0x0)\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_PROMPT_RIGHTS_MASK_KEY=5 (0x5)\n\tTCC_MSG_REQUEST_AUTHORIZATION_SUBJECT_CREDENTIAL_DICTIONARY_KEY={\n\t\tTCCD_MSG_CREDENTIAL_AUTHENTICATOR_TYPE_KEY=1 (0x1)\n\t\tTCCD_MSG_CREDENTIAL_AUTHENTICATOR_AUDIT_TOKEN_KEY={pid:73514, auid:501, euid:501}\n\t}\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_USAGE_STRING_POLICY_KEY=2 (0x2)\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_PROMPT_POLICY_KEY=2 (0x2)\n\tTCCD_MSG_ID=\"28600.1822\"\n}\n2026-11-04 19:19:19.339 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_CTX: msgID=28600.1822, function=TCCAccessRequest, service=kTCCServiceSystemPolicyAllFiles, preflight=yes, query=1, client_dict=(null), daemon_dict=<private>\n2026-11-04 19:19:19.339 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_ATTRIBUTION: msgID=28600.1822, attribution={responsible={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=73510, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, accessing={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=73514, auid=501, euid=501, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, requesting={TCCDProcess: identifier=com.apple.sandboxd, pid=28600, auid=0, euid=0, binary_path=/usr/libexec/sandboxd}, },\n2026-11-04 19:19:19.340 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_SUBJECT: msgID=28600.1822, subject=io.github.ump45nose.MacView,\n2026-11-04 19:19:19.340 I  tccd[170:6f949a] [com.apple.TCC:access] -[TCCDPlatformMacOS promptingPolicyForIdentity:accessingService:withAttributionChain:]: promptPolicy = 0; isApplePlatformBinary = 0\n2026-11-04 19:19:19.340 I  tccd[170:6f949a] [com.apple.TCC:access] Handling access request to kTCCServiceSystemPolicyAllFiles, from Sub:{io.github.ump45nose.MacView}Resp:{TCCDProcess: identifier=io.github.ump45nose.MacView, pid=73510, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, ReqResult(Auth Right: Denied (Service Policy), promptType: 1,DB Action:None, UpdateVerifierData)\n2026-11-04 19:19:19.340 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_RESULT: msgID=28600.1822, authValue=0, authReason=5, authVersion=1, desired_auth=0, error=(null),\n2026-11-04 19:19:19.340 I  tccd[170:6f949a] [com.apple.TCC:access] REPLY_MSG: msg={\n\tprompt_type=1 (0x1)\n\tauth_value=0 (0x0)\n\tresult=false\n\tauth_version=1 (0x1)\n\tauth_reason=5 (0x5)\n}\n2026-11-04 19:19:19.340 Df tccd[170:6f949a] [com.apple.TCC:access] REPLY: (0) function=TCCAccessRequest, msgID=28600.1822\n2026-11-04 19:19:19.341 Df tccd[170:6f949a] [com.apple.TCC:access] REQUEST: tccd_uid=0, sender_pid=28600, sender_uid=0, sender_auid=-1, function=TCCAccessRequest, msgID=28600.1823\n2026-11-04 19:19:19.341 I  tccd[170:6f949a] [com.apple.TCC:access] REQUEST_MSG: msgID=28600.1823, msg={\n\tservice=\"kTCCServiceSystemPolicyAllFiles\"\n\tTCCD_MSG_SPI_VERSION=2 (0x2)\n\tfunction=\"TCCAccessRequest\"\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_RECORD_UPGRADE_POLICY_POLICY_KEY=1 (0x1)\n\tTCCD_MSG_REQUEST_TYPE_KEY=0 (0x0)\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_PROMPT_RIGHTS_MASK_KEY=5 (0x5)\n\tTCC_MSG_REQUEST_AUTHORIZATION_SUBJECT_CREDENTIAL_DICTIONARY_KEY={\n\t\tTCCD_MSG_CREDENTIAL_AUTHENTICATOR_TYPE_KEY=1 (0x1)\n\t\tTCCD_MSG_CREDENTIAL_AUTHENTICATOR_AUDIT_TOKEN_KEY={pid:73514, auid:501, euid:501}\n\t}\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_USAGE_STRING_POLICY_KEY=2 (0x2)\n\tTCCD_MSG_MESSAGE_OPTION_REQUEST_PROMPT_POLICY_KEY=2 (0x2)\n\tTCCD_MSG_ID=\"28600.1823\"\n}\n2026-11-04 19:19:19.341 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_CTX: msgID=28600.1823, function=TCCAccessRequest, service=kTCCServiceSystemPolicyAllFiles, preflight=yes, query=1, client_dict=(null), daemon_dict=<private>\n2026-11-04 19:19:19.341 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_ATTRIBUTION: msgID=28600.1823, attribution={responsible={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=73510, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, accessing={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=73514, auid=501, euid=501, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, requesting={TCCDProcess: identifier=com.apple.sandboxd, pid=28600, auid=0, euid=0, binary_path=/usr/libexec/sandboxd}, },\n2026-11-04 19:19:19.342 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_SUBJECT: msgID=28600.1823, subject=io.github.ump45nose.MacView,\n2026-11-04 19:19:19.342 I  tccd[170:6f949a] [com.apple.TCC:access] -[TCCDPlatformMacOS promptingPolicyForIdentity:accessingService:withAttributionChain:]: promptPolicy = 0; isApplePlatformBinary = 0\n2026-11-04 19:19:19.343 I  tccd[170:6f949a] [com.apple.TCC:access] Handling access request to kTCCServiceSystemPolicyAllFiles, from Sub:{io.github.ump45nose.MacView}Resp:{TCCDProcess: identifier=io.github.ump45nose.MacView, pid=73510, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, ReqResult(Auth Right: Denied (Service Policy), promptType: 1,DB Action:None, UpdateVerifierData)\n2026-11-04 19:19:19.343 Df tccd[170:6f949a] [com.apple.TCC:access] AUTHREQ_RESULT: msgID=28600.1823, authValue=0, authReason=5, authVersion=1, desired_auth=0, error=(null),\n2026-11-04 19:19:19.343 I  tccd[170:6f949a] [com.apple.TCC:access] REPLY_MSG: msg={\n\tprompt_type=1 (0x1)\n\tauth_value=0 (0x0)\n\tresult=false\n\tauth_version=1 (0x1)\n\tauth_reason=5 (0x5)\n}\n2026-11-04 19:19:19.343 Df tccd[170:6f949a] [com.apple.TCC:access] REPLY: (0) function=TCCAccessRequest, msgID=28600.1823\n",
+      "stderr": ""
+    },
+    "readOnlyEnvironmentChecks": [
+      {
+        "command": [
+          "/usr/bin/codesign",
+          "-dvv",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app"
+        ],
+        "returncode": 0,
+        "stdout": "",
+        "stderr": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+      },
+      {
+        "command": [
+          "/usr/bin/codesign",
+          "-d",
+          "--entitlements",
+          ":-",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app"
+        ],
+        "returncode": 0,
+        "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"https://www.apple.com/DTDs/PropertyList-1.0.dtd\"><plist version=\"1.0\"><dict><key>com.apple.security.get-task-allow</key><true/></dict></plist>\n",
+        "stderr": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nwarning: Specifying ':' in the path is deprecated and will not work in a future release\n"
+      },
+      {
+        "command": [
+          "/sbin/mount",
+          "-t",
+          "nfs"
+        ],
+        "returncode": 0,
+        "stdout": "192.168.31.201:/fs/1000/nfs on /Users/yuwk/MacViewBench/nfs (nfs, nodev, nosuid, read-only)\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/usr/bin/nfsstat",
+          "-m"
+        ],
+        "returncode": 0,
+        "stdout": "/Users/yuwk/MacViewBench/nfs from 192.168.31.201:/fs/1000/nfs\n  -- Original mount options:\n     General mount flags: 0x1 ro\n     NFS parameters: vers=3,tcp,port=2049\n     File system locations:\n       /fs/1000/nfs @ 192.168.31.201 (192.168.31.201)\n  -- Current mount parameters:\n     General mount flags: 0x4000019 ro,nodev,nosuid,multilabel\n     NFS parameters: vers=3,tcp,port=2049,nomntudp,hard,nointr,noresvport,negnamecache,callumnt,locks,quota,rsize=32768,wsize=32768,readahead=16,dsize=32768,rdirplus,nodumbtimer,timeo=10,maxgroups=16,acregmin=5,acregmax=60,acdirmin=5,acdirmax=60,acrootdirmin=5,acrootdirmax=60,nomutejukebox,nonfc,sec=sys,accesscache=3\n     File system locations:\n       /fs/1000/nfs @ 192.168.31.201 (192.168.31.201)\n     Status flags: 0x0\n\n",
+        "stderr": ""
+      }
+    ],
+    "appPrivacyInfo": {}
+  },
+  "cleanup": {
+    "removedPrivateRoot": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nas-diagnosis-73505",
+    "removedDebugSocket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-73505-0.sock",
+    "processesAfterQuit": [],
+    "mainNFSMount": "保留交由主控统一卸载",
+    "userAppPID72765": "未操作",
+    "existingSMBMounts": "未操作"
+  },
+  "sourceReferences": [
+    "App/AppDelegate.swift:46-53",
+    "App/AppDelegate.swift:166-181",
+    "App/Debug/DebugSocket.swift:260-270",
+    "Packages/MacViewKit/Sources/MVIO/FileBackend.swift:160-200",
+    "Packages/MacViewKit/Sources/MVIO/IOHelper.swift:12-15",
+    "Packages/MacViewKit/Sources/MVIO/FileOperations.swift:68-70",
+    "Packages/MacViewKit/Sources/mvbench/MVBench.swift:7-10",
+    "Packages/MacViewKit/Sources/mvbench/IO/SchedulerBackend.swift:49-55",
+    "Packages/MacViewKit/Sources/mvbench/Pipeline/PipelineCommand.swift:86-91",
+    "scripts/acceptance/run.py:1240-1255",
+    "scripts/acceptance/run.py:1415-1420",
+    "project.yml:54"
+  ],
+  "verdict": "diagnosed-blocking-boundary-root-cause-unverified"
+}

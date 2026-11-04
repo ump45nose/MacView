@@ -1,0 +1,168 @@
+{
+  "scene": "scroll-cached",
+  "commit": "e6aead77ab4e05cb474fcfc50c3a85203b3c942e",
+  "env": {
+    "load": {
+      "oneMinute": 9.23828125,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 20.8037109375
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 1450.110305875,
+      "inputDuringRun": true,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T10:14:18Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 257.549327417,
+      "inputDuringRun": true,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "frameTimeP99Milliseconds": 8.33,
+    "refreshHz": 120,
+    "submitPlusRenderP99Milliseconds": 8.33
+  },
+  "measured": {
+    "error": "Command '['/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/record-trackpad.sh', 'scroll-cached', '/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cached-record', '--automatic']' returned non-zero exit status 1.",
+    "unavailable": true,
+    "captureEvidence": {
+      "during": {
+        "load": {
+          "oneMinute": 15.099609375,
+          "limit": 10,
+          "limitSource": "sysctl -n hw.physicalcpu"
+        },
+        "displayMode": {
+          "width": 1728,
+          "height": 1080,
+          "pixelWidth": 3456,
+          "pixelHeight": 2160,
+          "refreshHz": 59.93998718261719,
+          "builtin": true,
+          "externalDisplay": false
+        },
+        "refreshHz": 59.93998718261719,
+        "screen": {
+          "locked": false,
+          "idleSeconds": 10.400657209,
+          "inputDuringRun": true,
+          "externalDisplay": false
+        },
+        "before": {
+          "load": {
+            "oneMinute": 15.66455078125,
+            "limit": 10,
+            "limitSource": "sysctl -n hw.physicalcpu"
+          },
+          "displayMode": {
+            "width": 1728,
+            "height": 1080,
+            "pixelWidth": 3456,
+            "pixelHeight": 2160,
+            "refreshHz": 59.93998718261719,
+            "builtin": true,
+            "externalDisplay": false
+          },
+          "refreshHz": 59.93998718261719,
+          "screen": {
+            "locked": false,
+            "idleSeconds": 1457.40954175,
+            "inputDuringRun": false,
+            "externalDisplay": false
+          }
+        },
+        "windowFrontBefore": true,
+        "windowFront": false,
+        "residentPeakBytes": 2801221632,
+        "residentSamplingError": null,
+        "residentSampleCount": 60,
+        "residentSamplingComplete": true,
+        "scrollMovements": 242,
+        "scrollEvents": 6148,
+        "driver": "synthetic",
+        "responsiveScrolling": false
+      },
+      "phase": {
+        "phases": [
+          {
+            "name": "scroll-cached",
+            "start": 166450.37027283333,
+            "end": 166511.15482429165
+          }
+        ]
+      },
+      "windowBefore": {
+        "windowFront": true
+      },
+      "rawAppLog": "2026-11-04 18:14:19.276 MacView[52525:7124615] WARNING <NSToolbarItem: 0x7be45b6200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 18:14:19.330 MacView[52525:7124615] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n",
+      "rawXctraceLog": "Starting recording with the Animation Hitches template and os_signpost Instrument. Attaching to: MacView (52525). \nCtrl-C to stop the recording\nStopping recording...\nRecording completed. Saving output file...\nCannot save trace document to: file:///Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cached-record/record.trace\n",
+      "rawConsole": "first-image: unverified -> docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: pass -> docs/reports/bench/S2-T2-preloaded-flip.json\nTraceback (most recent call last):\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/canvas-hitches.py\", line 148, in <module>\n    main()\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/canvas-hitches.py\", line 65, in main\n    time_info = export(trace, 'time-info')[0]\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/canvas-hitches.py\", line 28, in export\n    data = subprocess.run(['xcrun', 'xctrace', 'export', '--input', trace, '--xpath', xpath], check=True, capture_output=True).stdout\n  File \"/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py\", line 528, in run\n    raise CalledProcessError(retcode, process.args,\nsubprocess.CalledProcessError: Command '['xcrun', 'xctrace', 'export', '--input', '/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cached-record/record.trace', '--xpath', '/trace-toc/run[@number=\"1\"]/data/table[@schema=\"time-info\"]']' returned non-zero exit status 40.\nscroll-cached: environment -> docs/reports/bench/S2-T2-scroll-cached.json\nTraceback (most recent call last):\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 1894, in <module>\n    raise SystemExit(main(sys.argv[1:]))\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 1888, in main\n    run_scene(scene, args.out, commit, base)\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 1807, in run_scene\n    current, ready = wait_ready(scene)\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 525, in wait_ready\n    time.sleep(2)\nKeyboardInterrupt\n",
+      "traceSaved": false,
+      "frameStatisticsUnavailable": true,
+      "reason": "xctrace Cannot save trace document，随后的time-info导出exit40；磁盘只剩792MiB。实跑60秒的RSS/事件/移动已记录在during；无帧统计，不将空数据算pass。"
+    }
+  },
+  "verdict": "environment"
+}

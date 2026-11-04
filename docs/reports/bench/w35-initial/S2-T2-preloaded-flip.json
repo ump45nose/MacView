@@ -1,0 +1,194 @@
+{
+  "scene": "preloaded-flip",
+  "commit": "e6aead77ab4e05cb474fcfc50c3a85203b3c942e",
+  "env": {
+    "load": {
+      "oneMinute": 8.60107421875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 9.23828125
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 1440.499409833,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T10:14:09Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 1449.996910375,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "lastDisplayP95Milliseconds": 8.33,
+    "flips": 100
+  },
+  "measured": {
+    "flips": 100,
+    "p95": 8.055459,
+    "milliseconds": [
+      1.715084,
+      1.786958,
+      1.703542,
+      1.774375,
+      1.709583,
+      1.780791,
+      1.691209,
+      1.731,
+      1.718667,
+      1.848958,
+      1.692541,
+      1.676458,
+      1.922709,
+      2.461917,
+      2.819209,
+      3.235292,
+      2.455584,
+      9.045375,
+      2.696084,
+      2.572666,
+      3.425417,
+      3.64325,
+      2.32825,
+      8.309125,
+      2.741375,
+      2.26475,
+      2.295333,
+      2.466042,
+      2.289416,
+      2.537875,
+      2.527667,
+      2.85125,
+      3.088834,
+      2.56425,
+      8.304166,
+      2.416125,
+      7.395167,
+      2.302375,
+      2.643209,
+      8.967291,
+      2.755292,
+      2.776542,
+      2.512833,
+      2.80425,
+      3.21675,
+      2.418667,
+      2.417625,
+      2.621333,
+      2.541792,
+      2.667042,
+      2.388459,
+      2.548042,
+      2.364334,
+      2.593333,
+      2.704875,
+      2.2135,
+      2.499708,
+      2.892542,
+      2.2905,
+      2.333,
+      2.578708,
+      8.055459,
+      2.976625,
+      2.590292,
+      2.627208,
+      2.298583,
+      2.560208,
+      7.961375,
+      2.43,
+      2.552042,
+      2.862667,
+      2.351417,
+      2.315,
+      2.49375,
+      2.322708,
+      7.781041,
+      2.441292,
+      2.311292,
+      8.155209,
+      2.68725,
+      2.328375,
+      2.416625,
+      2.65175,
+      1.620708,
+      1.411125,
+      1.447,
+      1.301792,
+      1.312333,
+      1.418792,
+      1.272875,
+      0.955042,
+      1.34325,
+      1.416125,
+      1.5115,
+      1.438625,
+      1.349708,
+      1.712208,
+      2.281166,
+      2.287375,
+      2.204
+    ],
+    "refreshHz": 59.93998718261719
+  },
+  "verdict": "pass"
+}

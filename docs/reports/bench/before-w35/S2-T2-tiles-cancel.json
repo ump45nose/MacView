@@ -1,0 +1,90 @@
+{
+  "scene": "tiles-cancel",
+  "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "env": {
+    "load": {
+      "oneMinute": 24.38525390625,
+      "limit": 6.0,
+      "during": 26.27587890625
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 174.822516042,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T07:57:56Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 176.929973125,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "cancelledGreaterThan": 0
+  },
+  "measured": {
+    "requested": 4,
+    "cancelled": 4,
+    "scrolls": 1,
+    "inFlight": 0,
+    "tiles": {
+      "cancelled": 4,
+      "inFlight": 0,
+      "requested": 4
+    },
+    "refreshHz": 59.93998718261719
+  },
+  "verdict": "pass"
+}

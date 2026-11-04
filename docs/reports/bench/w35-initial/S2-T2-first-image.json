@@ -1,0 +1,107 @@
+{
+  "scene": "first-image",
+  "commit": "e6aead77ab4e05cb474fcfc50c3a85203b3c942e",
+  "env": {
+    "load": {
+      "oneMinute": 6.88818359375,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 8.60107421875
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 1419.302431917,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T10:13:47Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 864,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 1440.4368275,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "lastDisplayP95Milliseconds": 150,
+    "samples": 30
+  },
+  "measured": {
+    "error": "第 0 页没有 exact 显示",
+    "unavailable": true,
+    "diagnostic": {
+      "appPID": 52333,
+      "rawAppLog": "2026-11-04 18:13:48.253 MacView[52333:7122360] WARNING <NSToolbarItem: 0x78e5e4e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 18:13:48.309 MacView[52333:7122360] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n",
+      "commandSequence": [
+        "App.start: isolated support/cache/layout, all prefetch disabled, empty cache",
+        "state during startup",
+        "state then perform panel.docks.toggle if docksVisible",
+        "open(path=Fixtures/local/sample-set,page=0), timeout=120",
+        "read opened.frameCount",
+        "poll state.lastDisplay every 10ms for page=0 and quality=exact, timeout=20s",
+        "raise TimeoutError: 第 0 页没有 exact 显示",
+        "finally App.stop: quit and exact PID cleanup"
+      ],
+      "lastStateUnavailable": true,
+      "limitation": "wait_exact超时时未保存state；现有日志没有current page/browseMode/loadError/lastDisplay/viewport/prefetch/memory快照，不能从无exact记录推断产品加载失败；未额外复跑或采样"
+    }
+  },
+  "verdict": "unverified"
+}

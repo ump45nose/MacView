@@ -1,10 +1,11 @@
 {
   "scene": "nas-throughput",
-  "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
   "env": {
     "load": {
-      "oneMinute": 5.5234375,
-      "limit": 6.0
+      "oneMinute": 4.107421875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
     },
     "displayMode": {
       "width": 1728,
@@ -17,12 +18,12 @@
     },
     "refreshHz": 59.93998718261719,
     "screen": {
-      "locked": true,
-      "idleSeconds": 1350.473709209,
+      "locked": false,
+      "idleSeconds": 77.840870375,
       "inputDuringRun": false,
       "externalDisplay": false
     },
-    "collectedAt": "2026-11-04T07:56:27Z",
+    "collectedAt": "2026-11-04T11:13:11Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -32,7 +33,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 720,
+        "linkSpeedMbps": 816,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -54,10 +55,10 @@
     },
     "volumes": [
       {
-        "fileSystem": "nfs",
-        "mountPoint": "/Users/yuwk/MacViewBench/nfs",
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
         "path": "/Users/yuwk/MacViewBench/nfs",
-        "source": "192.168.31.201:/fs/1000/nfs"
+        "source": "/dev/disk3s5"
       }
     ]
   },
@@ -71,29 +72,140 @@
       "reason": "Picture 共享的 .gz 是改了扩展名的 RAR 或 7z，需求不做这些格式，不往 NAS 写样本"
     },
     "album": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
-    "thumbnailToRawRatio": 0.9970242734346596,
+    "thumbnailToRawRatio": 0.9678461379912594,
     "samples": 3,
     "throughput": [
       {
         "pass": 1,
-        "rawMegabytesPerSecond": 69.2503369117532,
-        "thumbnailMegabytesPerSecond": 72.81783303121513,
-        "thumbnailsPerSecond": 21.922690560665384
+        "rawMegabytesPerSecond": 66.24745074578908,
+        "thumbnailMegabytesPerSecond": 74.01368296290454,
+        "thumbnailsPerSecond": 22.282715666029084
       },
       {
         "pass": 2,
-        "rawMegabytesPerSecond": 76.16932836682798,
-        "thumbnailMegabytesPerSecond": 69.82649497836526,
-        "thumbnailsPerSecond": 21.022112010533863
+        "rawMegabytesPerSecond": 75.83187311763494,
+        "thumbnailMegabytesPerSecond": 68.20365207701394,
+        "thumbnailsPerSecond": 20.533535500166593
       },
       {
         "pass": 3,
-        "rawMegabytesPerSecond": 73.03516571403442,
-        "thumbnailMegabytesPerSecond": 73.56873732313645,
-        "thumbnailsPerSecond": 22.148759392257908
+        "rawMegabytesPerSecond": 73.47641504459928,
+        "thumbnailMegabytesPerSecond": 71.11386453435829,
+        "thumbnailsPerSecond": 21.409690207225843
       }
     ],
-    "refreshHz": 59.93998718261719
+    "refreshHz": 59.93998718261719,
+    "artifactEvidence": {
+      "runnerPID": 69455,
+      "runnerExitCode": 0,
+      "rawRunnerLog": "first-image: fail -> docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: pass -> docs/reports/bench/S2-T2-preloaded-flip.json\nnas-throughput: pass -> docs/reports/bench/S2-T2-nas-throughput.json\ncached-first-screen: unverified -> docs/reports/bench/S2-T2-cached-first-screen.json\nlarge-dir: fail -> docs/reports/bench/S2-T2-large-dir.json\nnas-fault: unverified -> docs/reports/bench/S2-T2-nas-fault.json\ntiles-cancel: pass -> docs/reports/bench/S2-T2-tiles-cancel.json\npanel-restart: pass -> docs/reports/bench/S2-T2-panel-restart.json\n",
+      "rawAppLogs": {},
+      "pipelineReport": {
+        "cacheCondition": "首图每次不同 ContentIdentity，L0/L1/L2/L3 为空；计时从 image 调用到 exact 交付，含 I/O、解码、缩放。首屏为 10000 条 L2 中均匀选 60 条，L1 每轮为空，计时含 SQLite、文件读取、JPEG 解码、缩放与全部流交付；操作系统页缓存未清空。",
+        "cachedEntries": 10000,
+        "environment": {
+          "collectedAt": "2026-11-04T11:13:37Z",
+          "machine": {
+            "chip": "Apple M1 Pro",
+            "efficiencyCores": 2,
+            "memoryBytes": 34359738368,
+            "model": "MacBookPro18,1",
+            "performanceCores": 8
+          },
+          "network": [
+            {
+              "linkSpeedMbps": 864,
+              "name": "en0",
+              "type": "IEEE80211",
+              "wifiPHYMode": "802.11ax"
+            },
+            {
+              "name": "utun1234"
+            },
+            {
+              "name": "utun4"
+            }
+          ],
+          "system": {
+            "build": "26A434",
+            "version": "27.0.1"
+          },
+          "volumes": [
+            {
+              "fileSystem": "nfs",
+              "mountPoint": "/Users/yuwk/MacViewBench/nfs",
+              "path": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+              "source": "192.168.31.201:/fs/1000/nfs"
+            }
+          ]
+        },
+        "finishedAt": "2026-11-04T11:13:38Z",
+        "firstImageFiles": 1,
+        "firstImageMilliseconds": {
+          "count": 1,
+          "max": 333.42025,
+          "mean": 333.42025,
+          "min": 333.42025,
+          "p50": 333.42025,
+          "p95": 333.42025,
+          "p99": 333.42025
+        },
+        "firstImagePassed": false,
+        "firstImagePixelSize": {
+          "height": 2560,
+          "width": 1707
+        },
+        "firstImageSourceBytes": {
+          "count": 1,
+          "max": 3445733,
+          "mean": 3445733,
+          "min": 3445733,
+          "p50": 3445733,
+          "p95": 3445733,
+          "p99": 3445733
+        },
+        "firstImageSourcePixelSizes": [
+          {
+            "height": 3600,
+            "width": 2400
+          }
+        ],
+        "firstScreenFiles": 60,
+        "firstScreenMilliseconds": {
+          "count": 10,
+          "max": 23.048458,
+          "mean": 21.513762300000003,
+          "min": 20.629208,
+          "p50": 21.4026245,
+          "p95": 22.5465955,
+          "p99": 22.9480855
+        },
+        "firstScreenOutputLongSide": 256,
+        "firstScreenPassed": true,
+        "nasValidation": "NFS 只读，4 并发、4 MB 块，3 轮交替测量的中位数比值。",
+        "throughput": [
+          {
+            "pass": 1,
+            "rawMegabytesPerSecond": 66.24745074578908,
+            "thumbnailMegabytesPerSecond": 74.01368296290454,
+            "thumbnailsPerSecond": 22.282715666029084
+          },
+          {
+            "pass": 2,
+            "rawMegabytesPerSecond": 75.83187311763494,
+            "thumbnailMegabytesPerSecond": 68.20365207701394,
+            "thumbnailsPerSecond": 20.533535500166593
+          },
+          {
+            "pass": 3,
+            "rawMegabytesPerSecond": 73.47641504459928,
+            "thumbnailMegabytesPerSecond": 71.11386453435829,
+            "thumbnailsPerSecond": 21.409690207225843
+          }
+        ],
+        "thumbnailToRawRatio": 0.9678461379912594
+      }
+    }
   },
   "verdict": "pass"
 }
