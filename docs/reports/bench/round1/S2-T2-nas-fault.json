@@ -1,0 +1,112 @@
+{
+  "scene": "nas-fault",
+  "commit": "01318f1898855f44c69f815904257b0b5399e101",
+  "env": {
+    "load": {
+      "oneMinute": 5.15380859375,
+      "limit": 6.0,
+      "during": 5.26708984375
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 712.809662834,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T05:08:57Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "nfs",
+        "mountPoint": "/Users/yuwk/MacViewBench/nfs",
+        "path": "/Users/yuwk/MacViewBench/nfs",
+        "source": "192.168.31.201:/fs/1000/nfs"
+      }
+    ]
+  },
+  "budget": {
+    "maxRoundTripMilliseconds": 250,
+    "errorWithinSeconds": 10,
+    "quitSeconds": 3
+  },
+  "measured": {
+    "protocol": "nfs",
+    "maxRoundTripMilliseconds": 1000.6999999998243,
+    "errorWithin10Seconds": false,
+    "injections": [
+      {
+        "mode": "pause",
+        "seconds": 5,
+        "errorSeconds": null
+      },
+      {
+        "mode": "pause",
+        "seconds": 15,
+        "errorSeconds": 5.1621908750000784
+      },
+      {
+        "mode": "pause",
+        "seconds": 60,
+        "errorSeconds": null
+      },
+      {
+        "mode": "drop",
+        "seconds": 5,
+        "errorSeconds": null
+      },
+      {
+        "mode": "drop",
+        "seconds": 15,
+        "errorSeconds": null
+      },
+      {
+        "mode": "drop",
+        "seconds": 60,
+        "errorSeconds": null
+      }
+    ],
+    "retrySucceeded": true,
+    "quitSeconds": 0.41463483300003645,
+    "stuck": false,
+    "refreshHz": 59.93998718261719
+  },
+  "verdict": "fail"
+}

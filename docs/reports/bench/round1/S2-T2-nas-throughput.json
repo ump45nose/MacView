@@ -1,0 +1,73 @@
+{
+  "scene": "nas-throughput",
+  "commit": "01318f1898855f44c69f815904257b0b5399e101",
+  "env": {
+    "load": {
+      "oneMinute": 14.00634765625,
+      "limit": 6.0
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 120.0,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 0.351724125,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-04T05:03:55Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 816,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "error": "No such file or directory",
+        "path": "/Users/yuwk/MacViewBench/nfs"
+      }
+    ]
+  },
+  "budget": {
+    "thumbnailToRawRatio": 0.9
+  },
+  "measured": {
+    "protocol": "nfs",
+    "album": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+    "thumbnailToRawRatio": 1.0015743858770778,
+    "archiveError": "Error: corrupted(fs/1000/nfs/Picture/YY/秀人/1001-2000/1603.gz, \"无效的 gzip 头部\")",
+    "refreshHz": 120.0
+  },
+  "verdict": "pass"
+}

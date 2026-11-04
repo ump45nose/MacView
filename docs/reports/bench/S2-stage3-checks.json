@@ -1,0 +1,1845 @@
+{
+  "commit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+  "recordedAt": "2026-11-04T09:08:25.767517+00:00",
+  "temporaryDirectory": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/tmp",
+  "build": {
+    "debugExitCode": 0,
+    "debugOptimization": "-O",
+    "mvbenchReleaseExitCode": 0,
+    "swiftWarningLines": [],
+    "toolDiagnosticLines": [
+      "CoreSimulator is out of date. Current version (1174.9.2) is older than build version (1174.21.0).",
+      "2026-11-04 15:30:00.654 xcodebuild[3000:6695515]  iOSSimulator: [SimServiceContext sharedServiceContextForDeveloperDir:error:] returned nil (Error Domain=DVTCoreSimulatorAdditionsErrorDomain Code=3 \"CoreSimulator is out of date. Current version (1174.9.2) is older than build version (1174.21.0).\" UserInfo={NSLocalizedDescription=CoreSimulator is out of date. Current version (1174.9.2) is older than build version (1174.21.0).}). Simulator device support disabled."
+    ]
+  },
+  "C3.1": {
+    "verdict": "pass",
+    "evidence": [
+      "✔ Test visibleWaitingDecodeStartsBeforeNear() passed after 0.035 seconds.",
+      "✔ Test videoPosterReadsAtTheGivenPriority() passed after 0.291 seconds."
+    ]
+  },
+  "C3.2": {
+    "verdict": "pass",
+    "test": "DisplayPrefetchTests.prefetchedDisplayHitsMemoryCache",
+    "samples": 100,
+    "budgetMilliseconds": 8,
+    "sourceOpenDelta": 0,
+    "sourceReadDelta": 0,
+    "evidence": [
+      "✔ Test \"分页预解码后下一页帧命中 L1，100 次里第 95 次不超过 8ms\" passed after 3.716 seconds."
+    ]
+  },
+  "C3.3": {
+    "verdict": "unverified",
+    "reason": "原轮锁屏、本轮未锁但隔离App仍未激活，中文和ASCII正式自检均跳过实际字母分支；原生探路未解决，保持unverified。",
+    "runs": [
+      {
+        "name": "mock-zh",
+        "input": {
+          "enabled": true,
+          "id": "com.tencent.inputmethod.wetype.pinyin",
+          "languages": [
+            "zh-Hans"
+          ],
+          "name": "微信输入法",
+          "selectable": true
+        },
+        "resultLines": [
+          "INFO 按键分派：App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派",
+          "SKIP 字母进入文本框（App 未激活）",
+          "SELFTEST OK"
+        ]
+      },
+      {
+        "name": "mock-ascii",
+        "input": {
+          "enabled": true,
+          "id": "com.apple.keylayout.ABC",
+          "languages": [
+            "en",
+            "acf",
+            "af",
+            "asa",
+            "bem",
+            "bez",
+            "ca",
+            "ceb",
+            "cgg",
+            "co",
+            "da",
+            "dav",
+            "de",
+            "es",
+            "eu",
+            "fil",
+            "fr",
+            "fur",
+            "ga",
+            "gcf",
+            "gd",
+            "gl",
+            "gsw",
+            "guz",
+            "gv",
+            "hi_Latn",
+            "ht",
+            "ia",
+            "id",
+            "ie",
+            "io",
+            "isc",
+            "it",
+            "jbo",
+            "jmc",
+            "jv",
+            "kaj",
+            "kde",
+            "kea",
+            "kl",
+            "kln",
+            "ksb",
+            "kw",
+            "lb",
+            "lij",
+            "lmo",
+            "luo",
+            "luy",
+            "mfe",
+            "mgh",
+            "ms",
+            "nb",
+            "nd",
+            "nds",
+            "nl",
+            "nn",
+            "no",
+            "nr",
+            "nyn",
+            "oc",
+            "om",
+            "pms",
+            "pqm",
+            "pt",
+            "rej",
+            "rm",
+            "rn",
+            "rof",
+            "rw",
+            "rwk",
+            "saq",
+            "sbp",
+            "sc",
+            "seh",
+            "sg",
+            "shp",
+            "sn",
+            "so",
+            "sq",
+            "ss",
+            "st",
+            "su",
+            "su_Latn",
+            "sv",
+            "sw",
+            "teo",
+            "tn",
+            "tok",
+            "trv",
+            "ts",
+            "vec",
+            "vmw",
+            "vun",
+            "wa",
+            "xh",
+            "xog",
+            "za",
+            "zu"
+          ],
+          "name": "ABC",
+          "selectable": true
+        },
+        "resultLines": [
+          "INFO 按键分派：App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派",
+          "SKIP 字母进入文本框（App 未激活）",
+          "SELFTEST OK"
+        ]
+      }
+    ],
+    "restoredInput": {
+      "enabled": true,
+      "id": "com.tencent.inputmethod.wetype.pinyin",
+      "languages": [
+        "zh-Hans"
+      ],
+      "name": "微信输入法",
+      "selectable": true
+    },
+    "latestCommit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+    "latestRuns": [
+      {
+        "name": "mock-zh",
+        "pid": 30291,
+        "exitCode": 0,
+        "inputDuring": {
+          "enabled": true,
+          "id": "com.tencent.inputmethod.wetype.pinyin",
+          "languages": [
+            "zh-Hans"
+          ],
+          "name": "微信输入法",
+          "selectable": true
+        },
+        "keyLines": [
+          "INFO 按键分派：App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派",
+          "SKIP 字母进入文本框（App 未激活）",
+          "SKIP ⌘W 关闭标签页（App 未激活）",
+          "SELFTEST OK"
+        ]
+      },
+      {
+        "name": "mock-ascii",
+        "pid": 30602,
+        "exitCode": 0,
+        "inputDuring": {
+          "enabled": true,
+          "id": "com.apple.keylayout.ABC",
+          "languages": [
+            "en",
+            "acf",
+            "af",
+            "asa",
+            "bem",
+            "bez",
+            "ca",
+            "ceb",
+            "cgg",
+            "co",
+            "da",
+            "dav",
+            "de",
+            "es",
+            "eu",
+            "fil",
+            "fr",
+            "fur",
+            "ga",
+            "gcf",
+            "gd",
+            "gl",
+            "gsw",
+            "guz",
+            "gv",
+            "hi_Latn",
+            "ht",
+            "ia",
+            "id",
+            "ie",
+            "io",
+            "isc",
+            "it",
+            "jbo",
+            "jmc",
+            "jv",
+            "kaj",
+            "kde",
+            "kea",
+            "kl",
+            "kln",
+            "ksb",
+            "kw",
+            "lb",
+            "lij",
+            "lmo",
+            "luo",
+            "luy",
+            "mfe",
+            "mgh",
+            "ms",
+            "nb",
+            "nd",
+            "nds",
+            "nl",
+            "nn",
+            "no",
+            "nr",
+            "nyn",
+            "oc",
+            "om",
+            "pms",
+            "pqm",
+            "pt",
+            "rej",
+            "rm",
+            "rn",
+            "rof",
+            "rw",
+            "rwk",
+            "saq",
+            "sbp",
+            "sc",
+            "seh",
+            "sg",
+            "shp",
+            "sn",
+            "so",
+            "sq",
+            "ss",
+            "st",
+            "su",
+            "su_Latn",
+            "sv",
+            "sw",
+            "teo",
+            "tn",
+            "tok",
+            "trv",
+            "ts",
+            "vec",
+            "vmw",
+            "vun",
+            "wa",
+            "xh",
+            "xog",
+            "za",
+            "zu"
+          ],
+          "name": "ABC",
+          "selectable": true
+        },
+        "keyLines": [
+          "INFO 按键分派：App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派",
+          "SKIP 字母进入文本框（App 未激活）",
+          "SKIP ⌘W 关闭标签页（App 未激活）",
+          "SELFTEST OK"
+        ]
+      }
+    ]
+  },
+  "C3.4": {
+    "pureVerdicts": {
+      "verdict": "pass",
+      "evidence": "check-verdicts: ok (88 cases)"
+    },
+    "recordSmoke": {
+      "exitCode": 0,
+      "during": {
+        "load": {
+          "oneMinute": 5.16650390625,
+          "limit": 6.0
+        },
+        "displayMode": {
+          "width": 1728,
+          "height": 1080,
+          "pixelWidth": 3456,
+          "pixelHeight": 2160,
+          "refreshHz": 59.93998718261719,
+          "builtin": true,
+          "externalDisplay": false
+        },
+        "refreshHz": 59.93998718261719,
+        "screen": {
+          "locked": true,
+          "idleSeconds": 1317.327181167,
+          "inputDuringRun": false,
+          "externalDisplay": false
+        },
+        "before": {
+          "load": {
+            "oneMinute": 5.16650390625,
+            "limit": 6.0
+          },
+          "displayMode": {
+            "width": 1728,
+            "height": 1080,
+            "pixelWidth": 3456,
+            "pixelHeight": 2160,
+            "refreshHz": 59.93998718261719,
+            "builtin": true,
+            "externalDisplay": false
+          },
+          "refreshHz": 59.93998718261719,
+          "screen": {
+            "locked": true,
+            "idleSeconds": 1315.807713709,
+            "inputDuringRun": false,
+            "externalDisplay": false
+          }
+        },
+        "windowFront": false,
+        "scrollMovements": null,
+        "scrollEvents": null,
+        "driver": "trackpad",
+        "responsiveScrolling": false
+      },
+      "hitches": {
+        "app": {},
+        "appPhases": [
+          {
+            "end": 1.712513333,
+            "name": "scroll-cached",
+            "start": 0.192727708
+          }
+        ],
+        "displays": [
+          {
+            "builtIn": "Yes",
+            "maxRefreshRate": 120,
+            "name": "Built-In Display 1"
+          }
+        ],
+        "phases": [
+          {
+            "frameTimeMax": 0.0,
+            "frameTimeP50": 0.0,
+            "frameTimeP99": 0.0,
+            "frames": 0,
+            "framesPerSecond": 0.0,
+            "hitchMilliseconds": 0.0,
+            "hitchRatioMsPerSecond": 0.0,
+            "hitches": 0,
+            "name": "scroll-cached",
+            "renderP50": 0.0,
+            "renderP99": 0.0,
+            "seconds": 1.52,
+            "settleEventDelayMax": 0.0,
+            "settleRequestLatencyMax": 0.0,
+            "settleRequestLatencyP99": 0.0,
+            "settles": 0,
+            "updateP50": 0.0,
+            "updateP99": 0.0
+          }
+        ],
+        "trace": "record.trace"
+      }
+    },
+    "allScenes": {
+      "command": "python3 -I scripts/acceptance/run.py --out docs/reports/bench",
+      "exitCode": 0,
+      "verdictCounts": {
+        "environment": 8,
+        "unverified": 2,
+        "pass": 3
+      },
+      "rows": [
+        {
+          "scene": "first-image",
+          "verdict": "environment",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        {
+          "scene": "preloaded-flip",
+          "verdict": "environment",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        {
+          "scene": "scroll-cached",
+          "verdict": "environment",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        {
+          "scene": "scroll-cold",
+          "verdict": "environment",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        {
+          "scene": "main-thread",
+          "verdict": "unverified",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "error": "Command '['scripts/acceptance/record-trackpad.sh', 'scroll-cold', '/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record', '--automatic']' returned non-zero exit status 1."
+        },
+        {
+          "scene": "settle",
+          "verdict": "environment",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        {
+          "scene": "nas-throughput",
+          "verdict": "pass",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true
+        },
+        {
+          "scene": "cached-first-screen",
+          "verdict": "environment",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        {
+          "scene": "large-dir",
+          "verdict": "environment",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        {
+          "scene": "nas-fault",
+          "verdict": "environment",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        {
+          "scene": "memory-30min",
+          "verdict": "unverified",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true,
+          "error": "调试响应超时"
+        },
+        {
+          "scene": "tiles-cancel",
+          "verdict": "pass",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true
+        },
+        {
+          "scene": "panel-restart",
+          "verdict": "pass",
+          "requiredFieldsPresent": true,
+          "commitMatches": true,
+          "freshThisRun": true
+        }
+      ],
+      "coverage": "13份JSON均新鲜、字段齐全且提交一致；main-thread与memory实际测量未完整结束",
+      "lastSceneWrittenElapsedSeconds": 1374.391
+    },
+    "incompleteMeasurements": {
+      "main-thread": {
+        "error": "冷录制在合成滚动返回后的state(timeout=5)超时，record-trackpad.sh退出1",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 1706, in <module>\n    raise SystemExit(main(sys.argv[1:]))\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 1684, in main\n    run_scroll(*args.run_scroll)\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 1518, in run_scroll\n    window = window_of(client.request(\"state\", timeout=5))\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 528, in request\n    message = self.wait(self.send(command, args), timeout)\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 524, in wait\n    message = self._read_line(remaining)\n  File \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/scripts/acceptance/run.py\", line 508, in _read_line\n    raise TimeoutError(\"调试响应超时\") from None\nTimeoutError: 调试响应超时",
+        "coldScrollEvidence": {
+          "scrollMovements": null,
+          "windowFront": null,
+          "frames": null,
+          "reason": "run_scroll在写during.json前失败，未汇总hitches；不能证明冷滚动路径"
+        }
+      },
+      "memory-30min": {
+        "error": "调试响应超时",
+        "durationSeconds": null,
+        "samples": null,
+        "reason": "scene异常返回，未完成30分钟；无有效泄漏/内存波动结论"
+      }
+    },
+    "initialIncompleteMeasurementsCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+    "recheckResolution": {
+      "commit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+      "verdict": "pass",
+      "scope": "工具验收：既有88纯判定与smoke证据保留；新main-thread录制完整导出，memory完整1801.6秒并按实际不达标返回fail；旧两项测量中断已不再是当前工具结论。"
+    }
+  },
+  "C3.6": {
+    "makeTest": {
+      "verdict": "pass",
+      "exitCode": 0,
+      "testCount": 247,
+      "warningCount": 0,
+      "summaries": [
+        "✔ Test run with 30 tests in 6 suites passed after 1.316 seconds.",
+        "✔ Test run with 20 tests in 5 suites passed after 0.706 seconds.",
+        "✔ Test run with 18 tests in 0 suites passed after 0.571 seconds.",
+        "✔ Test run with 10 tests in 1 suite passed after 3.886 seconds.",
+        "✔ Test run with 26 tests in 5 suites passed after 8.285 seconds.",
+        "✔ Test run with 21 tests in 0 suites passed after 0.844 seconds.",
+        "✔ Test run with 15 tests in 0 suites passed after 0.423 seconds.",
+        "✔ Test run with 35 tests in 1 suite passed after 0.131 seconds.",
+        "✔ Test run with 20 tests in 0 suites passed after 0.613 seconds.",
+        "✔ Test run with 12 tests in 3 suites passed after 0.696 seconds.",
+        "✔ Test run with 11 tests in 1 suite passed after 0.005 seconds.",
+        "✔ Test run with 16 tests in 0 suites passed after 2.284 seconds.",
+        "✔ Test run with 13 tests in 3 suites passed after 0.138 seconds."
+      ]
+    },
+    "selfTests": [
+      {
+        "name": "viewer",
+        "pid": 4009,
+        "exitCode": 13,
+        "elapsedSeconds": 32.413981333,
+        "verdict": "unverified",
+        "environmentLocked": true,
+        "evidence": [
+          "FAIL 拖动平移：(0.0, 0.0) → (0.0, 0.0)",
+          "FAIL 翻到已预载的页不超过一帧：17.3 ms ≤ 16.666666666666668 ms",
+          "FAIL 连续模式滚动后当前页前进：21",
+          "FAIL 瀑布流单击第 11 页进入分页：waterfall、10",
+          "FAIL 移动后请求新块：4",
+          "FAIL 移出视口的块被丢弃：0，其中 0 个在途时取消",
+          "FAIL 只保留可见的块：4 / 4",
+          "FAIL loop.gif 帧序号前进：0 → 0，当前帧 0",
+          "FAIL loop.gif 正在播放",
+          "FAIL loop.gif 窗口恢复后继续",
+          "FAIL loop.png 帧序号前进：0 → 0，当前帧 0",
+          "FAIL loop.png 正在播放",
+          "FAIL loop.png 窗口恢复后继续",
+          "SELFTEST FAILED 13"
+        ]
+      },
+      {
+        "name": "panel",
+        "pid": 4528,
+        "exitCode": 0,
+        "elapsedSeconds": 29.752851459,
+        "verdict": "unverified",
+        "environmentLocked": true,
+        "evidence": [
+          "INFO App 未激活，直接触发行的动作",
+          "INFO App 未激活，直接触发行的动作",
+          "SELFTEST OK"
+        ],
+        "reason": "exit0，但锁屏时两次点击退回直接触发行的动作，未覆盖真实NSApp.sendEvent点击路径"
+      }
+    ],
+    "latestSelfTests": [
+      {
+        "name": "viewer",
+        "pid": 30624,
+        "exitCode": 6,
+        "verdict": "unverified",
+        "reason": "实际拖动/单击/分块移开事件未覆盖，另有18.07ms预载自检值，运行环境负载不合格",
+        "keyLines": [
+          "FAIL 拖动平移：(0.0, 0.0) → (0.0, 0.0)",
+          "FAIL 翻到已预载的页不超过一帧：18.069708000000002 ms ≤ 16.666666666666668 ms",
+          "FAIL 瀑布流单击第 11 页进入分页：waterfall、10",
+          "FAIL 移动后请求新块：4",
+          "FAIL 移出视口的块被丢弃：0，其中 0 个在途时取消",
+          "FAIL 只保留可见的块：4 / 4",
+          "SELFTEST FAILED 6"
+        ]
+      },
+      {
+        "name": "panel",
+        "pid": 30692,
+        "exitCode": 0,
+        "verdict": "unverified",
+        "reason": "两次点击退回直接触发行的动作，未覆盖真实NSApp.sendEvent点击",
+        "keyLines": [
+          "INFO App 未激活，直接触发行的动作",
+          "INFO App 未激活，直接触发行的动作",
+          "SELFTEST OK"
+        ]
+      }
+    ],
+    "guiVerdict": "unverified",
+    "makeTestReferenceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd"
+  },
+  "C3.7": {
+    "checkedAt": "2026-11-04T09:08:25.767517+00:00",
+    "testMounts": [],
+    "smbMountCount": 10,
+    "smbMountPoints": [
+      {
+        "target": "/Volumes/Adult",
+        "filesystem": "smbfs"
+      },
+      {
+        "target": "/Volumes/BackUp",
+        "filesystem": "smbfs"
+      },
+      {
+        "target": "/Volumes/Book",
+        "filesystem": "smbfs"
+      },
+      {
+        "target": "/Volumes/Cache",
+        "filesystem": "smbfs"
+      },
+      {
+        "target": "/Volumes/Code",
+        "filesystem": "smbfs"
+      },
+      {
+        "target": "/Volumes/Learn",
+        "filesystem": "smbfs"
+      },
+      {
+        "target": "/Volumes/Media",
+        "filesystem": "smbfs"
+      },
+      {
+        "target": "/Volumes/Music",
+        "filesystem": "smbfs"
+      },
+      {
+        "target": "/Volumes/Picture",
+        "filesystem": "smbfs"
+      },
+      {
+        "target": "/Volumes/plaud-daily",
+        "filesystem": "smbfs"
+      }
+    ],
+    "macViewProcesses": [
+      {
+        "pid": 72765,
+        "ppid": 1,
+        "command": "/Users/yuwk/WorkSpace/Code/Github/MacView/build/DerivedData/Build/Products/Debug/MacView.app/Contents/MacOS/MacView"
+      }
+    ],
+    "taskAppProcesses": [],
+    "proxyProcesses": [],
+    "recorderProcesses": [],
+    "caffeinateProcesses": [],
+    "userPID72765Present": true,
+    "userProcess": {
+      "pid": 72765,
+      "ppid": 1,
+      "command": "/Users/yuwk/WorkSpace/Code/Github/MacView/build/DerivedData/Build/Products/Debug/MacView.app/Contents/MacOS/MacView"
+    },
+    "removedTaskPaths": {
+      "build/acceptance": true,
+      "build/selftest-w31": true,
+      "build/DerivedData-profile": true,
+      "build/stage3-work": true
+    },
+    "mainDerivedDataPreserved": true,
+    "verdict": "pass"
+  },
+  "C3.5": {
+    "verdict": "fail",
+    "reason": "有效结果4 pass、8 environment、1 fail；完整30分钟内存波动36.17%且leaks416，性能验收未达成。未重跑原3pass及不合格环境下的8项。",
+    "comparison": [
+      {
+        "scene": "first-image",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "fail",
+          "measured": {
+            "p95": 159.57425
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "environment",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "preloaded-flip",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "fail",
+          "measured": {
+            "p95": 30.411291
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "environment",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "scroll-cached",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "fail",
+          "measured": {
+            "frameTimeP99": 16.667,
+            "hitches": 16,
+            "settles": 0
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "environment",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "scroll-cold",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "environment",
+          "measured": {
+            "frameTimeP99": 25.017,
+            "hitches": 29,
+            "settles": 0
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "environment",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "main-thread",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "environment",
+          "measured": {
+            "mainThreadSamples": 0
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "unverified",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "settle",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "environment",
+          "measured": {
+            "settles": 0
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "environment",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "nas-throughput",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "pass",
+          "measured": {
+            "thumbnailToRawRatio": 1.0015743858770778
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "pass",
+          "measured": {
+            "thumbnailToRawRatio": 0.9970242734346596
+          }
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "cached-first-screen",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "fail",
+          "measured": {
+            "localP95": null,
+            "localSamples": 12,
+            "nfsP95": null,
+            "nfsSamples": 14
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "environment",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "large-dir",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "pass",
+          "measured": {
+            "maxRoundTripMilliseconds": 106.59533400007604,
+            "itemCountChanges": 4
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "environment",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "nas-fault",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "fail",
+          "measured": {
+            "maxRoundTripMilliseconds": 1000.6999999998243
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "environment",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "memory-30min",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "environment",
+          "measured": {
+            "leaks": 416
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "unverified",
+          "measured": {}
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "tiles-cancel",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "fail",
+          "measured": {
+            "requested": 4,
+            "cancelled": 0
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "pass",
+          "measured": {
+            "requested": 4,
+            "cancelled": 4
+          }
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      },
+      {
+        "scene": "panel-restart",
+        "before": {
+          "commit": "01318f1898855f44c69f815904257b0b5399e101",
+          "verdict": "pass",
+          "measured": {
+            "matched": true
+          }
+        },
+        "after": {
+          "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+          "verdict": "pass",
+          "measured": {
+            "matched": true
+          }
+        },
+        "note": "修改前后脚本也有修正，不能仅凭数值归因于产品修复"
+      }
+    ],
+    "effectiveSceneResults": [
+      {
+        "scene": "first-image",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "preloaded-flip",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "scroll-cached",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "scroll-cold",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "main-thread",
+        "commit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+        "verdict": "pass",
+        "retainedEarlierEvidence": false
+      },
+      {
+        "scene": "settle",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "nas-throughput",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "pass",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "cached-first-screen",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "large-dir",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "nas-fault",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "memory-30min",
+        "commit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+        "verdict": "fail",
+        "retainedEarlierEvidence": false
+      },
+      {
+        "scene": "tiles-cancel",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "pass",
+        "retainedEarlierEvidence": true
+      },
+      {
+        "scene": "panel-restart",
+        "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "pass",
+        "retainedEarlierEvidence": true
+      }
+    ],
+    "effectiveVerdictCounts": {
+      "environment": 8,
+      "pass": 4,
+      "fail": 1
+    },
+    "finalItemAssessments": [
+      {
+        "scene": "first-image",
+        "report": "docs/reports/bench/S2-T2-first-image.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "budget": {
+          "lastDisplayP95Milliseconds": 150,
+          "samples": 30
+        },
+        "measuredSummary": {
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        "assessment": "未完成合格环境实测，保留原轮environment；150ms首次显示预算尚未验证。"
+      },
+      {
+        "scene": "preloaded-flip",
+        "report": "docs/reports/bench/S2-T2-preloaded-flip.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "budget": {
+          "lastDisplayP95Milliseconds": 8.33,
+          "flips": 100
+        },
+        "measuredSummary": {
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        "assessment": "未完成合格环境实测，保留原轮environment；C3.2单元命中不能替代App端到端8.33ms验收。"
+      },
+      {
+        "scene": "scroll-cached",
+        "report": "docs/reports/bench/S2-T2-scroll-cached.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "budget": {
+          "frameTimeP99Milliseconds": 8.33,
+          "refreshHz": 120,
+          "submitPlusRenderP99Milliseconds": 8.33
+        },
+        "measuredSummary": {
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        "assessment": "原轮锁屏且59.94Hz；未获得前台120Hz滚动结论。"
+      },
+      {
+        "scene": "scroll-cold",
+        "report": "docs/reports/bench/S2-T2-scroll-cold.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "budget": {
+          "frameTimeP99Milliseconds": 8.33,
+          "refreshHz": 120,
+          "submitPlusRenderP99Milliseconds": 8.33
+        },
+        "measuredSummary": {
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        "assessment": "原轮锁屏且59.94Hz；复验附属冷段40帧/666位置变化但front=false，不替代前台120Hz帧时间验收。"
+      },
+      {
+        "scene": "main-thread",
+        "report": "docs/reports/bench/S2-T2-main-thread.json",
+        "sourceCommit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+        "verdict": "pass",
+        "budget": {
+          "mainThreadFileReadOrImageIO": 0
+        },
+        "measuredSummary": {
+          "mainThreadSamples": 5145,
+          "knownSymbolSamples": 5028,
+          "fileReadOrImageIO": 0,
+          "otherMainThreadFileOperations": 4
+        },
+        "assessment": "5145主线程样本、5028已知符号样本，文件读取/ImageIO解码0；另4个系统栈文件操作保留。冷段滚动非零，front=false，不宣称所有主线程文件系统调用为0。"
+      },
+      {
+        "scene": "settle",
+        "report": "docs/reports/bench/S2-T2-settle.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "budget": {
+          "settleRequestLatencyP99Milliseconds": 100
+        },
+        "measuredSummary": {
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        "assessment": "未完成合格环境时序实测，100ms停止后开始请求预算尚未验证。"
+      },
+      {
+        "scene": "nas-throughput",
+        "report": "docs/reports/bench/S2-T2-nas-throughput.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "pass",
+        "budget": {
+          "thumbnailToRawRatio": 0.9
+        },
+        "measuredSummary": {
+          "samples": 3,
+          "thumbnailToRawRatio": 0.9970242734346596
+        },
+        "assessment": "保留7e42358通过：3轮缩略图/原始吞吐比0.997024≥0.9；真正gzip NAS项按设计仍未验证。"
+      },
+      {
+        "scene": "cached-first-screen",
+        "report": "docs/reports/bench/S2-T2-cached-first-screen.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "budget": {
+          "firstScreenP95Milliseconds": 100,
+          "samplesPerRoot": 20
+        },
+        "measuredSummary": {
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        "assessment": "未完成合格环境实测，本地/NFS各20次、P95≤100ms尚未验证。"
+      },
+      {
+        "scene": "large-dir",
+        "report": "docs/reports/bench/S2-T2-large-dir.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "budget": {
+          "maxRoundTripMilliseconds": 250,
+          "itemCountChanges": 3
+        },
+        "measuredSummary": {
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        "assessment": "未完成合格环境实测，1万项渐进出现及最大state往返≤250ms尚未验证。"
+      },
+      {
+        "scene": "nas-fault",
+        "report": "docs/reports/bench/S2-T2-nas-fault.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "environment",
+        "budget": {
+          "maxRoundTripMilliseconds": 250,
+          "errorWithinSeconds": 10,
+          "quitSeconds": 3
+        },
+        "measuredSummary": {
+          "reason": "环境在 20 分钟内没有满足"
+        },
+        "assessment": "未完成合格环境注入，真实在途/错误10秒内/恢复exact/退出≤3秒尚未验证；NAS与退出预算未改。"
+      },
+      {
+        "scene": "memory-30min",
+        "report": "docs/reports/bench/S2-T2-memory-30min.json",
+        "sourceCommit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+        "verdict": "fail",
+        "budget": {
+          "deviation": 0.1,
+          "leaks": 0,
+          "ignoreFirstSeconds": 300
+        },
+        "measuredSummary": {
+          "durationSeconds": 1801.6057015,
+          "actions": 1066,
+          "leaks": 416
+        },
+        "assessment": "完整1801.606秒、1632样本、1066动作；稳定期最大偏差36.173%>10%，leaks416>0，明确fail。原调试超时本轮未复现，不能据此宣称内存问题已解决。"
+      },
+      {
+        "scene": "tiles-cancel",
+        "report": "docs/reports/bench/S2-T2-tiles-cancel.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "pass",
+        "budget": {
+          "cancelledGreaterThan": 0
+        },
+        "measuredSummary": {
+          "requested": 4,
+          "cancelled": 4
+        },
+        "assessment": "保留7e42358通过：请求4、取消4；本次工具修复未改变该产品路径，不重复测试。"
+      },
+      {
+        "scene": "panel-restart",
+        "report": "docs/reports/bench/S2-T2-panel-restart.json",
+        "sourceCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+        "verdict": "pass",
+        "budget": {
+          "matchesQuit": true
+        },
+        "measuredSummary": {
+          "matched": true
+        },
+        "assessment": "保留7e42358通过：退出前后两个面板设置一致；本次工具修复未改变该产品路径，不重复测试。"
+      }
+    ]
+  },
+  "initialCommit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "recheck1": {
+    "commit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+    "scope": "第一次工具修复后定向复验；Core功能未变，保留既有C3.1/C3.2及247测试证据，旧3pass不重复",
+    "reusedEvidence": {
+      "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+      "scenes": [
+        "nas-throughput",
+        "tiles-cancel",
+        "panel-restart"
+      ],
+      "coreTests": 247,
+      "reason": "本次仅工具修复，App仅DebugSocket滚动响应新增只读responsiveScrolling字段；对应产品调用链未改变"
+    },
+    "buildAndPureValidation": {
+      "source": "docs/reports/bench/S2-T3-timeout-diagnosis.json",
+      "validation": {
+        "pureVerdicts": "88 cases通过",
+        "shellSyntax": "通过",
+        "diffWhitespace": "通过",
+        "debugOptimizedBuildExitCode": 0,
+        "swiftWarningLines": []
+      }
+    },
+    "mainThread": {
+      "report": "docs/reports/bench/S2-T2-main-thread.json",
+      "measured": {
+        "mainThreadSamples": 5145,
+        "knownSymbolSamples": 5028,
+        "fileReadOrImageIO": 0,
+        "schema": "time-profile",
+        "tableSamples": 7777,
+        "examples": [],
+        "otherMainThreadFileOperations": 4,
+        "otherFileOperationExamples": [
+          "fstat 0x19be8343d libsystem_kernel.dylib specialized readBytesFromFile<A>(path:reportProgress:maxLength:options:attributesToRead:attributes:) 0x19de234af Foundation specialized static NSData._readBytes(fromPath:maxLength:bytes:length:didMap:options:reportProgress:) 0x19db06b2b Foundation @objc static NSData._readBytes(fromPath:maxLength:bytes:length:didMap:options:reportProgress:) 0x19db05507 Foundation -[_NSBPlistMappedData initWithFileURL:error:] 0x19d79209f Foundation __NSCreateBPlistMappedDataFromURL 0x19d791e1b Foundation _CFBundleCreateMappedBPlistFile 0x19c0c19c3 CoreFoundation _CFBundleCreateMappedOrLoadedPlistData 0x19c01fa8f CoreFoundation _CFBundleGetStringsSources 0x19c0c1bf7 CoreFoundation _copyStringTable 0x19c0c33db CoreFoundation _CFBundleCopyLocalizedStringForLocalizationTableURLAndMarkdownOption 0x19c0c2b67 CoreFoundation CFBundleCopyLocalizedStringForLocalization 0x19bf60d33 CoreFoundation -[NSBundle localizedStringForKey:value:table:] 0x19d64caeb Foundation -[NSAccessibilityAttributeAccessorInfo getAttributeValue:forObject:] 0x1a05ae5fb AppKit ___NSAccessibilityEntryPointValueForAttribute_block_invoke.772 0x1a178338f AppKit NSAccessibilityPerformEntryPointObject 0x1a178174b AppKit _NSAccessibilityEntryPointValueForAttribute 0x1a07791f3 AppKit -[NSObject(NSAccessibilityInternal) _accessibilityValueForAttribute:clientError:] 0x1a088ae27 AppKit CopyAppKitUIElementAttributeValueNoCatch 0x1a0890c57 AppKit CopyMultipleAttributeValues 0x1a088f72b AppKit _AXXMIGCo",
+          "__open_nocancel 0x19be7593d libsystem_kernel.dylib open$NOCANCEL 0x19be8a023 libsystem_kernel.dylib __opendir2 0x19bd945f3 libsystem_c.dylib _CFIterateDirectory 0x19bf10baf CoreFoundation _CFBundleReadDirectory 0x19bf42fab CoreFoundation _createQueryTableAtPath 0x19bf42b17 CoreFoundation _copyQueryTable 0x19bf42243 CoreFoundation _copyResourceURLsFromBundle 0x19bf41b57 CoreFoundation _CFBundleCopyFindResources 0x19bf40f27 CoreFoundation CFBundleCopyResourceURL 0x19bf408e7 CoreFoundation _CFBundleGetStringsSources 0x19c0c1bb7 CoreFoundation _copyStringTable 0x19c0c33db CoreFoundation _CFBundleCopyLocalizedStringForLocalizationTableURLAndMarkdownOption 0x19c0c2b67 CoreFoundation CFBundleCopyLocalizedStringForLocalization 0x19bf60d33 CoreFoundation AXLocalizedStringForLocale 0x1c4e6a3ff libAccessibility.dylib AXNSLocalizedStringForLocale 0x1c4e6a313 libAccessibility.dylib AXSSAccessibilityDescriptionForSymbolName 0x1cbd23657 AccessibilitySharedSupport -[NSImage(NSSymbolImages) _symbolDescription] 0x1a12c3647 AppKit -[NSImage _providedAccessibilityDescription] 0x1a0520deb AppKit -[NSButtonCell(NSButtonCellAccessibility) _accessibilityIncludeDescriptionAttribute] 0x1a0581eff AppKit -[NSButtonCell(NSButtonCellAccessibility) accessibilityAttributeNames] 0x1a0581b93 AppKit ___NSAccessibilityEntryPointIsAttributeSupported_block_invoke 0x1a1782bc3 AppKit NSAccessibilityPerformEntryPointBOOL 0x1a17818bb AppKit _NSAccessibilityEntryPointIsAttributeSupported 0x1a0775237 AppKit NSAccessibi",
+          "__open_nocancel 0x19be7593d libsystem_kernel.dylib open$NOCANCEL 0x19be8a023 libsystem_kernel.dylib __opendir2 0x19bd945f3 libsystem_c.dylib _CFIterateDirectory 0x19bf10baf CoreFoundation _CFBundleReadDirectory 0x19bf42fab CoreFoundation _createQueryTableAtPath 0x19bf42877 CoreFoundation _copyQueryTable 0x19bf42243 CoreFoundation _copyResourceURLsFromBundle 0x19bf41b57 CoreFoundation _CFBundleCopyFindResources 0x19bf41153 CoreFoundation CFBundleCopyResourceURL 0x19bf408e7 CoreFoundation _CFBundleGetStringsSources 0x19c0c1e67 CoreFoundation _copyStringTable 0x19c0c33db CoreFoundation _CFBundleCopyLocalizedStringForLocalizationTableURLAndMarkdownOption 0x19c0c2b67 CoreFoundation CFBundleCopyLocalizedStringForLocalization 0x19bf60d33 CoreFoundation AXLocalizedStringForLocale 0x1c4e6a3ff libAccessibility.dylib AXNSLocalizedStringForLocale 0x1c4e6a313 libAccessibility.dylib AXSSAccessibilityDescriptionForSymbolName 0x1cbd23657 AccessibilitySharedSupport -[NSImage(NSSymbolImages) _symbolDescription] 0x1a12c3647 AppKit -[NSImage _providedAccessibilityDescription] 0x1a0520deb AppKit -[NSButtonCell(NSButtonCellAccessibility) _accessibilityIncludeDescriptionAttribute] 0x1a0581eff AppKit -[NSButtonCell(NSButtonCellAccessibility) accessibilityAttributeNames] 0x1a0581b93 AppKit ___NSAccessibilityEntryPointIsAttributeSupported_block_invoke 0x1a1782bc3 AppKit NSAccessibilityPerformEntryPointBOOL 0x1a17818bb AppKit _NSAccessibilityEntryPointIsAttributeSupported 0x1a0775237 AppKit NSAccessibi",
+          "stat 0x19be808fd libsystem_kernel.dylib _FileManagerImpl._fileExists(_:) 0x19db61283 Foundation @objc _NSFileManagerBridge.fileExists(atPath:) 0x19db4d847 Foundation isLaunchdOptionIn() 0x1a946eb27 HIToolbox -[IMKClient_Modern shouldUseXPC] 0x1a946eccb HIToolbox __inputMethodKitUsesXPC_block_invoke 0x1a6ca9183 ViewBridge _dispatch_client_callout 0x19bd1259f libdispatch.dylib _dispatch_once_callout 0x19bcfb623 libdispatch.dylib __38-[NSRemoteView _advanceToConfigPhase:]_block_invoke.cold.2 0x1a6ce441b ViewBridge __38-[NSRemoteView _advanceToConfigPhase:]_block_invoke 0x1a6ca3c97 ViewBridge __40-[NSRemoteView _informAuxServiceOfSelf:]_block_invoke.1414 0x1a6c95953 ViewBridge __invoking___ 0x19bf59673 CoreFoundation -[NSInvocation invoke] 0x19bf594ff CoreFoundation __vbuDeferNSXPCInvocationOntoMainThread_block_invoke 0x1a6cccce7 ViewBridge __vbuDeferBlockOntoMainThread_block_invoke_2 0x1a6cccaf7 ViewBridge invocation function for block in wrapBlockWithVoucher(void () block_pointer) 0x1a34f0de3 HIServices _ZL24deferredBlockOpportunity_block_invoke_2 0x1a34f09ff HIServices __CFRUNLOOP_IS_CALLING_OUT_TO_A_BLOCK__ 0x19bf7a4af CoreFoundation __CFRunLoopDoBlocks 0x19bf7a3ef CoreFoundation __CFRunLoopRun 0x19bf791cf CoreFoundation _CFRunLoopRunSpecificWithOptions 0x19c05382b CoreFoundation RunCurrentEventLoopInMode 0x1a93ac58f HIToolbox ReceiveNextEventCommon 0x1a93af91b HIToolbox _BlockUntilNextEventMatchingListInMode 0x1a953237f HIToolbox _DPSBlockUntilNextEventMatchingListInMode 0x1"
+        ],
+        "refreshHz": 59.93998718261719
+      },
+      "coldDuring": {
+        "load": {
+          "oneMinute": 5.94287109375,
+          "limit": 6.0
+        },
+        "displayMode": {
+          "width": 1728,
+          "height": 1080,
+          "pixelWidth": 3456,
+          "pixelHeight": 2160,
+          "refreshHz": 59.93998718261719,
+          "builtin": true,
+          "externalDisplay": false
+        },
+        "refreshHz": 59.93998718261719,
+        "screen": {
+          "locked": false,
+          "idleSeconds": 1234.215542583,
+          "inputDuringRun": false,
+          "externalDisplay": false
+        },
+        "before": {
+          "load": {
+            "oneMinute": 7.6787109375,
+            "limit": 6.0
+          },
+          "displayMode": {
+            "width": 1728,
+            "height": 1080,
+            "pixelWidth": 3456,
+            "pixelHeight": 2160,
+            "refreshHz": 59.93998718261719,
+            "builtin": true,
+            "externalDisplay": false
+          },
+          "refreshHz": 59.93998718261719,
+          "screen": {
+            "locked": false,
+            "idleSeconds": 1172.402947125,
+            "inputDuringRun": false,
+            "externalDisplay": false
+          }
+        },
+        "windowFront": false,
+        "scrollMovements": 666,
+        "scrollEvents": 3524,
+        "driver": "synthetic",
+        "responsiveScrolling": false
+      },
+      "coldHitches": {
+        "app": {},
+        "appPhases": [
+          {
+            "end": 159704.86835266664,
+            "name": "scroll-cold",
+            "start": 159643.057484
+          }
+        ],
+        "displays": [
+          {
+            "builtIn": "Yes",
+            "maxRefreshRate": 120,
+            "name": "Built-In Display 1"
+          }
+        ],
+        "phases": [
+          {
+            "frameTimeMax": 3395.036,
+            "frameTimeP50": 8.333,
+            "frameTimeP99": 3395.036,
+            "frames": 40,
+            "framesPerSecond": 0.6,
+            "hitchMilliseconds": 3536.852,
+            "hitchRatioMsPerSecond": 57.22,
+            "hitches": 8,
+            "name": "scroll-cold",
+            "renderP50": 4.38,
+            "renderP99": 28.479,
+            "seconds": 61.811,
+            "settleEventDelayMax": 132.885,
+            "settleRequestLatencyMax": 0.0,
+            "settleRequestLatencyP99": 0.0,
+            "settles": 2,
+            "updateP50": 1.746,
+            "updateP99": 71.358
+          }
+        ],
+        "trace": "record.trace"
+      },
+      "assessment": "脚本pass，真实滚动非零；整段front=false，40帧不能替代前台性能验收。0文件读取/ImageIO解码，另4次系统栈文件操作完整列出。"
+    },
+    "memory": {
+      "report": "docs/reports/bench/S2-T2-memory-30min.json",
+      "verdict": "fail",
+      "durationSeconds": 1801.6057015,
+      "samples": 1632,
+      "tailSamples": 1353,
+      "actions": 1066,
+      "medianBytes": 2002010112,
+      "minTailBytes": 1659895808,
+      "maxTailBytes": 2726199296,
+      "maxDeviation": 0.36173103205584606,
+      "leaks": 416,
+      "leaksReturnCode": 1,
+      "vmmapReturnCode": 0,
+      "timeoutReproduced": false,
+      "leakRootLines": [
+        "      139 (6.52K) ROOT CYCLE: <NSXPCConnection 0x763d03e9e0> [160]  Protocol: LNDaemonApplicationInterface  Connection: \"com.apple.linkd.autoShortcut\" [no process]",
+        "      139 (6.52K) ROOT CYCLE: <NSXPCConnection 0x763d03ed00> [160]  Protocol: LNDaemonApplicationInterface  Connection: \"com.apple.linkd.autoShortcut\" [no process]",
+        "      138 (6.44K) ROOT CYCLE: <NSXPCConnection 0x763d03dfe0> [160]  Protocol: LNDaemonApplicationInterface  Connection: \"com.apple.linkd.autoShortcut\" [no process]"
+      ],
+      "vmmapSelectedLines": [
+        "Physical footprint:         1.3G",
+        "Physical footprint (peak):  2.3G",
+        "IOKit                                 112K      48K      48K       0K       0K      16K       0K        7 ",
+        "IOSurface                           788.5M   787.8M   787.8M       0K       0K   787.8M       0K      216 ",
+        "Malloc                               3072K     176K     176K       0K       0K       0K       0K        1         see MALLOC ZONE table below",
+        "Malloc Guard Page                    4016K       0K       0K       0K       0K       0K       0K        4         see MALLOC ZONE table below",
+        "Malloc Large                        553.1M   206.8M   206.8M       0K       0K       0K       0K      106         see MALLOC ZONE table below",
+        "Malloc Large (empty)                249.0M   245.2M   245.2M       0K       0K       0K       0K       44         see MALLOC ZONE table below",
+        "Malloc Metadata                       752K     752K     752K       0K       0K       0K       0K        7         see MALLOC ZONE table below",
+        "Malloc Metadata metadata             2736K    2032K    1968K       0K       0K       0K       0K       30         see MALLOC ZONE table below",
+        "Malloc Nano metadata                   96K      80K      80K       0K       0K       0K       0K        3         see MALLOC ZONE table below",
+        "Malloc Small                         83.1M    57.6M    38.6M       0K       0K       0K       0K      184         see MALLOC ZONE table below",
+        "Malloc Small (empty)                 76.9M    65.1M    4496K       0K       0K       0K       0K       69         see MALLOC ZONE table below",
+        "Malloc Tiny                          4096K     288K     288K       0K       0K       0K       0K        1         see MALLOC ZONE table below",
+        "__DATA                               40.6M    10.8M    2314K       0K       0K       0K       0K     1056 ",
+        "__DATA_CONST                         37.0M    19.2M      20K       0K       0K       0K       0K     1057 ",
+        "__DATA_DIRTY                         14.6M    4262K    2132K       0K       0K       0K       0K      940 ",
+        "unused but dirty shlib __DATA         631K     631K     631K       0K       0K       0K       0K      448 ",
+        "TOTAL                               390.5G     2.3G     1.3G       0K       0K   788.9M       0K     7371 ",
+        "MALLOC ZONE                                  SIZE       SIZE       SIZE       SIZE      COUNT  ALLOCATED  FRAG SIZE  % FRAG   COUNT",
+        "TOTAL                                      726.1M     333.0M     252.8M         0K     206843     578.7M         0K      0%     412"
+      ],
+      "assessment": "完整30分钟无调试超时，但稳定期最大偏差36.17%、leaks416，内存预算未通过。原始samples/elapsed/leaksOutput/vmmap均保存在正式场景JSON；峰值对应动作未记录，不能据此归因。"
+    },
+    "guiSelfTests": [
+      {
+        "name": "mock-zh",
+        "pid": 30291,
+        "exitCode": 0,
+        "elapsedSeconds": 12.381805896759033,
+        "arguments": [
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+          "-MVSelfTestOutput",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/mock-zh/screens",
+          "-MVSupportDirectory",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/mock-zh/support",
+          "-MVCacheDirectory",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/mock-zh/cache",
+          "-MVLayoutFile",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/mock-zh/layout.json",
+          "-MVSelfTest",
+          "YES",
+          "-MVMockServices",
+          "YES"
+        ],
+        "rawLog": "2026-11-04 17:01:01.555 MacView[30291:6927854] WARNING <NSToolbarItem: 0x79bc706200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 17:01:01.605 MacView[30291:6927854] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\nMENU BEGIN\nMacView\n  关于 MacView\n  —\n  服务\n  —\n  隐藏 MacView\t[⌘H]\n  隐藏其他\t[⌥⌘H]\n  全部显示\n  —\n  退出 MacView\t[⌘Q]\n文件\n  打开文件夹或压缩包…\t[⌘O]\n  —\n  新建窗口\t[⌘N]\n  新建标签页\t[⌘T]\n  —\n  重试失败的项\t[⌘R]\t(不可用)\n  设置…\t[⌘,]\n  —\n  关闭\t[⌘W]\t(不可用)\n编辑\n  撤销\t[⌘Z]\t(不可用)\n  重做\t[⇧⌘Z]\t(不可用)\n  —\n  剪切\t[⌘X]\t(不可用)\n  拷贝\t[⌘C]\t(不可用)\n  粘贴\t[⌘V]\t(不可用)\n  全选\t[⌘A]\t(不可用)\n  —\n  自动填充\n    联系人…\t(不可用)\n    密码…\t(不可用)\n    信用卡…\t(不可用)\n  开始听写\t[🎤]\t(不可用)\n  开始听写\t[D]\t(不可用)\n  表情与符号\t[⌘Space]\n  表情与符号\t[⌃⌘Space]\n  表情与符号\t[E]\n显示\n  浏览方式\n    分页\t[⌘1] (仅显示)\t(不可用)\n    瀑布流\t[⌘2] (仅显示)\t(不可用)\n    纵向连续\t[⌘3] (仅显示)\t(不可用)\n    横向连续\t[⌘4] (仅显示)\t(不可用)\n  —\n  切换单页与双页\t[D] (仅显示)\t(不可用)\n  切换阅读方向\t[R] (仅显示)\t(不可用)\n  首页单页\t(不可用)\n  宽页处理\n    宽页保持原样\t(不可用)\n    宽页单独显示\t(不可用)\n    宽页拆分\t(不可用)\n  缩放\n    适合窗口\t[0] (仅显示)\t(不可用)\n    适合宽度\t[2] (仅显示)\t(不可用)\n    适合高度\t[3] (仅显示)\t(不可用)\n    填满裁切\t[4] (仅显示)\t(不可用)\n    实际像素\t[1] (仅显示)\t(不可用)\n    设备像素 1:1\t[⌥1] (仅显示)\t(不可用)\n    固定百分比…\t(不可用)\n    放大\t[⌘=] (仅显示)\t(不可用)\n    缩小\t[⌘-] (仅显示)\t(不可用)\n    允许放大小图\t(不可用)\n    放大镜\t[Z] (仅显示)\t(不可用)\n    翻页保持缩放与位置\t(不可用)\n  —\n  显示或隐藏停靠区\t[Tab] (仅显示)\t(不可用)\n  显示或隐藏左侧停靠区\t(不可用)\n  显示或隐藏右侧停靠区\t(不可用)\n  显示或隐藏底部停靠区\t(不可用)\n  —\n  显示或隐藏书架\t[⌥⌘1]\t(不可用)\n  显示或隐藏页面列表\t[⌥⌘2]\t(不可用)\n  —\n  显示标签页栏\t(不可用)\n  显示所有标签页\t[⇧⌘\\]\t(不可用)\n翻页\n  下一帧\t[→] (仅显示)\t(不可用)\n  上一帧\t[←] (仅显示)\t(不可用)\n  下一页\t[⌥→] (仅显示)\t(不可用)\n  上一页\t[⌥←] (仅显示)\t(不可用)\n  —\n  首页\t[Home] (仅显示)\t(不可用)\n  末页\t[End] (仅显示)\t(不可用)\n  跳到指定页…\t[⌘G] (仅显示)\t(不可用)\n书\n  下一本书\t[⌥↓] (仅显示)\t(不可用)\n  上一本书\t[⌥↑] (仅显示)\t(不可用)\n  在书架中显示当前书\t[⇧⌘J]\t(不可用)\n  排序\n    按名称排序\t(不可用)\n    按修改时间排序\t(不可用)\n    按创建时间排序\t(不可用)\n    按大小排序\t(不可用)\n    按类型排序\t(不可用)\n    随机排序\t(不可用)\n    升序\t(不可用)\n    降序\t(不可用)\n    文件夹在前\t(不可用)\n  —\n  递归展开子文件夹\t[⇧⌘R] (仅显示)\t(不可用)\n调试\n  画布测试\n窗口\n  最小化\t[⌘M]\t(不可用)\n  缩放\t(不可用)\n  —\n  切换全屏幕\t[⌃⌘F]\t(不可用)\n  —\n  前置全部窗口\n  —\n  MacView\nMENU END\nPASS 显式 Mock 服务在窗口上标明\nPASS 工具栏有停靠区开关、切书、书名、浏览方式、显示和全屏\nINFO 按键分派：App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派\nPASS 菜单关着时“下一帧”没有快捷键，→ 不会被菜单匹配\nPASS 文件夹 URL 转成 Location：/mock/画集/系列 A/第 5 卷\nPASS 打开 100 页的书：100 页\nPASS 查看器中 → 翻到下一帧：1\nPASS ⌥→ 下一页：2\nPASS ← 上一帧：1\nPASS End 末页：99\nPASS 末页再按 ⌘→ 停在末页：99\nPASS 按下 G 后显示待定提示\nPASS G G 回到首页并收起提示：0\nPASS G E 到末页：99\nPASS 超时后提示消失\nPASS 超时后 Home 仍按首键解析：0\nPASS ⌘G 后焦点在页码输入框（textInput）\nPASS 文本框中的按键没有翻页或切书：帧 0\nPASS 文本框中按 G 不显示待定提示\nSKIP 字母进入文本框（App 未激活）\n2026-11-04 17:01:09.647 MacView[30291:6927854] WARNING <NSToolbarItem: 0x79bbf8da00> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 17:01:11.871 MacView[30291:6927854] WARNING <NSToolbarItem: 0x79bb6a3500> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\nPASS Esc 取消输入，焦点回到页面\nPASS 输入 50 回车跳到第 50 页：49\nPASS ⌥↓ 下一本书：第 6 卷\nPASS ⌥↑ 上一本书，回到记忆的页：第 5 卷，49\nPASS ⌘T 新建标签页：2 个窗口\nPASS 新标签页与第一个窗口在同一个标签组\nPASS zip URL 转成 Location：/mock/漫画/作品 1.zip\nPASS 两个标签页各自翻页：48 / 3\nPASS 移动标签页到新窗口\nPASS 合并全部窗口\nPASS 新建窗口是独立窗口，不并入标签组\nPASS Mock 之外的路径显示错误\nSKIP ⌘W 关闭标签页（App 未激活）\nSELFTEST OK\n",
+        "keyLines": [
+          "INFO 按键分派：App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派",
+          "SKIP 字母进入文本框（App 未激活）",
+          "SKIP ⌘W 关闭标签页（App 未激活）",
+          "SELFTEST OK"
+        ],
+        "verdict": "unverified",
+        "reason": "App未激活，目标输入分支跳过",
+        "inputDuring": {
+          "enabled": true,
+          "id": "com.tencent.inputmethod.wetype.pinyin",
+          "languages": [
+            "zh-Hans"
+          ],
+          "name": "微信输入法",
+          "selectable": true
+        },
+        "inputRestored": {
+          "enabled": true,
+          "id": "com.tencent.inputmethod.wetype.pinyin",
+          "languages": [
+            "zh-Hans"
+          ],
+          "name": "微信输入法",
+          "selectable": true
+        }
+      },
+      {
+        "name": "mock-ascii",
+        "pid": 30602,
+        "exitCode": 0,
+        "elapsedSeconds": 12.5119788646698,
+        "arguments": [
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+          "-MVSelfTestOutput",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/mock-ascii/screens",
+          "-MVSupportDirectory",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/mock-ascii/support",
+          "-MVCacheDirectory",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/mock-ascii/cache",
+          "-MVLayoutFile",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/mock-ascii/layout.json",
+          "-MVSelfTest",
+          "YES",
+          "-MVMockServices",
+          "YES"
+        ],
+        "rawLog": "2026-11-04 17:03:05.548 MacView[30602:6932684] WARNING <NSToolbarItem: 0x7aaa73e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 17:03:05.599 MacView[30602:6932684] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\nMENU BEGIN\nMacView\n  关于 MacView\n  —\n  服务\n  —\n  隐藏 MacView\t[⌘H]\n  隐藏其他\t[⌥⌘H]\n  全部显示\n  —\n  退出 MacView\t[⌘Q]\n文件\n  打开文件夹或压缩包…\t[⌘O]\n  —\n  新建窗口\t[⌘N]\n  新建标签页\t[⌘T]\n  —\n  重试失败的项\t[⌘R]\t(不可用)\n  设置…\t[⌘,]\n  —\n  关闭\t[⌘W]\t(不可用)\n编辑\n  撤销\t[⌘Z]\t(不可用)\n  重做\t[⇧⌘Z]\t(不可用)\n  —\n  剪切\t[⌘X]\t(不可用)\n  拷贝\t[⌘C]\t(不可用)\n  粘贴\t[⌘V]\t(不可用)\n  全选\t[⌘A]\t(不可用)\n  —\n  自动填充\n    联系人…\t(不可用)\n    密码…\t(不可用)\n    信用卡…\t(不可用)\n  开始听写\t[🎤]\t(不可用)\n  开始听写\t[D]\t(不可用)\n  表情与符号\t[⌘Space]\n  表情与符号\t[⌃⌘Space]\n  表情与符号\t[E]\n显示\n  浏览方式\n    分页\t[⌘1] (仅显示)\t(不可用)\n    瀑布流\t[⌘2] (仅显示)\t(不可用)\n    纵向连续\t[⌘3] (仅显示)\t(不可用)\n    横向连续\t[⌘4] (仅显示)\t(不可用)\n  —\n  切换单页与双页\t[D] (仅显示)\t(不可用)\n  切换阅读方向\t[R] (仅显示)\t(不可用)\n  首页单页\t(不可用)\n  宽页处理\n    宽页保持原样\t(不可用)\n    宽页单独显示\t(不可用)\n    宽页拆分\t(不可用)\n  缩放\n    适合窗口\t[0] (仅显示)\t(不可用)\n    适合宽度\t[2] (仅显示)\t(不可用)\n    适合高度\t[3] (仅显示)\t(不可用)\n    填满裁切\t[4] (仅显示)\t(不可用)\n    实际像素\t[1] (仅显示)\t(不可用)\n    设备像素 1:1\t[⌥1] (仅显示)\t(不可用)\n    固定百分比…\t(不可用)\n    放大\t[⌘=] (仅显示)\t(不可用)\n    缩小\t[⌘-] (仅显示)\t(不可用)\n    允许放大小图\t(不可用)\n    放大镜\t[Z] (仅显示)\t(不可用)\n    翻页保持缩放与位置\t(不可用)\n  —\n  显示或隐藏停靠区\t[Tab] (仅显示)\t(不可用)\n  显示或隐藏左侧停靠区\t(不可用)\n  显示或隐藏右侧停靠区\t(不可用)\n  显示或隐藏底部停靠区\t(不可用)\n  —\n  显示或隐藏书架\t[⌥⌘1]\t(不可用)\n  显示或隐藏页面列表\t[⌥⌘2]\t(不可用)\n  —\n  显示标签页栏\t(不可用)\n  显示所有标签页\t[⇧⌘\\]\t(不可用)\n翻页\n  下一帧\t[→] (仅显示)\t(不可用)\n  上一帧\t[←] (仅显示)\t(不可用)\n  下一页\t[⌥→] (仅显示)\t(不可用)\n  上一页\t[⌥←] (仅显示)\t(不可用)\n  —\n  首页\t[Home] (仅显示)\t(不可用)\n  末页\t[End] (仅显示)\t(不可用)\n  跳到指定页…\t[⌘G] (仅显示)\t(不可用)\n书\n  下一本书\t[⌥↓] (仅显示)\t(不可用)\n  上一本书\t[⌥↑] (仅显示)\t(不可用)\n  在书架中显示当前书\t[⇧⌘J]\t(不可用)\n  排序\n    按名称排序\t(不可用)\n    按修改时间排序\t(不可用)\n    按创建时间排序\t(不可用)\n    按大小排序\t(不可用)\n    按类型排序\t(不可用)\n    随机排序\t(不可用)\n    升序\t(不可用)\n    降序\t(不可用)\n    文件夹在前\t(不可用)\n  —\n  递归展开子文件夹\t[⇧⌘R] (仅显示)\t(不可用)\n调试\n  画布测试\n窗口\n  最小化\t[⌘M]\t(不可用)\n  缩放\t(不可用)\n  —\n  切换全屏幕\t[⌃⌘F]\t(不可用)\n  —\n  前置全部窗口\n  —\n  MacView\nMENU END\nPASS 显式 Mock 服务在窗口上标明\nPASS 工具栏有停靠区开关、切书、书名、浏览方式、显示和全屏\nINFO 按键分派：App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派\nPASS 菜单关着时“下一帧”没有快捷键，→ 不会被菜单匹配\nPASS 文件夹 URL 转成 Location：/mock/画集/系列 A/第 5 卷\nPASS 打开 100 页的书：100 页\nPASS 查看器中 → 翻到下一帧：1\nPASS ⌥→ 下一页：2\nPASS ← 上一帧：1\nPASS End 末页：99\nPASS 末页再按 ⌘→ 停在末页：99\nPASS 按下 G 后显示待定提示\nPASS G G 回到首页并收起提示：0\nPASS G E 到末页：99\nPASS 超时后提示消失\nPASS 超时后 Home 仍按首键解析：0\nPASS ⌘G 后焦点在页码输入框（textInput）\nPASS 文本框中的按键没有翻页或切书：帧 0\nPASS 文本框中按 G 不显示待定提示\nSKIP 字母进入文本框（App 未激活）\n2026-11-04 17:03:13.686 MacView[30602:6932684] WARNING <NSToolbarItem: 0x7aa9ec1a00> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 17:03:15.915 MacView[30602:6932684] WARNING <NSToolbarItem: 0x7aaadcf500> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\nPASS Esc 取消输入，焦点回到页面\nPASS 输入 50 回车跳到第 50 页：49\nPASS ⌥↓ 下一本书：第 6 卷\nPASS ⌥↑ 上一本书，回到记忆的页：第 5 卷，49\nPASS ⌘T 新建标签页：2 个窗口\nPASS 新标签页与第一个窗口在同一个标签组\nPASS zip URL 转成 Location：/mock/漫画/作品 1.zip\nPASS 两个标签页各自翻页：48 / 3\nPASS 移动标签页到新窗口\nPASS 合并全部窗口\nPASS 新建窗口是独立窗口，不并入标签组\nPASS Mock 之外的路径显示错误\nSKIP ⌘W 关闭标签页（App 未激活）\nSELFTEST OK\n",
+        "keyLines": [
+          "INFO 按键分派：App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派",
+          "SKIP 字母进入文本框（App 未激活）",
+          "SKIP ⌘W 关闭标签页（App 未激活）",
+          "SELFTEST OK"
+        ],
+        "verdict": "unverified",
+        "reason": "App未激活，目标输入分支跳过",
+        "inputDuring": {
+          "enabled": true,
+          "id": "com.apple.keylayout.ABC",
+          "languages": [
+            "en",
+            "acf",
+            "af",
+            "asa",
+            "bem",
+            "bez",
+            "ca",
+            "ceb",
+            "cgg",
+            "co",
+            "da",
+            "dav",
+            "de",
+            "es",
+            "eu",
+            "fil",
+            "fr",
+            "fur",
+            "ga",
+            "gcf",
+            "gd",
+            "gl",
+            "gsw",
+            "guz",
+            "gv",
+            "hi_Latn",
+            "ht",
+            "ia",
+            "id",
+            "ie",
+            "io",
+            "isc",
+            "it",
+            "jbo",
+            "jmc",
+            "jv",
+            "kaj",
+            "kde",
+            "kea",
+            "kl",
+            "kln",
+            "ksb",
+            "kw",
+            "lb",
+            "lij",
+            "lmo",
+            "luo",
+            "luy",
+            "mfe",
+            "mgh",
+            "ms",
+            "nb",
+            "nd",
+            "nds",
+            "nl",
+            "nn",
+            "no",
+            "nr",
+            "nyn",
+            "oc",
+            "om",
+            "pms",
+            "pqm",
+            "pt",
+            "rej",
+            "rm",
+            "rn",
+            "rof",
+            "rw",
+            "rwk",
+            "saq",
+            "sbp",
+            "sc",
+            "seh",
+            "sg",
+            "shp",
+            "sn",
+            "so",
+            "sq",
+            "ss",
+            "st",
+            "su",
+            "su_Latn",
+            "sv",
+            "sw",
+            "teo",
+            "tn",
+            "tok",
+            "trv",
+            "ts",
+            "vec",
+            "vmw",
+            "vun",
+            "wa",
+            "xh",
+            "xog",
+            "za",
+            "zu"
+          ],
+          "name": "ABC",
+          "selectable": true
+        },
+        "inputRestored": {
+          "enabled": true,
+          "id": "com.tencent.inputmethod.wetype.pinyin",
+          "languages": [
+            "zh-Hans"
+          ],
+          "name": "微信输入法",
+          "selectable": true
+        }
+      },
+      {
+        "name": "viewer",
+        "pid": 30624,
+        "exitCode": 6,
+        "elapsedSeconds": 31.854265689849854,
+        "arguments": [
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+          "-MVSelfTestOutput",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/viewer/screens",
+          "-MVSupportDirectory",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/viewer/support",
+          "-MVCacheDirectory",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/viewer/cache",
+          "-MVLayoutFile",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/viewer/layout.json",
+          "-MVViewerSelfTest",
+          "YES",
+          "-MVSelfTestFixtures",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures"
+        ],
+        "rawLog": "2026-11-04 17:03:18.174 MacView[30624:6933229] WARNING <NSToolbarItem: 0x7b6c54a200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 17:03:18.224 MacView[30624:6933229] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\nPASS 命令切到 fitWindow\nPASS fit-window：图层 1028.0×1542.0 与 fit 1028×1542 一致\nPASS 命令切到 fitWidth\nPASS fit-width：图层 1200.0×1800.0 与 fit 1200×1800 一致\nPASS 命令切到 fitHeight\nPASS fit-height：图层 1028.0×1542.0 与 fit 1028×1542 一致\nPASS 命令切到 fill\nPASS fill：图层 1200.0×1800.0 与 fit 1200×1800 一致\nPASS 命令切到 original\nPASS original：图层 2400.0×3600.0 与 fit 2400×3600 一致\nPASS 命令切到 devicePixel\nPASS device-pixel：图层 1200.0×1800.0 与 fit 1200×1800 一致\nPASS 设备像素 1:1 的页宽 600.0 点 × 2.0 = 1200 像素\nPASS 原始尺寸的页宽是 1200 点：1200.0\nPASS 固定比例\nPASS fixed：图层 1200.0×1800.0 与 fit 1200×1800 一致\nPASS 固定 50% 的页宽是 600 点：600.0\nPASS 放大一倍：2.0\nPASS 超出视口时显示导航图\nFAIL 拖动平移：(0.0, 0.0) → (0.0, 0.0)\nPASS 翻页后缩放重置\nPASS keepZoomOnPageTurn 保留缩放\nPASS 宽页拆成两帧：2\nPASS 第一帧显示左半边\nPASS 屏幕上第一帧是左半边的红色\nPASS 半页的 decodeSize 是整页比例：2400×1200\nPASS 图层分辨率不低于 decodeSize：2400 ≥ 2400\nPASS 下一帧显示右半边\nPASS 翻到已预载的页，质量 exact\nPASS 翻到已预载的页，质量 exact\nPASS 翻到已预载的页，质量 exact\nPASS 翻到已预载的页，质量 exact\nPASS 翻到已预载的页，质量 exact\nINFO 翻到已预载的页：[\"7.26\", \"2.92\", \"1.78\", \"18.07\", \"7.75\"] ms，一帧 16.67 ms\nFAIL 翻到已预载的页不超过一帧：18.069708000000002 ms ≤ 16.666666666666668 ms\nPASS 切到 waterfall\nPASS waterfall 保持当前页：21\nPASS waterfall 第 21 页在可见范围：18..<27\nPASS 切到 verticalStrip\nPASS verticalStrip 保持当前页：21\nPASS verticalStrip 第 21 页在可见范围：20..<21\nPASS 切到 horizontalStrip\nPASS horizontalStrip 保持当前页：21\nPASS horizontalStrip 第 21 页在可见范围：20..<22\nPASS 切到 paged\nPASS paged 保持当前页：21\nPASS 分页显示第 21 页\nPASS 连续模式滚动后当前页前进：24\nPASS 当前页是可见范围的页：23..<24\nPASS 书记忆的页随之更新：23\nPASS 图片到达前后项的位置不变\nPASS 条的末尾排在最后一页之后\nPASS 横向条在右开时方向相反\nPASS 瀑布流按翻页命令滚动到第 6 页：3..<12\nFAIL 瀑布流单击第 11 页进入分页：waterfall、10\nPASS 适合窗口时不分块\nPASS 放大后不请求整图\nPASS 请求的是块：4 块，最大 (1024.0, 1024.0)\nFAIL 移动后请求新块：4\nFAIL 移出视口的块被丢弃：0，其中 0 个在途时取消\nFAIL 只保留可见的块：4 / 4\nPASS 分块没有错误\nPASS 缩回后撤掉分块\nPASS loop.gif 帧序号前进：8 → 19，当前帧 7\nPASS loop.gif 正在播放\nPASS loop.gif 窗口隐藏后暂停\nPASS loop.gif 窗口隐藏后帧不再前进：19\nPASS loop.gif 窗口恢复后继续\nPASS loop.png 帧序号前进：6 → 16，当前帧 4\nPASS loop.png 正在播放\nPASS loop.png 窗口隐藏后暂停\nPASS loop.png 窗口隐藏后帧不再前进：16\nPASS loop.png 窗口恢复后继续\nPASS 连续模式没有分页的动图\nPASS 文件夹里的 mp4 能播放\nPASS 文件夹里的 mp4 播放进度前进：0.159915917 → 0.688341542\nPASS 文件夹里的 mp4 翻页后 AVPlayer 释放\nPASS 文件夹里的 mp4 播放器换到下一页\nPASS 压缩包内的 mp4 能播放\nPASS 压缩包内的 mp4 播放进度前进：0.256323167 → 0.786072083\nPASS 压缩包内的 mp4 翻页后 AVPlayer 释放\nPASS 压缩包内的 mp4 播放器换到下一页\nPASS 放大镜打开\nPASS 放大镜需要时请求原图：1200\nPASS 放大镜关闭\nSELFTEST FAILED 6\n",
+        "keyLines": [
+          "FAIL 拖动平移：(0.0, 0.0) → (0.0, 0.0)",
+          "FAIL 翻到已预载的页不超过一帧：18.069708000000002 ms ≤ 16.666666666666668 ms",
+          "FAIL 瀑布流单击第 11 页进入分页：waterfall、10",
+          "FAIL 移动后请求新块：4",
+          "FAIL 移出视口的块被丢弃：0，其中 0 个在途时取消",
+          "FAIL 只保留可见的块：4 / 4",
+          "SELFTEST FAILED 6"
+        ],
+        "verdict": "unverified",
+        "reason": "实际拖动/单击/分块移开事件未覆盖，另有18.07ms预载自检值，运行环境负载不合格",
+        "inputRestored": {
+          "enabled": true,
+          "id": "com.tencent.inputmethod.wetype.pinyin",
+          "languages": [
+            "zh-Hans"
+          ],
+          "name": "微信输入法",
+          "selectable": true
+        }
+      },
+      {
+        "name": "panel",
+        "pid": 30692,
+        "exitCode": 0,
+        "elapsedSeconds": 29.52075481414795,
+        "arguments": [
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+          "-MVSelfTestOutput",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/panel/screens",
+          "-MVSupportDirectory",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/panel/support",
+          "-MVCacheDirectory",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/panel/cache",
+          "-MVLayoutFile",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/codex-final/retry1-gui/panel/layout.json",
+          "-MVPanelSelfTest",
+          "YES",
+          "-MVSelfTestFixtures",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures"
+        ],
+        "rawLog": "2026-11-04 17:03:50.254 MacView[30692:6934563] WARNING <NSToolbarItem: 0x7af01da200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 17:03:50.311 MacView[30692:6934563] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-04 17:04:18.546 MacView[30692:6934563] WARNING <NSToolbarItem: 0x7aef912a00> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\nPASS 旧的 {\"style\":\"list\"} 能解码：nil\nPASS 新字段取默认值\nPASS 书架列表 5 行：5\nPASS 页面列表 6 行：6\nPASS 书架高亮当前书\nPASS 页面列表高亮当前页\nPASS 页面列表的行：[\"p01.png\", \"900×900 · 13 KB\"]\nPASS 空目录没有封面\nPASS 表格三列：[\"p02.png\", \"900×900\", \"13 KB\"]\nPASS 网格带标题\nPASS 画布选中当前页\nPASS 书架瀑布流全部排好：5\nPASS 没有封面的项按 2:3\nPASS 封面的宽高比来自元数据\nPASS 书架的设置：CollectionPanelSettings(style: MacView.CollectionStyle.grid, itemExtent: 220.0, sort: Optional(MVSettings.SortSpec(key: MVSettings.SortKey.size, ascending: true, foldersFirst: true, randomSeed: nil)))\nPASS 页面列表的设置：CollectionPanelSettings(style: MacView.CollectionStyle.table, itemExtent: 90.0, sort: Optional(MVSettings.SortSpec(key: MVSettings.SortKey.name, ascending: false, foldersFirst: true, randomSeed: nil)))\nPASS 面板设置写进布局并能解回：Optional(MVFoundation.JSONValue.object([\"style\": MVFoundation.JSONValue.string(\"grid\"), \"sort\": MVFoundation.JSONValue.object([\"foldersFirst\": MVFoundation.JSONValue.bool(true), \"key\": MVFoundation.JSONValue.string(\"size\"), \"ascending\": MVFoundation.JSONValue.bool(true)]), \"itemExtent\": MVFoundation.JSONValue.number(220.0)]))\nPASS 选了排序后面板倒序：[\"p06.png\", \"p05.png\", \"p04.png\", \"p03.png\", \"p02.png\", \"p01.png\"]\nPASS 翻页顺序不变\nPASS 翻页按书的顺序：1\nPASS 高亮的是这一页在面板里的位置：Optional(4)\nPASS 点击按面板顺序定位：5\nPASS 选「跟随书」后恢复\nPASS 跟随书不存排序\nPASS 书架默认按名称决定下一本\nPASS 名称升序：bravo 的下一本是 charlie：charlie\nPASS 回到 bravo：bravo\nPASS 书架倒序：[\"empty\", \"clips\", \"charlie\", \"bravo\", \"alpha\"]\nPASS 排序回报给会话\nPASS 名称降序：bravo 的下一本是 alpha：alpha\nPASS 回到 bravo：bravo\nINFO App 未激活，直接触发行的动作\nPASS 点击书架的行打开书\nPASS 视频项有时长：Optional(\"0:02\")\nPASS 图片没有角标\nPASS 高亮跟到新书\nINFO App 未激活，直接触发行的动作\nPASS 点击页面列表的行翻到那一页：1\nPASS 可以进入上一层目录：[\"shelf\"]\nPASS 上一层没有当前书的高亮\nPASS 双击进入文件夹：[\"alpha\", \"bravo\", \"charlie\", \"clips\", \"empty\"]\nPASS 浏览目录不换书\nPASS ⋯ 菜单有排序、浮动、隐藏：[\"列表\", \"详情表格\", \"网格\", \"瀑布流\", \"排序\", \"\", \"移到右侧\", \"移到底部\", \"浮动\", \"\", \"隐藏\", \"\", \"改为上下分割\", \"隐藏停靠区\"]\nPASS 经 ⋯ 菜单改样式\nPASS 经 ⋯ 菜单改成上下分割\nINFO App 不在前台，窗口成不了主窗口，直接切换活动窗口\nPASS 切到窗口 2，浮动面板显示 alpha：[\"p01.png\", \"p02.png\", \"p03.png\"]\nPASS 切回窗口 1，显示 clips：[\"a.mp4\", \"b.png\"]\nPASS 浮动面板的点击作用于活动窗口\nSELFTEST OK\n",
+        "keyLines": [
+          "INFO App 未激活，直接触发行的动作",
+          "INFO App 未激活，直接触发行的动作",
+          "SELFTEST OK"
+        ],
+        "verdict": "unverified",
+        "reason": "两次点击退回直接触发行的动作，未覆盖真实NSApp.sendEvent点击",
+        "inputRestored": {
+          "enabled": true,
+          "id": "com.tencent.inputmethod.wetype.pinyin",
+          "languages": [
+            "zh-Hans"
+          ],
+          "name": "微信输入法",
+          "selectable": true
+        }
+      }
+    ],
+    "timingScenes": "结束后probe：load1=8.41015625≥6，未锁/idle262.65秒/无外屏/59.94Hz；按主控指令不再等待20分钟，原8个environment场景不重跑，保留7e42358报告。",
+    "guiProbe": {
+      "pid": 29476,
+      "directory": "build/acceptance/codex-final/retry1-gui/probe",
+      "mockBook": "/mock/画集/系列 A/第 5 卷",
+      "maxLifetimeSeconds": 90,
+      "observedWindowFront": false,
+      "exitCode": 0,
+      "nativeAttempt": "主控对已核对完整worktree路径、Mock书和100页的测试实例执行Raise/标题栏空白点击；state持续front=false",
+      "finalState": {
+        "cacheBudgets": {
+          "browseDiskBytes": 53687091200,
+          "decodedBytes": 2147483648,
+          "rawBytes": 536870912,
+          "thumbnailDiskBytes": 10737418240
+        },
+        "fileErrors": [],
+        "residentBytes": 164954112,
+        "volumes": [
+          {
+            "inFlight": 0,
+            "root": "/mock",
+            "state": "healthy",
+            "stuck": 0
+          }
+        ],
+        "windows": [
+          {
+            "book": "/mock/画集/系列 A/第 5 卷",
+            "browseMode": "paged",
+            "docksVisible": true,
+            "firstScreenThumbnailMilliseconds": 13076.343167,
+            "frame": 0,
+            "frameCount": 100,
+            "itemCount": 100,
+            "lastDisplay": null,
+            "loadError": null,
+            "page": 0,
+            "panels": {
+              "bookshelf": {
+                "itemExtent": 100,
+                "sort": null,
+                "style": "list"
+              },
+              "pageList": {
+                "itemExtent": 100,
+                "sort": null,
+                "style": "list"
+              }
+            },
+            "prefetchIdle": true,
+            "prefetchInFlightCount": 0,
+            "responsiveScrolling": false,
+            "scaleMode": "fitWindow",
+            "tiles": {
+              "cancelled": 0,
+              "inFlight": 0,
+              "requested": 0
+            },
+            "viewport": {
+              "height": 803,
+              "width": 698
+            },
+            "visibleRange": [
+              0,
+              1
+            ],
+            "windowFront": false,
+            "zoom": 1
+          }
+        ]
+      }
+    },
+    "nativeControlIncident": {
+      "source": "主控原生工具操作记录及只读metadata核对",
+      "event": "探路退出后，原生getAXState/getApp路径绑定自动启动同路径无参数实例PID29920，路径不足以区分多个PID；主控停止后续原生操作",
+      "pid": 29920,
+      "cleanup": "主控已按精确PID SIGKILL该新实例，用户PID72765未动",
+      "defaultDataTouched": true,
+      "metadataObservedByController": {
+        "~/Library/Application Support/MacView/session.json": "2026-11-04 17:00:19 +0800",
+        "~/Library/Caches/MacView and browse/thumbnails directories": "2026-11-04 17:00:18 +0800"
+      },
+      "limits": "默认会话和缓存被触及，未备份旧会话；按用户边界不回退、不删除已有文件，不能声称本轮全部动作完全隔离。CLI自检实例均显式使用工作区support/cache/layout。后续不再调用cua。"
+    },
+    "inputRestoration": {
+      "original": {
+        "enabled": true,
+        "id": "com.tencent.inputmethod.wetype.pinyin",
+        "languages": [
+          "zh-Hans"
+        ],
+        "name": "微信输入法",
+        "selectable": true
+      },
+      "final": {
+        "enabled": true,
+        "id": "com.tencent.inputmethod.wetype.pinyin",
+        "languages": [
+          "zh-Hans"
+        ],
+        "name": "微信输入法",
+        "selectable": true
+      },
+      "sameID": true
+    },
+    "finalTimingProbe": {
+      "env": {
+        "load": {
+          "oneMinute": 8.41015625,
+          "limit": 6.0
+        },
+        "displayMode": {
+          "width": 1728,
+          "height": 1080,
+          "pixelWidth": 3456,
+          "pixelHeight": 2160,
+          "refreshHz": 59.93998718261719,
+          "builtin": true,
+          "externalDisplay": false
+        },
+        "refreshHz": 59.93998718261719,
+        "screen": {
+          "locked": false,
+          "idleSeconds": 262.64728325,
+          "inputDuringRun": false,
+          "externalDisplay": false
+        }
+      },
+      "timingReady": false
+    }
+  },
+  "finalConclusion": {
+    "sourceCommit": "26cf278924b5c9591fd406ef2b3d273f8369bdb6",
+    "verdict": "fail",
+    "C3.1": "pass（旧证据，Core功能未变）",
+    "C3.2": "pass（旧证据，Core功能未变）",
+    "C3.3": "unverified",
+    "C3.4": "pass（工具流程，保留原88判定/空跑；复验冷录制与完整30min均结束）",
+    "C3.5": "fail（4 pass/8 environment/1 fail，内存未达预算）",
+    "C3.6": "make test 247项零警告通过；GUI unverified，Viewer exit6明细保留",
+    "C3.7": "pass",
+    "inputRestored": {
+      "original": {
+        "enabled": true,
+        "id": "com.tencent.inputmethod.wetype.pinyin",
+        "languages": [
+          "zh-Hans"
+        ],
+        "name": "微信输入法",
+        "selectable": true
+      },
+      "final": {
+        "enabled": true,
+        "id": "com.tencent.inputmethod.wetype.pinyin",
+        "languages": [
+          "zh-Hans"
+        ],
+        "name": "微信输入法",
+        "selectable": true
+      },
+      "sameID": true
+    },
+    "isolationLimitation": "原生工具自动另启无参数29920，默认会话/缓存被触及；已结束该PID，未备份旧会话，未回退/删除已有文件。详见recheck1.nativeControlIncident。"
+  }
+}
