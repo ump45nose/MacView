@@ -120,12 +120,16 @@ public final class FileImagePipeline: ImagePipeline {
                 return image
             }
             let loaded = try await bundle(identity, target: nil, context: context)
-            try await loaded.derivatives.value
-            let size = PixelSize(width: loaded.base.image.width, height: loaded.base.image.height).fitting(longSide: maxPixel)
-            let image = try await resize(loaded.base, target: DisplayTarget(pixelSize: size), quality: .exact, priority: context.priority)
-            try remember(image, for: loaded.identity.cacheKey + "|thumb|\(maxPixel)")
-            return image
+            // 衍生件已登记到 PipelineLifetime，后台完成写入；可见缩略图拿到基础图后即可返回。
+            return try await thumbnail(loaded, maxPixel: maxPixel, priority: context.priority)
         }
+    }
+
+    private func thumbnail(_ loaded: Bundle, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage {
+        let size = PixelSize(width: loaded.base.image.width, height: loaded.base.image.height).fitting(longSide: maxPixel)
+        let image = try await resize(loaded.base, target: DisplayTarget(pixelSize: size), quality: .exact, priority: priority)
+        try remember(image, for: loaded.identity.cacheKey + "|thumb|\(maxPixel)")
+        return image
     }
 
     public func thumbnails(for identities: [ContentIdentity], maxPixel: Int, priority: IOPriority) -> AsyncStream<(ContentIdentity, Result<RenderedImage, any Error>)> {
@@ -551,7 +555,18 @@ public final class FileImagePipeline: ImagePipeline {
             try lifetime.checkRunning()
             switch rendition {
             case .metadata: _ = try await metadata(item.identity, context: context)
-            case .thumbnail: _ = try await thumbnail(item.identity, maxPixel: configuration.thumbnailLongSide, context: context)
+            case .thumbnail:
+                if try await diskData(caches.thumbnails, for: item.identity.cacheKey) != nil {
+                    _ = try await thumbnail(item.identity, maxPixel: configuration.thumbnailLongSide, context: context)
+                } else {
+                    let loaded = try await bundle(item.identity, target: nil, context: context)
+                    let key = item.identity.cacheKey + "|thumb|\(configuration.thumbnailLongSide)"
+                    _ = try await render(key, context: context) { [self] context in
+                        try await thumbnail(loaded, maxPixel: configuration.thumbnailLongSide, priority: context.priority)
+                    }
+                    // 预取完成仍表示衍生件已经写入，不能随可见缩略图的提前交付一起提早归零。
+                    try await loaded.derivatives.value
+                }
             case .browse:
                 let loaded = try await bundle(item.identity, target: nil, context: context)
                 try await loaded.derivatives.value
