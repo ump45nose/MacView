@@ -95,8 +95,14 @@ final class BookshelfPanel: CollectionPanel {
         startListing()
     }
 
+    override func visibleThumbnailsArrived() {
+        guard owner?.session.book == nil else { return }
+        owner?.finishFirstScreenThumbnails(fromPageList: false)
+    }
+
     /// 列出目录。目录缓存命中时立即有结果。
     private func startListing() {
+        owner?.beginShelfThumbnails()
         listTask?.cancel()
         queue = []
         entries = []
