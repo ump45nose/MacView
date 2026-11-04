@@ -41,7 +41,7 @@ SMB_ROOT = Path("/Volumes/Picture")
 FRAME_MS = 8.33
 REFRESH_120 = 119.0
 LOAD_LIMIT = int(subprocess.check_output(["/usr/sbin/sysctl", "-n", "hw.physicalcpu"], text=True).strip())
-MEMORY_ROLLING_MEDIAN = False  # 60 秒规则待用户确认；确认前仍按逐秒偏差判定。
+MEMORY_ROLLING_MEDIAN = True  # 用户 2026-11-04 已确认采用 60 秒滚动中位数。
 MEMORY_KEYS = ("rawBytes", "decodedBytes", "thumbnailMemoryBytes", "preloadBytes", "inFlightBytes", "waitingTasks")
 IDLE_SECONDS = 45.0
 WAIT_READY = 20 * 60
