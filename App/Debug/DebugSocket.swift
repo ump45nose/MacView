@@ -301,7 +301,10 @@ final class DebugCommands: Sendable {
             NSApp.sendEvent(event)
             if interval > 0 { try? await Task.sleep(for: .milliseconds(interval)) }
         }
-        return .object(["events": .number(Double(events.count)), "windowFront": .bool(windowIsFront(window))])
+        return .object([
+            "events": .number(Double(events.count)), "windowFront": .bool(windowIsFront(window)),
+            "responsiveScrolling": .bool(CanvasView.isCompatibleWithResponsiveScrolling),
+        ])
     }
 
     /// 一段连续手势：began、约 8 ms 一次的 changed，到边界后反向，最后 ended。结束后留出 settled 的时间。
@@ -342,6 +345,7 @@ final class DebugCommands: Sendable {
         return .object([
             "events": .number(Double(sent)), "scrollMovements": .number(Double(movements)),
             "windowFront": .bool(remainedFront && windowIsFront(window)),
+            "responsiveScrolling": .bool(CanvasView.isCompatibleWithResponsiveScrolling),
         ])
     }
 

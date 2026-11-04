@@ -43,6 +43,8 @@ caffeinate -d -w $$ &
 cleanup() {
 	if [ -n "$trace" ]; then
 		kill -INT "$trace" 2>/dev/null || true
+		wait "$trace" 2>/dev/null || true
+		trace=""
 	fi
 	if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
 		kill "$pid" 2>/dev/null || true
