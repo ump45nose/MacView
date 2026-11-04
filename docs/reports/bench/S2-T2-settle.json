@@ -1,28 +1,8 @@
 {
   "scene": "settle",
-  "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
   "env": {
-    "load": {
-      "oneMinute": 35.8681640625,
-      "limit": 6.0
-    },
-    "displayMode": {
-      "width": 1728,
-      "height": 1080,
-      "pixelWidth": 3456,
-      "pixelHeight": 2160,
-      "refreshHz": 59.93998718261719,
-      "builtin": true,
-      "externalDisplay": false
-    },
-    "refreshHz": 59.93998718261719,
-    "screen": {
-      "locked": false,
-      "idleSeconds": 86.261982542,
-      "inputDuringRun": false,
-      "externalDisplay": false
-    },
-    "collectedAt": "2026-11-04T07:56:27Z",
+    "collectedAt": "2026-11-04T11:12:57.241547+00:00",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -32,7 +12,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 720,
+        "linkSpeedMbps": 864,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -59,13 +39,48 @@
         "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
         "source": "/dev/disk3s5"
       }
-    ]
+    ],
+    "load": {
+      "oneMinute": 4.107421875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 77.565814791,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectionContext": "partial memory结束后补采的完整环境快照；该录制依赖场景未在最终提交执行，不是场景前后观测。"
   },
   "budget": {
     "settleRequestLatencyP99Milliseconds": 100
   },
   "measured": {
-    "reason": "环境在 20 分钟内没有满足"
+    "unavailable": true,
+    "executedOnThisCommit": false,
+    "reason": "本机xctrace即使显式设置工作区TMPDIR仍将原始ktrace写入系统临时目录，违背所有非交付产物仅写工作区的硬性边界；本机文档未提供受支持的spool位置参数，root要求停止录制。该项需交回前提，不将未采样判为产品失败。",
+    "prerequisiteEvidence": [
+      "docs/reports/bench/S2-stage3-checks.json#smoke2",
+      "docs/reports/bench/S2-T3-instruments-temp.json"
+    ],
+    "historicalEvidenceOnly": [
+      "docs/reports/bench/before-w35/",
+      "docs/reports/bench/w35-initial/"
+    ],
+    "recordingDependency": "依赖同轮scroll-cold的Time Profiler/signpost记录，当前无法执行",
+    "environmentSupplemented": true
   },
-  "verdict": "environment"
+  "verdict": "unverified",
+  "collectedAt": "2026-11-04T11:12:57.241547+00:00"
 }

@@ -1,0 +1,962 @@
+{
+  "scene": "first-image-initial-page-diagnosis",
+  "commit": "e6aead77ab4e05cb474fcfc50c3a85203b3c942e",
+  "collectedAt": "2026-11-04T10:28:28.091348+00:00",
+  "baselineEvidence": "docs/reports/bench/w35-initial/S2-T2-first-image.json",
+  "changes": "只增加 DebugSocket 只读 pageSlots 状态，产品渲染和 lastDisplay 逻辑保持原样。",
+  "isolation": {
+    "emptyCache": true,
+    "panelsHidden": true,
+    "launcher": "scripts/acceptance/run.py launch_app",
+    "originalPrefetchDisabledClaim": true,
+    "sessionPrefetchDisabled": true,
+    "allImagePrewarmingDisabled": false
+  },
+  "appPID": 57474,
+  "opened": {
+    "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+    "browseMode": "paged",
+    "docksVisible": false,
+    "firstScreenThumbnailMilliseconds": null,
+    "frame": 0,
+    "frameCount": 85,
+    "itemCount": 85,
+    "lastDisplay": null,
+    "loadError": null,
+    "page": 0,
+    "pageSlots": [
+      {
+        "hasImage": true,
+        "page": 0,
+        "quality": "exact"
+      }
+    ],
+    "panels": {
+      "bookshelf": {
+        "itemExtent": 100,
+        "sort": null,
+        "style": "list"
+      },
+      "pageList": {
+        "itemExtent": 100,
+        "sort": null,
+        "style": "list"
+      }
+    },
+    "prefetchIdle": true,
+    "prefetchInFlightCount": 0,
+    "responsiveScrolling": false,
+    "scaleMode": "fitWindow",
+    "tiles": {
+      "cancelled": 0,
+      "inFlight": 0,
+      "requested": 0
+    },
+    "viewport": {
+      "height": 715,
+      "width": 1198
+    },
+    "visibleRange": [
+      0,
+      1
+    ],
+    "windowFront": true,
+    "zoom": 1
+  },
+  "initialPageWait": {
+    "error": "第 0 页没有 exact 显示",
+    "seconds": 20.001041125,
+    "lastState": {
+      "cacheBudgets": {
+        "browseDiskBytes": 53687091200,
+        "decodedBytes": 1073741824,
+        "preloadBytes": 536870912,
+        "rawBytes": 536870912,
+        "thumbnailDiskBytes": 10737418240,
+        "thumbnailMemoryBytes": 536870912
+      },
+      "fileErrors": [
+        {
+          "file": "settings.json",
+          "message": "第 1 行，第 16 列：缺少全局字段，已补默认值：cache, defaultBook, maxDecodeLongSide, prefetch.galleryMarginScreens"
+        }
+      ],
+      "memory": {
+        "decodedBytes": 25190400,
+        "inFlightBytes": 0,
+        "preloadBytes": 177292800,
+        "rawBytes": 102685835,
+        "thumbnailMemoryBytes": 442368,
+        "waitingTasks": 0
+      },
+      "residentBytes": 811139072,
+      "volumes": [
+        {
+          "inFlight": 0,
+          "root": "/",
+          "state": "healthy",
+          "stuck": 0
+        }
+      ],
+      "windows": [
+        {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "browseMode": "paged",
+          "docksVisible": false,
+          "firstScreenThumbnailMilliseconds": null,
+          "frame": 0,
+          "frameCount": 85,
+          "itemCount": 85,
+          "lastDisplay": null,
+          "loadError": null,
+          "page": 0,
+          "pageSlots": [
+            {
+              "hasImage": true,
+              "page": 0,
+              "quality": "exact"
+            }
+          ],
+          "panels": {
+            "bookshelf": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            },
+            "pageList": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            }
+          },
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "responsiveScrolling": false,
+          "scaleMode": "fitWindow",
+          "tiles": {
+            "cancelled": 0,
+            "inFlight": 0,
+            "requested": 0
+          },
+          "viewport": {
+            "height": 715,
+            "width": 1198
+          },
+          "visibleRange": [
+            0,
+            1
+          ],
+          "windowFront": true,
+          "zoom": 1
+        }
+      ]
+    },
+    "expectedPage": 0
+  },
+  "initialPageState": {
+    "cacheBudgets": {
+      "browseDiskBytes": 53687091200,
+      "decodedBytes": 1073741824,
+      "preloadBytes": 536870912,
+      "rawBytes": 536870912,
+      "thumbnailDiskBytes": 10737418240,
+      "thumbnailMemoryBytes": 536870912
+    },
+    "fileErrors": [
+      {
+        "file": "settings.json",
+        "message": "第 1 行，第 16 列：缺少全局字段，已补默认值：cache, defaultBook, maxDecodeLongSide, prefetch.galleryMarginScreens"
+      }
+    ],
+    "memory": {
+      "decodedBytes": 25190400,
+      "inFlightBytes": 0,
+      "preloadBytes": 177292800,
+      "rawBytes": 102685835,
+      "thumbnailMemoryBytes": 442368,
+      "waitingTasks": 0
+    },
+    "residentBytes": 811139072,
+    "volumes": [
+      {
+        "inFlight": 0,
+        "root": "/",
+        "state": "healthy",
+        "stuck": 0
+      }
+    ],
+    "windows": [
+      {
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "browseMode": "paged",
+        "docksVisible": false,
+        "firstScreenThumbnailMilliseconds": null,
+        "frame": 0,
+        "frameCount": 85,
+        "itemCount": 85,
+        "lastDisplay": null,
+        "loadError": null,
+        "page": 0,
+        "pageSlots": [
+          {
+            "hasImage": true,
+            "page": 0,
+            "quality": "exact"
+          }
+        ],
+        "panels": {
+          "bookshelf": {
+            "itemExtent": 100,
+            "sort": null,
+            "style": "list"
+          },
+          "pageList": {
+            "itemExtent": 100,
+            "sort": null,
+            "style": "list"
+          }
+        },
+        "prefetchIdle": true,
+        "prefetchInFlightCount": 0,
+        "responsiveScrolling": false,
+        "scaleMode": "fitWindow",
+        "tiles": {
+          "cancelled": 0,
+          "inFlight": 0,
+          "requested": 0
+        },
+        "viewport": {
+          "height": 715,
+          "width": 1198
+        },
+        "visibleRange": [
+          0,
+          1
+        ],
+        "windowFront": true,
+        "zoom": 1
+      }
+    ]
+  },
+  "pageOneOpened": {
+    "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+    "browseMode": "paged",
+    "docksVisible": false,
+    "firstScreenThumbnailMilliseconds": null,
+    "frame": 1,
+    "frameCount": 85,
+    "itemCount": 85,
+    "lastDisplay": {
+      "milliseconds": 20009.189875,
+      "page": 0,
+      "quality": "exact"
+    },
+    "loadError": null,
+    "page": 1,
+    "pageSlots": [
+      {
+        "hasImage": true,
+        "page": 0,
+        "quality": "exact"
+      }
+    ],
+    "panels": {
+      "bookshelf": {
+        "itemExtent": 100,
+        "sort": null,
+        "style": "list"
+      },
+      "pageList": {
+        "itemExtent": 100,
+        "sort": null,
+        "style": "list"
+      }
+    },
+    "prefetchIdle": true,
+    "prefetchInFlightCount": 0,
+    "responsiveScrolling": false,
+    "scaleMode": "fitWindow",
+    "tiles": {
+      "cancelled": 0,
+      "inFlight": 0,
+      "requested": 0
+    },
+    "viewport": {
+      "height": 715,
+      "width": 1198
+    },
+    "visibleRange": [
+      1,
+      2
+    ],
+    "windowFront": true,
+    "zoom": 1
+  },
+  "pageOneMilliseconds": 76.816166,
+  "pageOneState": {
+    "cacheBudgets": {
+      "browseDiskBytes": 53687091200,
+      "decodedBytes": 1073741824,
+      "preloadBytes": 536870912,
+      "rawBytes": 536870912,
+      "thumbnailDiskBytes": 10737418240,
+      "thumbnailMemoryBytes": 536870912
+    },
+    "fileErrors": [
+      {
+        "file": "settings.json",
+        "message": "第 1 行，第 16 列：缺少全局字段，已补默认值：cache, defaultBook, maxDecodeLongSide, prefetch.galleryMarginScreens"
+      }
+    ],
+    "memory": {
+      "decodedBytes": 50380800,
+      "inFlightBytes": 19699200,
+      "preloadBytes": 177292800,
+      "rawBytes": 115093236,
+      "thumbnailMemoryBytes": 442368,
+      "waitingTasks": 0
+    },
+    "residentBytes": 839548928,
+    "volumes": [
+      {
+        "inFlight": 0,
+        "root": "/",
+        "state": "healthy",
+        "stuck": 0
+      }
+    ],
+    "windows": [
+      {
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "browseMode": "paged",
+        "docksVisible": false,
+        "firstScreenThumbnailMilliseconds": null,
+        "frame": 1,
+        "frameCount": 85,
+        "itemCount": 85,
+        "lastDisplay": {
+          "milliseconds": 76.816166,
+          "page": 1,
+          "quality": "exact"
+        },
+        "loadError": null,
+        "page": 1,
+        "pageSlots": [
+          {
+            "hasImage": true,
+            "page": 1,
+            "quality": "exact"
+          }
+        ],
+        "panels": {
+          "bookshelf": {
+            "itemExtent": 100,
+            "sort": null,
+            "style": "list"
+          },
+          "pageList": {
+            "itemExtent": 100,
+            "sort": null,
+            "style": "list"
+          }
+        },
+        "prefetchIdle": true,
+        "prefetchInFlightCount": 0,
+        "responsiveScrolling": false,
+        "scaleMode": "fitWindow",
+        "tiles": {
+          "cancelled": 0,
+          "inFlight": 0,
+          "requested": 0
+        },
+        "viewport": {
+          "height": 715,
+          "width": 1198
+        },
+        "visibleRange": [
+          1,
+          2
+        ],
+        "windowFront": true,
+        "zoom": 1
+      }
+    ]
+  },
+  "quitSeconds": 0.08440229200000005,
+  "exitCode": 0,
+  "appLog": "2026-11-04 18:28:28.535 MacView[57474:7171513] WARNING <NSToolbarItem: 0x78f1e76200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 18:28:28.587 MacView[57474:7171513] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n",
+  "conclusion": {
+    "observed": "原等待完整运行约 20 秒后超时；第 0 页 pageSlots 的图层 contents 已有图且质量为 exact，但 lastDisplay 为 null。第 1 页随后产生 exact 翻页记录，耗时 76.816166 ms。",
+    "cause": "初始打开的图像可以在 DebugSocket.open 等待全书加载期间到达。PageSlot.apply 设置真实图层后调用 slotChanged；后者在 lastMoveAt 尚为空时也清除 awaitingDisplay。open 最后 go(index:0) 仍留在同一页，未更换 slot，不会再次产生翻页显示记录。",
+    "scope": "这是初始页就绪条件与翻页计时记录的语义不一致；本次证据证明图层已设置，不以模型状态推断屏幕显示。",
+    "repair": "初始第 0 页只等待当前 pageSlots 的真实图层有图且质量为 exact，不纳入计时样本。后续 30 个未访问页仍以 lastDisplay 的 exact 端到端翻页计时判定，预算不变。",
+    "formalAcceptance": "本次是一次短定位，不作为正式 30 样本验收。"
+  },
+  "validation": {
+    "build": "xcodegen generate --quiet；xcodebuild Debug SWIFT_OPTIMIZATION_LEVEL=-O，DerivedData-profile，退出码 0。",
+    "swiftWarnings": 0,
+    "compilerErrors": 0,
+    "toolDiagnostic": "Xcode 报告 CoreSimulator 版本不匹配；macOS 目标构建成功。",
+    "affectedCheck": "只读 state 验证真实图层内容；同一隔离进程第 1 页 exact 计时仍正常，退出码 0。",
+    "cleanup": "隔离 App 已正常退出；本轮 build/w35-app 临时目录、日志和缓存已清理；DerivedData-profile 保留复用。"
+  },
+  "prefetchClarification": {
+    "correction": "当时确实通过 App(prefetch_zero=True) 启动，关闭了五项会话预取；原 prefetchDisabled=true 的表述过强。隐藏 HUD 仍直接请求邻页缩略图，不能称所有图像预热已关闭。",
+    "defaultBrowseMode": "诊断 state 为 paged；默认 galleryMarginScreens=1 虽被补齐，但 ReaderSession 只在非 paged 分支消费，不能解释这次预载缓存。",
+    "holdingChain": [
+      "ViewerContainerView.refresh 无条件调用 hud.refresh，HUD 隐藏状态未拦截加载。",
+      "ViewerHUD 固定显示 9 格，FrameCell.show 直接以 near 请求 128px 缩略图，不经过 ReaderSession 的预取计划。",
+      "冷 thumbnail 通过 bundle 解码基础图；remember(base, priority: near) 将基础图保留在 preload。",
+      "177292800 = 9 × 19699200；诊断中 session prefetchInFlightCount 为 0，直接 HUD 请求不计入该计数。"
+    ],
+    "firstImageImpact": "85 页的 30 个样本索引相隔 2 或 3，每一个都在上一次 HUD 的 9 格范围内；因此此前不能保证这些未显示过的页未经预热。第 0 页图层 exact 而 lastDisplay 为 null 的观察仍成立，第 1 页的 76.816166ms 仅证明计时路径可用，不能作为纯冷页性能证据。",
+    "repairScope": "隐藏 HUD 不加载，并取消已有缩略图请求；重新显示时刷新，复用已经到达的缩略图。"
+  },
+  "afterHUDFix": {
+    "collectedAt": "2026-11-04T10:42:56.495352+00:00",
+    "scope": "隐藏 HUD 的独立冷缓存短诊断，不作为正式 30 样本验收。",
+    "appPID": 62306,
+    "settingsDocument": {
+      "version": 1,
+      "value": {
+        "prefetch": {
+          "viewerDecodeFrames": 0,
+          "viewerReadAheadPages": 0,
+          "currentBookPages": false,
+          "neighborBooks": 0,
+          "shelfCovers": false
+        }
+      }
+    },
+    "opened": {
+      "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+      "browseMode": "paged",
+      "docksVisible": false,
+      "firstScreenThumbnailMilliseconds": null,
+      "frame": 0,
+      "frameCount": 85,
+      "hudVisible": false,
+      "itemCount": 85,
+      "lastDisplay": null,
+      "loadError": null,
+      "page": 0,
+      "pageSlots": [
+        {
+          "hasImage": true,
+          "page": 0,
+          "quality": "exact"
+        }
+      ],
+      "panels": {
+        "bookshelf": {
+          "itemExtent": 100,
+          "sort": null,
+          "style": "list"
+        },
+        "pageList": {
+          "itemExtent": 100,
+          "sort": null,
+          "style": "list"
+        }
+      },
+      "prefetchIdle": true,
+      "prefetchInFlightCount": 0,
+      "responsiveScrolling": false,
+      "scaleMode": "fitWindow",
+      "tiles": {
+        "cancelled": 0,
+        "inFlight": 0,
+        "requested": 0
+      },
+      "viewport": {
+        "height": 715,
+        "width": 1198
+      },
+      "visibleRange": [
+        0,
+        1
+      ],
+      "windowFront": true,
+      "zoom": 1
+    },
+    "initialPageState": {
+      "cacheBudgets": {
+        "browseDiskBytes": 53687091200,
+        "decodedBytes": 1073741824,
+        "preloadBytes": 536870912,
+        "rawBytes": 536870912,
+        "thumbnailDiskBytes": 10737418240,
+        "thumbnailMemoryBytes": 536870912
+      },
+      "fileErrors": [
+        {
+          "file": "settings.json",
+          "message": "第 1 行，第 16 列：缺少全局字段，已补默认值：cache, defaultBook, maxDecodeLongSide, prefetch.galleryMarginScreens"
+        }
+      ],
+      "memory": {
+        "decodedBytes": 25190400,
+        "inFlightBytes": 0,
+        "preloadBytes": 0,
+        "rawBytes": 24399067,
+        "thumbnailMemoryBytes": 0,
+        "waitingTasks": 0
+      },
+      "residentBytes": 297779200,
+      "volumes": [
+        {
+          "inFlight": 0,
+          "root": "/",
+          "state": "healthy",
+          "stuck": 0
+        }
+      ],
+      "windows": [
+        {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "browseMode": "paged",
+          "docksVisible": false,
+          "firstScreenThumbnailMilliseconds": null,
+          "frame": 0,
+          "frameCount": 85,
+          "hudVisible": false,
+          "itemCount": 85,
+          "lastDisplay": null,
+          "loadError": null,
+          "page": 0,
+          "pageSlots": [
+            {
+              "hasImage": true,
+              "page": 0,
+              "quality": "exact"
+            }
+          ],
+          "panels": {
+            "bookshelf": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            },
+            "pageList": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            }
+          },
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "responsiveScrolling": false,
+          "scaleMode": "fitWindow",
+          "tiles": {
+            "cancelled": 0,
+            "inFlight": 0,
+            "requested": 0
+          },
+          "viewport": {
+            "height": 715,
+            "width": 1198
+          },
+          "visibleRange": [
+            0,
+            1
+          ],
+          "windowFront": true,
+          "zoom": 1
+        }
+      ]
+    },
+    "pageOneOpened": {
+      "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+      "browseMode": "paged",
+      "docksVisible": false,
+      "firstScreenThumbnailMilliseconds": null,
+      "frame": 1,
+      "frameCount": 85,
+      "hudVisible": false,
+      "itemCount": 85,
+      "lastDisplay": {
+        "milliseconds": 1022.4852080000001,
+        "page": 0,
+        "quality": "exact"
+      },
+      "loadError": null,
+      "page": 1,
+      "pageSlots": [
+        {
+          "hasImage": true,
+          "page": 0,
+          "quality": "exact"
+        }
+      ],
+      "panels": {
+        "bookshelf": {
+          "itemExtent": 100,
+          "sort": null,
+          "style": "list"
+        },
+        "pageList": {
+          "itemExtent": 100,
+          "sort": null,
+          "style": "list"
+        }
+      },
+      "prefetchIdle": true,
+      "prefetchInFlightCount": 0,
+      "responsiveScrolling": false,
+      "scaleMode": "fitWindow",
+      "tiles": {
+        "cancelled": 0,
+        "inFlight": 0,
+        "requested": 0
+      },
+      "viewport": {
+        "height": 715,
+        "width": 1198
+      },
+      "visibleRange": [
+        1,
+        2
+      ],
+      "windowFront": true,
+      "zoom": 1
+    },
+    "pageOneMilliseconds": 89.127667,
+    "pageOneState": {
+      "cacheBudgets": {
+        "browseDiskBytes": 53687091200,
+        "decodedBytes": 1073741824,
+        "preloadBytes": 536870912,
+        "rawBytes": 536870912,
+        "thumbnailDiskBytes": 10737418240,
+        "thumbnailMemoryBytes": 536870912
+      },
+      "fileErrors": [
+        {
+          "file": "settings.json",
+          "message": "第 1 行，第 16 列：缺少全局字段，已补默认值：cache, defaultBook, maxDecodeLongSide, prefetch.galleryMarginScreens"
+        }
+      ],
+      "memory": {
+        "decodedBytes": 50380800,
+        "inFlightBytes": 0,
+        "preloadBytes": 0,
+        "rawBytes": 36806468,
+        "thumbnailMemoryBytes": 0,
+        "waitingTasks": 0
+      },
+      "residentBytes": 345751552,
+      "volumes": [
+        {
+          "inFlight": 0,
+          "root": "/",
+          "state": "healthy",
+          "stuck": 0
+        }
+      ],
+      "windows": [
+        {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "browseMode": "paged",
+          "docksVisible": false,
+          "firstScreenThumbnailMilliseconds": null,
+          "frame": 1,
+          "frameCount": 85,
+          "hudVisible": false,
+          "itemCount": 85,
+          "lastDisplay": {
+            "milliseconds": 89.127667,
+            "page": 1,
+            "quality": "exact"
+          },
+          "loadError": null,
+          "page": 1,
+          "pageSlots": [
+            {
+              "hasImage": true,
+              "page": 1,
+              "quality": "exact"
+            }
+          ],
+          "panels": {
+            "bookshelf": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            },
+            "pageList": {
+              "itemExtent": 100,
+              "sort": null,
+              "style": "list"
+            }
+          },
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "responsiveScrolling": false,
+          "scaleMode": "fitWindow",
+          "tiles": {
+            "cancelled": 0,
+            "inFlight": 0,
+            "requested": 0
+          },
+          "viewport": {
+            "height": 715,
+            "width": 1198
+          },
+          "visibleRange": [
+            1,
+            2
+          ],
+          "windowFront": true,
+          "zoom": 1
+        }
+      ]
+    },
+    "verified": true,
+    "quitSeconds": 0.08657708299999989,
+    "exitCode": 0,
+    "appLog": "2026-11-04 18:42:56.940 MacView[62306:7217402] WARNING <NSToolbarItem: 0x781c61e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 18:42:56.992 MacView[62306:7217402] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n",
+    "validation": {
+      "build": "xcodegen generate --quiet；Debug SWIFT_OPTIMIZATION_LEVEL=-O，DerivedData-profile，退出码 0。",
+      "swiftWarnings": 0,
+      "compilerErrors": 0,
+      "sourceDiff": "ViewerHUD 增加 7 行，DebugSocket 增加只读 hudVisible 1 行，共 8 行。",
+      "beforeAfter": "修复前 preloadBytes=177292800、thumbnailMemoryBytes=442368；修复后第 0/1 页均为 0，HUD 隐藏且会话预取无在途任务。",
+      "showHideChain": "隐藏触发 cancel，FrameCell.clear 取消任务并清除 shown；重新显示触发 refresh，按当前书和页重建缩略图，可复用已完成缓存。",
+      "independentAcceptance": "正式 30 样本、Viewer 自检及其余场景由独立执行方在最终提交补跑。",
+      "cleanup": "隔离 App PID 62306 已正常退出且 ps 确认不再存在；本轮 build/w35-app 日志、缓存和临时目录全部清理。DerivedData-profile 保留。"
+    }
+  },
+  "implementationCommit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+  "sourceProvenance": "最初诊断基于e6aead7加只读pageSlots本地改动，后入79bdf7f；afterHUDFix基于bcbe95e加8行HUD/state本地改动，产品修复及正式证据采样入3e417a1。短定位均不代替最终30样本独立验收。",
+  "finalColdSamplesReview": {
+    "source": "S2-T2-first-image.json, commit 3e417a1",
+    "method": "按样本集数字文件名的自然升序对应页号，用sips只读查询每个正式样本的像素尺寸；未改图片、页序、预算或正式计时。",
+    "samples": [
+      {
+        "page": 1,
+        "name": "0002.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 78.718125
+      },
+      {
+        "page": 4,
+        "name": "0005.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 71.787167
+      },
+      {
+        "page": 7,
+        "name": "0008.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 71.888
+      },
+      {
+        "page": 10,
+        "name": "0011.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 64.044042
+      },
+      {
+        "page": 12,
+        "name": "0013.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 70.3165
+      },
+      {
+        "page": 15,
+        "name": "0016.jpg",
+        "width": 5400,
+        "height": 3600,
+        "milliseconds": 179.67975
+      },
+      {
+        "page": 18,
+        "name": "0019.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 75.414667
+      },
+      {
+        "page": 21,
+        "name": "0022.jpg",
+        "width": 5400,
+        "height": 3600,
+        "milliseconds": 180.852167
+      },
+      {
+        "page": 24,
+        "name": "0025.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 72.889541
+      },
+      {
+        "page": 27,
+        "name": "0028.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 78.042
+      },
+      {
+        "page": 30,
+        "name": "0031.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 79.141625
+      },
+      {
+        "page": 32,
+        "name": "0033.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 74.24575
+      },
+      {
+        "page": 35,
+        "name": "0036.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 69.152167
+      },
+      {
+        "page": 38,
+        "name": "0039.jpg",
+        "width": 5400,
+        "height": 3600,
+        "milliseconds": 183.901708
+      },
+      {
+        "page": 41,
+        "name": "0042.jpg",
+        "width": 5400,
+        "height": 3600,
+        "milliseconds": 175.29975
+      },
+      {
+        "page": 44,
+        "name": "0045.jpg",
+        "width": 5400,
+        "height": 3600,
+        "milliseconds": 168.844875
+      },
+      {
+        "page": 47,
+        "name": "0048.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 67.226292
+      },
+      {
+        "page": 50,
+        "name": "0051.jpg",
+        "width": 3696,
+        "height": 5400,
+        "milliseconds": 67.080417
+      },
+      {
+        "page": 53,
+        "name": "0054.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 71.108875
+      },
+      {
+        "page": 55,
+        "name": "0056.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 67.738
+      },
+      {
+        "page": 58,
+        "name": "0059.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 77.538542
+      },
+      {
+        "page": 61,
+        "name": "0062.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 70.887792
+      },
+      {
+        "page": 64,
+        "name": "0065.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 78.274
+      },
+      {
+        "page": 67,
+        "name": "0068.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 72.921667
+      },
+      {
+        "page": 70,
+        "name": "0071.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 68.449
+      },
+      {
+        "page": 73,
+        "name": "0074.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 72.421291
+      },
+      {
+        "page": 75,
+        "name": "0076.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 69.995083
+      },
+      {
+        "page": 78,
+        "name": "0079.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 69.810083
+      },
+      {
+        "page": 81,
+        "name": "0082.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 69.746959
+      },
+      {
+        "page": 84,
+        "name": "0085.jpg",
+        "width": 3600,
+        "height": 5400,
+        "milliseconds": 106.6255
+      }
+    ],
+    "groups": {
+      "landscape": {
+        "samples": 5,
+        "medianMilliseconds": 179.67975,
+        "maxMilliseconds": 183.901708,
+        "over150Milliseconds": 5
+      },
+      "portrait": {
+        "samples": 25,
+        "medianMilliseconds": 71.787167,
+        "maxMilliseconds": 106.6255,
+        "over150Milliseconds": 0
+      }
+    },
+    "conclusion": "本轮30样本中5张横图均超过150ms，25张竖图均未超过；仅能确认相关性，未取得各解码/缩放/图层设置阶段耗时，不能据此认定根因。"
+  }
+}

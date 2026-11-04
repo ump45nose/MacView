@@ -1,0 +1,232 @@
+{
+  "issue": "xctrace原始ktrace留在默认系统临时目录，数据卷空间不足致保存失败",
+  "scope": "首轮仅清理本会话5个原始文件；工作区TMPDIR短验证另产生1个原始文件并清理，详见isolationVerification.cleanup；其余旧文件保留。",
+  "toolTemporaryDirectory": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
+  "rootCauseEvidence": "初轮 shell 录制工具未设置 TMPDIR；修复后短验证证实即使显式工作区 TMPDIR，xctrace 仍将原始 instruments*.ktrace 写入默认系统目录，因此不能将隔离问题归因于环境变量遗漏。",
+  "lsofOpenFiles": "",
+  "freeBytesBefore": 899391488,
+  "files": [
+    {
+      "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments9IgtYC.ktrace",
+      "bytes": 455561208,
+      "createdAtLocal": "2026-11-04T18:13:07.975447",
+      "modifiedAtLocal": "2026-11-04T18:13:11.528041",
+      "ownedBy": "本会话阶段3的smoke/正式录制；创建时间与录制日志吻合"
+    },
+    {
+      "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsa2bxiD.ktrace",
+      "bytes": 15850590272,
+      "createdAtLocal": "2026-11-04T18:14:25.604815",
+      "modifiedAtLocal": "2026-11-04T18:16:15.109349",
+      "ownedBy": "本会话阶段3的smoke/正式录制；创建时间与录制日志吻合"
+    },
+    {
+      "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsIqpLar.ktrace",
+      "bytes": 414786056,
+      "createdAtLocal": "2026-11-04T15:34:30.640311",
+      "modifiedAtLocal": "2026-11-04T15:34:34.279345",
+      "ownedBy": "本会话阶段3的smoke/正式录制；创建时间与录制日志吻合"
+    },
+    {
+      "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsIZjM5G.ktrace",
+      "bytes": 14377826712,
+      "createdAtLocal": "2026-11-04T15:55:19.979211",
+      "modifiedAtLocal": "2026-11-04T15:56:39.077070",
+      "ownedBy": "本会话阶段3的smoke/正式录制；创建时间与录制日志吻合"
+    },
+    {
+      "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsVacwZ7.ktrace",
+      "bytes": 14282495584,
+      "createdAtLocal": "2026-11-04T16:20:58.162543",
+      "modifiedAtLocal": "2026-11-04T16:22:41.329493",
+      "ownedBy": "本会话阶段3的smoke/正式录制；创建时间与录制日志吻合"
+    }
+  ],
+  "deleted": true,
+  "freeBytesAfter": 46252564480,
+  "isolationVerification": {
+    "sourceCommit": "79bdf7f9f6b8d39818795fe8fd4aebf8f64f0034",
+    "summary": {
+      "app": {},
+      "appPhases": [
+        {
+          "end": 167501.37341345835,
+          "name": "scroll-cached",
+          "start": 167499.82872383334
+        }
+      ],
+      "displays": [
+        {
+          "builtIn": "Yes",
+          "maxRefreshRate": 120,
+          "name": "Built-In Display 1"
+        }
+      ],
+      "phases": [
+        {
+          "frameTimeMax": 0.0,
+          "frameTimeP50": 0.0,
+          "frameTimeP99": 0.0,
+          "frames": 0,
+          "framesPerSecond": 0.0,
+          "hitchMilliseconds": 0.0,
+          "hitchRatioMsPerSecond": 0.0,
+          "hitches": 0,
+          "name": "scroll-cached",
+          "renderP50": 0.0,
+          "renderP99": 0.0,
+          "seconds": 1.545,
+          "settleEventDelayMax": 0.0,
+          "settleRequestLatencyMax": 0.0,
+          "settleRequestLatencyP99": 0.0,
+          "settles": 0,
+          "updateP50": 0.0,
+          "updateP99": 0.0
+        }
+      ],
+      "trace": "record.trace"
+    },
+    "summaryAfterRawCleanup": {
+      "app": {},
+      "appPhases": [
+        {
+          "end": 167501.37341345835,
+          "name": "scroll-cached",
+          "start": 167499.82872383334
+        }
+      ],
+      "displays": [
+        {
+          "builtIn": "Yes",
+          "maxRefreshRate": 120,
+          "name": "Built-In Display 1"
+        }
+      ],
+      "phases": [
+        {
+          "frameTimeMax": 0.0,
+          "frameTimeP50": 0.0,
+          "frameTimeP99": 0.0,
+          "frames": 0,
+          "framesPerSecond": 0.0,
+          "hitchMilliseconds": 0.0,
+          "hitchRatioMsPerSecond": 0.0,
+          "hitches": 0,
+          "name": "scroll-cached",
+          "renderP50": 0.0,
+          "renderP99": 0.0,
+          "seconds": 1.545,
+          "settleEventDelayMax": 0.0,
+          "settleRequestLatencyMax": 0.0,
+          "settleRequestLatencyP99": 0.0,
+          "settles": 0,
+          "updateP50": 0.0,
+          "updateP99": 0.0
+        }
+      ],
+      "trace": "record.trace"
+    },
+    "sameSummary": true,
+    "reexportExitCode": 0,
+    "rawXctraceLog": "Starting recording with the Animation Hitches template and os_signpost Instrument. Attaching to: MacView (58727). \nCtrl-C to stop the recording\nStopping recording...\nRecording completed. Saving output file...\nOutput file saved as: record.trace\n",
+    "rawAppLog": "2026-11-04 18:31:48.660 MacView[58727:7184151] WARNING <NSToolbarItem: 0x7a3bd8a200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 18:31:48.714 MacView[58727:7184151] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n",
+    "rawConsole": "正在录制 1 秒：请在 MacView 中用触控板滚动、缩放。\n",
+    "conclusion": "saved trace can be exported after raw spool removal; xctrace ignores inherited TMPDIR, workspace isolation is not established; full scenes remain paused",
+    "systemKtracePathsAfterCleanupAndReexport": [
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments2pt8rm.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsC2jyvX.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsF1VQ7E.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsFAhWnQ.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsM7EDH9.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsNVhe6o.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsWcyXHP.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsYOtxPy.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsgJwc6h.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsoZiLrq.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsx8ZKd8.ktrace",
+      "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsxyZXe6.ktrace"
+    ],
+    "systemKtraceSetRestored": true,
+    "cleanup": {
+      "systemBefore": {
+        "systemTMPDIR": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
+        "systemKtraces": [
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments2pt8rm.ktrace",
+            "bytes": 11028213384
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsC2jyvX.ktrace",
+            "bytes": 2317752736
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsF1VQ7E.ktrace",
+            "bytes": 13740328296
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsFAhWnQ.ktrace",
+            "bytes": 12355078240
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsM7EDH9.ktrace",
+            "bytes": 2165883584
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsNVhe6o.ktrace",
+            "bytes": 19123722272
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsWcyXHP.ktrace",
+            "bytes": 11538689976
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsYOtxPy.ktrace",
+            "bytes": 11885084288
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsgJwc6h.ktrace",
+            "bytes": 12468539208
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsoZiLrq.ktrace",
+            "bytes": 15144266368
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsx8ZKd8.ktrace",
+            "bytes": 12051517856
+          },
+          {
+            "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsxyZXe6.ktrace",
+            "bytes": 12079605864
+          }
+        ]
+      },
+      "newSystemKtraces": [
+        {
+          "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsU9Argv.ktrace",
+          "bytes": 156497224,
+          "mtime": 1793788320.0605206
+        }
+      ],
+      "newWorkspaceKtraces": [],
+      "workspaceIsolationVerified": false,
+      "smokeExitCode": 0,
+      "lsof": {
+        "returnCode": 1,
+        "stdout": "",
+        "stderr": ""
+      },
+      "rawRemovedAfterNoHolder": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsU9Argv.ktrace"
+    }
+  },
+  "documentedOptions": {
+    "version": "xctrace 27.2 (27B52)",
+    "manual": "/Applications/Xcode.app/Contents/Developer/usr/share/man/man1/xctrace.1",
+    "output": "121–127 行：只控制最终 .trace 路径",
+    "env": "176–177 行：只设置被 launch 的目标环境",
+    "window": "150–151 行：环形缓冲",
+    "recordingOptions": "182–185 行：选定 instrument 的配置",
+    "conclusion": "本机文档未提供原始 ktrace spool 目录控制；未尝试未记录的环境变量，未修改系统配置。"
+  },
+  "nextStep": "4 个依赖 xctrace 的最终场景暂不录制，交回设计侧提供受支持的工作区内录制路线；旧证据保留作对照。"
+}

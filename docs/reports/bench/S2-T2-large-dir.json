@@ -1,10 +1,12 @@
 {
   "scene": "large-dir",
-  "commit": "7e42358a838516dcbe9f18a729ca271852beeadd",
+  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
   "env": {
     "load": {
-      "oneMinute": 33.66552734375,
-      "limit": 6.0
+      "oneMinute": 9.58740234375,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 10.5009765625
     },
     "displayMode": {
       "width": 1728,
@@ -18,11 +20,11 @@
     "refreshHz": 59.93998718261719,
     "screen": {
       "locked": false,
-      "idleSeconds": 111.087968667,
+      "idleSeconds": 148.727855166,
       "inputDuringRun": false,
       "externalDisplay": false
     },
-    "collectedAt": "2026-11-04T07:56:52Z",
+    "collectedAt": "2026-11-04T11:14:08Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -32,7 +34,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 720,
+        "linkSpeedMbps": 864,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -59,14 +61,47 @@
         "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/generated/tree/10000",
         "source": "/dev/disk3s5"
       }
-    ]
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 154.428904333,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 59.93998718261719,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    }
   },
   "budget": {
     "maxRoundTripMilliseconds": 250,
     "itemCountChanges": 3
   },
   "measured": {
-    "reason": "环境在 20 分钟内没有满足"
+    "stateSamples": 75,
+    "maxRoundTripMilliseconds": 160.73941700000205,
+    "itemCountChanges": 2,
+    "itemCounts": [
+      0,
+      8190,
+      10000
+    ],
+    "openOk": true,
+    "refreshHz": 59.93998718261719,
+    "artifactEvidence": {
+      "runnerPID": 69455,
+      "runnerExitCode": 0,
+      "rawRunnerLog": "first-image: fail -> docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: pass -> docs/reports/bench/S2-T2-preloaded-flip.json\nnas-throughput: pass -> docs/reports/bench/S2-T2-nas-throughput.json\ncached-first-screen: unverified -> docs/reports/bench/S2-T2-cached-first-screen.json\nlarge-dir: fail -> docs/reports/bench/S2-T2-large-dir.json\nnas-fault: unverified -> docs/reports/bench/S2-T2-nas-fault.json\ntiles-cancel: pass -> docs/reports/bench/S2-T2-tiles-cancel.json\npanel-restart: pass -> docs/reports/bench/S2-T2-panel-restart.json\n",
+      "rawAppLogs": {
+        "large-dir-69455": "2026-11-04 19:14:08.846 MacView[69785:7291341] WARNING <NSToolbarItem: 0x7caa1c2200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 19:14:08.892 MacView[69785:7291341] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+      }
+    }
   },
-  "verdict": "environment"
+  "verdict": "fail"
 }
