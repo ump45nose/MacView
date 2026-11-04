@@ -1,0 +1,370 @@
+{
+  "scene": "first-image-headless-segmented",
+  "codeState": "after",
+  "mode": "fullscreen",
+  "commit": "79c98043a7767e7283fdadca50968e3a3bc28e3a",
+  "env": {
+    "load": {
+      "oneMinute": 9.279296875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": true,
+      "idleSeconds": 4248.812990416,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "after": {
+      "load": {
+        "oneMinute": 9.279296875,
+        "limit": 10,
+        "limitSource": "sysctl -n hw.physicalcpu"
+      },
+      "displayMode": {
+        "width": 1728,
+        "height": 1080,
+        "pixelWidth": 3456,
+        "pixelHeight": 2160,
+        "refreshHz": 59.93998718261719,
+        "builtin": true,
+        "externalDisplay": false
+      },
+      "refreshHz": 59.93998718261719,
+      "screen": {
+        "locked": true,
+        "idleSeconds": 4250.257427916,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      }
+    }
+  },
+  "budget": {
+    "guiFirstImageP95Milliseconds": 150
+  },
+  "verdict": "unverified",
+  "reason": "屏幕锁定；此数据验证真实管线的像素级别和分段用时，未执行App，也没有图层或GUI端到端数据。",
+  "measurementDefinition": {
+    "samples": "与first-image相同：85文件按NameOrder排序，跳过已预热第0页，均匀选择原30页；fullscreen另开空缓存，只取其中横图。",
+    "metadataPreflight": "每页先调用真实pipeline.metadata确定方向和目标（书的元数据预探测）；这次文件头探测在exact交付计时外。L2/L3初始为空，无预取。",
+    "readAndMetadataAwaitMilliseconds": "bundle等待完整content；含剩余文件读取、元数据探测/入库、调度及排队。",
+    "decodeAwaitMilliseconds": "基础图decode await；含ImageIO、32位IOSurface归一化、调度及排队。",
+    "resizeAwaitMilliseconds": "exact缩放await，含vImage及专用队列排队。以上均不是纯CPU用时。",
+    "pipelineExactDeliveryMilliseconds": "image调用到流中首次exact交付；随后等本页衍生件写完才开始下一页，因此不代表App首图端到端。",
+    "guiEndToEndMilliseconds": null
+  },
+  "buildProvenance": {
+    "commit": "79c98043a7767e7283fdadca50968e3a3bc28e3a",
+    "label": "new-size-strategy-with-temporary-await-timing-and-readonly-app-counters",
+    "sourceSHA256": {
+      "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift": "c05e7f1f1fbd8b42902f20e8a77380c52f0c5aa0e9f38775ea45154c9986ddfd",
+      "App/Collection/CollectionView.swift": "047ad5bd4a98ddf5c15cba6c0d6397e3fe67f93224a2ed11de2cfdf8f7f00422",
+      "App/Collection/CollectionPanel.swift": "c793b4d7837e5f909449f151611b30e37c43c39791e453befb3323954363ed75",
+      "App/Collection/BookshelfPanel.swift": "5d06a7d54274ed27c6e8f57c69b1debcad1092e7d545bddab876f8ea4299f943",
+      "App/Debug/DebugSocket.swift": "072ce484e2f4923d442baafa4f6fe4b0010011cca793a97e8677be3159fbe948"
+    },
+    "buildCommand": [
+      "xcodebuild",
+      "-quiet",
+      "-project",
+      "MacView.xcodeproj",
+      "-scheme",
+      "MacView",
+      "-configuration",
+      "Debug",
+      "-destination",
+      "platform=macOS,arch=arm64",
+      "-derivedDataPath",
+      "build/DerivedData-w36",
+      "-clonedSourcePackagesDirPath",
+      "build/DerivedData/SourcePackages",
+      "-skipPackageUpdates",
+      "-onlyUsePackageVersionsFromResolvedFile",
+      "SWIFT_OPTIMIZATION_LEVEL=-O",
+      "build"
+    ],
+    "testsRun": false,
+    "buildExitCode": 0,
+    "swiftCompilerWarningCount": 0,
+    "appSHA256": "bad0d45933374b1771bd085930295d35d593726b9ba0d461733863400a84ef9d"
+  },
+  "runnerCompileCommand": [
+    "xcrun",
+    "swiftc",
+    "-sdk",
+    "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.2.sdk",
+    "-swift-version",
+    "6",
+    "-O",
+    "-parse-as-library",
+    "-target",
+    "arm64-apple-macos27.0",
+    "-I",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug",
+    "-Xcc",
+    "-fmodule-map-file=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData/SourcePackages/checkouts/GRDB.swift/Sources/GRDBSQLite/module.modulemap",
+    "-module-cache-path",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-core/ModuleCache",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-core/headless.swift",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVFoundation.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVIO.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVMedia.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVCache.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVPipeline.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/GRDB.o",
+    "-lsqlite3",
+    "-o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-core/headless"
+  ],
+  "runnerSourceSHA256": "b104b0ffa2a9c1de171796ff12b33fa7389b65f003a2c53b4b8393607694e871",
+  "runnerDriverSHA256": "e3915db322022bc6b524e543a36a4dcb38528a1150385ab7acfe505f901a78cb",
+  "objectSHA256": {
+    "MVFoundation.o": "453941bd9c1335bbae57c00f87bc688b1b4157bbf7889d477d57c918ad5666ec",
+    "MVIO.o": "caa8f57d996c41f597f1b59b72b942a55e76ee25d324a3fabb5b45be4f0ed808",
+    "MVMedia.o": "4a1b1a3d374e946a82963354a3a9571316601e2c95cc5ca677138992af676348",
+    "MVCache.o": "b03525c9be22d13c23ed4879141a5bc10ced4c1e08ebac91f2b1beb48feabd86",
+    "MVPipeline.o": "0019af13e2ebafb27a5c3e129a546390d190790ee4946643c59794ffe2feeb7f",
+    "GRDB.o": "e0503c5d279491a7408f9e8b3f763abb468626ac97f27dcd9e40a67a35b098e0"
+  },
+  "runnerCompilerWarningCount": 0,
+  "measured": {
+    "samples": 5,
+    "pages": [
+      1,
+      4,
+      7,
+      10,
+      12,
+      15,
+      18,
+      21,
+      24,
+      27,
+      30,
+      32,
+      35,
+      38,
+      41,
+      44,
+      47,
+      50,
+      53,
+      55,
+      58,
+      61,
+      64,
+      67,
+      70,
+      73,
+      75,
+      78,
+      81,
+      84
+    ],
+    "bookFiles": 85,
+    "pipelineP95Milliseconds": 189.197125,
+    "guiEndToEndMilliseconds": null,
+    "segments": [
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 96.741416,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0016.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.095917,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          3240,
+          2160
+        ],
+        "resizeAwaitMilliseconds": 77.960042,
+        "page": 15,
+        "pipelineExactDeliveryMilliseconds": 181.662125,
+        "target": [
+          3240,
+          2160
+        ],
+        "pipelineOtherMilliseconds": 0.864750000000015
+      },
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 97.311208,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0022.jpg",
+        "readAndMetadataAwaitMilliseconds": 5.908625,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          3240,
+          2160
+        ],
+        "resizeAwaitMilliseconds": 65.22175,
+        "page": 21,
+        "pipelineExactDeliveryMilliseconds": 169.248084,
+        "target": [
+          3240,
+          2160
+        ],
+        "pipelineOtherMilliseconds": 0.8065010000000257
+      },
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 94.820709,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0039.jpg",
+        "readAndMetadataAwaitMilliseconds": 5.819041,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          3240,
+          2160
+        ],
+        "resizeAwaitMilliseconds": 87.774333,
+        "page": 38,
+        "pipelineExactDeliveryMilliseconds": 189.197125,
+        "target": [
+          3240,
+          2160
+        ],
+        "pipelineOtherMilliseconds": 0.7830419999999947
+      },
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 91.774584,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0042.jpg",
+        "readAndMetadataAwaitMilliseconds": 4.817166,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          3240,
+          2160
+        ],
+        "resizeAwaitMilliseconds": 80.9215,
+        "page": 41,
+        "pipelineExactDeliveryMilliseconds": 178.233166,
+        "target": [
+          3240,
+          2160
+        ],
+        "pipelineOtherMilliseconds": 0.719916000000012
+      },
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 91.156375,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0045.jpg",
+        "readAndMetadataAwaitMilliseconds": 5.693667,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          3240,
+          2160
+        ],
+        "resizeAwaitMilliseconds": 70.657916,
+        "page": 44,
+        "pipelineExactDeliveryMilliseconds": 168.3775,
+        "target": [
+          3240,
+          2160
+        ],
+        "pipelineOtherMilliseconds": 0.8695419999999956
+      }
+    ],
+    "bySourceSize": {
+      "5400x3600": {
+        "count": 5,
+        "baseSizes": [
+          "5400x3600"
+        ],
+        "outputSizes": [
+          "3240x2160"
+        ],
+        "median": {
+          "readAndMetadataAwaitMilliseconds": 5.819041,
+          "decodeAwaitMilliseconds": 94.820709,
+          "resizeAwaitMilliseconds": 77.960042,
+          "pipelineOtherMilliseconds": 0.8065010000000257,
+          "pipelineExactDeliveryMilliseconds": 178.233166
+        },
+        "p95": {
+          "readAndMetadataAwaitMilliseconds": 6.095917,
+          "decodeAwaitMilliseconds": 97.311208,
+          "resizeAwaitMilliseconds": 87.774333,
+          "pipelineOtherMilliseconds": 0.8695419999999956,
+          "pipelineExactDeliveryMilliseconds": 189.197125
+        }
+      }
+    }
+  },
+  "finalCoreSourceMapping": {
+    "path": "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift",
+    "finalSHA256": "f3727db12c39b5182d706180bf56eaf2cb9a89ec753358430eb29a9832bfe5df",
+    "profiledAfterSHA256": "c05e7f1f1fbd8b42902f20e8a77380c52f0c5aa0e9f38775ea45154c9986ddfd",
+    "profiledAfterToFinal": "仅移除24行临时计时代码；通过在最终文件重新插入同一埋点后SHA256与after构建来源完全匹配验证。",
+    "timingOnlyRemovalVerifiedBySHA256": true,
+    "baselineToFinal": "baseline仍是旧解码策略，除移除计时外还包含W3.6功能策略变更，不可将baseline映射称为仅移除计时。",
+    "performanceEvidenceScope": "仅真实管线定位对照，临时计时版数据不是最终无埋点App的性能验收。GUI first-image未验证。"
+  },
+  "finalCoreValidation": {
+    "command": [
+      "swift",
+      "test",
+      "--package-path",
+      "Packages/MacViewKit",
+      "--disable-xctest",
+      "--filter",
+      "MVPipelineTests"
+    ],
+    "passedTests": 26,
+    "swiftWarningCount": 0,
+    "c311": {
+      "dimensionTest": "browseAndDisplayChooseDecodeLevelsIndependently",
+      "dimensionCases": 5,
+      "lateTargetTest": "displayJoiningAfterDecodeLevelSelectionReusesSufficientBasePixels",
+      "lateTargetCases": 1,
+      "lateTargetTestLimitation": "已有条件可确认解码级别已选且decode排队；消费者绑定是私有状态，故第二消费者入场仍使用30ms调度窗口，繁忙环境下存在时序局限，未新增公共或诊断API。"
+    },
+    "fullMakeTest": "本轮未跑，由最终独立验收执行。",
+    "finalNoProfilingDebugOAppBuild": "未重复构建，由最终独立验收执行；临时计时版old/after Debug-O构建及runner均0条Swift warning。",
+    "testSourceSHA256": "5669d8f0c43d3c004deaa582f4c21453b94e3562f48bbdd4d035f7cbe5f6dae3"
+  },
+  "temporaryArtifactsRemoved": [
+    "build/w36-core",
+    "build/DerivedData-w36"
+  ],
+  "runnerCompilerEnvironment": {
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "SDK": "MacOSX27.2.sdk"
+  }
+}

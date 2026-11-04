@@ -1,12 +1,11 @@
 {
   "scene": "first-image",
-  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+  "commit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
   "env": {
     "load": {
-      "oneMinute": 4.107421875,
+      "oneMinute": 9.29296875,
       "limit": 10,
-      "limitSource": "sysctl -n hw.physicalcpu",
-      "during": 4.0185546875
+      "limitSource": "sysctl -n hw.physicalcpu"
     },
     "displayMode": {
       "width": 1728,
@@ -19,12 +18,38 @@
     },
     "refreshHz": 59.93998718261719,
     "screen": {
-      "locked": false,
-      "idleSeconds": 77.95403975,
+      "locked": true,
+      "idleSeconds": 4851.712998583,
       "inputDuringRun": false,
       "externalDisplay": false
     },
-    "collectedAt": "2026-11-04T11:12:57Z",
+    "admissionCarryForward": {
+      "evidence": "docs/reports/bench/S2-T3-w36-baseline.json",
+      "waitAlreadyExhausted": true,
+      "currentProbe": {
+        "locked": true,
+        "idleSeconds": 4851.280235541,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      },
+      "continuedWithoutRepeatingWait": true
+    },
+    "frozenApp": {
+      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+      "sha256": "03c85e17f6b77f3a82775885b5dd587bc5345e2a186966e5f980f0d0d6c8d07f",
+      "signature": {
+        "returnCode": 0,
+        "cdhash": "4034361909fe65509c2018d3ad1d36cee5b54759",
+        "rawOutput": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30356 flags=0x2(adhoc) hashes=938+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=4034361909fe65509c2018d3ad1d36cee5b54759\nCandidateCDHashFull sha256=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nHash choices=sha256\nCMSDigest=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=4034361909fe65509c2018d3ad1d36cee5b54759\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+      }
+    },
+    "frozenMvbench": {
+      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Packages/MacViewKit/.build/release/mvbench",
+      "sha256": "106bfbb57e5d7a225856cd920b2bfef1f0eb0861295f4ff11fc3bf1ffeea8715"
+    },
+    "collectedAt": "2026-11-04T12:32:31Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -34,7 +59,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 864,
+        "linkSpeedMbps": 720,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -61,129 +86,14 @@
         "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
         "source": "/dev/disk3s5"
       }
-    ],
-    "screenAfter": {
-      "locked": false,
-      "idleSeconds": 82.120574625,
-      "inputDuringRun": false,
-      "externalDisplay": false
-    },
-    "refreshHzAfter": 59.93998718261719,
-    "displayModeAfter": {
-      "width": 1728,
-      "height": 1080,
-      "pixelWidth": 3456,
-      "pixelHeight": 2160,
-      "refreshHz": 59.93998718261719,
-      "builtin": true,
-      "externalDisplay": false
-    }
+    ]
   },
   "budget": {
     "lastDisplayP95Milliseconds": 150,
     "samples": 30
   },
   "measured": {
-    "samples": 30,
-    "p95": 180.852167,
-    "milliseconds": [
-      78.718125,
-      71.787167,
-      71.888,
-      64.044042,
-      70.3165,
-      179.67975,
-      75.414667,
-      180.852167,
-      72.889541,
-      78.042,
-      79.141625,
-      74.24575,
-      69.152167,
-      183.901708,
-      175.29975,
-      168.844875,
-      67.226292,
-      67.080417,
-      71.108875,
-      67.738,
-      77.538542,
-      70.887792,
-      78.274,
-      72.921667,
-      68.449,
-      72.421291,
-      69.995083,
-      69.810083,
-      69.746959,
-      106.6255
-    ],
-    "pages": [
-      1,
-      4,
-      7,
-      10,
-      12,
-      15,
-      18,
-      21,
-      24,
-      27,
-      30,
-      32,
-      35,
-      38,
-      41,
-      44,
-      47,
-      50,
-      53,
-      55,
-      58,
-      61,
-      64,
-      67,
-      70,
-      73,
-      75,
-      78,
-      81,
-      84
-    ],
-    "frameCount": 85,
-    "prefetchDisabled": true,
-    "panelsHidden": true,
-    "initialState": {
-      "memory": {
-        "decodedBytes": 25190400,
-        "inFlightBytes": 0,
-        "preloadBytes": 0,
-        "rawBytes": 24399067,
-        "thumbnailMemoryBytes": 0,
-        "waitingTasks": 0
-      },
-      "hudVisible": false
-    },
-    "finalState": {
-      "memory": {
-        "decodedBytes": 1062199040,
-        "inFlightBytes": 19699200,
-        "preloadBytes": 0,
-        "rawBytes": 317820655,
-        "thumbnailMemoryBytes": 0,
-        "waitingTasks": 0
-      },
-      "hudVisible": false
-    },
-    "refreshHz": 59.93998718261719,
-    "artifactEvidence": {
-      "runnerPID": 69455,
-      "runnerExitCode": 0,
-      "rawRunnerLog": "first-image: fail -> docs/reports/bench/S2-T2-first-image.json\npreloaded-flip: pass -> docs/reports/bench/S2-T2-preloaded-flip.json\nnas-throughput: pass -> docs/reports/bench/S2-T2-nas-throughput.json\ncached-first-screen: unverified -> docs/reports/bench/S2-T2-cached-first-screen.json\nlarge-dir: fail -> docs/reports/bench/S2-T2-large-dir.json\nnas-fault: unverified -> docs/reports/bench/S2-T2-nas-fault.json\ntiles-cancel: pass -> docs/reports/bench/S2-T2-tiles-cancel.json\npanel-restart: pass -> docs/reports/bench/S2-T2-panel-restart.json\n",
-      "rawAppLogs": {
-        "first-image-69455": "2026-11-04 19:12:58.061 MacView[69462:7285871] WARNING <NSToolbarItem: 0x769e5e2200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-04 19:12:58.114 MacView[69462:7285871] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
-      }
-    }
+    "reason": "环境在 20 分钟内没有满足"
   },
-  "verdict": "fail"
+  "verdict": "environment"
 }

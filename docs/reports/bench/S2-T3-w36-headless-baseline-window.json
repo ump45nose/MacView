@@ -1,0 +1,1043 @@
+{
+  "scene": "first-image-headless-segmented",
+  "codeState": "baseline",
+  "mode": "window",
+  "commit": "79c98043a7767e7283fdadca50968e3a3bc28e3a",
+  "env": {
+    "load": {
+      "oneMinute": 6.64306640625,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": true,
+      "idleSeconds": 4075.175631208,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "after": {
+      "load": {
+        "oneMinute": 6.51123046875,
+        "limit": 10,
+        "limitSource": "sysctl -n hw.physicalcpu"
+      },
+      "displayMode": {
+        "width": 1728,
+        "height": 1080,
+        "pixelWidth": 3456,
+        "pixelHeight": 2160,
+        "refreshHz": 59.93998718261719,
+        "builtin": true,
+        "externalDisplay": false
+      },
+      "refreshHz": 59.93998718261719,
+      "screen": {
+        "locked": true,
+        "idleSeconds": 4079.353632,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      }
+    }
+  },
+  "budget": {
+    "guiFirstImageP95Milliseconds": 150
+  },
+  "verdict": "unverified",
+  "reason": "屏幕锁定；此数据验证真实管线的像素级别和分段用时，未执行App，也没有图层或GUI端到端数据。",
+  "measurementDefinition": {
+    "samples": "与first-image相同：85文件按NameOrder排序，跳过已预热第0页，均匀选择原30页；fullscreen另开空缓存，只取其中横图。",
+    "metadataPreflight": "每页先调用真实pipeline.metadata确定方向和目标（书的元数据预探测）；这次文件头探测在exact交付计时外。L2/L3初始为空，无预取。",
+    "readAndMetadataAwaitMilliseconds": "bundle等待完整content；含剩余文件读取、元数据探测/入库、调度及排队。",
+    "decodeAwaitMilliseconds": "基础图decode await；含ImageIO、32位IOSurface归一化、调度及排队。",
+    "resizeAwaitMilliseconds": "exact缩放await，含vImage及专用队列排队。以上均不是纯CPU用时。",
+    "pipelineExactDeliveryMilliseconds": "image调用到流中首次exact交付；随后等本页衍生件写完才开始下一页，因此不代表App首图端到端。",
+    "guiEndToEndMilliseconds": null
+  },
+  "buildProvenance": {
+    "commit": "79c98043a7767e7283fdadca50968e3a3bc28e3a",
+    "label": "old-size-strategy-with-temporary-await-timing-and-readonly-app-counters",
+    "sourceSHA256": {
+      "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift": "f2c6fec310f425800509170601ee866612ee80165b6b6c4afdf6dd606a0f9fe2",
+      "App/Collection/CollectionView.swift": "047ad5bd4a98ddf5c15cba6c0d6397e3fe67f93224a2ed11de2cfdf8f7f00422",
+      "App/Collection/CollectionPanel.swift": "c793b4d7837e5f909449f151611b30e37c43c39791e453befb3323954363ed75",
+      "App/Collection/BookshelfPanel.swift": "5d06a7d54274ed27c6e8f57c69b1debcad1092e7d545bddab876f8ea4299f943",
+      "App/Debug/DebugSocket.swift": "072ce484e2f4923d442baafa4f6fe4b0010011cca793a97e8677be3159fbe948"
+    },
+    "buildCommand": [
+      "xcodebuild",
+      "-quiet",
+      "-project",
+      "MacView.xcodeproj",
+      "-scheme",
+      "MacView",
+      "-configuration",
+      "Debug",
+      "-destination",
+      "platform=macOS,arch=arm64",
+      "-derivedDataPath",
+      "build/DerivedData-w36",
+      "-clonedSourcePackagesDirPath",
+      "build/DerivedData/SourcePackages",
+      "-skipPackageUpdates",
+      "-onlyUsePackageVersionsFromResolvedFile",
+      "SWIFT_OPTIMIZATION_LEVEL=-O",
+      "build"
+    ],
+    "buildExitCode": 0,
+    "swiftCompilerWarningCount": 0,
+    "testsRun": false,
+    "appSHA256": "4926dd7b8842220e017a4c0979cfbf78118e69dabd7a23e5ac79575029849103",
+    "acceptanceDriverLoadedBeforePauseSHA256": "7c804690bf6b388d92d374ebac62ca04e6b517b14dc080f7a4f596bfe587aa03",
+    "diagnosticDriverLoadedSHA256": "25508994c38cef56467ae7a683098977bce1fbd19783244be32731d749565772"
+  },
+  "runnerCompileCommand": [
+    "xcrun",
+    "swiftc",
+    "-sdk",
+    "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.2.sdk",
+    "-swift-version",
+    "6",
+    "-O",
+    "-parse-as-library",
+    "-target",
+    "arm64-apple-macos27.0",
+    "-I",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug",
+    "-Xcc",
+    "-fmodule-map-file=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData/SourcePackages/checkouts/GRDB.swift/Sources/GRDBSQLite/module.modulemap",
+    "-module-cache-path",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-core/ModuleCache",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-core/headless.swift",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVFoundation.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVIO.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVMedia.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVCache.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/MVPipeline.o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-w36/Build/Products/Debug/GRDB.o",
+    "-lsqlite3",
+    "-o",
+    "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/w36-core/headless"
+  ],
+  "runnerSourceSHA256": "b104b0ffa2a9c1de171796ff12b33fa7389b65f003a2c53b4b8393607694e871",
+  "runnerDriverSHA256": "e3915db322022bc6b524e543a36a4dcb38528a1150385ab7acfe505f901a78cb",
+  "objectSHA256": {
+    "MVFoundation.o": "453941bd9c1335bbae57c00f87bc688b1b4157bbf7889d477d57c918ad5666ec",
+    "MVIO.o": "caa8f57d996c41f597f1b59b72b942a55e76ee25d324a3fabb5b45be4f0ed808",
+    "MVMedia.o": "4a1b1a3d374e946a82963354a3a9571316601e2c95cc5ca677138992af676348",
+    "MVCache.o": "b03525c9be22d13c23ed4879141a5bc10ced4c1e08ebac91f2b1beb48feabd86",
+    "MVPipeline.o": "9826c21ba05dd7be158a74ea307da65d9c0902fc5ac1bba605ed712a410200e8",
+    "GRDB.o": "e0503c5d279491a7408f9e8b3f763abb468626ac97f27dcd9e40a67a35b098e0"
+  },
+  "runnerCompilerWarningCount": 0,
+  "measured": {
+    "samples": 30,
+    "pages": [
+      1,
+      4,
+      7,
+      10,
+      12,
+      15,
+      18,
+      21,
+      24,
+      27,
+      30,
+      32,
+      35,
+      38,
+      41,
+      44,
+      47,
+      50,
+      53,
+      55,
+      58,
+      61,
+      64,
+      67,
+      70,
+      73,
+      75,
+      78,
+      81,
+      84
+    ],
+    "bookFiles": 85,
+    "pipelineP95Milliseconds": 196.611458,
+    "guiEndToEndMilliseconds": null,
+    "segments": [
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 53.145916,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0002.jpg",
+        "readAndMetadataAwaitMilliseconds": 7.524833,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 16.191,
+        "page": 1,
+        "pipelineExactDeliveryMilliseconds": 77.663333,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8015839999999912
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 46.667167,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0005.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.9515,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 16.255708,
+        "page": 4,
+        "pipelineExactDeliveryMilliseconds": 70.645416,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7710409999999968
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 47.674625,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0008.jpg",
+        "readAndMetadataAwaitMilliseconds": 5.822416,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 17.401625,
+        "page": 7,
+        "pipelineExactDeliveryMilliseconds": 71.668375,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.769709000000006
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 47.493833,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0011.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.04575,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 16.74375,
+        "page": 10,
+        "pipelineExactDeliveryMilliseconds": 71.08925,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.805917000000008
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 48.791208,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0013.jpg",
+        "readAndMetadataAwaitMilliseconds": 5.956375,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 15.374875,
+        "page": 12,
+        "pipelineExactDeliveryMilliseconds": 70.950875,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8284170000000017
+      },
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 99.587542,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0016.jpg",
+        "readAndMetadataAwaitMilliseconds": 7.211709,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          2145,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 88.345916,
+        "page": 15,
+        "pipelineExactDeliveryMilliseconds": 195.901792,
+        "target": [
+          2145,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7566249999999854
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 50.483042,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0019.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.471292,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 17.582,
+        "page": 18,
+        "pipelineExactDeliveryMilliseconds": 75.373333,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8369990000000058
+      },
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 109.921959,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0022.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.692292,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          2145,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 81.47525,
+        "page": 21,
+        "pipelineExactDeliveryMilliseconds": 198.909208,
+        "target": [
+          2145,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8197070000000224
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 49.948917,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0025.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.999792,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 19.685041,
+        "page": 24,
+        "pipelineExactDeliveryMilliseconds": 77.467417,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8336670000000055
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 52.675209,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0028.jpg",
+        "readAndMetadataAwaitMilliseconds": 7.323792,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 16.520084,
+        "page": 27,
+        "pipelineExactDeliveryMilliseconds": 77.330375,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8112899999999996
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 52.0625,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0031.jpg",
+        "readAndMetadataAwaitMilliseconds": 8.497833,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 15.640541,
+        "page": 30,
+        "pipelineExactDeliveryMilliseconds": 76.96825,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7673759999999987
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 49.091,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0033.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.604916,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 11.757709,
+        "page": 32,
+        "pipelineExactDeliveryMilliseconds": 68.2275,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7738750000000039
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 47.011709,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0036.jpg",
+        "readAndMetadataAwaitMilliseconds": 5.332208,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 15.749542,
+        "page": 35,
+        "pipelineExactDeliveryMilliseconds": 68.841666,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7482069999999936
+      },
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 106.731042,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0039.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.743583,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          2145,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 82.405417,
+        "page": 38,
+        "pipelineExactDeliveryMilliseconds": 196.611458,
+        "target": [
+          2145,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7314159999999958
+      },
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 98.65925,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0042.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.152625,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          2145,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 83.017041,
+        "page": 41,
+        "pipelineExactDeliveryMilliseconds": 188.569,
+        "target": [
+          2145,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.740083999999996
+      },
+      {
+        "base": [
+          5400,
+          3600
+        ],
+        "decodeAwaitMilliseconds": 98.296916,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0045.jpg",
+        "readAndMetadataAwaitMilliseconds": 7.5995,
+        "source": [
+          5400,
+          3600
+        ],
+        "output": [
+          2145,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 88.349875,
+        "page": 44,
+        "pipelineExactDeliveryMilliseconds": 195.0215,
+        "target": [
+          2145,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.775209000000018
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 44.779958,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0048.jpg",
+        "readAndMetadataAwaitMilliseconds": 5.64025,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 15.915333,
+        "page": 47,
+        "pipelineExactDeliveryMilliseconds": 67.108959,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7734179999999924
+      },
+      {
+        "base": [
+          1848,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 43.643958,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0051.jpg",
+        "readAndMetadataAwaitMilliseconds": 5.869458,
+        "source": [
+          3696,
+          5400
+        ],
+        "output": [
+          979,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 10.3045,
+        "page": 50,
+        "pipelineExactDeliveryMilliseconds": 60.521125,
+        "target": [
+          979,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7032090000000011
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 48.431375,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0054.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.9095,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 20.34175,
+        "page": 53,
+        "pipelineExactDeliveryMilliseconds": 76.429209,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7465839999999986
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 50.392583,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0056.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.148084,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 21.002958,
+        "page": 55,
+        "pipelineExactDeliveryMilliseconds": 78.258834,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7152090000000015
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 48.317334,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0059.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.117916,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 22.001416,
+        "page": 58,
+        "pipelineExactDeliveryMilliseconds": 77.162541,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.725875000000002
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 46.724041,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0062.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.554875,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 21.345792,
+        "page": 61,
+        "pipelineExactDeliveryMilliseconds": 75.4025,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7777920000000051
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 53.038292,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0065.jpg",
+        "readAndMetadataAwaitMilliseconds": 7.090583,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 19.08125,
+        "page": 64,
+        "pipelineExactDeliveryMilliseconds": 79.94175,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.731624999999994
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 51.930166,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0068.jpg",
+        "readAndMetadataAwaitMilliseconds": 8.498459,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 22.088958,
+        "page": 67,
+        "pipelineExactDeliveryMilliseconds": 83.372958,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8553749999999951
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 50.051417,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0071.jpg",
+        "readAndMetadataAwaitMilliseconds": 7.177292,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 11.671583,
+        "page": 70,
+        "pipelineExactDeliveryMilliseconds": 69.651625,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.7513329999999883
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 58.639917,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0074.jpg",
+        "readAndMetadataAwaitMilliseconds": 7.9235,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 18.40375,
+        "page": 73,
+        "pipelineExactDeliveryMilliseconds": 85.7635,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.79633299999999
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 52.760625,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0076.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.435292,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 24.326292,
+        "page": 75,
+        "pipelineExactDeliveryMilliseconds": 84.350875,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8286660000000126
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 51.315791,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0079.jpg",
+        "readAndMetadataAwaitMilliseconds": 7.280458,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 18.925417,
+        "page": 78,
+        "pipelineExactDeliveryMilliseconds": 78.400541,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8788750000000078
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 51.45975,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0082.jpg",
+        "readAndMetadataAwaitMilliseconds": 6.822375,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 15.213875,
+        "page": 81,
+        "pipelineExactDeliveryMilliseconds": 74.328292,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8322920000000096
+      },
+      {
+        "base": [
+          1800,
+          2700
+        ],
+        "decodeAwaitMilliseconds": 84.420375,
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set/0085.jpg",
+        "readAndMetadataAwaitMilliseconds": 11.036708,
+        "source": [
+          3600,
+          5400
+        ],
+        "output": [
+          953,
+          1430
+        ],
+        "resizeAwaitMilliseconds": 16.685667,
+        "page": 84,
+        "pipelineExactDeliveryMilliseconds": 112.972208,
+        "target": [
+          953,
+          1430
+        ],
+        "pipelineOtherMilliseconds": 0.8294579999999883
+      }
+    ],
+    "bySourceSize": {
+      "3600x5400": {
+        "count": 24,
+        "baseSizes": [
+          "1800x2700"
+        ],
+        "outputSizes": [
+          "953x1430"
+        ],
+        "median": {
+          "readAndMetadataAwaitMilliseconds": 6.8659375,
+          "decodeAwaitMilliseconds": 50.222,
+          "resizeAwaitMilliseconds": 17.0726875,
+          "pipelineOtherMilliseconds": 0.7870624999999976,
+          "pipelineExactDeliveryMilliseconds": 76.6987295
+        },
+        "p95": {
+          "readAndMetadataAwaitMilliseconds": 8.498459,
+          "decodeAwaitMilliseconds": 58.639917,
+          "resizeAwaitMilliseconds": 22.088958,
+          "pipelineOtherMilliseconds": 0.8553749999999951,
+          "pipelineExactDeliveryMilliseconds": 85.7635
+        }
+      },
+      "3696x5400": {
+        "count": 1,
+        "baseSizes": [
+          "1848x2700"
+        ],
+        "outputSizes": [
+          "979x1430"
+        ],
+        "median": {
+          "readAndMetadataAwaitMilliseconds": 5.869458,
+          "decodeAwaitMilliseconds": 43.643958,
+          "resizeAwaitMilliseconds": 10.3045,
+          "pipelineOtherMilliseconds": 0.7032090000000011,
+          "pipelineExactDeliveryMilliseconds": 60.521125
+        },
+        "p95": {
+          "readAndMetadataAwaitMilliseconds": 5.869458,
+          "decodeAwaitMilliseconds": 43.643958,
+          "resizeAwaitMilliseconds": 10.3045,
+          "pipelineOtherMilliseconds": 0.7032090000000011,
+          "pipelineExactDeliveryMilliseconds": 60.521125
+        }
+      },
+      "5400x3600": {
+        "count": 5,
+        "baseSizes": [
+          "5400x3600"
+        ],
+        "outputSizes": [
+          "2145x1430"
+        ],
+        "median": {
+          "readAndMetadataAwaitMilliseconds": 6.743583,
+          "decodeAwaitMilliseconds": 99.587542,
+          "resizeAwaitMilliseconds": 83.017041,
+          "pipelineOtherMilliseconds": 0.7566249999999854,
+          "pipelineExactDeliveryMilliseconds": 195.901792
+        },
+        "p95": {
+          "readAndMetadataAwaitMilliseconds": 7.5995,
+          "decodeAwaitMilliseconds": 109.921959,
+          "resizeAwaitMilliseconds": 88.349875,
+          "pipelineOtherMilliseconds": 0.8197070000000224,
+          "pipelineExactDeliveryMilliseconds": 198.909208
+        }
+      }
+    }
+  },
+  "finalCoreSourceMapping": {
+    "path": "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift",
+    "finalSHA256": "f3727db12c39b5182d706180bf56eaf2cb9a89ec753358430eb29a9832bfe5df",
+    "profiledAfterSHA256": "c05e7f1f1fbd8b42902f20e8a77380c52f0c5aa0e9f38775ea45154c9986ddfd",
+    "profiledAfterToFinal": "仅移除24行临时计时代码；通过在最终文件重新插入同一埋点后SHA256与after构建来源完全匹配验证。",
+    "timingOnlyRemovalVerifiedBySHA256": true,
+    "baselineToFinal": "baseline仍是旧解码策略，除移除计时外还包含W3.6功能策略变更，不可将baseline映射称为仅移除计时。",
+    "performanceEvidenceScope": "仅真实管线定位对照，临时计时版数据不是最终无埋点App的性能验收。GUI first-image未验证。"
+  },
+  "finalCoreValidation": {
+    "command": [
+      "swift",
+      "test",
+      "--package-path",
+      "Packages/MacViewKit",
+      "--disable-xctest",
+      "--filter",
+      "MVPipelineTests"
+    ],
+    "passedTests": 26,
+    "swiftWarningCount": 0,
+    "c311": {
+      "dimensionTest": "browseAndDisplayChooseDecodeLevelsIndependently",
+      "dimensionCases": 5,
+      "lateTargetTest": "displayJoiningAfterDecodeLevelSelectionReusesSufficientBasePixels",
+      "lateTargetCases": 1,
+      "lateTargetTestLimitation": "已有条件可确认解码级别已选且decode排队；消费者绑定是私有状态，故第二消费者入场仍使用30ms调度窗口，繁忙环境下存在时序局限，未新增公共或诊断API。"
+    },
+    "fullMakeTest": "本轮未跑，由最终独立验收执行。",
+    "finalNoProfilingDebugOAppBuild": "未重复构建，由最终独立验收执行；临时计时版old/after Debug-O构建及runner均0条Swift warning。",
+    "testSourceSHA256": "5669d8f0c43d3c004deaa582f4c21453b94e3562f48bbdd4d035f7cbe5f6dae3"
+  },
+  "temporaryArtifactsRemoved": [
+    "build/w36-core",
+    "build/DerivedData-w36"
+  ],
+  "runnerCompilerEnvironment": {
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "SDK": "MacOSX27.2.sdk"
+  }
+}

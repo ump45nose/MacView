@@ -1,8 +1,55 @@
 {
   "scene": "main-thread",
-  "commit": "3e417a13d87af9030e50456b90638fbf7aade6ab",
+  "commit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
   "env": {
-    "collectedAt": "2026-11-04T11:12:57.241547+00:00",
+    "load": {
+      "oneMinute": 9.29296875,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 59.93998718261719,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 59.93998718261719,
+    "screen": {
+      "locked": true,
+      "idleSeconds": 4851.822268666,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "admissionCarryForward": {
+      "evidence": "docs/reports/bench/S2-T3-w36-baseline.json",
+      "waitAlreadyExhausted": true,
+      "currentProbe": {
+        "locked": true,
+        "idleSeconds": 4851.280235541,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      },
+      "continuedWithoutRepeatingWait": true
+    },
+    "frozenApp": {
+      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+      "sha256": "03c85e17f6b77f3a82775885b5dd587bc5345e2a186966e5f980f0d0d6c8d07f",
+      "signature": {
+        "returnCode": 0,
+        "cdhash": "4034361909fe65509c2018d3ad1d36cee5b54759",
+        "rawOutput": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30356 flags=0x2(adhoc) hashes=938+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=4034361909fe65509c2018d3ad1d36cee5b54759\nCandidateCDHashFull sha256=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nHash choices=sha256\nCMSDigest=4034361909fe65509c2018d3ad1d36cee5b5475955ea1e3250d79614ff0b41f5\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=4034361909fe65509c2018d3ad1d36cee5b54759\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+      }
+    },
+    "frozenMvbench": {
+      "sourceCommit": "42ccbcfd3b31ccc40723389863010ec042c4b9d4",
+      "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Packages/MacViewKit/.build/release/mvbench",
+      "sha256": "106bfbb57e5d7a225856cd920b2bfef1f0eb0861295f4ff11fc3bf1ffeea8715"
+    },
+    "collectedAt": "2026-11-04T12:32:31Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -12,7 +59,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 864,
+        "linkSpeedMbps": 720,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -39,48 +86,13 @@
         "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
         "source": "/dev/disk3s5"
       }
-    ],
-    "load": {
-      "oneMinute": 4.107421875,
-      "limit": 10,
-      "limitSource": "sysctl -n hw.physicalcpu"
-    },
-    "displayMode": {
-      "width": 1728,
-      "height": 1080,
-      "pixelWidth": 3456,
-      "pixelHeight": 2160,
-      "refreshHz": 59.93998718261719,
-      "builtin": true,
-      "externalDisplay": false
-    },
-    "refreshHz": 59.93998718261719,
-    "screen": {
-      "locked": false,
-      "idleSeconds": 77.565814791,
-      "inputDuringRun": false,
-      "externalDisplay": false
-    },
-    "collectionContext": "partial memory结束后补采的完整环境快照；该录制依赖场景未在最终提交执行，不是场景前后观测。"
+    ]
   },
   "budget": {
     "mainThreadFileReadOrImageIO": 0
   },
   "measured": {
-    "unavailable": true,
-    "executedOnThisCommit": false,
-    "reason": "本机xctrace即使显式设置工作区TMPDIR仍将原始ktrace写入系统临时目录，违背所有非交付产物仅写工作区的硬性边界；本机文档未提供受支持的spool位置参数，root要求停止录制。该项需交回前提，不将未采样判为产品失败。",
-    "prerequisiteEvidence": [
-      "docs/reports/bench/S2-stage3-checks.json#smoke2",
-      "docs/reports/bench/S2-T3-instruments-temp.json"
-    ],
-    "historicalEvidenceOnly": [
-      "docs/reports/bench/before-w35/",
-      "docs/reports/bench/w35-initial/"
-    ],
-    "recordingDependency": "依赖同轮scroll-cold的Time Profiler/signpost记录，当前无法执行",
-    "environmentSupplemented": true
+    "reason": "环境在 20 分钟内没有满足"
   },
-  "verdict": "unverified",
-  "collectedAt": "2026-11-04T11:12:57.241547+00:00"
+  "verdict": "environment"
 }
