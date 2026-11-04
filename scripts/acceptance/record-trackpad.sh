@@ -9,6 +9,8 @@ scene=${1:?需要场景}
 out=${2:?需要输出目录}
 mode=${3:---manual}
 cd "$(dirname "$0")/../.."
+export TMPDIR="$PWD/build/acceptance/record-tmp-$$/"
+mkdir -p "$TMPDIR"
 mkdir -p "$out"
 out=$(cd "$out" && pwd)
 case "$scene" in
