@@ -38,7 +38,9 @@ NFS_FAULT = ROOT / "build" / "acceptance" / "nfs-fault-mount"
 SMB_ROOT = Path("/Volumes/Picture")
 FRAME_MS = 8.33
 REFRESH_120 = 119.0
-LOAD_LIMIT = 6.0
+LOAD_LIMIT = int(subprocess.check_output(["/usr/sbin/sysctl", "-n", "hw.physicalcpu"], text=True).strip())
+MEMORY_ROLLING_MEDIAN = False  # 60 秒规则待用户确认；确认前仍按逐秒偏差判定。
+MEMORY_KEYS = ("rawBytes", "decodedBytes", "thumbnailMemoryBytes", "preloadBytes", "inFlightBytes", "waitingTasks")
 IDLE_SECONDS = 45.0
 WAIT_READY = 20 * 60
 
@@ -110,7 +112,7 @@ def env_problem(env, scene=None):
         return True
     if screen.get("externalDisplay"):
         return True
-    if load is None or load >= LOAD_LIMIT:
+    if load is None or load >= (env.get("load") or {}).get("limit", LOAD_LIMIT):
         return True
     return False
 
@@ -218,12 +220,18 @@ def judge_scroll(measured, env, limits):
 
 
 def judge_memory(measured, limits):
-    leaks = measured.get("leaks")
+    leaks = measured.get("unexpectedLeakItems", measured.get("leaks"))
     if leaks is None:
+        return "unverified"
+    if measured.get("leakRootsParsed") is False:
         return "unverified"
     samples = measured.get("residentBytes")
     elapsed = measured.get("sampleElapsedSeconds")
     if not isinstance(samples, list) or not samples or not isinstance(elapsed, list) or len(elapsed) != len(samples):
+        return "unverified"
+    layers = measured.get("memory")
+    if not isinstance(layers, list) or len(layers) != len(samples) or any(
+            not isinstance(layer, dict) or any(not isinstance(layer.get(key), (int, float)) for key in MEMORY_KEYS) for layer in layers):
         return "unverified"
     tail = [value for seconds, value in zip(elapsed, samples) if seconds >= limits["ignoreFirstSeconds"] and isinstance(value, (int, float))]
     if len(tail) < 2:
@@ -233,10 +241,44 @@ def judge_memory(measured, limits):
     med = statistics.median(tail)
     if med <= 0:
         return "fail"
-    deviation = max(abs(item - med) / med for item in tail)
+    metrics = memory_metrics(measured, limits["ignoreFirstSeconds"])
+    deviation = metrics.get("rollingMedianDeviation" if MEMORY_ROLLING_MEDIAN else "perSecondDeviation")
+    if deviation is None:
+        return "unverified"
     if leaks != limits["leaks"] or round(deviation - limits["deviation"], 4) > 0:
         return "fail"
     return "pass"
+
+
+def memory_metrics(measured, warmup=300):
+    pairs = list(zip(measured.get("sampleElapsedSeconds", []), measured.get("residentBytes", [])))
+    tail = [(t, v) for t, v in pairs if t >= warmup and isinstance(v, (int, float))]
+    if not tail or statistics.median(v for _, v in tail) <= 0:
+        return {}
+    median = statistics.median(v for _, v in tail)
+    rolling = [statistics.median(v for t, v in tail if now - 60 < t <= now)
+               for now, _ in tail if now >= warmup + 60]
+    peak = max(range(len(pairs)), key=lambda i: pairs[i][1] or 0)
+    layers = measured.get("memory", [])
+    return {"residentMedianBytes": median, "perSecondDeviation": max(abs(v - median) / median for _, v in tail),
+            "rollingMedianDeviation": max(abs(v - median) / median for v in rolling) if rolling else None,
+            "rollingWindowSeconds": 60, "residentPeakBytes": pairs[peak][1], "peakElapsedSeconds": pairs[peak][0],
+            "peakMemory": layers[peak] if peak < len(layers) else None,
+            "deviationMethod": "rollingMedian60Seconds" if MEMORY_ROLLING_MEDIAN else "perSecond"}
+
+
+def parse_leaks(output):
+    summary = re.search(r"(\d+) leaks for \d+ total leaked bytes", output)
+    total = int(summary.group(1)) if summary else None
+    rows = [(len(m[1]), int(m[2]), m[3]) for m in re.finditer(r"^([ \t]+)(\d+) \([^\n)]+\) (.+)$", output, re.M) if "<< TOTAL >>" not in m[3]]
+    indent = min((row[0] for row in rows), default=0)
+    roots = [{"items": count, "description": text,
+              "exempt": text.startswith("ROOT CYCLE: <NSXPCConnection ") and
+              'Protocol: LNDaemonApplicationInterface  Connection: "com.apple.linkd.autoShortcut"' in text}
+             for level, count, text in rows if level == indent]
+    parsed = total is not None and sum(root["items"] for root in roots) == total
+    return {"leaks": total, "leakRoots": roots, "leakRootsParsed": parsed,
+            "unexpectedLeakItems": total - sum(root["items"] for root in roots if root["exempt"]) if parsed else None}
 
 
 def clean_env():
@@ -254,6 +296,7 @@ def check_verdicts():
     scroll = {"frames": 100, "scrollMovements": 50, "windowFront": True,
               "hitches": 0, "updateP99": 2.0, "renderP99": 2.0, "frameTimeP99": 8.33}
     memory = {"leaks": 0, "residentBytes": [100] * 1800,
+              "memory": [dict.fromkeys(MEMORY_KEYS, 0)] * 1800,
               "sampleElapsedSeconds": list(range(1800)), "durationSeconds": 1800}
     valid = {
         "first-image": {"p95": 150, "samples": 30},
@@ -284,7 +327,7 @@ def check_verdicts():
         ("键鼠未空闲", judge("first-image", valid["first-image"], _screen(env, idleSeconds=10)), "environment"),
         ("运行中输入", judge("first-image", valid["first-image"], _screen(env, inputDuringRun=True)), "environment"),
         ("外接显示器", judge("first-image", valid["first-image"], _screen(env, externalDisplay=True)), "environment"),
-        ("开跑前负载过高", judge("first-image", valid["first-image"], _load(env, 6)), "environment"),
+        ("开跑前负载过高", judge("first-image", valid["first-image"], _load(env, LOAD_LIMIT)), "environment"),
         ("锁定状态未知", judge("first-image", valid["first-image"], _screen(env, locked=None)), "environment"),
         ("缺少符号", judge("main-thread", {**valid["main-thread"], "knownSymbolSamples": 0}, env), "unverified"),
         ("主线程读取", judge("main-thread", {**valid["main-thread"], "fileReadOrImageIO": 1}, env), "fail"),
@@ -450,7 +493,7 @@ def sample_conditions():
     except (AttributeError, OSError):
         idle = None
     return {
-        "load": {"oneMinute": os.getloadavg()[0], "limit": LOAD_LIMIT},
+        "load": {"oneMinute": os.getloadavg()[0], "limit": LOAD_LIMIT, "limitSource": "sysctl -n hw.physicalcpu"},
         "displayMode": display,
         "refreshHz": display.get("refreshHz") or 0.0,
         "screen": {
@@ -592,6 +635,27 @@ class DebugClient:
         return message.get("result")
 
 
+def launch_app(socket_path, support, cache, layout, log):
+    binary = app_binary()
+    temporary = Path(support).resolve().parent / "tmp"
+    temporary.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["/usr/bin/open", "-n", "-a", str(binary.parents[2]), "--stdout", str(log), "--stderr", str(log),
+                    "--env", f"TMPDIR={temporary}/",
+                    "--args", "-MVDebugSocket", str(socket_path), "-MVSupportDirectory", str(support),
+                    "-MVCacheDirectory", str(cache), "-MVLayoutFile", str(layout)], check=True)
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        lines = subprocess.check_output(["/bin/ps", "-axo", "pid=,command="], text=True).splitlines()
+        pids = [int(line.split(None, 1)[0]) for line in lines if line.split(None, 1)[1].startswith(str(binary) + " ")
+                and re.search(r"(?:^|\s)-MVDebugSocket " + re.escape(str(socket_path)) + r"(?:\s|$)", line)]
+        if len(pids) == 1:
+            return pids[0]
+        if len(pids) > 1:
+            raise RuntimeError(f"隔离路径匹配多个 PID：{pids}")
+        time.sleep(0.05)
+    raise TimeoutError(f"没有找到隔离实例 PID：{socket_path}，日志 {log}")
+
+
 class App:
     live = []
 
@@ -600,14 +664,15 @@ class App:
         self.prefetch_zero = prefetch_zero
         self.empty_cache = empty_cache
         self.prefetch = prefetch
-        self.root = ROOT / "build" / "acceptance" / name
+        self.root = ROOT / "build" / "acceptance" / f"{name}-{os.getpid()}"
         self.support = self.root / "support"
         self.cache = self.root / "cache"
         self.layout = self.root / "layout.json"
-        self.socket = f"build/acceptance/s-{os.getpid()}-{len(App.live)}.sock"
-        self.proc = None
+        self.socket = str(ROOT / "build" / f"s-{os.getpid()}-{len(App.live)}.sock")
+        self.pid = None
+        self.exit_watch = None
+        self.exit_code = None
         self.client = None
-        self.log = None
         self.quit_exited_normally = False
 
     def start(self):
@@ -630,16 +695,15 @@ class App:
         if prefetch is not None:
             document = {"version": 1, "value": {"prefetch": prefetch}}
             (self.support / "settings.json").write_text(json.dumps(document) + "\n")
-        socket_path = ROOT / self.socket
+        socket_path = Path(self.socket)
         if socket_path.exists():
             socket_path.unlink()
-        self.log = open(self.root / "app.log", "ab")
-        self.proc = subprocess.Popen(
-            [str(app_binary()), "-MVDebugSocket", self.socket, "-MVSupportDirectory", str(self.support),
-             "-MVCacheDirectory", str(self.cache), "-MVLayoutFile", str(self.layout)],
-            cwd=ROOT, stdout=self.log, stderr=subprocess.STDOUT,
-        )
+        self.pid = launch_app(self.socket, self.support, self.cache, self.layout, self.root / "app.log")
         App.live.append(self)
+        self.exit_watch = select.kqueue()
+        # SDK sys/event.h：NOTE_EXITSTATUS 对可发送信号的非子进程也有效，data 是 wait(2) 状态。
+        self.exit_watch.control([select.kevent(self.pid, filter=select.KQ_FILTER_PROC, flags=select.KQ_EV_ADD | select.KQ_EV_ONESHOT,
+                                               fflags=select.KQ_NOTE_EXIT | 0x04000000)], 0)
         self.client = self._connect()
         self.client.request("state", timeout=20)
         return self
@@ -648,10 +712,14 @@ class App:
         deadline = time.monotonic() + 30
         last = "套接字没有出现"
         while time.monotonic() < deadline:
-            if self.proc.poll() is not None:
-                raise RuntimeError(f"App 已退出，code={self.proc.returncode}，日志 {self.root / 'app.log'}")
+            if self.wait_exit(0):
+                raise RuntimeError(f"App 已退出，code={self.exit_code}，日志 {self.root / 'app.log'}")
             try:
-                return DebugClient(self.socket, phase=self.name + ":startup")
+                client = DebugClient(self.socket, phase=self.name + ":startup")
+                if client.pid != self.pid:
+                    client.close()
+                    raise RuntimeError("套接字 PID 与隔离路径 PID 不一致")
+                return client
             except (FileNotFoundError, ConnectionRefusedError, OSError) as exc:
                 last = str(exc)
                 time.sleep(0.05)
@@ -659,38 +727,37 @@ class App:
 
     def stop(self):
         quit_seconds = None
-        if self.client is not None and self.proc is not None and self.proc.poll() is None:
+        if self.client is not None and self.pid is not None and not self.wait_exit(0):
             started = time.monotonic()
             try:
                 self.client.request("quit", timeout=2)
             except (RuntimeError, TimeoutError, ConnectionError, OSError):
                 pass
-            try:
-                self.proc.wait(timeout=max(0.001, 3 - (time.monotonic() - started)))
-                self.quit_exited_normally = self.proc.returncode == 0
-            except subprocess.TimeoutExpired:
-                pass
+            self.quit_exited_normally = self.wait_exit(max(0.001, 3 - (time.monotonic() - started))) and self.exit_code == 0
             quit_seconds = time.monotonic() - started
         self.kill()
         if self.client is not None:
             self.client.close()
             self.client = None
-        if self.log is not None:
-            self.log.close()
-            self.log = None
-        (ROOT / self.socket).unlink(missing_ok=True)
+        Path(self.socket).unlink(missing_ok=True)
         return quit_seconds
 
+    def wait_exit(self, timeout):
+        if self.exit_code is None and self.exit_watch is not None:
+            events = self.exit_watch.control([], 1, timeout)
+            if events:
+                self.exit_code = os.waitstatus_to_exitcode(events[0].data)
+                self.exit_watch.close()
+                self.exit_watch = None
+        return self.exit_code is not None
+
     def kill(self):
-        proc = self.proc
-        if proc is None or proc.poll() is not None:
+        if self.pid is None or self.wait_exit(0):
             return
-        proc.terminate()
-        try:
-            proc.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait(timeout=2)
+        os.kill(self.pid, 15)
+        if not self.wait_exit(2):
+            os.kill(self.pid, 9)
+            self.wait_exit(2)
 
 
 def stop_live():
@@ -714,7 +781,7 @@ def build_app():
     subprocess.run(["xcodegen", "generate", "--quiet"], cwd=ROOT, check=True)
     arch = subprocess.check_output(["uname", "-m"], text=True).strip()
     subprocess.run(
-        ["xcodebuild", "-quiet", "-project", "MacView.xcodeproj", "-scheme", "MacView", "-configuration", "Debug",
+        ["xcodebuild", "-quiet", "-project", str(ROOT / "MacView.xcodeproj"), "-scheme", "MacView", "-configuration", "Debug",
          "-destination", f"platform=macOS,arch={arch}", "-derivedDataPath", str(DERIVED),
          "SWIFT_OPTIMIZATION_LEVEL=-O", "build"],
         cwd=ROOT, check=True,
@@ -725,7 +792,7 @@ def mvbench_binary():
     binary = ROOT / "Packages" / "MacViewKit" / ".build" / "release" / "mvbench"
     if not binary.exists():
         subprocess.run(
-            ["swift", "build", "--package-path", "Packages/MacViewKit", "-c", "release", "--product", "mvbench"],
+            ["swift", "build", "--package-path", str(ROOT / "Packages/MacViewKit"), "-c", "release", "--product", "mvbench"],
             cwd=ROOT, check=True,
         )
     return binary
@@ -878,7 +945,7 @@ def record_scroll(scene):
         shutil.rmtree(out)
     out.mkdir(parents=True)
     try:
-        subprocess.run(["scripts/acceptance/record-trackpad.sh", scene, str(out), "--automatic"], cwd=ROOT, check=True)
+        subprocess.run([str(ROOT / "scripts/acceptance/record-trackpad.sh"), scene, str(out), "--automatic"], cwd=ROOT, check=True)
     except subprocess.CalledProcessError as exc:
         measured = json.loads((out / "error.json").read_text()) if (out / "error.json").exists() else {}
         raise MeasurementError(str(exc), measured) from exc
@@ -899,6 +966,11 @@ def record_scroll(scene):
         "settles": phase.get("settles"),
         "trace": str(out / "record.trace"),
         "scrollMovements": during.get("scrollMovements"),
+        "residentPeakBytes": during.get("residentPeakBytes"),
+        "residentSamplingError": during.get("residentSamplingError"),
+        "residentSampleCount": during.get("residentSampleCount"),
+        "residentSamplingComplete": during.get("residentSamplingComplete"),
+        "windowFrontBefore": during.get("windowFrontBefore"),
         "submitPlusRenderP99": None if phase.get("updateP99") is None or phase.get("renderP99") is None else phase["updateP99"] + phase["renderP99"],
         "performanceIssueAt120Hz": bool(phase.get("hitches")) or ((phase.get("updateP99") or 0) + (phase.get("renderP99") or 0) > FRAME_MS),
     }
@@ -1376,6 +1448,8 @@ def scene_nas_fault():
             time.sleep(0.02)
         quit_seconds = app.stop()
         quit_normal = app.quit_exited_normally
+        quit_code = app.exit_code
+        quit_pid = app.pid
         app = None
         control_send(ready["controlPort"], "forward")
         required = [item for item in injections if item["seconds"] in (15, 60)]
@@ -1387,6 +1461,8 @@ def scene_nas_fault():
             "quitSeconds": quit_seconds, "quitReadInFlight": quit_read,
             "quitFrame": quit_frame, "quitInFlightVolumes": quit_volumes,
             "quitExitedNormally": quit_normal,
+            "quitExitCode": quit_code,
+            "quitPID": quit_pid,
         }
     finally:
         if ready is not None:
@@ -1410,7 +1486,7 @@ def scene_memory():
     sample = str(ensure_sample())
     other = str(HUGE_DIR)
     app = App("memory-30min", empty_cache=False).start()
-    samples, elapsed = [], []
+    samples, elapsed, memory = [], [], []
     index = 0
     started = None
     try:
@@ -1426,6 +1502,7 @@ def scene_memory():
             app.client.phase = f"memory-30min:sample-{len(samples)}"
             state = app.client.request("state", timeout=10)
             samples.append(state.get("residentBytes"))
+            memory.append(state.get("memory"))
             elapsed.append(time.monotonic() - started)
             budgets = state.get("cacheBudgets")
             if pending in app.client.inbox:
@@ -1459,22 +1536,22 @@ def scene_memory():
                 tick = time.monotonic()
             time.sleep(max(0, min(tick, end) - time.monotonic()))
         duration = time.monotonic() - started
-        pid = str(app.proc.pid)
+        pid = str(app.pid)
         leaks = subprocess.run(["leaks", pid], capture_output=True, text=True, timeout=180)
         vmmap = subprocess.run(["vmmap", "--summary", pid], capture_output=True, text=True, timeout=60)
         leaks_output = leaks.stdout + leaks.stderr
-        found = re.search(r"(\d+) leaks for \d+ total leaked bytes", leaks_output)
-        leak_count = int(found.group(1)) if found else None
         vmmap_output = vmmap.stdout + vmmap.stderr
         (app.root / "leaks.txt").write_text(leaks_output)
         (app.root / "vmmap.txt").write_text(vmmap_output)
-        return {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "durationSeconds": duration,
-                "cacheBudgets": budgets, "actions": index, "leaks": leak_count,
+        measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "durationSeconds": duration, "memory": memory,
+                "cacheBudgets": budgets, "actions": index, **parse_leaks(leaks_output),
                 "leaksReturnCode": leaks.returncode, "leaksOutput": leaks_output,
                 "vmmapReturnCode": vmmap.returncode, "vmmap": vmmap_output}
+        return {**measured, **memory_metrics(measured)}
     except Exception as exc:
-        measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "actions": index,
+        measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "actions": index, "memory": memory,
                     "durationSeconds": time.monotonic() - started if started is not None else 0}
+        measured.update(memory_metrics(measured))
         if isinstance(exc, DebugTimeout):
             measured["diagnostic"] = exc.detail
         raise MeasurementError(str(exc), measured) from exc
@@ -1570,6 +1647,7 @@ def prepare_scroll(scene, socket_path):
         elif scene != "scroll-cold":
             raise SystemExit(f"不是滚动场景：{scene}")
         client.request("resize", {"width": 1400, "height": 900})
+        print(json.dumps({"windowFront": window_of(client.request("state")).get("windowFront")}))
     finally:
         client.close()
 
@@ -1582,29 +1660,44 @@ def run_scroll(scene, socket_path, outdir, automatic=True, seconds=60):
     before = sample_conditions()
     mark = input_mark(DURING_EVENTS)
     started = trace_clock_seconds()
+    resident, rss_error = [], None
     try:
-        if automatic:
-            scroll = client.request("scroll", {"dy": -12, "durationMs": int(seconds * 1000), "intervalMs": 8}, timeout=seconds + 30)
-        else:
+        window_before = json.loads((out / "window-before.json").read_text())
+        pending = client.send("scroll", {"dy": -12, "durationMs": int(seconds * 1000), "intervalMs": 8}) if automatic else None
+        if not automatic:
             print(f"正在录制 {seconds} 秒：请在 MacView 中用触控板滚动、缩放。", flush=True)
-            deadline = time.monotonic() + seconds
-            while time.monotonic() < deadline:
-                time.sleep(min(0.5, max(0, deadline - time.monotonic())))
-            scroll = {}
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            if rss_error is None:
+                try:
+                    value = client.request("state", timeout=5).get("residentBytes")
+                    if not isinstance(value, (int, float)) or value <= 0:
+                        raise ValueError("residentBytes 缺失或无效")
+                    resident.append(value)
+                except (TimeoutError, ConnectionError, OSError, ValueError) as exc:
+                    rss_error = getattr(exc, "detail", {"error": str(exc)})
+            time.sleep(min(1, max(0, deadline - time.monotonic())))
+        scroll = client.wait(pending, 30).get("result", {}) if automatic else {}
         time.sleep(0.5)
         during = sample_conditions()
         during["before"] = before
         during["screen"]["inputDuringRun"] = input_mark(DURING_EVENTS) > mark + 0.5
         # 连续手势的响应已经带回窗口和响应式滚动状态，不为辅助字段再等一次state。
         window = scroll if automatic else window_of(client.request("state", timeout=5))
-        during["windowFront"] = window.get("windowFront") is True and scroll.get("windowFront", True)
+        during["windowFrontBefore"] = window_before.get("windowFront")
+        during["windowFront"] = window_before.get("windowFront") is True and window.get("windowFront") is True and scroll.get("windowFront", True)
+        during["residentPeakBytes"] = max(resident, default=None)
+        during["residentSamplingError"] = rss_error
+        during["residentSampleCount"] = len(resident)
+        during["residentSamplingComplete"] = rss_error is None and len(resident) >= math.ceil(seconds)
         during["scrollMovements"] = scroll.get("scrollMovements")
         during["scrollEvents"] = scroll.get("events")
         during["driver"] = "synthetic" if automatic else "trackpad"
         during["responsiveScrolling"] = window.get("responsiveScrolling")
         (out / "during.json").write_text(json.dumps(during, ensure_ascii=False, indent=2) + "\n")
     except Exception as exc:
-        measured = {"error": str(exc)}
+        measured = {"error": str(exc), "residentPeakBytes": max(resident, default=None), "residentSamplingError": rss_error,
+                    "residentSampleCount": len(resident), "residentSamplingComplete": False}
         if isinstance(exc, DebugTimeout):
             measured["diagnostic"] = exc.detail
         (out / "error.json").write_text(json.dumps(measured, ensure_ascii=False, indent=2) + "\n")
@@ -1754,6 +1847,7 @@ def parse_args(argv):
     parser.add_argument("--observe-scroll", nargs=3, metavar=("SCENE", "SOCKET", "OUT"))
     parser.add_argument("--smoke-scroll", nargs=3, metavar=("SCENE", "SOCKET", "OUT"))
     parser.add_argument("--quit-app", metavar="SOCKET")
+    parser.add_argument("--launch-app", nargs=5, metavar=("SOCKET", "SUPPORT", "CACHE", "LAYOUT", "LOG"))
     return parser.parse_args(argv)
 
 
@@ -1763,6 +1857,9 @@ def main(argv):
         return 0
     args = parse_args(argv)
     os.chdir(ROOT)
+    if args.launch_app:
+        print(launch_app(*[str(Path(path).resolve()) for path in args.launch_app]))
+        return 0
     if args.quit_app:
         quit_app(args.quit_app)
         return 0
@@ -1783,6 +1880,8 @@ def main(argv):
     if unknown:
         raise SystemExit(f"未知场景：{', '.join(unknown)}")
     subprocess.Popen(["caffeinate", "-d", "-w", str(os.getpid())])
+    if any(scene in FOREGROUND for scene in scenes):
+        app_binary()  # 构建在环境准入之前完成，嵌套录制只复用已冻结的二进制。
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     base = sample_conditions()
     for scene in scenes:
