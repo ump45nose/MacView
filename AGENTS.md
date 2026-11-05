@@ -12,7 +12,7 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 | `docs/plans/tasks/<ID>.md` | 任务文档：目标、范围、不做、参考、验收、交付 |
 | `docs/reports/<ID>.md`、`docs/reports/bench/` | 任务报告与基准数据（任务文档要求时才写） |
 
-开始或恢复任务前，先读需求、架构、roadmap 和对应的任务文档。
+开始或恢复任务前，先读对应的任务文档，其余需要时查阅。
 
 ## 分工
 
