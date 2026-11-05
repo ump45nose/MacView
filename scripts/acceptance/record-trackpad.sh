@@ -3,6 +3,7 @@
 # 用法：scripts/acceptance/record-trackpad.sh <场景> <输出目录> [--manual|--automatic|--smoke]
 # 场景为 scroll-cached、scroll-cold 或 settle。scroll-cold 同时录 Time Profiler。
 # 默认只录用户的真实触控板手势；自动验收显式使用 --automatic，--smoke 只空录1秒检查流程。
+# 外部已持有常亮时设置 MV_ACCEPTANCE_EXTERNAL_CAFFEINATE=1，本脚本不创建 caffeinate。
 # 只结束本脚本启动的 App PID。
 set -eu
 scene=${1:?需要场景}
@@ -72,7 +73,9 @@ if [ ! -x "$derived/Build/Products/Debug/MacView.app/Contents/MacOS/MacView" ]; 
 		-destination "platform=macOS,arch=$(uname -m)" -derivedDataPath "$derived" SWIFT_OPTIMIZATION_LEVEL=-O build
 fi
 
-caffeinate -d -w $$ &
+if [ "${MV_ACCEPTANCE_EXTERNAL_CAFFEINATE:-0}" != "1" ]; then
+	caffeinate -d -w $$ &
+fi
 
 pid=$(python3 -I "$PWD/scripts/acceptance/run.py" --launch-app "$socket" "$support" "$cache" "$layout" "$out/app.log")
 printf '%s\n' "$pid" >"$out/app.pid"
