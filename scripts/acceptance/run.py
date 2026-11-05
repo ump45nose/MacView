@@ -41,15 +41,15 @@ SMB_ROOT = Path("/Volumes/Picture")
 FRAME_MS = 8.33
 REFRESH_120 = 119.0
 LOAD_LIMIT = int(subprocess.check_output(["/usr/sbin/sysctl", "-n", "hw.physicalcpu"], text=True).strip())
-MEMORY_ROLLING_MEDIAN = True  # 用户 2026-11-04 已确认采用 60 秒滚动中位数。
+PHYSICAL_FOOTPRINT_SOURCE = "proc_pid_rusage(RUSAGE_INFO_V4).ri_phys_footprint"
 MEMORY_KEYS = ("rawBytes", "decodedBytes", "thumbnailMemoryBytes", "preloadBytes", "inFlightBytes", "waitingTasks")
 IDLE_SECONDS = 45.0
 WAIT_READY = 20 * 60
 
 SCENES = [
-    "first-image", "preloaded-flip", "scroll-cached", "scroll-cold", "main-thread", "settle",
-    "large-dir", "tiles-cancel", "panel-restart", "memory-30min",
-    "nas-throughput", "cached-first-screen", "nas-fault",
+    "first-image", "preloaded-flip", "large-dir", "settle", "scroll-cached", "scroll-cold",
+    "main-thread", "tiles-cancel", "panel-restart",
+    "nas-throughput", "cached-first-screen", "nas-fault", "memory-30min",
 ]
 NAS_SCENES = {"nas-throughput", "cached-first-screen", "nas-fault"}
 NAS_APP_SCENES = {"cached-first-screen", "nas-fault"}
@@ -241,9 +241,21 @@ def judge_memory(measured, limits):
         return "unverified"
     if measured.get("leakRootsParsed") is False:
         return "unverified"
-    samples = measured.get("residentBytes")
+    # 新口径必须有本轮外部物理占用采样，旧 resident 证据不能被重新判为通过。
+    if measured.get("physicalFootprintSource") != PHYSICAL_FOOTPRINT_SOURCE or measured.get("physicalFootprintSamplingErrors"):
+        return "unverified"
+    samples = measured.get("physicalFootprintBytes")
     elapsed = measured.get("sampleElapsedSeconds")
     if not isinstance(samples, list) or not samples or not isinstance(elapsed, list) or len(elapsed) != len(samples):
+        return "unverified"
+    if any(not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in samples):
+        return "unverified"
+    if any(not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0 for value in elapsed) or any(
+            after <= before for before, after in zip(elapsed, elapsed[1:])):
+        return "unverified"
+    # resident 原值与同次 state 分层保留；其波动、数值不参与内存预算判定。
+    resident = measured.get("residentBytes")
+    if not isinstance(resident, list) or len(resident) != len(samples):
         return "unverified"
     layers = measured.get("memory")
     if not isinstance(layers, list) or len(layers) != len(samples) or any(
@@ -256,11 +268,8 @@ def judge_memory(measured, limits):
         return "unverified"
     if rtt is None or not measured.get("stateSamples"):
         return "unverified"
-    med = statistics.median(tail)
-    if med <= 0:
-        return "fail"
     metrics = memory_metrics(measured, limits["ignoreFirstSeconds"])
-    deviation = metrics.get("rollingMedianDeviation" if MEMORY_ROLLING_MEDIAN else "perSecondDeviation")
+    deviation = metrics.get("physicalFootprintRollingMedianDeviation")
     if deviation is None:
         return "unverified"
     if leaks != limits["leaks"] or round(deviation - limits["deviation"], 4) > 0:
@@ -269,20 +278,54 @@ def judge_memory(measured, limits):
 
 
 def memory_metrics(measured, warmup=300):
-    pairs = list(zip(measured.get("sampleElapsedSeconds", []), measured.get("residentBytes", [])))
-    tail = [(t, v) for t, v in pairs if t >= warmup and isinstance(v, (int, float))]
-    if not tail or statistics.median(v for _, v in tail) <= 0:
-        return {}
-    median = statistics.median(v for _, v in tail)
-    rolling = [statistics.median(v for t, v in tail if now - 60 < t <= now)
-               for now, _ in tail if now >= warmup + 60]
-    peak = max(range(len(pairs)), key=lambda i: pairs[i][1] or 0)
+    metrics = {"rollingWindowSeconds": 60, "deviationMethod": "physicalFootprintRollingMedian60Seconds"}
     layers = measured.get("memory", [])
-    return {"residentMedianBytes": median, "perSecondDeviation": max(abs(v - median) / median for _, v in tail),
-            "rollingMedianDeviation": max(abs(v - median) / median for v in rolling) if rolling else None,
-            "rollingWindowSeconds": 60, "residentPeakBytes": pairs[peak][1], "peakElapsedSeconds": pairs[peak][0],
-            "peakMemory": layers[peak] if peak < len(layers) else None,
-            "deviationMethod": "rollingMedian60Seconds" if MEMORY_ROLLING_MEDIAN else "perSecond"}
+    for field, prefix in (("physicalFootprintBytes", "physicalFootprint"), ("residentBytes", "resident")):
+        pairs = list(zip(measured.get("sampleElapsedSeconds", []), measured.get(field, [])))
+        valid = [(index, t, v) for index, (t, v) in enumerate(pairs)
+                 if isinstance(v, (int, float)) and math.isfinite(v) and v > 0]
+        tail = [(t, v) for _, t, v in valid if t >= warmup]
+        if not tail:
+            continue
+        median = statistics.median(v for _, v in tail)
+        rolling = [statistics.median(v for t, v in tail if now - 60 < t <= now)
+                   for now, _ in tail if now >= warmup + 60]
+        peak, peak_time, peak_value = max(valid, key=lambda item: item[2])
+        metrics.update({prefix + "MedianBytes": median,
+                        prefix + "PerSecondDeviation": max(abs(v - median) / median for _, v in tail),
+                        prefix + "RollingMedianDeviation": max(abs(v - median) / median for v in rolling) if rolling else None,
+                        prefix + "PeakBytes": peak_value, prefix + "PeakElapsedSeconds": peak_time,
+                        prefix + "PeakMemory": layers[peak] if peak < len(layers) else None})
+    return metrics
+
+
+class RusageInfoV4(ctypes.Structure):
+    # 本机 SDK sys/resource.h：16 字节 UUID 后是 35 个 uint64_t；大小 296，物理占用偏移 72。
+    _fields_ = [("ri_uuid", ctypes.c_uint8 * 16)] + [(name, ctypes.c_uint64) for name in (
+        "ri_user_time", "ri_system_time", "ri_pkg_idle_wkups", "ri_interrupt_wkups", "ri_pageins",
+        "ri_wired_size", "ri_resident_size", "ri_phys_footprint", "ri_proc_start_abstime", "ri_proc_exit_abstime",
+        "ri_child_user_time", "ri_child_system_time", "ri_child_pkg_idle_wkups", "ri_child_interrupt_wkups",
+        "ri_child_pageins", "ri_child_elapsed_abstime", "ri_diskio_bytesread", "ri_diskio_byteswritten",
+        "ri_cpu_time_qos_default", "ri_cpu_time_qos_maintenance", "ri_cpu_time_qos_background", "ri_cpu_time_qos_utility",
+        "ri_cpu_time_qos_legacy", "ri_cpu_time_qos_user_initiated", "ri_cpu_time_qos_user_interactive",
+        "ri_billed_system_time", "ri_serviced_system_time", "ri_logical_writes", "ri_lifetime_max_phys_footprint",
+        "ri_instructions", "ri_cycles", "ri_billed_energy", "ri_serviced_energy", "ri_interval_max_phys_footprint",
+        "ri_runnable_time",
+    )]
+
+
+def physical_footprint(pid):
+    """从目标进程外部读取字节数；错误交给采样边界记录，不以 resident 或 0 代替。"""
+    libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+    libproc.proc_pid_rusage.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_void_p]
+    libproc.proc_pid_rusage.restype = ctypes.c_int
+    usage = RusageInfoV4()
+    if libproc.proc_pid_rusage(pid, 4, ctypes.byref(usage)) != 0:
+        code = ctypes.get_errno()
+        raise OSError(code, f"proc_pid_rusage({pid}, RUSAGE_INFO_V4): {os.strerror(code)}")
+    if usage.ri_phys_footprint <= 0:
+        raise ValueError(f"proc_pid_rusage({pid}, RUSAGE_INFO_V4) 返回无效 ri_phys_footprint")
+    return usage.ri_phys_footprint
 
 
 def parse_leaks(output):
@@ -314,6 +357,7 @@ def check_verdicts():
     scroll = {"frames": 100, "scrollMovements": 50, "windowFront": True,
               "hitches": 0, "updateP99": 2.0, "renderP99": 2.0, "frameTimeP99": 8.33}
     memory = {"leaks": 0, "residentBytes": [100] * 1800,
+              "physicalFootprintBytes": [100] * 1800, "physicalFootprintSource": PHYSICAL_FOOTPRINT_SOURCE,
               "memory": [dict.fromkeys(MEMORY_KEYS, 0)] * 1800,
               "sampleElapsedSeconds": list(range(1800)), "durationSeconds": 1800,
               "stateSamples": 1800, "maxRoundTripMilliseconds": 1000}
@@ -351,7 +395,17 @@ def check_verdicts():
         ("缺少符号", judge("main-thread", {**valid["main-thread"], "knownSymbolSamples": 0}, env), "unverified"),
         ("主线程读取", judge("main-thread", {**valid["main-thread"], "fileReadOrImageIO": 1}, env), "fail"),
         ("内存不是完整30分钟", judge("memory-30min", {**memory, "durationSeconds": 1000}, env), "unverified"),
-        ("内存按秒忽略前5分钟", judge("memory-30min", {**memory, "residentBytes": [10000] * 300 + [100] * 1500}, env), "pass"),
+        ("物理占用按秒忽略前5分钟", judge("memory-30min", {**memory, "physicalFootprintBytes": [10000] * 300 + [100] * 1500}, env), "pass"),
+        ("resident 压缩下降不参与判定", judge("memory-30min", {**memory, "residentBytes": [100] * 1200 + [50] * 600}, env), "pass"),
+        ("物理占用短尖峰按60秒中位数", judge("memory-30min", {**memory, "physicalFootprintBytes": [100] * 900 + [200] * 10 + [100] * 890}, env), "pass"),
+        ("物理占用持续偏离", judge("memory-30min", {**memory, "physicalFootprintBytes": [100] * 1200 + [50] * 600}, env), "fail"),
+        ("旧 resident 数据不可追认为通过", judge("memory-30min", {**memory, "physicalFootprintSource": None}, env), "unverified"),
+        ("物理占用缺失", judge("memory-30min", {**memory, "physicalFootprintBytes": []}, env), "unverified"),
+        ("物理占用采样失败", judge("memory-30min", {**memory, "physicalFootprintSamplingErrors": [{"sampleIndex": 2, "error": "EPERM"}]}, env), "unverified"),
+        ("物理占用不是有效数字", judge("memory-30min", {**memory, "physicalFootprintBytes": [100] * 1799 + [None]}, env), "unverified"),
+        ("物理占用不能默认为零", judge("memory-30min", {**memory, "physicalFootprintBytes": [100] * 1799 + [0]}, env), "unverified"),
+        ("物理占用与state分层错位", judge("memory-30min", {**memory, "memory": memory["memory"][:-1]}, env), "unverified"),
+        ("主线程停顿保持失败优先级", judge("memory-30min", {"stateTimedOut": True}, env), "fail"),
         ("泄漏不忽略", judge("memory-30min", {**memory, "leaks": 416}, env), "fail"),
         ("故障时没有真实读取", judge("nas-fault", {**valid["nas-fault"], "quitReadInFlight": False}, env), "unverified"),
         ("退出靠强杀", judge("nas-fault", {**valid["nas-fault"], "quitExitedNormally": False}, env), "fail"),
@@ -1754,7 +1808,7 @@ def scene_memory(duration_seconds=1800, name="memory-30min"):
     sample = str(ensure_sample())
     other = str(HUGE_DIR)
     app = App(name, empty_cache=False).start()
-    samples, elapsed, memory = [], [], []
+    samples, physical, elapsed, memory, sampling_errors = [], [], [], [], []
     monitor = None
     failure = None
     budgets = None
@@ -1776,7 +1830,15 @@ def scene_memory(duration_seconds=1800, name="memory-30min"):
             app.client.phase = f"memory-30min:{'sample' if resident_sample else 'mode-probe'}-{len(samples)}"
             state = app.client.request("state", timeout=120)
             if resident_sample:
+                # 同次 state 的 resident 与分层保持同下标，紧接着从外部取物理占用。
+                try:
+                    footprint = physical_footprint(app.pid)
+                except (OSError, ValueError, AttributeError) as exc:
+                    footprint = None
+                    sampling_errors.append({"sampleIndex": len(samples), "elapsedSeconds": time.monotonic() - started,
+                                            "error": str(exc)})
                 samples.append(state.get("residentBytes"))
+                physical.append(footprint)
                 memory.append(state.get("memory"))
                 elapsed.append(time.monotonic() - started)
                 budgets = state.get("cacheBudgets")
@@ -1819,7 +1881,7 @@ def scene_memory(duration_seconds=1800, name="memory-30min"):
                 if not pending_mode:
                     index += 1
             # 模式响应也由 state 驱动。快响应只让出 50ms，不额外消耗一整个动作周期；
-            # 慢响应仍每秒采 resident，并由同一监测器记录主线程停顿。
+            # 正常时每秒同步采物理占用、resident 与分层；慢响应由同一监测器记录停顿。
             wake = min(tick, time.monotonic() + 0.05) if pending_mode else tick
             time.sleep(max(0, min(wake, end) - time.monotonic()))
     except Exception as exc:
@@ -1828,6 +1890,8 @@ def scene_memory(duration_seconds=1800, name="memory-30min"):
         # 停顿已经构成失败，也保留目标进程的最终泄漏和虚拟内存证据。
         duration = time.monotonic() - started if started is not None else 0
         measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "actions": index,
+                    "physicalFootprintBytes": physical, "physicalFootprintSource": PHYSICAL_FOOTPRINT_SOURCE,
+                    "physicalFootprintSamplingErrors": sampling_errors,
                     "memory": memory, "durationSeconds": duration, "cacheBudgets": budgets}
         try:
             if monitor is not None:
@@ -2192,10 +2256,10 @@ def main(argv):
     unknown = [scene for scene in args.scenes if scene not in SCENES]
     if unknown:
         raise SystemExit(f"未知场景：{', '.join(unknown)}")
-    # 同一冻结 App 的网络卷授权只在本地与内存场景完成后触发。
+    # 前台本地与录制场景、NAS 场景先完成，30 分钟内存场景最后运行。
     scenes = ([scene for scene in requested if scene not in NAS_SCENES and scene != "memory-30min"]
-              + [scene for scene in requested if scene == "memory-30min"]
-              + [scene for scene in requested if scene in NAS_SCENES])
+              + [scene for scene in requested if scene in NAS_SCENES]
+              + [scene for scene in requested if scene == "memory-30min"])
     subprocess.Popen(["caffeinate", "-d", "-w", str(os.getpid())])
     if any(scene in FOREGROUND for scene in scenes):
         app_binary()  # 构建在环境准入之前完成，嵌套录制只复用已冻结的二进制。
