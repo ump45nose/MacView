@@ -703,10 +703,11 @@ class MemoryStateMonitor:
         self.diagnostics.append(diagnostic)
         return diagnostic
 
-    def wait(self, client, ident):
+    def wait(self, client, ident, timeout=120):
         request = client.pending[ident]
         sent = request["sentMonotonic"]
-        deadline = sent + 120
+        timeout = min(timeout, 120)
+        deadline = sent + timeout
         diagnostic = None
         stall = None
         checks = []
@@ -717,14 +718,15 @@ class MemoryStateMonitor:
             now = time.monotonic()
             returned_at = received_at.get(ident, now)
             if now >= next_observation or ident in client.inbox:
-                observation = {"elapsedSeconds": now - self.started, "screenLocked": screen_locked()}
+                observation = {"elapsedSeconds": now - self.started, "screenLocked": screen_locked(),
+                               "loadOneMinute": os.getloadavg()[0]}
                 if self.observer is not None:
                     observation.update(self.observer())
                 self.observations.append(observation)
                 checks.append(observation)
                 next_observation = time.monotonic() + 0.5
                 now = time.monotonic()
-            if ident in client.inbox:
+            if ident in client.inbox and returned_at <= deadline:
                 message = client.inbox.pop(ident)
                 client.pending.pop(ident, None)
                 duration = returned_at - sent
@@ -759,6 +761,8 @@ class MemoryStateMonitor:
                 if len(self.sample_times) >= 3:
                     next_sample = max(next_sample, self.sample_times[0] + 60)
             if now >= deadline:
+                if diagnostic is None:
+                    diagnostic = self._diagnostic(client, ident, request, sent, now, checks)
                 self.timed_out = True
                 duration = now - sent
                 self.round_trips.append(duration * 1000)
@@ -767,7 +771,7 @@ class MemoryStateMonitor:
                                       "startedElapsedSeconds": sent - self.started, "durationSeconds": duration,
                                       "windowFront": None, "environmentChecks": checks, "timedOut": True})
                 diagnostic.update(durationSeconds=duration, returned=False)
-                detail = {**request, "pid": client.pid, "requestID": ident, "timeoutSeconds": 120,
+                detail = {**request, "pid": client.pid, "requestID": ident, "timeoutSeconds": timeout,
                           "responseWaitSeconds": duration,
                           "sample": diagnostic["samples"][0]["path"] if diagnostic["samples"] else None}
                 raise DebugTimeout(detail)
@@ -797,10 +801,15 @@ class MemoryStateMonitor:
                 record["rawSample"] = path.read_text(errors="replace")
                 path.unlink()
         self.directory.rmdir()
+        stalled = {stall["requestID"]: index for index, stall in enumerate(self.stalls)}
+        # 同一现场只在 stalls 保存；earlyDiagnostics 用同一 evidence 内的索引定位。
+        diagnostics = [{"requestID": diagnostic["requestID"], "phase": diagnostic["phase"],
+                        "stallIndex": stalled[diagnostic["requestID"]]}
+                       if diagnostic["requestID"] in stalled else diagnostic for diagnostic in self.diagnostics]
         return {"stateSamples": len(self.round_trips), "stateRoundTripMilliseconds": self.round_trips,
                 "maxRoundTripMilliseconds": max(self.round_trips, default=None), "stateWindowFront": self.window_front,
                 "stateRequests": self.requests, "stateTimedOut": self.timed_out, "stalls": self.stalls,
-                "earlyDiagnostics": self.diagnostics, "lastState": self.last_state,
+                "earlyDiagnostics": diagnostics, "lastState": self.last_state,
                 "stateSnapshots": self.state_snapshots, "environmentObservations": self.observations}
 
 
@@ -853,7 +862,7 @@ class DebugClient:
     def wait(self, ident, timeout):
         ident = norm_id(ident)
         if self.memory_monitor is not None and self.pending.get(ident, {}).get("command") == "state":
-            return self.memory_monitor.wait(self, ident)
+            return self.memory_monitor.wait(self, ident, timeout=timeout)
         started = time.monotonic()
         deadline = time.monotonic() + timeout
         try:
@@ -1914,8 +1923,9 @@ def memory_process_snapshot(pid):
 
 class MemoryActions:
     """正式内存场景和定位实验复用同一翻页、滚动、切书循环。"""
-    def __init__(self, sample, other):
+    def __init__(self, sample, other, scroll_enabled=True):
         self.sample, self.other = sample, other
+        self.scroll_enabled = scroll_enabled
         self.index = 0
         self.direction = 1
         self.pending = None
@@ -1926,7 +1936,8 @@ class MemoryActions:
         if self.pending in client.inbox:
             response = client.inbox.pop(self.pending)
             client.pending.pop(self.pending, None)
-            self.log[-1].update(response=response, returnedMonotonic=time.monotonic())
+            self.log[-1].update(response={key: response[key] for key in ("ok", "error") if key in response},
+                                returnedMonotonic=time.monotonic())
             if not response.get("ok"):
                 raise RuntimeError(response.get("error") or response)
             self.pending = None
@@ -1947,10 +1958,10 @@ class MemoryActions:
                     self.direction = -self.direction
                 command, args, kind = "perform", {"command": "frame.next" if self.direction > 0 else "frame.previous"}, "flip"
         elif action == 3:
-            client.phase = f"{phase}:scroll-{self.index}"
-            if window.get("browseMode") != "waterfall":
+            client.phase = f"{phase}:{'scroll' if self.scroll_enabled else 'waterfall'}-{self.index}"
+            if window.get("browseMode") != "waterfall" or not self.scroll_enabled:
                 command, args, kind = "perform", {"command": "view.waterfall"}, "mode-waterfall"
-                self.pending_mode = True
+                self.pending_mode = self.scroll_enabled
             else:
                 command, args, kind = "scroll", {"dy": -12, "durationMs": 500, "intervalMs": 8}, "scroll"
         else:
@@ -2108,6 +2119,9 @@ def continuous_occlusion(stage):
 def occlusion_result(measured):
     if measured.get("error") or measured.get("cleanupErrors"):
         return {"verdict": "unverified", "conclusion": "实验未完成，原因未定位"}
+    restoration = measured.get("restoration") or {}
+    if restoration.get("activationTimedOut"):
+        return {"verdict": "environment", "conclusion": "窗口未在10秒内回到前台，前台对照未成立"}
     stages = {stage["phase"]: stage for stage in measured.get("stages", [])}
     if not all(name in stages for name in ("foreground", "occluded", "restored")):
         return {"verdict": "unverified", "conclusion": "实验未完成，原因未定位"}
@@ -2125,7 +2139,6 @@ def occlusion_result(measured):
                    stages[name].get("maxRoundTripMilliseconds") is not None and
                    not exceeds(stages[name]["maxRoundTripMilliseconds"], 1000) and
                    not stages[name].get("stateTimedOut") for name in ("foreground", "restored"))
-    restoration = measured.get("restoration") or {}
     front_requests = [request for request in restoration.get("stateRequests", []) if request.get("windowFront") is True]
     front_ok = (front_ok and state_window_front(restoration.get("afterActivation")) is True and
                 bool(front_requests) and not restoration.get("stateTimedOut") and
@@ -2143,8 +2156,9 @@ def scene_w37_occlusion():
     sample = str(ensure_sample())
     managed, stages, instances = [], [], []
     sample_times = []
-    measured = {"stages": stages, "instances": instances,
-                "knownConstraint": "冻结版 scroll 会激活被测窗口；揭开后的区段无效，不自动重盖"}
+    measured = {"stages": stages, "instances": instances, "scrollEnabled": False,
+                "actionSequence": "翻页、切换瀑布流（不滚动）、切书；四段一致",
+                "untestedFactor": "用户操作带来的负载未在本实验验证"}
 
     def start(name, disabled=False):
         app = App(name, empty_cache=False, app_sleep_disabled=disabled)
@@ -2188,7 +2202,7 @@ def scene_w37_occlusion():
     try:
         target = start("w37-target")
         target.client.request("open", {"path": sample}, timeout=120)
-        actions = MemoryActions(sample, str(HUGE_DIR))
+        actions = MemoryActions(sample, str(HUGE_DIR), scroll_enabled=False)
         phase(target, actions, "foreground", 180)
         cover = cover_for(target, "w37-cover")
         covered = phase(target, actions, "occluded", 300, cover)
@@ -2205,18 +2219,35 @@ def scene_w37_occlusion():
                 subprocess.run(command, check=True, timeout=30)
                 restored["activationCommand"] = command
             target.client.phase = "w37-restoration:after-activation"
-            restored["afterActivation"] = target.client.request("state", timeout=120)
+            poll_started = time.monotonic()
+            poll_deadline = poll_started + 10
+            restored["afterActivation"] = None
+            while True:
+                remaining = poll_deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                try:
+                    restored["afterActivation"] = target.client.request("state", timeout=remaining)
+                except DebugTimeout as exc:
+                    restored["pollDiagnostic"] = exc.detail
+                    break
+                if state_window_front(restored["afterActivation"]) is True:
+                    break
+                time.sleep(min(0.1, max(0, poll_deadline - time.monotonic())))
+            restored["activationWaitSeconds"] = time.monotonic() - poll_started
+            restored["activationTimedOut"] = state_window_front(restored["afterActivation"]) is not True
         finally:
             target.client.memory_monitor = None
             restored.update(restoration_monitor.evidence())
-        phase(target, actions, "restored", 120)
+        if not restored["activationTimedOut"]:
+            phase(target, actions, "restored", 120)
         # 只以已经证实盖住时的停顿触发额外实例；未盖住的慢响应不能触发因果对照。
         if valid_occluded_stalls(covered):
             target.stop()
             disabled = start("w37-sleep-disabled-target", disabled=True)
             disabled.client.request("open", {"path": sample}, timeout=120)
             disabled_cover = cover_for(disabled, "w37-sleep-disabled-cover")
-            phase(disabled, MemoryActions(sample, str(HUGE_DIR)), "sleep-disabled-occluded", 180, disabled_cover)
+            phase(disabled, MemoryActions(sample, str(HUGE_DIR), scroll_enabled=False), "sleep-disabled-occluded", 180, disabled_cover)
         measured.update(occlusion_result(measured))
     except Exception as exc:
         measured.update(error=str(exc), verdict="unverified", conclusion="实验未完成，原因未定位")
