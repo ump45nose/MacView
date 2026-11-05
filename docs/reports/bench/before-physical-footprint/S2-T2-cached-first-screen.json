@@ -1,0 +1,103 @@
+{
+  "scene": "cached-first-screen",
+  "commit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+  "env": {
+    "load": {
+      "oneMinute": 12.2939453125,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
+    },
+    "displayMode": {
+      "width": 1920,
+      "height": 1080,
+      "pixelWidth": 3840,
+      "pixelHeight": 2160,
+      "refreshHz": 60.0,
+      "builtin": false,
+      "externalDisplay": true
+    },
+    "refreshHz": 60.0,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 24.4184005,
+      "inputDuringRun": false,
+      "externalDisplay": true
+    },
+    "collectedAt": "2026-11-04T14:49:57Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      },
+      {
+        "fileSystem": "nfs",
+        "mountPoint": "/Users/yuwk/MacViewBench/nfs",
+        "path": "/Users/yuwk/MacViewBench/nfs",
+        "source": "192.168.31.201:/fs/1000/nfs"
+      }
+    ],
+    "nasAuthorization": {
+      "ready": false,
+      "directory": "/Users/yuwk/MacViewBench/nfs",
+      "signature": {
+        "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+        "cdhash": "828e639a107e00a70d06c738aedd9eb723c4ae50",
+        "returnCode": 0,
+        "details": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=828e639a107e00a70d06c738aedd9eb723c4ae50\nCandidateCDHashFull sha256=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nHash choices=sha256\nCMSDigest=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=828e639a107e00a70d06c738aedd9eb723c4ae50\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+      },
+      "timeoutSeconds": 1200,
+      "pid": 77821,
+      "tccd": {
+        "prompting": [],
+        "result": [],
+        "requests": [],
+        "denied": false,
+        "returnCode": 0,
+        "diagnostic": ""
+      },
+      "reason": "[Errno 32] Broken pipe",
+      "waitSeconds": 277.29338291700014,
+      "openErrors": []
+    }
+  },
+  "budget": {
+    "firstScreenP95Milliseconds": 100,
+    "samplesPerRoot": 20
+  },
+  "measured": {
+    "environment": true,
+    "reason": "[Errno 32] Broken pipe"
+  },
+  "verdict": "environment"
+}

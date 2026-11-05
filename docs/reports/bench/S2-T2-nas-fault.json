@@ -1,29 +1,30 @@
 {
   "scene": "nas-fault",
-  "commit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+  "commit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
   "env": {
     "load": {
-      "oneMinute": 12.2939453125,
+      "oneMinute": 9.68115234375,
       "limit": 10,
-      "limitSource": "sysctl -n hw.physicalcpu"
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 8.6455078125
     },
     "displayMode": {
-      "width": 1920,
+      "width": 1728,
       "height": 1080,
-      "pixelWidth": 3840,
+      "pixelWidth": 3456,
       "pixelHeight": 2160,
-      "refreshHz": 60.0,
-      "builtin": false,
-      "externalDisplay": true
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
     },
-    "refreshHz": 60.0,
+    "refreshHz": 120.0,
     "screen": {
       "locked": false,
-      "idleSeconds": 24.4184005,
+      "idleSeconds": 258.06697775,
       "inputDuringRun": false,
-      "externalDisplay": true
+      "externalDisplay": false
     },
-    "collectedAt": "2026-11-04T14:54:36Z",
+    "collectedAt": "2026-11-05T02:56:26Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -62,8 +63,8 @@
       }
     ],
     "nasAuthorization": {
-      "ready": false,
-      "directory": "/Users/yuwk/MacViewBench/nfs",
+      "ready": true,
+      "directory": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
       "signature": {
         "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
         "cdhash": "828e639a107e00a70d06c738aedd9eb723c4ae50",
@@ -71,18 +72,46 @@
         "details": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=828e639a107e00a70d06c738aedd9eb723c4ae50\nCandidateCDHashFull sha256=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nHash choices=sha256\nCMSDigest=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=828e639a107e00a70d06c738aedd9eb723c4ae50\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
       },
       "timeoutSeconds": 1200,
-      "pid": 77821,
+      "pid": 50736,
       "tccd": {
         "prompting": [],
-        "result": [],
-        "requests": [],
+        "result": [
+          "2026-11-05 10:55:38.164 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_RESULT: msgID=164.164, authValue=2, authReason=2, authVersion=1, desired_auth=0, error=(null),",
+          "2026-11-05 10:55:38.166 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_RESULT: msgID=164.166, authValue=2, authReason=2, authVersion=1, desired_auth=0, error=(null),"
+        ],
+        "requests": [
+          "2026-11-05 10:55:38.157 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_CTX: msgID=164.164, function=TCCAccessRequest, service=kTCCServiceSystemPolicyNetworkVolumes, preflight=no, query=1, client_dict=(null), daemon_dict=<private>",
+          "2026-11-05 10:55:38.157 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_ATTRIBUTION: msgID=164.164, attribution={responsible={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=50736, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, accessing={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=50779, auid=501, euid=501, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, requesting={TCCDProcess: identifier=com.apple.sandboxd, pid=164, auid=0, euid=0, binary_path=/usr/libexec/sandboxd}, },",
+          "2026-11-05 10:55:38.164 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_SUBJECT: msgID=164.164, subject=io.github.ump45nose.MacView,",
+          "2026-11-05 10:55:38.164 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_RESULT: msgID=164.164, authValue=2, authReason=2, authVersion=1, desired_auth=0, error=(null),",
+          "2026-11-05 10:55:38.165 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_CTX: msgID=164.166, function=TCCAccessRequest, service=kTCCServiceSystemPolicyNetworkVolumes, preflight=no, query=1, client_dict=(null), daemon_dict=<private>",
+          "2026-11-05 10:55:38.165 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_ATTRIBUTION: msgID=164.166, attribution={responsible={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=50736, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, accessing={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=50779, auid=501, euid=501, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, requesting={TCCDProcess: identifier=com.apple.sandboxd, pid=164, auid=0, euid=0, binary_path=/usr/libexec/sandboxd}, },",
+          "2026-11-05 10:55:38.165 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_SUBJECT: msgID=164.166, subject=io.github.ump45nose.MacView,",
+          "2026-11-05 10:55:38.166 Df tccd[433:338c2] [com.apple.TCC:access] AUTHREQ_RESULT: msgID=164.166, authValue=2, authReason=2, authVersion=1, desired_auth=0, error=(null),"
+        ],
         "denied": false,
         "returnCode": 0,
         "diagnostic": ""
       },
-      "reason": "[Errno 32] Broken pipe",
-      "waitSeconds": 277.29338291700014,
+      "itemCount": 59,
+      "waitSeconds": 3.0987464170000294,
       "openErrors": []
+    },
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 281.90829375,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 120.0,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
     }
   },
   "budget": {
@@ -91,8 +120,8 @@
     "quitSeconds": 3
   },
   "measured": {
-    "environment": true,
-    "reason": "[Errno 32] Broken pipe"
+    "error": "第 0 帧没有 exact 显示",
+    "unavailable": true
   },
-  "verdict": "environment"
+  "verdict": "unverified"
 }

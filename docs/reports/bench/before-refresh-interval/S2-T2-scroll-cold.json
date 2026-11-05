@@ -1,0 +1,132 @@
+{
+  "scene": "scroll-cold",
+  "commit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+  "env": {
+    "load": {
+      "oneMinute": 6.2119140625,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 7.21533203125
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 120.0,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 69.886037083,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-05T02:55:23Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 130.667458083,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 120.0,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "frameTimeP99Milliseconds": 8.33,
+    "refreshHz": 120,
+    "submitPlusRenderP99Milliseconds": 8.33
+  },
+  "measured": {
+    "frames": 1253,
+    "hitches": 9,
+    "updateP99": 3.51,
+    "renderP99": 5.564,
+    "frameTimeP99": 8.333,
+    "refreshHz": 120.0,
+    "settleRequestLatencyP99": 0.0,
+    "settles": 0,
+    "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record/record.trace",
+    "scrollMovements": 1217,
+    "residentPeakBytes": 1930231808,
+    "residentSamplingError": null,
+    "residentSampleCount": 60,
+    "residentSamplingComplete": true,
+    "windowFrontBefore": true,
+    "submitPlusRenderP99": 9.074,
+    "performanceIssueAt120Hz": true,
+    "windowFront": true,
+    "responsiveScrolling": false,
+    "recording": {
+      "rawDirectory": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
+      "existing": {},
+      "space": {
+        "volume": "/System/Volumes/Data",
+        "freeBytes": 197356740608,
+        "requiredBytes": 60000000000
+      },
+      "ready": true,
+      "added": [
+        {
+          "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsbUPC3k.ktrace",
+          "bytes": 16555372280,
+          "allocatedBytes": 16555372544,
+          "result": "deleted"
+        }
+      ],
+      "cleanupComplete": true,
+      "addedBytes": 16555372280,
+      "deletedBytes": 16555372280,
+      "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record/record.trace",
+      "traceDeleted": true
+    }
+  },
+  "verdict": "fail"
+}
