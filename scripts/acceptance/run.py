@@ -13,6 +13,7 @@ import ctypes
 import json
 import math
 import os
+import plistlib
 import re
 import select
 import shutil
@@ -52,11 +53,12 @@ SCENES = [
     "nas-throughput", "cached-first-screen", "nas-fault",
     "scroll-cached", "scroll-cold", "main-thread", "settle", "memory-30min",
 ]
+OCCLUSION = "w37-occlusion"  # 定位实验显式请求；默认仍是原来的 13 个正式场景。
 NAS_SCENES = {"nas-throughput", "cached-first-screen", "nas-fault"}
 NAS_APP_SCENES = {"cached-first-screen", "nas-fault"}
-FOREGROUND = set(SCENES) - {"nas-throughput"}
+FOREGROUND = (set(SCENES) | {OCCLUSION}) - {"nas-throughput"}
 # 不看时序的场景只要求屏幕没锁。键鼠空闲、运行中输入、负载和外接显示器不参与判定。
-SCREEN_ONLY = {"main-thread", "memory-30min", "tiles-cancel", "panel-restart"}
+SCREEN_ONLY = {"main-thread", "memory-30min", "tiles-cancel", "panel-restart", OCCLUSION}
 # 开始前的空闲包含滚轮。录制过程中场景自己会发合成滚动，过程中的输入检查不含滚轮。
 START_EVENTS = (1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 22, 25, 26, 27)
 DURING_EVENTS = (1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 25, 26, 27)
@@ -83,6 +85,8 @@ BUDGETS = {
     "large-dir": {"maxRoundTripMilliseconds": 250, "totalItems": 10000, "intermediateItemCount": True},
     "nas-fault": {"maxRoundTripMilliseconds": 250, "errorWithinSeconds": 10, "quitSeconds": 3},
     "memory-30min": {"deviation": 0.10, "leaks": 0, "ignoreFirstSeconds": 300, "maxRoundTripMilliseconds": 1000},
+    OCCLUSION: {"foregroundSeconds": 180, "occludedSeconds": 300, "restoredSeconds": 120,
+                "sleepDisabledOccludedSeconds": 180, "maxRoundTripMilliseconds": 1000},
     "tiles-cancel": {"cancelledGreaterThan": 0},
     "panel-restart": {"matchesQuit": True},
 }
@@ -137,10 +141,10 @@ def judge(scene, measured, env, budget=None):
         return "environment"
     if scene in ("scroll-cached", "scroll-cold") and (not is_120(env.get("refreshHz")) or not is_120(env.get("refreshHzAfter"))):
         return "environment"
-    if scene == "memory-30min" and (measured.get("stateTimedOut") or
-            (measured.get("maxRoundTripMilliseconds") is not None and
-             exceeds(measured["maxRoundTripMilliseconds"], limits["maxRoundTripMilliseconds"]))):
-        return "fail"
+    if scene == "memory-30min":
+        return judge_memory(measured, limits)
+    if scene == OCCLUSION:
+        return occlusion_result(measured)["verdict"]
     if measured.get("unavailable"):
         return "unverified"
     if scene == "first-image":
@@ -201,8 +205,6 @@ def judge(scene, measured, env, budget=None):
         error_ok = len(required) == 4 and all(item.get("errorSeconds") is not None and not exceeds(item["errorSeconds"], limits["errorWithinSeconds"]) for item in required)
         ok = len(measured["injections"]) == 6 and not exceeds(rtt, limits["maxRoundTripMilliseconds"]) and error_ok and measured["retrySucceeded"] and measured.get("quitExitedNormally") and not exceeds(quit_s, limits["quitSeconds"])
         return "pass" if ok else "fail"
-    if scene == "memory-30min":
-        return judge_memory(measured, limits)
     if scene == "tiles-cancel":
         if not measured.get("requested"):
             return "unverified"
@@ -232,16 +234,52 @@ def judge_scroll(measured, env, limits):
     return "pass"
 
 
-def judge_memory(measured, limits):
-    # 已观察到的主线程停顿就是失败；不能因终止后缺少泄漏结果改成未验证。
+def memory_front_observations(measured):
+    return ([item for values in (measured.get("windowFront"), measured.get("stateWindowFront"))
+             if isinstance(values, list) for item in values] +
+            [state_window_front(item.get("state")) for item in measured.get("stateSnapshots", [])])
+
+
+def memory_foreground(measured):
+    """每秒与每次 state 的前台状态都完整才可证明全程前台；旧快照只用于证明离开过。"""
+    per_second = measured.get("windowFront")
+    per_state = measured.get("stateWindowFront")
+    observed = memory_front_observations(measured)
+    if any(item is False for item in observed):
+        return False
+    if (not isinstance(per_second, list) or not per_second or
+            len(per_second) != len(measured.get("residentBytes", [])) or
+            not isinstance(per_state, list) or not per_state or len(per_state) != measured.get("stateSamples") or
+            any(item is not True for item in per_second + per_state)):
+        return None
+    return True
+
+
+def memory_components(measured, limits):
+    front = memory_foreground(measured)
+    if any(check.get("screenLocked") is not False for check in measured.get("environmentObservations", [])):
+        front = False
     rtt = measured.get("maxRoundTripMilliseconds")
-    if measured.get("stateTimedOut") or (rtt is not None and exceeds(rtt, limits["maxRoundTripMilliseconds"])):
-        return "fail"
+    failed = measured.get("stateTimedOut") or (rtt is not None and exceeds(rtt, limits["maxRoundTripMilliseconds"]))
+    main = ("environment" if front is False else
+            "fail" if failed and any(item is True for item in memory_front_observations(measured)) else
+            "unverified" if front is None or rtt is None else "pass")
     leaks = measured.get("unexpectedLeakItems", measured.get("leaks"))
-    if leaks is None:
+    leak_verdict = ("unverified" if leaks is None or measured.get("leakRootsParsed") is False else
+                    "pass" if leaks == limits["leaks"] else "fail")
+    return {"mainThread": main, "physicalFootprint": judge_memory_footprint(measured, limits), "leaks": leak_verdict}
+
+
+def judge_memory(measured, limits):
+    parts = memory_components(measured, limits)
+    if parts["mainThread"] == "environment":
+        return "environment"
+    if parts["mainThread"] == "unverified":
         return "unverified"
-    if measured.get("leakRootsParsed") is False:
-        return "unverified"
+    return "fail" if "fail" in parts.values() else "unverified" if "unverified" in parts.values() else "pass"
+
+
+def judge_memory_footprint(measured, limits):
     # 新口径必须有本轮外部物理占用采样，旧 resident 证据不能被重新判为通过。
     if measured.get("physicalFootprintSource") != PHYSICAL_FOOTPRINT_SOURCE or measured.get("physicalFootprintSamplingErrors"):
         return "unverified"
@@ -267,13 +305,11 @@ def judge_memory(measured, limits):
         return "unverified"
     if measured.get("durationSeconds", 0) < 30 * 60:
         return "unverified"
-    if rtt is None or not measured.get("stateSamples"):
-        return "unverified"
     metrics = memory_metrics(measured, limits["ignoreFirstSeconds"])
     deviation = metrics.get("physicalFootprintRollingMedianDeviation")
     if deviation is None:
         return "unverified"
-    if leaks != limits["leaks"] or round(deviation - limits["deviation"], 4) > 0:
+    if round(deviation - limits["deviation"], 4) > 0:
         return "fail"
     return "pass"
 
@@ -361,7 +397,8 @@ def check_verdicts():
               "physicalFootprintBytes": [100] * 1800, "physicalFootprintSource": PHYSICAL_FOOTPRINT_SOURCE,
               "memory": [dict.fromkeys(MEMORY_KEYS, 0)] * 1800,
               "sampleElapsedSeconds": list(range(1800)), "durationSeconds": 1800,
-              "stateSamples": 1800, "maxRoundTripMilliseconds": 1000}
+              "stateSamples": 1800, "maxRoundTripMilliseconds": 1000,
+              "windowFront": [True] * 1800, "stateWindowFront": [True] * 1800}
     valid = {
         "first-image": {"p95": 150, "samples": 30},
         "preloaded-flip": {"p95": 8.33, "flips": 100},
@@ -406,7 +443,7 @@ def check_verdicts():
         ("物理占用不是有效数字", judge("memory-30min", {**memory, "physicalFootprintBytes": [100] * 1799 + [None]}, env), "unverified"),
         ("物理占用不能默认为零", judge("memory-30min", {**memory, "physicalFootprintBytes": [100] * 1799 + [0]}, env), "unverified"),
         ("物理占用与state分层错位", judge("memory-30min", {**memory, "memory": memory["memory"][:-1]}, env), "unverified"),
-        ("主线程停顿保持失败优先级", judge("memory-30min", {"stateTimedOut": True}, env), "fail"),
+        ("前台已确认的停顿保持失败优先级", judge("memory-30min", {**memory, "stateTimedOut": True, "leaks": None}, env), "fail"),
         ("泄漏不忽略", judge("memory-30min", {**memory, "leaks": 416}, env), "fail"),
         ("故障时没有真实读取", judge("nas-fault", {**valid["nas-fault"], "quitReadInFlight": False}, env), "unverified"),
         ("退出靠强杀", judge("nas-fault", {**valid["nas-fault"], "quitExitedNormally": False}, env), "fail"),
@@ -422,7 +459,7 @@ def check_verdicts():
             (f"{scene} 两个P99之和仅作证据", judge(scene, {**scroll, "renderP99": 6.34}, env120), "pass"),
             (f"{scene} 窗口不在前台", judge(scene, {**scroll, "windowFront": False}, env120), "environment"),
         ]
-    for scene in SCREEN_ONLY:
+    for scene in SCREEN_ONLY - {OCCLUSION}:
         for changed in (_load(env, 10), _screen(env, inputDuringRun=True, idleSeconds=1, externalDisplay=True)):
             cases.append((f"{scene} 只检查锁屏", judge(scene, valid[scene], changed), "pass"))
     merged = merge_during(env, {"load": {"oneMinute": 14.2}, "refreshHz": 120, "screen": {}})
@@ -620,76 +657,129 @@ class MeasurementError(RuntimeError):
 
 
 class MemoryStateMonitor:
-    """state 以 1 秒为预算，采样与响应等待并行，不因采样提前结束场景。"""
-    def __init__(self, started, directory):
+    """500 ms 起并行诊断；停顿预算仍为 1 秒，响应超时仍为 120 秒。"""
+    def __init__(self, started, directory, observer=None, sample_times=None):
         self.started = started
-        self.directory = Path(directory)
-        self.directory.mkdir(parents=True, exist_ok=True)
+        self.directory = Path(str(directory) + f"-{time.time_ns()}")
+        self.directory.mkdir(parents=True, exist_ok=False)
+        self.observer = observer
+        self.sample_times = sample_times if sample_times is not None else []
         self.last_state = None
         self.state_snapshots = []
+        self.requests = []
         self.round_trips = []
+        self.window_front = []
         self.stalls = []
+        self.diagnostics = []
+        self.observations = []
         self.sample_jobs = []
         self.timed_out = False
 
-    def _sample(self, client, ident, stall):
-        path = self.directory / f"{client.pid}-{ident}-{len(stall['samples']) + 1}.sample.txt"
-        record = {"path": str(path), "startedElapsedSeconds": time.monotonic() - self.started}
-        stall["samples"].append(record)
+    def _sample(self, client, ident, diagnostic):
+        now = time.monotonic()
+        self.sample_times[:] = [stamp for stamp in self.sample_times if now - stamp < 60]
+        if len(self.sample_times) >= 3:
+            return
+        self.sample_times.append(now)
+        path = self.directory / f"{client.pid}-{ident}-{len(diagnostic['samples']) + 1}.sample.txt"
+        record = {"path": str(path), "startedElapsedSeconds": now - self.started, "durationSeconds": 1}
+        diagnostic["samples"].append(record)
         try:
             process = subprocess.Popen(["/usr/bin/sample", str(client.pid), "1", "1", "-file", str(path)],
                                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
-            self.sample_jobs.append((process, record, time.monotonic()))
+            self.sample_jobs.append((process, record, now))
         except OSError as exc:
             record["error"] = str(exc)
+
+    def _diagnostic(self, client, ident, request, sent, now, checks):
+        diagnostic = {"requestID": ident, "phase": request["phase"], "pid": client.pid,
+                      "startedElapsedSeconds": sent - self.started,
+                      "startedUnixSeconds": time.time() - (now - sent), "lastState": self.last_state,
+                      "inFlightActions": [{"requestID": pending_id, **pending,
+                                           "ageSeconds": now - pending["sentMonotonic"]}
+                                          for pending_id, pending in client.pending.items()
+                                          if pending["command"] != "state" and pending_id not in client.inbox],
+                      "samples": [], "environmentChecks": checks}
+        self.diagnostics.append(diagnostic)
+        return diagnostic
 
     def wait(self, client, ident):
         request = client.pending[ident]
         sent = request["sentMonotonic"]
         deadline = sent + 120
+        diagnostic = None
         stall = None
+        checks = []
+        next_observation = sent
+        next_sample = sent + 0.5
+        received_at = {}
         while True:
             now = time.monotonic()
-            if now - sent >= 1 and stall is None:
-                stall = {"requestID": ident, "phase": request["phase"], "pid": client.pid,
-                         "startedElapsedSeconds": sent - self.started,
-                         "startedUnixSeconds": time.time() - (now - sent),
-                         "lastState": self.last_state,
-                         "inFlightActions": [{"requestID": pending_id, **pending,
-                                              "ageSeconds": now - pending["sentMonotonic"]}
-                                             for pending_id, pending in client.pending.items()
-                                             if pending["command"] != "state" and pending_id not in client.inbox],
-                         "samples": []}
-                self.stalls.append(stall)
+            returned_at = received_at.get(ident, now)
+            if now >= next_observation or ident in client.inbox:
+                observation = {"elapsedSeconds": now - self.started, "screenLocked": screen_locked()}
+                if self.observer is not None:
+                    observation.update(self.observer())
+                self.observations.append(observation)
+                checks.append(observation)
+                next_observation = time.monotonic() + 0.5
+                now = time.monotonic()
             if ident in client.inbox:
                 message = client.inbox.pop(ident)
                 client.pending.pop(ident, None)
-                duration = now - sent
+                duration = returned_at - sent
+                if duration > 1 and stall is None:
+                    if diagnostic is None:
+                        diagnostic = self._diagnostic(client, ident, request, sent, returned_at, checks)
+                    stall = diagnostic
+                    self.stalls.append(stall)
                 self.round_trips.append(duration * 1000)
-                if stall is not None:
-                    stall.update(durationSeconds=duration, returned=True)
+                front = state_window_front(message.get("result")) if message.get("ok") else None
+                self.window_front.append(front)
+                self.requests.append({"requestID": ident, "phase": request["phase"],
+                                      "startedElapsedSeconds": sent - self.started,
+                                      "durationSeconds": duration, "windowFront": front, "environmentChecks": checks})
+                if diagnostic is not None:
+                    diagnostic.update(durationSeconds=duration, returned=True)
                 if message.get("ok"):
                     self.last_state = message.get("result")
                     elapsed = now - self.started
                     if not self.state_snapshots or elapsed - self.state_snapshots[-1]["elapsedSeconds"] >= 60:
                         self.state_snapshots.append({"elapsedSeconds": elapsed, "state": self.last_state})
                 return message
-            if stall is not None and len(stall["samples"]) < 3 and now - sent >= 3 + 5 * len(stall["samples"]):
-                self._sample(client, ident, stall)
+            if now - sent >= 0.5 and diagnostic is None:
+                diagnostic = self._diagnostic(client, ident, request, sent, now, checks)
+            if now - sent >= 1 and stall is None:
+                stall = diagnostic
+                self.stalls.append(stall)
+            if diagnostic is not None and len(diagnostic["samples"]) < 3 and now >= next_sample and now < deadline:
+                self._sample(client, ident, diagnostic)
+                # 同一次等待最多三份现场，且所有等待/实验阶段共享滚动 60 秒限额。
+                next_sample = now + 5 if len(diagnostic["samples"]) < 3 else deadline
+                if len(self.sample_times) >= 3:
+                    next_sample = max(next_sample, self.sample_times[0] + 60)
             if now >= deadline:
                 self.timed_out = True
                 duration = now - sent
                 self.round_trips.append(duration * 1000)
-                stall.update(durationSeconds=duration, returned=False)
+                self.window_front.append(None)
+                self.requests.append({"requestID": ident, "phase": request["phase"],
+                                      "startedElapsedSeconds": sent - self.started, "durationSeconds": duration,
+                                      "windowFront": None, "environmentChecks": checks, "timedOut": True})
+                diagnostic.update(durationSeconds=duration, returned=False)
                 detail = {**request, "pid": client.pid, "requestID": ident, "timeoutSeconds": 120,
                           "responseWaitSeconds": duration,
-                          "sample": stall["samples"][0]["path"] if stall["samples"] else None}
+                          "sample": diagnostic["samples"][0]["path"] if diagnostic["samples"] else None}
                 raise DebugTimeout(detail)
-            next_boundary = sent + (1 if stall is None else 3 + 5 * len(stall["samples"]))
-            wake = min(deadline, next_boundary) if next_boundary > now else deadline
+            boundaries = [deadline, next_observation, next_sample]
+            if stall is None:
+                boundaries.append(sent + 1)
+            wake = min(boundary for boundary in boundaries if boundary > now)
             try:
                 message = client._read_line(wake - now)
-                client.inbox[norm_id(message.get("id"))] = message
+                message_id = norm_id(message.get("id"))
+                received_at[message_id] = time.monotonic()
+                client.inbox[message_id] = message
             except TimeoutError:
                 pass
 
@@ -705,10 +795,13 @@ class MemoryStateMonitor:
             path = Path(record["path"])
             if path.exists():
                 record["rawSample"] = path.read_text(errors="replace")
+                path.unlink()
+        self.directory.rmdir()
         return {"stateSamples": len(self.round_trips), "stateRoundTripMilliseconds": self.round_trips,
-                "maxRoundTripMilliseconds": max(self.round_trips, default=None),
-                "stateTimedOut": self.timed_out, "stalls": self.stalls, "lastState": self.last_state,
-                "stateSnapshots": self.state_snapshots}
+                "maxRoundTripMilliseconds": max(self.round_trips, default=None), "stateWindowFront": self.window_front,
+                "stateRequests": self.requests, "stateTimedOut": self.timed_out, "stalls": self.stalls,
+                "earlyDiagnostics": self.diagnostics, "lastState": self.last_state,
+                "stateSnapshots": self.state_snapshots, "environmentObservations": self.observations}
 
 
 class DebugClient:
@@ -805,14 +898,15 @@ class DebugClient:
         return message.get("result")
 
 
-def launch_app(socket_path, support, cache, layout, log):
+def launch_app(socket_path, support, cache, layout, log, app_sleep_disabled=False):
     binary = app_binary()
     temporary = Path(support).resolve().parent / "tmp"
     temporary.mkdir(parents=True, exist_ok=True)
     subprocess.run(["/usr/bin/open", "-n", "-a", str(binary.parents[2]), "--stdout", str(log), "--stderr", str(log),
                     "--env", f"TMPDIR={temporary}/",
                     "--args", "-MVDebugSocket", str(socket_path), "-MVSupportDirectory", str(support),
-                    "-MVCacheDirectory", str(cache), "-MVLayoutFile", str(layout)], check=True)
+                    "-MVCacheDirectory", str(cache), "-MVLayoutFile", str(layout)] +
+                   (["-NSAppSleepDisabled", "YES"] if app_sleep_disabled else []), check=True)
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         lines = subprocess.check_output(["/bin/ps", "-axo", "pid=,command="], text=True).splitlines()
@@ -829,11 +923,12 @@ def launch_app(socket_path, support, cache, layout, log):
 class App:
     live = []
 
-    def __init__(self, name, prefetch_zero=False, empty_cache=True, prefetch=None):
+    def __init__(self, name, prefetch_zero=False, empty_cache=True, prefetch=None, app_sleep_disabled=False):
         self.name = name
         self.prefetch_zero = prefetch_zero
         self.empty_cache = empty_cache
         self.prefetch = prefetch
+        self.app_sleep_disabled = app_sleep_disabled
         self.root = ROOT / "build" / "acceptance" / f"{name}-{os.getpid()}"
         self.support = self.root / "support"
         self.cache = self.root / "cache"
@@ -868,7 +963,8 @@ class App:
         socket_path = Path(self.socket)
         if socket_path.exists():
             socket_path.unlink()
-        self.pid = launch_app(self.socket, self.support, self.cache, self.layout, self.root / "app.log")
+        self.pid = launch_app(self.socket, self.support, self.cache, self.layout, self.root / "app.log",
+                              app_sleep_disabled=self.app_sleep_disabled)
         App.live.append(self)
         self.exit_watch = select.kqueue()
         # SDK sys/event.h：NOTE_EXITSTATUS 对可发送信号的非子进程也有效，data 是 wait(2) 状态。
@@ -989,6 +1085,11 @@ def ensure_sample():
         SAMPLE_LINK.parent.mkdir(parents=True, exist_ok=True)
         SAMPLE_LINK.symlink_to(SAMPLE_TARGET)
     return SAMPLE_LINK
+
+
+def state_window_front(state):
+    windows = (state or {}).get("windows") or []
+    return windows[0].get("windowFront") if windows else None
 
 
 def window_of(state):
@@ -1811,33 +1912,73 @@ def memory_process_snapshot(pid):
     return measured
 
 
-def scene_memory(duration_seconds=1800, name="memory-30min"):
-    sample = str(ensure_sample())
-    other = str(HUGE_DIR)
-    app = App(name, empty_cache=False).start()
-    samples, physical, elapsed, memory, sampling_errors = [], [], [], [], []
-    monitor = None
-    failure = None
+class MemoryActions:
+    """正式内存场景和定位实验复用同一翻页、滚动、切书循环。"""
+    def __init__(self, sample, other):
+        self.sample, self.other = sample, other
+        self.index = 0
+        self.direction = 1
+        self.pending = None
+        self.pending_mode = False
+        self.log = []
+
+    def step(self, client, state, phase):
+        if self.pending in client.inbox:
+            response = client.inbox.pop(self.pending)
+            client.pending.pop(self.pending, None)
+            self.log[-1].update(response=response, returnedMonotonic=time.monotonic())
+            if not response.get("ok"):
+                raise RuntimeError(response.get("error") or response)
+            self.pending = None
+            self.pending_mode = False
+        if self.pending is not None:
+            return
+        action = self.index % 6
+        window = window_of(state)
+        self.pending_mode = False
+        if action < 3:
+            client.phase = f"{phase}:flip-{self.index}"
+            if window.get("browseMode") != "paged":
+                command, args, kind = "perform", {"command": "view.paged"}, "mode-paged"
+                self.pending_mode = True
+            else:
+                frame, count = int(window["frame"]), int(window["frameCount"])
+                if count > 1 and ((self.direction > 0 and frame >= count - 1) or (self.direction < 0 and frame <= 0)):
+                    self.direction = -self.direction
+                command, args, kind = "perform", {"command": "frame.next" if self.direction > 0 else "frame.previous"}, "flip"
+        elif action == 3:
+            client.phase = f"{phase}:scroll-{self.index}"
+            if window.get("browseMode") != "waterfall":
+                command, args, kind = "perform", {"command": "view.waterfall"}, "mode-waterfall"
+                self.pending_mode = True
+            else:
+                command, args, kind = "scroll", {"dy": -12, "durationMs": 500, "intervalMs": 8}, "scroll"
+        else:
+            client.phase = f"{phase}:switch-book-{self.index}"
+            command, args, kind = "open", {"path": self.other if self.index % 12 == 4 else self.sample}, "switch-book"
+        self.pending = client.send(command, args, action={"index": self.index, "type": kind})
+        self.log.append({"requestID": self.pending, **client.pending[self.pending]})
+        if not self.pending_mode:
+            self.index += 1
+
+
+def memory_activity(app, duration_seconds, phase, actions, observer=None, sample_times=None):
+    samples, physical, elapsed, memory, front, sampling_errors = [], [], [], [], [], []
     budgets = None
-    index = 0
-    started = None
+    started = time.monotonic()
+    tick = started
+    end = started + duration_seconds
+    action_start = len(actions.log)
+    monitor = MemoryStateMonitor(started, ROOT / "build" / "w37" / f"{phase}-{app.pid}", observer, sample_times)
+    app.client.memory_monitor = monitor
+    failure = None
     try:
-        app.client.phase = "memory-30min:initial-open"
-        app.client.request("open", {"path": sample}, timeout=120)
-        direction = 1
-        started = time.monotonic()
-        end = started + duration_seconds
-        tick = started
-        pending = None
-        pending_mode = False
-        monitor = MemoryStateMonitor(started, ROOT / "build" / "w37" / f"stalls-{app.pid}")
-        app.client.memory_monitor = monitor
         while time.monotonic() < end:
             resident_sample = time.monotonic() >= tick
-            app.client.phase = f"memory-30min:{'sample' if resident_sample else 'mode-probe'}-{len(samples)}"
+            app.client.phase = f"{phase}:{'sample' if resident_sample else 'mode-probe'}-{len(samples)}"
             state = app.client.request("state", timeout=120)
             if resident_sample:
-                # 同次 state 的 resident 与分层保持同下标，紧接着从外部取物理占用。
+                # resident、physical、分层和前台状态来自同一次 state，保持同下标。
                 try:
                     footprint = physical_footprint(app.pid)
                 except (OSError, ValueError, AttributeError) as exc:
@@ -1847,72 +1988,257 @@ def scene_memory(duration_seconds=1800, name="memory-30min"):
                 samples.append(state.get("residentBytes"))
                 physical.append(footprint)
                 memory.append(state.get("memory"))
+                front.append(state_window_front(state))
                 elapsed.append(time.monotonic() - started)
                 budgets = state.get("cacheBudgets")
                 tick += 1
                 if tick < time.monotonic():
                     tick = time.monotonic()
-            if pending in app.client.inbox:
-                response = app.client.inbox.pop(pending)
-                app.client.pending.pop(pending, None)
-                if not response.get("ok"):
-                    raise RuntimeError(response.get("error") or response)
-                pending = None
-                pending_mode = False
-            if pending is None:
-                action = index % 6
-                window = window_of(state)
-                if action < 3:
-                    app.client.phase = f"memory-30min:flip-{index}"
-                    if window.get("browseMode") != "paged":
-                        pending = app.client.send("perform", {"command": "view.paged"}, action={"index": index, "type": "mode-paged"})
-                        pending_mode = True
-                    else:
-                        frame, count = int(window["frame"]), int(window["frameCount"])
-                        if count > 1 and ((direction > 0 and frame >= count - 1) or (direction < 0 and frame <= 0)):
-                            direction = -direction
-                        pending = app.client.send("perform", {"command": "frame.next" if direction > 0 else "frame.previous"},
-                                                  action={"index": index, "type": "flip"})
-                elif action == 3:
-                    app.client.phase = f"memory-30min:scroll-{index}"
-                    if window.get("browseMode") != "waterfall":
-                        pending = app.client.send("perform", {"command": "view.waterfall"}, action={"index": index, "type": "mode-waterfall"})
-                        pending_mode = True
-                    else:
-                        pending = app.client.send("scroll", {"dy": -12, "durationMs": 500, "intervalMs": 8},
-                                                  action={"index": index, "type": "scroll"})
-                else:
-                    app.client.phase = f"memory-30min:switch-book-{index}"
-                    pending = app.client.send("open", {"path": other if index % 12 == 4 else sample},
-                                              action={"index": index, "type": "switch-book"})
-                if not pending_mode:
-                    index += 1
-            # 模式响应也由 state 驱动。快响应只让出 50ms，不额外消耗一整个动作周期；
-            # 正常时每秒同步采物理占用、resident 与分层；慢响应由同一监测器记录停顿。
-            wake = min(tick, time.monotonic() + 0.05) if pending_mode else tick
+            actions.step(app.client, state, phase)
+            # 模式响应快时让出 50 ms；原始动作、每秒采样与 120 秒等待保持不变。
+            wake = min(tick, time.monotonic() + 0.05) if actions.pending_mode else tick
             time.sleep(max(0, min(wake, end) - time.monotonic()))
     except Exception as exc:
         failure = exc
     finally:
-        # 停顿已经构成失败，也保留目标进程的最终泄漏和虚拟内存证据。
-        duration = time.monotonic() - started if started is not None else 0
-        measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "actions": index,
+        measured = {"residentBytes": samples, "sampleElapsedSeconds": elapsed, "windowFront": front,
+                    "actions": actions.index, "actionLog": actions.log[action_start:],
                     "physicalFootprintBytes": physical, "physicalFootprintSource": PHYSICAL_FOOTPRINT_SOURCE,
-                    "physicalFootprintSamplingErrors": sampling_errors,
-                    "memory": memory, "durationSeconds": duration, "cacheBudgets": budgets}
+                    "physicalFootprintSamplingErrors": sampling_errors, "memory": memory,
+                    "durationSeconds": time.monotonic() - started, "cacheBudgets": budgets}
+        app.client.memory_monitor = None
+        measured.update(monitor.evidence())
+    if failure is not None:
+        measured["error"] = str(failure)
+        if isinstance(failure, DebugTimeout):
+            measured["diagnostic"] = failure.detail
+        if not measured.get("stateTimedOut"):
+            raise MeasurementError(str(failure), measured) from failure
+    return measured
+
+
+def scene_memory(duration_seconds=1800, name="memory-30min"):
+    sample = str(ensure_sample())
+    app = App(name, empty_cache=False).start()
+    measured = {}
+    try:
+        app.client.phase = "memory-30min:initial-open"
+        app.client.request("open", {"path": sample}, timeout=120)
         try:
-            if monitor is not None:
-                measured.update(monitor.evidence())
+            measured = memory_activity(app, duration_seconds, name, MemoryActions(sample, str(HUGE_DIR)))
+        except MeasurementError as exc:
+            measured = exc.measured
+            raise
+        finally:
+            # 不因前台离开或 RTT 失败提前结束；物理波动和泄漏仍独立给出结论。
             measured.update(memory_process_snapshot(app.pid))
             measured.update(memory_metrics(measured))
-            if failure is not None:
-                measured["error"] = str(failure)
-                if isinstance(failure, DebugTimeout):
-                    measured["diagnostic"] = failure.detail
-                if not measured.get("stateTimedOut"):
-                    raise MeasurementError(str(failure), measured) from failure
+            measured["componentVerdicts"] = memory_components(measured, BUDGETS["memory-30min"])
+    finally:
+        app.stop()
+    return measured
+
+
+def cg_window_list():
+    """仅取 CGWindowList 的只读属性，经 CoreFoundation 转成标准库 plist。"""
+    cf, cg = cf_library()
+    cg.CGWindowListCopyWindowInfo.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+    cg.CGWindowListCopyWindowInfo.restype = ctypes.c_void_p
+    cf.CFPropertyListCreateData.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_long,
+                                           ctypes.c_ulong, ctypes.c_void_p]
+    cf.CFPropertyListCreateData.restype = ctypes.c_void_p
+    cf.CFDataGetLength.argtypes = [ctypes.c_void_p]
+    cf.CFDataGetLength.restype = ctypes.c_long
+    cf.CFDataGetBytePtr.argtypes = [ctypes.c_void_p]
+    cf.CFDataGetBytePtr.restype = ctypes.c_void_p
+    cf.CFRelease.argtypes = [ctypes.c_void_p]
+    windows = cg.CGWindowListCopyWindowInfo(1 | 16, 0)  # on-screen only、exclude desktop；顺序是由前到后。
+    data = None
+    try:
+        if not windows:
+            raise RuntimeError("CGWindowListCopyWindowInfo 没有返回窗口")
+        data = cf.CFPropertyListCreateData(None, windows, 100, 0, None)
+        if not data:
+            raise RuntimeError("CGWindowList 属性无法转换成 plist")
+        return plistlib.loads(ctypes.string_at(cf.CFDataGetBytePtr(data), cf.CFDataGetLength(data)))
+    finally:
+        if data:
+            cf.CFRelease(data)
+        if windows:
+            cf.CFRelease(windows)
+
+
+def occlusion_evidence(target_pid, cover_pid):
+    windows = [{"zIndex": index, "pid": row.get("kCGWindowOwnerPID"), "number": row.get("kCGWindowNumber"),
+                "layer": row.get("kCGWindowLayer"), "alpha": row.get("kCGWindowAlpha"),
+                "bounds": row.get("kCGWindowBounds"), "onScreen": row.get("kCGWindowIsOnscreen")}
+               for index, row in enumerate(cg_window_list()) if row.get("kCGWindowOwnerPID") in (target_pid, cover_pid)]
+    target = [row for row in windows if row["pid"] == target_pid and row["layer"] == 0]
+    cover = [row for row in windows if row["pid"] == cover_pid and row["layer"] == 0]
+    verified = False
+    if len(target) == len(cover) == 1:
+        t, c = target[0], cover[0]
+        tb, cb = t["bounds"] or {}, c["bounds"] or {}
+        if all(isinstance(bounds.get(key), (int, float)) for bounds in (tb, cb) for key in ("X", "Y", "Width", "Height")):
+            verified = (t["zIndex"] > c["zIndex"] and c["alpha"] == 1 and
+                        t["onScreen"] is True and c["onScreen"] is True and
+                        tb["Width"] > 0 and tb["Height"] > 0 and
+                        cb["X"] <= tb["X"] and cb["Y"] <= tb["Y"] and
+                        cb["X"] + cb["Width"] >= tb["X"] + tb["Width"] and
+                        cb["Y"] + cb["Height"] >= tb["Y"] + tb["Height"])
+    return {"verified": verified, "targetPID": target_pid, "coverPID": cover_pid, "windows": windows}
+
+
+def valid_occluded_stalls(stage):
+    return [stall for stall in stage.get("stalls", [])
+            if stall.get("durationSeconds", 0) > 1 and stall.get("environmentChecks") and
+            all(check.get("verified") is True and check.get("screenLocked") is False
+                for check in stall["environmentChecks"])]
+
+
+def continuous_occlusion(stage):
+    checks = stage.get("environmentObservations", [])
+    return (bool(checks) and all(check.get("verified") is True for check in checks) and
+            checks[0]["elapsedSeconds"] <= 1 and
+            checks[-1]["elapsedSeconds"] >= stage.get("durationSeconds", 0) - 1.1 and
+            all(after["elapsedSeconds"] - before["elapsedSeconds"] <= 1.1
+                for before, after in zip(checks, checks[1:])))
+
+
+def occlusion_result(measured):
+    if measured.get("error") or measured.get("cleanupErrors"):
+        return {"verdict": "unverified", "conclusion": "实验未完成，原因未定位"}
+    stages = {stage["phase"]: stage for stage in measured.get("stages", [])}
+    if not all(name in stages for name in ("foreground", "occluded", "restored")):
+        return {"verdict": "unverified", "conclusion": "实验未完成，原因未定位"}
+    covered = stages["occluded"]
+    continuous = continuous_occlusion(covered)
+    complete = all(stage.get("durationSeconds", 0) >= stage.get("plannedSeconds", math.inf) and
+                   stage.get("environmentObservations") and
+                   all(check.get("screenLocked") is False for check in stage["environmentObservations"])
+                   for stage in stages.values())
+    for name, stage in stages.items():
+        if name.endswith("occluded") and name != "occluded":
+            continuous = continuous and continuous_occlusion(stage)
+    valid_stalls = valid_occluded_stalls(covered)
+    front_ok = all(memory_foreground(stages[name]) is True and
+                   stages[name].get("maxRoundTripMilliseconds") is not None and
+                   not exceeds(stages[name]["maxRoundTripMilliseconds"], 1000) and
+                   not stages[name].get("stateTimedOut") for name in ("foreground", "restored"))
+    restoration = measured.get("restoration") or {}
+    front_requests = [request for request in restoration.get("stateRequests", []) if request.get("windowFront") is True]
+    front_ok = (front_ok and state_window_front(restoration.get("afterActivation")) is True and
+                bool(front_requests) and not restoration.get("stateTimedOut") and
+                bool(restoration.get("environmentObservations")) and
+                all(check.get("screenLocked") is False for check in restoration["environmentObservations"]) and
+                all(not exceeds(request["durationSeconds"] * 1000, 1000) for request in front_requests))
+    if not continuous or not complete or not front_ok:
+        return {"verdict": "environment", "continuousOcclusionVerified": continuous,
+                "validOccludedStalls": len(valid_stalls), "conclusion": "有效遮挡或前台对照未完整成立，原因未定位"}
+    return {"verdict": "pass", "continuousOcclusionVerified": True, "validOccludedStalls": len(valid_stalls),
+            "conclusion": "复现且回前台恢复：系统对被盖住窗口的节流" if valid_stalls else "未复现，原因未定位"}
+
+
+def scene_w37_occlusion():
+    sample = str(ensure_sample())
+    managed, stages, instances = [], [], []
+    sample_times = []
+    measured = {"stages": stages, "instances": instances,
+                "knownConstraint": "冻结版 scroll 会激活被测窗口；揭开后的区段无效，不自动重盖"}
+
+    def start(name, disabled=False):
+        app = App(name, empty_cache=False, app_sleep_disabled=disabled)
+        managed.append(app)  # 启动中途失败也清理这个唯一的隔离路径。
+        app.start()
+        instances.append({"name": name, "pid": app.pid, "socket": app.socket,
+                          "root": str(app.root), "appSleepDisabled": disabled})
+        return app
+
+    def phase(app, actions, name, seconds, cover=None):
+        environment, ready = wait_ready(OCCLUSION)  # 各阶段只以解锁为门槛。
+        if not ready:
+            raise MeasurementError("屏幕锁定或状态未知，阶段准入未满足", measured)
+        observer = (lambda: occlusion_evidence(app.pid, cover.pid)) if cover is not None else None
+        try:
+            result = memory_activity(app, seconds, f"w37-{name}", actions, observer, sample_times)
+        except MeasurementError as exc:
+            result = exc.measured
+            result.update(phase=name, plannedSeconds=seconds, environmentBefore=environment)
+            stages.append(result)
+            raise MeasurementError(str(exc), measured) from exc
+        result.update(phase=name, plannedSeconds=seconds, environmentBefore=environment)
+        if cover is not None:
+            checks = result["environmentObservations"]
+            result["verifiedOcclusionSeconds"] = sum(
+                after["elapsedSeconds"] - before["elapsedSeconds"] for before, after in zip(checks, checks[1:])
+                if before.get("verified") is True and after.get("verified") is True and
+                after["elapsedSeconds"] - before["elapsedSeconds"] <= 1.1)
+            result["invalidOcclusionChecks"] = sum(check.get("verified") is not True for check in checks)
+            result["validOccludedStalls"] = len(valid_occluded_stalls(result))
+        stages.append(result)
+        return result
+
+    def cover_for(app, name):
+        cover = start(name)
+        mode = display_probe()
+        resized = cover.client.request("resize", {"width": mode["width"], "height": mode["height"]})
+        instances[-1].update(resizeResult=resized, initialOcclusion=occlusion_evidence(app.pid, cover.pid))
+        return cover
+
+    try:
+        target = start("w37-target")
+        target.client.request("open", {"path": sample}, timeout=120)
+        actions = MemoryActions(sample, str(HUGE_DIR))
+        phase(target, actions, "foreground", 180)
+        cover = cover_for(target, "w37-cover")
+        covered = phase(target, actions, "occluded", 300, cover)
+        cover.stop()
+        restored = measured["restoration"] = {}
+        restoration_monitor = MemoryStateMonitor(time.monotonic(), ROOT / "build" / "w37" / f"restoration-{target.pid}",
+                                                  sample_times=sample_times)
+        target.client.memory_monitor = restoration_monitor
+        try:
+            target.client.phase = "w37-restoration:before-activation"
+            restored["beforeActivation"] = target.client.request("state", timeout=120)
+            if state_window_front(restored["beforeActivation"]) is not True:
+                command = ["/usr/bin/open", "-a", str(app_binary().parents[2])]
+                subprocess.run(command, check=True, timeout=30)
+                restored["activationCommand"] = command
+            target.client.phase = "w37-restoration:after-activation"
+            restored["afterActivation"] = target.client.request("state", timeout=120)
         finally:
-            app.stop()
+            target.client.memory_monitor = None
+            restored.update(restoration_monitor.evidence())
+        phase(target, actions, "restored", 120)
+        # 只以已经证实盖住时的停顿触发额外实例；未盖住的慢响应不能触发因果对照。
+        if valid_occluded_stalls(covered):
+            target.stop()
+            disabled = start("w37-sleep-disabled-target", disabled=True)
+            disabled.client.request("open", {"path": sample}, timeout=120)
+            disabled_cover = cover_for(disabled, "w37-sleep-disabled-cover")
+            phase(disabled, MemoryActions(sample, str(HUGE_DIR)), "sleep-disabled-occluded", 180, disabled_cover)
+        measured.update(occlusion_result(measured))
+    except Exception as exc:
+        measured.update(error=str(exc), verdict="unverified", conclusion="实验未完成，原因未定位")
+        if isinstance(exc, DebugTimeout):
+            measured["diagnostic"] = exc.detail
+    finally:
+        for app in reversed(managed):
+            try:
+                app.stop()
+            except (OSError, RuntimeError, TimeoutError) as exc:
+                measured.setdefault("cleanupErrors", []).append({"pid": app.pid, "error": str(exc)})
+            try:
+                if app.pid is None or not app.wait_exit(0):
+                    measured.setdefault("cleanupErrors", []).append({"pid": app.pid, "root": str(app.root),
+                                                                    "error": "未确认隔离实例退出，保留其支持目录"})
+                    continue
+                if app.root.exists():
+                    shutil.rmtree(app.root)
+                Path(app.socket).unlink(missing_ok=True)
+            except OSError as exc:
+                measured.setdefault("cleanupErrors", []).append({"root": str(app.root), "error": str(exc)})
+    measured.update(occlusion_result(measured))
     return measured
 
 
@@ -2149,7 +2475,7 @@ def merge_during(env, during):
 
 
 def write_report(out, scene, commit, env, measured, verdict):
-    path = Path(out) / f"S2-T2-{scene}.json"
+    path = Path(out) / ("S2-T3-w37-occlusion.json" if scene == OCCLUSION else f"S2-T2-{scene}.json")
     path.parent.mkdir(parents=True, exist_ok=True)
     document = {
         "scene": scene,
@@ -2176,11 +2502,12 @@ def run_scene(scene, out, commit, base_env):
         "large-dir": scene_large_dir,
         "nas-fault": scene_nas_fault,
         "memory-30min": scene_memory,
+        OCCLUSION: scene_w37_occlusion,
         "tiles-cancel": scene_tiles_cancel,
         "panel-restart": scene_panel_restart,
     }[scene]
     paths = []
-    if scene in ("first-image", "preloaded-flip", "scroll-cached", "scroll-cold", "main-thread", "settle", "cached-first-screen", "memory-30min"):
+    if scene in ("first-image", "preloaded-flip", "scroll-cached", "scroll-cold", "main-thread", "settle", "cached-first-screen", "memory-30min", OCCLUSION):
         try:
             paths.append(str(ensure_sample()))
         except FileNotFoundError:
@@ -2296,7 +2623,7 @@ def main(argv):
         run_scroll(*args.smoke_scroll, automatic=False, seconds=1)
         return 0
     requested = args.scenes or list(SCENES)
-    unknown = [scene for scene in args.scenes if scene not in SCENES]
+    unknown = [scene for scene in args.scenes if scene not in SCENES + [OCCLUSION]]
     if unknown:
         raise SystemExit(f"未知场景：{', '.join(unknown)}")
     # 保留显式请求的顺序；默认 NAS 在录制前，内存场景始终放在最后。
