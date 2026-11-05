@@ -66,14 +66,21 @@ import Testing
         let (session, store, _) = setup()
         await session.open(tree.location("A"), at: nil)
         session.go(.index(49))
+        let changedAt = ContinuousClock.now
         session.update { $0.pageMode = .double }
         #expect(session.settings.pageMode == .double)
         #expect(await store.bookMemory(for: tree.location("A")) == nil)
-        try await Task.sleep(for: .milliseconds(1150))
+        await eventually(attempts: 1000) {
+            await store.bookMemory(for: tree.location("A"))?.settings.pageMode == .double
+        }
+        #expect(ContinuousClock.now - changedAt >= .seconds(1))
         #expect(await store.bookMemory(for: tree.location("A"))?.settings.pageMode == .double)
         #expect(await store.bookMemory(for: tree.location("A"))?.lastPageIndex == 49)
         session.update { $0.pageMode = nil }
-        try await Task.sleep(for: .milliseconds(1150))
+        await eventually(attempts: 1000) {
+            let memory = await store.bookMemory(for: tree.location("A"))
+            return session.settings.pageMode == .single && memory?.settings.pageMode == nil
+        }
         #expect(session.settings.pageMode == .single)
         #expect(await store.bookMemory(for: tree.location("A"))?.settings.pageMode == nil)
     }
@@ -493,12 +500,12 @@ import Testing
         item.renditions.contains { if case .display = $0 { true } else { false } }
     }
 
-    private func eventually(_ predicate: @MainActor () async -> Bool) async {
-        for _ in 0..<200 {
+    private func eventually(attempts: Int = 200, _ predicate: @MainActor () async -> Bool) async {
+        for _ in 0..<attempts {
             if await predicate() { return }
             try? await Task.sleep(for: .milliseconds(5))
         }
-        Issue.record("异步状态未在一秒内到达")
+        Issue.record("异步状态未在 \(attempts) 次轮询内到达")
     }
 }
 
