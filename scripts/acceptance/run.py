@@ -3,6 +3,7 @@
 
 用法：
   python3 -I scripts/acceptance/run.py <场景…> [--out docs/reports/bench]
+  python3 -I scripts/acceptance/run.py <场景…> --external-caffeinate
   python3 -I scripts/acceptance/run.py --check-verdicts
 
 --check-verdicts 不启动 App，只断言判定。滚动录制由 record-trackpad.sh 完成。
@@ -18,6 +19,7 @@ import re
 import select
 import shutil
 import socket
+import sqlite3
 import statistics
 import subprocess
 import sys
@@ -34,6 +36,7 @@ TREE = ROOT / "Fixtures" / "local" / "generated" / "tree" / "10000"
 HUGE_DIR = ROOT / "Fixtures" / "local" / "generated" / "image"
 DERIVED = ROOT / "build" / "DerivedData-profile"
 APP_BINARY = DERIVED / "Build" / "Products" / "Debug" / "MacView.app" / "Contents" / "MacOS" / "MacView"
+FROZEN_MANIFEST = ROOT / "outputs" / "stage3-frozen" / "manifest.json"
 NFS_HOST = "192.168.31.201"
 NFS_EXPORT = "/fs/1000/nfs"
 NFS_MOUNT = Path.home() / "MacViewBench" / "nfs"
@@ -148,6 +151,9 @@ def judge(scene, measured, env, budget=None):
         return judge_memory(measured, limits)
     if scene == OCCLUSION:
         return occlusion_result(measured)["verdict"]
+    # 冷填充是采样前提；缺项导致的零样本不能掩盖已确认的失败。
+    if scene == "cached-first-screen" and first_screen_cold_failures(measured):
+        return "fail"
     if measured.get("unavailable"):
         return "unverified"
     if scene == "first-image":
@@ -488,6 +494,123 @@ def check_verdicts():
         cases.append((f"{scene} 准备后准入，测量期间负载只记录", judge(scene, valid[scene], admitted), "pass"))
     cases.append(("首屏准入后启动失败保留不可验证结论", judge("cached-first-screen", {"unavailable": True}, admitted), "unverified"))
     cases.append(("首屏失败期间输入仍作废", judge("cached-first-screen", {"unavailable": True}, _screen(admitted, inputDuringRun=True)), "environment"))
+    filled = {"itemCount": 2, "l2Count": 2, "l3Count": 0, "missingL2Items": 0}
+    short = {**filled, "l2Count": 1, "missingL2Items": 1}
+    incomplete = {"localSamples": 0, "nfsSamples": 0, "rootAdmissions": [{"path": "/local", "coldFill": short}]}
+    cases += [
+        ("首屏冷填充缺项优先于零样本", judge("cached-first-screen", incomplete, env120), "fail"),
+        ("首屏冷填充缺项优先于另一根不可用", judge("cached-first-screen", {**incomplete, "unavailable": True}, env120), "fail"),
+        ("首屏冷填充缺项仍服从输入作废", judge("cached-first-screen", incomplete, _screen(env120, inputDuringRun=True)), "environment"),
+        ("首屏只记录L3计数", judge("cached-first-screen", {**valid["cached-first-screen"], "rootAdmissions": [{"path": "/local", "coldFill": filled}]}, env120), "pass"),
+    ]
+    # 使用工作区内的合成 SQLite 与假调试接口，检查准备/跳过/报告路径；不启动 App。
+    from tempfile import TemporaryDirectory
+    from unittest.mock import patch
+    with TemporaryDirectory(prefix="check-verdicts-", dir=ROOT / "build" / "acceptance") as temporary:
+        directory = Path(temporary)
+        connection = sqlite3.connect(directory / "index.sqlite")
+        try:
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute("CREATE TABLE disk_entries (tier TEXT NOT NULL, key TEXT NOT NULL, filename TEXT NOT NULL, size INTEGER NOT NULL, accessed REAL NOT NULL, PRIMARY KEY(tier, key)) WITHOUT ROWID")
+            connection.executemany("INSERT INTO disk_entries VALUES (?, ?, ?, 1, 0)",
+                                   [("thumbnails", "a", "aa/a"), ("thumbnails", "b", "bb/b"), ("browse", "a", "aa/a")])
+            connection.commit()
+            actual = cold_fill_evidence(directory, 2)
+            if (actual["l2Count"], actual["l3Count"], actual["missingL2Items"]) != (2, 1, 0):
+                raise SystemExit(f"check-verdicts 失败：真实层名与 WAL 计数错误 {actual}")
+            connection.execute("DELETE FROM disk_entries WHERE tier='thumbnails' AND key='b'")
+            connection.commit()
+            if cold_fill_evidence(directory, 2)["missingL2Items"] != 1:
+                raise SystemExit("check-verdicts 失败：冷填充没有识别 L2 缺项")
+        finally:
+            connection.close()
+        missing = directory / "missing"
+        if not cold_fill_evidence(missing, 2).get("unavailable") or (missing / "index.sqlite").exists():
+            raise SystemExit("check-verdicts 失败：读取失败被当成零计数，或创建了数据库")
+        broken = directory / "broken"
+        broken.mkdir()
+        (broken / "index.sqlite").write_text("不是 SQLite")
+        unreadable = cold_fill_evidence(broken, 2)
+        if not unreadable.get("unavailable") or unreadable["l2Count"] is not None:
+            raise SystemExit("check-verdicts 失败：损坏 SQLite 没有保留读取失败")
+        events = []
+        class OfflineApp:
+            def __init__(self, name, empty_cache):
+                self.cache, self.client, self.empty_cache = directory, self, empty_cache
+            def start(self):
+                events.append("coldStart" if self.empty_cache else "warmStart")
+            def stop(self):
+                events.append("stop")
+            def request(self, command, *args, **kwargs):
+                events.append(command)
+                return {"windows": [{"itemCount": 2}]}
+        def counted(fill):
+            events.append("counts")
+            return fill
+        def admitted_root(ready):
+            events.append("admission")
+            return env120, ready
+        for fill, ready in ((filled, True), (short, True), (unreadable, True), (filled, False)):
+            events.clear()
+            with patch.dict(globals(), {"App": OfflineApp, "wait_idle": lambda *a: events.append("idle"),
+                                       "wait_first_screen": lambda *a: 10, "input_mark": lambda *a: 0,
+                                       "sampled_during": lambda *a: env120,
+                                       "cold_fill_evidence": lambda *a: counted(fill),
+                                       "wait_ready": lambda *a: admitted_root(ready)}):
+                result = first_screen_samples("/local", "offline", times=2)
+            if not events.index("idle") < events.index("counts") < events.index("stop"):
+                raise SystemExit("check-verdicts 失败：计数不在 wait_idle 后、退出前")
+            if fill is short or fill is unreadable:
+                if result["count"] or "warmStart" in events or "admission" in events:
+                    raise SystemExit("check-verdicts 失败：冷填充缺项或读取失败后仍然采样")
+            elif ready:
+                if result["count"] != 2 or events.count("warmStart") != 2 or events.index("admission") < events.index("stop"):
+                    raise SystemExit("check-verdicts 失败：完整冷填充未在退出、准入后采样")
+            elif result["ready"] is not False or "warmStart" in events:
+                raise SystemExit("check-verdicts 失败：首屏准入耗尽后仍然采样")
+            if fill is unreadable and (not result.get("unavailable") or result["failure"]["phase"] != "coldFillCounts"):
+                raise SystemExit("check-verdicts 失败：计数读取失败证据丢失")
+            if fill is short:
+                skipped = result
+        remote = {**skipped, "path": "/nfs/album"}
+        for remote_result in (remote, {**remote, "coldFill": filled, "count": 20, "p95": 10, "samplingSkipped": False}):
+            with patch.dict(globals(), {"first_screen_samples": lambda path, name: skipped if name.endswith("local") else remote_result,
+                                       "ensure_sample": lambda: Path("/local"), "ensure_nfs": lambda: (Path("/nfs"), None),
+                                       "find_samples": lambda *a: ["/nfs/album"]}):
+                measured = scene_cached_first_screen()
+            if len(measured["rootAdmissions"]) != 2 or measured["nfsSamples"] != remote_result["count"] or "缺 1 项" not in measured.get("reason", ""):
+                raise SystemExit("check-verdicts 失败：一根跳过后未保留其他根的结果和缺项原因")
+            cases.append(("首屏多根独立跳过", judge("cached-first-screen", measured, env120), "fail"))
+        def missing_mount():
+            raise OSError("离线挂载失败")
+        with patch.dict(globals(), {"first_screen_samples": lambda *a: skipped,
+                                   "ensure_sample": lambda: Path("/local"), "ensure_nfs": missing_mount}):
+            try:
+                scene_cached_first_screen()
+            except MeasurementError as exc:
+                cases.append(("首屏缺项证据跨后续根异常保留", judge("cached-first-screen", {**exc.measured, "unavailable": True}, env120), "fail"))
+            else:
+                raise SystemExit("check-verdicts 失败：后续根异常没有附带已知证据")
+        with patch.dict(globals(), {"WAIT_EXHAUSTED": True, "sample_conditions": lambda: _load(env120, LOAD_LIMIT)}), patch.object(time, "sleep") as sleep:
+            if wait_ready("cached-first-screen")[1] or sleep.called:
+                raise SystemExit("check-verdicts 失败：WAIT_EXHAUSTED 没有只再看一次环境")
+        manifest = directory / "manifest.json"
+        manifest.write_text(json.dumps({"sourceCommit": "frozen-source", "cdhash": "signed-app"}))
+        signed = subprocess.CompletedProcess([], 0, "", "CDHash=signed-app\n")
+        with patch.dict(globals(), {"FROZEN_MANIFEST": manifest}), patch.object(subprocess, "run", return_value=signed), patch("builtins.print"):
+            for scene in SCENES:
+                write_report(directory, scene, "running-script", env120, {"numbers": [1, 2, 3]}, "pass")
+                report = json.loads((directory / f"S2-T2-{scene}.json").read_text())
+                if (report["commit"], report["sourceCommit"], report["cdhash"], report["frozenApp"]["matchesManifest"]) != ("running-script", "frozen-source", "signed-app", True):
+                    raise SystemExit("check-verdicts 失败：脚本提交、冻结源码或实跑签名没有分别记录")
+        if not parse_args(["first-image", "--external-caffeinate"]).external_caffeinate:
+            raise SystemExit("check-verdicts 失败：外部常亮参数不可用")
+        for external in (False, True):
+            with patch.dict(os.environ, {"MV_ACCEPTANCE_EXTERNAL_CAFFEINATE": "0"}), patch.dict(globals(), {
+                    "run_scene": lambda *a: None, "sample_conditions": lambda: env120}), patch.object(subprocess, "Popen") as caffeine, patch.object(subprocess, "check_output", return_value="script-commit"):
+                main(["nas-throughput"] + (["--external-caffeinate"] if external else []))
+                if caffeine.call_count != (0 if external else 1) or (external and os.environ["MV_ACCEPTANCE_EXTERNAL_CAFFEINATE"] != "1"):
+                    raise SystemExit("check-verdicts 失败：外部常亮仍创建进程，或默认常亮行为改变")
     fault_state = {"windows": [{"book": "nfs://server/share/album"}], "volumes": [
         {"root": "/", "state": "healthy", "inFlight": 9, "stuck": False},
         {"root": "nfs://other/share", "state": "failed", "inFlight": 8, "stuck": True},
@@ -1709,6 +1832,37 @@ def wait_first_screen(client, timeout=15):
     return None
 
 
+def cold_fill_evidence(cache, item_count):
+    """读 App 的隔离索引（含 WAL），不创建数据库，也不补写衍生件。"""
+    database = Path(cache) / "index.sqlite"
+    evidence = {"cacheDirectory": str(cache), "database": str(database), "itemCount": item_count,
+                "l2Count": None, "l3Count": None}
+    try:
+        if not isinstance(item_count, int) or isinstance(item_count, bool) or item_count <= 0:
+            raise ValueError(f"冷填充目标项数无效：{item_count}")
+        connection = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            counts = dict(connection.execute("SELECT tier, COUNT(*) FROM disk_entries GROUP BY tier"))
+        finally:
+            connection.close()
+        # DiskTier 原始值：L2=thumbnails、L3=browse。L3 只记录，不设本场景预算。
+        l2 = counts.get("thumbnails", 0)
+        evidence.update(l2Count=l2, l3Count=counts.get("browse", 0), missingL2Items=max(0, item_count - l2))
+    except (sqlite3.Error, OSError, ValueError) as exc:
+        evidence.update(unavailable=True, error=str(exc))
+    return evidence
+
+
+def first_screen_cold_failures(measured):
+    failures = []
+    for root in measured.get("rootAdmissions", []):
+        fill = root.get("coldFill") or {}
+        if fill.get("missingL2Items", 0) > 0:
+            failures.append(f"{root['path']}：冷填充 L2 缺 {fill['missingL2Items']} 项"
+                            f"（{fill['l2Count']}/{fill['itemCount']}），该根未采样")
+    return failures
+
+
 def first_screen_samples(path, name, times=20):
     result = {"path": path, "admission": None, "ready": None, "waitExhausted": WAIT_EXHAUSTED,
               "samples": [], "measurements": [], "count": 0, "p95": None}
@@ -1723,6 +1877,16 @@ def first_screen_samples(path, name, times=20):
             app.client.request("open", {"path": path}, timeout=180)
             wait_first_screen(app.client)
             wait_idle(app.client, 180)
+            phase = "coldFillCounts"
+            item_count = window_of(app.client.request("state")).get("itemCount")
+            result["coldFill"] = cold_fill_evidence(app.cache, item_count)
+            if result["coldFill"].get("unavailable"):
+                raise RuntimeError("读取冷填充缓存计数失败：" + result["coldFill"]["error"])
+            if result["coldFill"]["missingL2Items"]:
+                result["samplingSkipped"] = True
+                fill = result["coldFill"]
+                result["reason"] = f"冷填充 L2 缺 {fill['missingL2Items']} 项（{fill['l2Count']}/{item_count}），该根未采样"
+                return result
         finally:
             app.stop()
         phase = "admission"
@@ -1762,7 +1926,15 @@ def first_screen_samples(path, name, times=20):
 
 def first_screen_root_evidence(result):
     return {key: result[key] for key in ("path", "admission", "ready", "waitExhausted", "during",
+                                         "coldFill", "samplingSkipped", "reason", "count", "p95",
                                          "unavailable", "error", "failure", "diagnostic") if key in result}
+
+
+def first_screen_result(measured):
+    failures = first_screen_cold_failures(measured)
+    if failures:
+        measured["reason"] = "；".join(([measured["reason"]] if measured.get("reason") else []) + failures)
+    return measured
 
 
 def scene_cached_first_screen():
@@ -1772,11 +1944,15 @@ def scene_cached_first_screen():
                 "rootAdmissions": [first_screen_root_evidence(local)], "admission": local["admission"],
                 "measurementInputDuringRun": bool((local.get("during") or {}).get("screen", {}).get("inputDuringRun"))}
     if local["ready"] is False:
-        return {**measured, "environment": True, "reason": "本地根冷填充退出后环境准入等待已耗尽"}
+        return first_screen_result({**measured, "environment": True, "reason": "本地根冷填充退出后环境准入等待已耗尽"})
     if local.get("unavailable"):
-        return {**measured, "unavailable": True, "error": local["error"]}
-    mount, error = ensure_nfs()
-    album = find_samples(mount)[0] if mount else None
+        return first_screen_result({**measured, "unavailable": True, "error": local["error"]})
+    try:
+        mount, error = ensure_nfs()
+        album = find_samples(mount)[0] if mount else None
+    except Exception as exc:
+        # 本地已确认的缺项不能被后续根准备失败掩盖。
+        raise MeasurementError(str(exc), first_screen_result(measured)) from exc
     if not mount or not album:
         measured["unavailable"] = True
         measured["nfsError"] = error or "NFS 上没有找到 JPEG 目录"
@@ -1797,7 +1973,7 @@ def scene_cached_first_screen():
         else:
             supplement["error"] = "没有找到 /Volumes/Picture 上的 JPEG 目录"
         measured["supplement"] = supplement
-        return measured
+        return first_screen_result(measured)
     remote = first_screen_samples(album, "cached-first-screen-nfs")
     measured.update(nfsP95=remote["p95"], nfsSamples=remote["count"], nfsMilliseconds=remote["samples"], nfsAlbum=album,
                     nfsMeasurements=remote["measurements"])
@@ -1809,7 +1985,7 @@ def scene_cached_first_screen():
         measured.update(unavailable=True, error=remote["error"])
     if remote["ready"] is False:
         measured.update(environment=True, reason="NFS 根冷填充退出后环境准入等待已耗尽")
-    return measured
+    return first_screen_result(measured)
 
 
 def scene_large_dir():
@@ -2739,12 +2915,40 @@ def format_report(document):
     return re.sub(arrays, lambda match: "[" + " ".join(match.group(1).split()) + "]", formatted)
 
 
+def frozen_app_evidence():
+    """提交属于运行脚本；冻结源码和实际签名分别取 manifest 与当前二进制。"""
+    evidence = {"manifest": str(FROZEN_MANIFEST), "binary": str(APP_BINARY),
+                "sourceCommit": None, "cdhash": None, "manifestCDHash": None}
+    try:
+        manifest = json.loads(FROZEN_MANIFEST.read_text())
+        evidence.update(sourceCommit=manifest["sourceCommit"], manifestCDHash=manifest["cdhash"])
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        evidence["manifestError"] = str(exc)
+    # 报告入口不触发构建。签名来自正式场景实际使用的路径，而非冻结副本的路径。
+    try:
+        signed = subprocess.run(["/usr/bin/codesign", "-d", "--verbose=4", str(APP_BINARY.parents[2])],
+                                capture_output=True, text=True, timeout=15)
+        match = re.search(r"^CDHash=(.+)$", signed.stderr, re.M)
+        if signed.returncode or not match:
+            raise RuntimeError(signed.stderr.strip() or f"codesign 退出 {signed.returncode}")
+        evidence["cdhash"] = match[1]
+    except (OSError, subprocess.TimeoutExpired, RuntimeError) as exc:
+        evidence["signatureError"] = str(exc)
+    evidence["matchesManifest"] = (evidence["cdhash"] is not None and evidence["sourceCommit"] is not None
+                                   and evidence["cdhash"] == evidence["manifestCDHash"])
+    return evidence
+
+
 def write_report(out, scene, commit, env, measured, verdict):
     path = Path(out) / ("S2-T3-w37-occlusion.json" if scene == OCCLUSION else f"S2-T2-{scene}.json")
     path.parent.mkdir(parents=True, exist_ok=True)
+    frozen = frozen_app_evidence()
     document = {
         "scene": scene,
         "commit": commit,
+        "sourceCommit": frozen["sourceCommit"],
+        "cdhash": frozen["cdhash"],
+        "frozenApp": frozen,
         "env": env,
         "budget": BUDGETS[scene],
         "measured": measured,
@@ -2859,6 +3063,8 @@ def parse_args(argv):
     parser.add_argument("scenes", nargs="*", help="场景名；省略时跑全部场景")
     parser.add_argument("--out", default="docs/reports/bench")
     parser.add_argument("--check-verdicts", action="store_true")
+    parser.add_argument("--external-caffeinate", action="store_true",
+                        help="沿用外部常亮；不创建 caffeinate，并传给嵌套录制脚本")
     parser.add_argument("--prepare-scroll", nargs=2, metavar=("SCENE", "SOCKET"))
     parser.add_argument("--automatic", action="store_true", help="滚动准备时执行自动验收的环境准入")
     parser.add_argument("--run-scroll", nargs=3, metavar=("SCENE", "SOCKET", "OUT"))
@@ -2875,6 +3081,8 @@ def main(argv):
         check_verdicts()
         return 0
     args = parse_args(argv)
+    if args.external_caffeinate:
+        os.environ["MV_ACCEPTANCE_EXTERNAL_CAFFEINATE"] = "1"
     os.chdir(ROOT)
     if args.launch_app:
         print(launch_app(*[str(Path(path).resolve()) for path in args.launch_app]))
@@ -2904,7 +3112,8 @@ def main(argv):
     # 保留显式请求的顺序；默认 NAS 在录制前，内存场景始终放在最后。
     scenes = ([scene for scene in requested if scene != "memory-30min"]
               + [scene for scene in requested if scene == "memory-30min"])
-    subprocess.Popen(["caffeinate", "-d", "-w", str(os.getpid())])
+    if os.environ.get("MV_ACCEPTANCE_EXTERNAL_CAFFEINATE") != "1":
+        subprocess.Popen(["caffeinate", "-d", "-w", str(os.getpid())])
     if any(scene in FOREGROUND for scene in scenes):
         app_binary()  # 构建在环境准入之前完成，嵌套录制只复用已冻结的二进制。
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()

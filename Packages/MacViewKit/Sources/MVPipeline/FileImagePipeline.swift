@@ -13,7 +13,7 @@ public final class FileImagePipeline: ImagePipeline {
         var identity: ContentIdentity
         var base: RenderedImage
         var originalSize: PixelSize
-        var derivatives: Task<Void, any Error>
+        var derivatives: Task<Void, any Error>?
     }
     private struct PrefetchKey: Hashable, Sendable {
         var identity: ContentIdentity
@@ -261,7 +261,7 @@ public final class FileImagePipeline: ImagePipeline {
                         try lifetime.checkRunning()
                         let loaded = try await bundle(identity, target: target, context: context)
                         if delivered == .placeholder, let browseCache = caches.browse {
-                            try await loaded.derivatives.value
+                            try await loaded.derivatives?.value
                             if let browse = try await diskData(browseCache, for: loaded.identity.cacheKey) {
                                 continuation.yield(try await decode(browse, target: target, quality: .browse))
                             }
@@ -269,7 +269,7 @@ public final class FileImagePipeline: ImagePipeline {
                         let image = try await exact(identity, target: target, allowOriginal: allowOriginal, context: context, loaded: loaded)
                         try lifetime.checkRunning()
                         continuation.yield(image)
-                        try await loaded.derivatives.value
+                        try await loaded.derivatives?.value
                         continuation.finish()
                     } catch { continuation.finish(throwing: error) }
                 }
@@ -437,7 +437,7 @@ public final class FileImagePipeline: ImagePipeline {
             }
             if !derivativesAllowed {
                 _ = state.withLock { $0.deferredDerivatives.insert(loaded.identity.cacheKey) }
-                return Bundle(identity: loaded.identity, base: base, originalSize: size, derivatives: Task<Void, any Error> {})
+                return Bundle(identity: loaded.identity, base: base, originalSize: size, derivatives: nil)
             }
             _ = state.withLock { $0.deferredDerivatives.remove(loaded.identity.cacheKey) }
             // Bundle 交付后衍生件仍独立运行；在生命周期关口内登记，直到写入队列真正结束。
@@ -616,11 +616,14 @@ public final class FileImagePipeline: ImagePipeline {
     }
 
     private func completePrefetchDerivatives(_ loaded: Bundle, context: RequestContext) async throws {
-        try await loaded.derivatives.value
-        if state.withLock({ $0.deferredDerivatives.contains(loaded.identity.cacheKey) }) {
-            // 合并到前台超额的 bundle 时，用预取自己的优先级等额度，再补写一次。
-            let repaired = try await bundle(loaded.identity, target: nil, context: context)
-            try await repaired.derivatives.value
+        var loaded = loaded
+        while true {
+            if let derivatives = loaded.derivatives {
+                try await derivatives.value
+                return
+            }
+            // 本轮被前台提升后可能再次超额；新上下文以不高于 book 的优先级重新等额度。
+            loaded = try await bundle(loaded.identity, target: nil, context: RequestContext(min(context.priority, .book)))
         }
     }
 

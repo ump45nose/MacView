@@ -220,7 +220,7 @@ func cachedThumbnailPrefetchOnlyWarmsMemoryForForegroundPriorities(_ priority: I
 }
 
 @Test(arguments: [RenditionSpec.thumbnail, .browse])
-func prefetchMergedWithOverBudgetForegroundRepairsBeforeFinishing(_ rendition: RenditionSpec) async throws {
+func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: RenditionSpec) async throws {
     let environment = try PipelineEnvironment()
     defer { environment.clean() }
     let identity = try await environment.identity("image/size/3600x5400.jpg")
@@ -234,6 +234,14 @@ func prefetchMergedWithOverBudgetForegroundRepairsBeforeFinishing(_ rendition: R
     try await eventually { environment.pipeline.memory.waitingTasks == 1 }
     let foreground = try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .visible)
     #expect(foreground.image.height == 128)
+    try await eventually {
+        environment.pipeline.memory.waitingTasks == 1 || environment.pipeline.prefetchInFlightCount(session: session) == 0
+    }
+    #expect(environment.pipeline.prefetchInFlightCount(session: session) == 1)
+    #expect(environment.pipeline.memory.waitingTasks == 1)
+    // 补写在等额度时，再由另一个可见尺寸加入；这一次也超额，仍不能把预取报为完成。
+    let secondForeground = try await environment.pipeline.thumbnail(for: identity, maxPixel: 64, priority: .visible)
+    #expect(secondForeground.image.height == 64)
     try await eventually {
         environment.pipeline.memory.waitingTasks == 1 || environment.pipeline.prefetchInFlightCount(session: session) == 0
     }
