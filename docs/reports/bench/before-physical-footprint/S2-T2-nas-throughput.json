@@ -1,0 +1,100 @@
+{
+  "scene": "nas-throughput",
+  "commit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+  "env": {
+    "load": {
+      "oneMinute": 12.2939453125,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu"
+    },
+    "displayMode": {
+      "width": 1920,
+      "height": 1080,
+      "pixelWidth": 3840,
+      "pixelHeight": 2160,
+      "refreshHz": 60.0,
+      "builtin": false,
+      "externalDisplay": true
+    },
+    "refreshHz": 60.0,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 24.4184005,
+      "inputDuringRun": false,
+      "externalDisplay": true
+    },
+    "collectedAt": "2026-11-04T14:49:26Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 864,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/MacViewBench/nfs",
+        "source": "/dev/disk3s5"
+      }
+    ]
+  },
+  "budget": {
+    "thumbnailToRawRatio": 0.9
+  },
+  "measured": {
+    "protocol": "nfs",
+    "c1_10": {
+      "verified": false,
+      "reason": "Picture 共享的 .gz 是改了扩展名的 RAR 或 7z，需求不做这些格式，不往 NAS 写样本"
+    },
+    "album": "/Users/yuwk/MacViewBench/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+    "thumbnailToRawRatio": 0.9608007042130119,
+    "samples": 3,
+    "throughput": [
+      {
+        "pass": 1,
+        "rawMegabytesPerSecond": 52.282880766978735,
+        "thumbnailMegabytesPerSecond": 57.66489693875756,
+        "thumbnailsPerSecond": 17.360715626612034
+      },
+      {
+        "pass": 2,
+        "rawMegabytesPerSecond": 59.93134158380112,
+        "thumbnailMegabytesPerSecond": 51.18509252268943,
+        "thumbnailsPerSecond": 15.409892027587885
+      },
+      {
+        "pass": 3,
+        "rawMegabytesPerSecond": 55.495915800135336,
+        "thumbnailMegabytesPerSecond": 53.320514981716045,
+        "thumbnailsPerSecond": 16.052786821854387
+      }
+    ],
+    "refreshHz": 60.0
+  },
+  "verdict": "pass"
+}

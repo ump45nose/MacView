@@ -1,29 +1,30 @@
 {
   "scene": "settle",
-  "commit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+  "commit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
   "env": {
     "load": {
-      "oneMinute": 23.392578125,
+      "oneMinute": 6.2119140625,
       "limit": 10,
-      "limitSource": "sysctl -n hw.physicalcpu"
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 7.21533203125
     },
     "displayMode": {
-      "width": 1920,
+      "width": 1728,
       "height": 1080,
-      "pixelWidth": 3840,
+      "pixelWidth": 3456,
       "pixelHeight": 2160,
-      "refreshHz": 60.0,
-      "builtin": false,
-      "externalDisplay": true
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
     },
-    "refreshHz": 60.0,
+    "refreshHz": 120.0,
     "screen": {
       "locked": false,
-      "idleSeconds": 0.302451083,
+      "idleSeconds": 69.886037083,
       "inputDuringRun": false,
-      "externalDisplay": true
+      "externalDisplay": false
     },
-    "collectedAt": "2026-11-04T14:19:10Z",
+    "collectedAt": "2026-11-05T02:46:04Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -33,7 +34,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 864,
+        "linkSpeedMbps": 720,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -60,13 +61,54 @@
         "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
         "source": "/dev/disk3s5"
       }
-    ]
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 130.667458083,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 120.0,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    }
   },
   "budget": {
     "settleRequestLatencyP99Milliseconds": 100
   },
   "measured": {
-    "reason": "环境在 20 分钟内没有满足"
+    "settleRequestLatencyP99": 0.0,
+    "settles": 0,
+    "recording": {
+      "rawDirectory": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
+      "existing": {},
+      "space": {
+        "volume": "/System/Volumes/Data",
+        "freeBytes": 197356740608,
+        "requiredBytes": 60000000000
+      },
+      "ready": true,
+      "added": [
+        {
+          "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsbUPC3k.ktrace",
+          "bytes": 16555372280,
+          "allocatedBytes": 16555372544,
+          "result": "deleted"
+        }
+      ],
+      "cleanupComplete": true,
+      "addedBytes": 16555372280,
+      "deletedBytes": 16555372280,
+      "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record/record.trace",
+      "traceDeleted": true
+    },
+    "refreshHz": 120.0
   },
-  "verdict": "environment"
+  "verdict": "unverified"
 }

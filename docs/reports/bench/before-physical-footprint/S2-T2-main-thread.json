@@ -1,0 +1,169 @@
+{
+  "scene": "main-thread",
+  "commit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+  "env": {
+    "load": {
+      "oneMinute": 35.7587890625,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 36.6201171875
+    },
+    "displayMode": {
+      "width": 1920,
+      "height": 1080,
+      "pixelWidth": 3840,
+      "pixelHeight": 2160,
+      "refreshHz": 60.0,
+      "builtin": false,
+      "externalDisplay": true
+    },
+    "refreshHz": 60.0,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 0.050974125,
+      "inputDuringRun": true,
+      "externalDisplay": true
+    },
+    "collectedAt": "2026-11-04T14:19:10Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 864,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 0.033511833,
+      "inputDuringRun": true,
+      "externalDisplay": true
+    },
+    "refreshHzAfter": 60.0,
+    "displayModeAfter": {
+      "width": 1920,
+      "height": 1080,
+      "pixelWidth": 3840,
+      "pixelHeight": 2160,
+      "refreshHz": 60.0,
+      "builtin": false,
+      "externalDisplay": true
+    }
+  },
+  "budget": {
+    "mainThreadFileReadOrImageIO": 0
+  },
+  "measured": {
+    "mainThreadSamples": 4221,
+    "knownSymbolSamples": 3948,
+    "fileReadOrImageIO": 0,
+    "schema": "time-profile",
+    "tableSamples": 6312,
+    "examples": [],
+    "otherMainThreadFileOperations": 0,
+    "otherFileOperationExamples": [],
+    "recording": {
+      "rawDirectory": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
+      "existing": {
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments2pt8rm.ktrace": {
+          "bytes": 11028213384,
+          "allocatedBytes": 11028213760
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsC2jyvX.ktrace": {
+          "bytes": 2317752736,
+          "allocatedBytes": 2317754368
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsF1VQ7E.ktrace": {
+          "bytes": 13740328296,
+          "allocatedBytes": 13740331008
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsFAhWnQ.ktrace": {
+          "bytes": 12355078240,
+          "allocatedBytes": 12355080192
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsM7EDH9.ktrace": {
+          "bytes": 2165883584,
+          "allocatedBytes": 2165886976
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsNVhe6o.ktrace": {
+          "bytes": 19123722272,
+          "allocatedBytes": 19123724288
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsWcyXHP.ktrace": {
+          "bytes": 11538689976,
+          "allocatedBytes": 11538690048
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsYOtxPy.ktrace": {
+          "bytes": 11885084288,
+          "allocatedBytes": 11885084672
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsgJwc6h.ktrace": {
+          "bytes": 12468539208,
+          "allocatedBytes": 12468539392
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsoZiLrq.ktrace": {
+          "bytes": 15144266368,
+          "allocatedBytes": 15144267776
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsx8ZKd8.ktrace": {
+          "bytes": 12051517856,
+          "allocatedBytes": 12051521536
+        },
+        "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsxyZXe6.ktrace": {
+          "bytes": 12079605864,
+          "allocatedBytes": 12079607808
+        }
+      },
+      "space": {
+        "volume": "/System/Volumes/Data",
+        "freeBytes": 53674180608,
+        "requiredBytes": 40000000000
+      },
+      "ready": true,
+      "added": [
+        {
+          "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instruments7cYhNM.ktrace",
+          "bytes": 28438206184,
+          "allocatedBytes": 28450160640,
+          "result": "deleted"
+        }
+      ],
+      "cleanupComplete": true,
+      "addedBytes": 28438206184,
+      "deletedBytes": 28438206184,
+      "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record/record.trace",
+      "traceDeleted": true
+    },
+    "refreshHz": 60.0
+  },
+  "verdict": "pass"
+}
