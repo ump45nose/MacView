@@ -1,7 +1,7 @@
 #!/bin/sh
 # 启动隔离的 MacView，用 Animation Hitches 加 os_signpost 录制滚动，再汇总帧时间。
 # 用法：scripts/acceptance/record-trackpad.sh <场景> <输出目录> [--automatic|--smoke]
-# 场景为 scroll-cached 或 scroll-cold。scroll-cold 同时录 Time Profiler。
+# 场景为 scroll-cached、scroll-cold 或 settle。scroll-cold 同时录 Time Profiler。
 # 默认只录用户的真实触控板手势；自动验收显式使用 --automatic，--smoke 只空录1秒检查流程。
 # 只结束本脚本启动的 App PID。
 set -eu
@@ -12,8 +12,8 @@ cd "$(dirname "$0")/../.."
 mkdir -p "$out"
 out=$(cd "$out" && pwd)
 case "$scene" in
-scroll-cached|scroll-cold) ;;
-*) echo "场景需要是 scroll-cached 或 scroll-cold" >&2; exit 2 ;;
+scroll-cached|scroll-cold|settle) ;;
+*) echo "场景需要是 scroll-cached、scroll-cold 或 settle" >&2; exit 2 ;;
 esac
 case "$mode" in
 --manual|--automatic|--smoke) ;;
