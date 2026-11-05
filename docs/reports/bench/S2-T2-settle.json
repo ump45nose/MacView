@@ -1,12 +1,12 @@
 {
   "scene": "settle",
-  "commit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+  "commit": "ab80b91a7f824115cfa59809fcf2b0ff2aec20dc",
   "env": {
     "load": {
-      "oneMinute": 6.2119140625,
+      "oneMinute": 9.7021484375,
       "limit": 10,
       "limitSource": "sysctl -n hw.physicalcpu",
-      "during": 7.21533203125
+      "during": 8.4140625
     },
     "displayMode": {
       "width": 1728,
@@ -20,11 +20,11 @@
     "refreshHz": 120.0,
     "screen": {
       "locked": false,
-      "idleSeconds": 69.886037083,
+      "idleSeconds": 2024.652246708,
       "inputDuringRun": false,
       "externalDisplay": false
     },
-    "collectedAt": "2026-11-05T02:46:04Z",
+    "collectedAt": "2026-11-05T10:48:43Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -34,7 +34,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 720,
+        "linkSpeedMbps": 960,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -64,7 +64,7 @@
     ],
     "screenAfter": {
       "locked": false,
-      "idleSeconds": 130.667458083,
+      "idleSeconds": 2084.662190333,
       "inputDuringRun": false,
       "externalDisplay": false
     },
@@ -84,31 +84,157 @@
   },
   "measured": {
     "settleRequestLatencyP99": 0.0,
-    "settles": 0,
+    "settles": 15,
+    "scrollMovements": 3384,
+    "windowFront": true,
+    "environment": false,
+    "scrollBursts": [
+      {
+        "startElapsedSeconds": 9.579999999953515e-07,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 2.273056125
+      },
+      {
+        "startElapsedSeconds": 2.506815541,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 4.783830291
+      },
+      {
+        "startElapsedSeconds": 5.009602291,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 7.280497416
+      },
+      {
+        "startElapsedSeconds": 7.511601333,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 9.787832541
+      },
+      {
+        "startElapsedSeconds": 10.021649,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 12.29315525
+      },
+      {
+        "startElapsedSeconds": 12.531679208,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 14.799708375
+      },
+      {
+        "startElapsedSeconds": 15.040595249999999,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 17.311365125
+      },
+      {
+        "startElapsedSeconds": 17.542764666,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 19.810488416
+      },
+      {
+        "startElapsedSeconds": 20.051233916,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 22.321291458
+      },
+      {
+        "startElapsedSeconds": 22.558970958,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 24.8250825
+      },
+      {
+        "startElapsedSeconds": 25.065708458,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 27.343079499999998
+      },
+      {
+        "startElapsedSeconds": 27.56737025,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 29.8438245
+      },
+      {
+        "startElapsedSeconds": 30.075071541,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 32.347427833000005
+      },
+      {
+        "startElapsedSeconds": 32.57517225,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 34.84698925
+      },
+      {
+        "startElapsedSeconds": 35.084144,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 37.357049875
+      },
+      {
+        "startElapsedSeconds": 37.589687208,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 39.86442687500001
+      },
+      {
+        "startElapsedSeconds": 40.0997095,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 42.377933875000004
+      },
+      {
+        "startElapsedSeconds": 42.600170583,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 44.87430425
+      },
+      {
+        "startElapsedSeconds": 45.108157166000005,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 47.38472350000001
+      },
+      {
+        "startElapsedSeconds": 47.612767458,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 49.875818958
+      },
+      {
+        "startElapsedSeconds": 50.122788791000005,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 52.399728833000005
+      },
+      {
+        "startElapsedSeconds": 52.632834125,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 54.908212083
+      },
+      {
+        "startElapsedSeconds": 55.138340750000005,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 57.404478958000006
+      },
+      {
+        "startElapsedSeconds": 57.648362541000004,
+        "durationMs": 2000,
+        "responseElapsedSeconds": 59.921606916
+      }
+    ],
+    "durationSeconds": 60.005897666,
     "recording": {
       "rawDirectory": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
       "existing": {},
       "space": {
         "volume": "/System/Volumes/Data",
-        "freeBytes": 197356740608,
+        "freeBytes": 194229362688,
         "requiredBytes": 60000000000
       },
       "ready": true,
       "added": [
         {
-          "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsbUPC3k.ktrace",
-          "bytes": 16555372280,
-          "allocatedBytes": 16555372544,
+          "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsJFMyOT.ktrace",
+          "bytes": 22659271328,
+          "allocatedBytes": 22660435968,
           "result": "deleted"
         }
       ],
       "cleanupComplete": true,
-      "addedBytes": 16555372280,
-      "deletedBytes": 16555372280,
-      "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record/record.trace",
+      "addedBytes": 22659271328,
+      "deletedBytes": 22659271328,
+      "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/settle-record/record.trace",
       "traceDeleted": true
     },
     "refreshHz": 120.0
   },
-  "verdict": "unverified"
+  "verdict": "pass"
 }
