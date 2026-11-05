@@ -165,16 +165,9 @@ final class DebugCommands: Sendable {
     }
 
     private let app: AppDelegate
-    private var volumes: [VolumeHealth] = []
-    private var healthTask: Task<Void, Never>?
 
     init(app: AppDelegate) {
         self.app = app
-        if let updates = app.services?.sources.volumeHealth() {
-            healthTask = Task { [weak self] in
-                for await volumes in updates { self?.volumes = volumes }
-            }
-        }
     }
 
     func respond(to line: Data) async -> Data {
@@ -370,6 +363,7 @@ final class DebugCommands: Sendable {
         }
         let budgets = await app.services?.settings.global().cache
         let memory = (app.services?.pipeline as? FileImagePipeline)?.memory
+        let volumes = (app.services?.sources as? FileSourceRegistry)?.currentVolumeHealth() ?? []
         return .object([
             "windows": .array(app.controllers.map(windowState)),
             "volumes": .array(volumes.map(volumeState)),

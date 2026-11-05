@@ -101,10 +101,10 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 优先级：visible > near > book > adjacent > background。请求带 `IORequestGroup`，预取计划变更时可以整批取消或重排。
 - 取消：排队中的请求直接移除；执行中的读取按 4 MB 分块，在块与块之间检查取消。
 - 超时与卷健康：
-  - 每次调用都有期限，默认 10 秒，不短于 5 秒。硬挂载在故障期间一直阻塞、不报错，所以期限是唯一的超时来源。
+  - 每次调用都有期限，默认 9 秒，不短于 5 秒。硬挂载在故障期间一直阻塞、不报错，所以期限是唯一的超时来源。
   - 超时后向调用方抛出 `.timeout`。底层被卡住的调用仍占着槽位，计为 stuck。
   - stuck 或超时次数超过阈值时，卷标为 degraded：新请求立即失败，只保留定期的健康探测，探测成功即恢复。
-  - 卷状态以流的形式提供给界面显示。
+  - 卷状态以流的形式提供给界面显示；具体调度器和注册表另提供当前快照，调试接口据此读取当下的在途计数，不依赖流的发布时机。
   - 网络卷上的读失败时，重新打开文件再试一次：断开较久（实测 60 秒）后恢复时，故障中的那次读会返回错误。
 - 枚举优先用 `getattrlistbulk` 分批返回，书和书架因此能渐进显示。
 - 路径与 URL 的互转不能访问文件系统：用 `URL(filePath:directoryHint:)`，不用不带 `isDirectory` 的 `URL(fileURLWithPath:)`，后者会在调用线程上 stat 该路径，网络卷卡住时调用方跟着卡住（S1-T1 实测）。
@@ -379,11 +379,12 @@ public final class IOScheduler: Sendable {
     public init(configuration: IOConfiguration)
     public func cancel(_ group: IORequestGroup)                       // 排队中的出队，之后的新请求立即失败
     public func setPriority(_ priority: IOPriority, for group: IORequestGroup)
+    public func currentVolumeHealth() -> [VolumeHealth]               // 当下快照，不订阅或发布流
     public func volumeHealth() -> AsyncStream<[VolumeHealth]>
     public func shutdown()                                            // 杀掉辅助进程，不等卡住的调用
 }
 public final class FileSystemProvider: ContainerProvider { public init(scheduler: IOScheduler) }   // 一层的 Location：本机与系统挂载
-public final class FileSourceRegistry: SourceRegistry { public init(scheduler: IOScheduler); public let scheduler: IOScheduler; public let fileSystem: FileSystemProvider; public func register(_ provider: any ContainerProvider) }   // provider(for:) 先问登记的 provider，再交给 fileSystem；压缩包 provider 由组合根登记
+public final class FileSourceRegistry: SourceRegistry { public init(scheduler: IOScheduler); public let scheduler: IOScheduler; public let fileSystem: FileSystemProvider; public func register(_ provider: any ContainerProvider); public func currentVolumeHealth() -> [VolumeHealth] }   // provider(for:) 先问登记的 provider，再交给 fileSystem；压缩包 provider 由组合根登记；健康快照直接读取调度器
 public enum IOHelper { public static func runIfRequested() }   // 宿主 main 开头调用：作为辅助进程启动时进入请求循环，不返回
 public final class ByteSourceAsset: Sendable { public let asset: AVURLAsset; public init(source: any ByteSource, priority: IOPriority = .visible) }   // 网络卷视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
 
@@ -407,6 +408,7 @@ public final class CacheIndex: Sendable { public init(databaseURL: URL) throws; 
 public enum DiskTier: String, Sendable { case thumbnails, browse }
 public final class DiskCache: Sendable {
     public init(tier: DiskTier, cacheDirectory: URL, budget: Int64, index: CacheIndex) throws
+    public func contains(_ key: String) async throws -> Bool          // 仅查当前 tier/key 的 disk_entries 索引行；不读文件、不检查文件存在、不更新访问时间
     public func data(for key: String) async throws -> Data?
     public func data(for keys: [String]) async throws -> [String: Data]   // 先查索引，并发读文件
     public func store(_ data: Data, for key: String) async throws       // 临时文件 → 改名 → 索引，超预算按访问时间淘汰

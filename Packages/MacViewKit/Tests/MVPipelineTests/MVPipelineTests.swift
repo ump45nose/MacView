@@ -143,6 +143,22 @@ private func browseAndDisplayChooseDecodeLevelsIndependently(_ sample: DecodeLev
     await environment.pipeline.shutdown()
 }
 
+@Test(arguments: [IOPriority.visible, .near, .book, .adjacent, .background])
+func cachedThumbnailPrefetchOnlyWarmsMemoryForForegroundPriorities(_ priority: IOPriority) async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let identity = try await environment.identity("image/size/3600x5400.jpg")
+    try await environment.caches.thumbnails.store(Data(contentsOf: Fixtures.url("image/size/64x64.png")), for: identity.cacheKey)
+    let session = SessionID()
+    environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [PrefetchItem(identity: identity, renditions: [.thumbnail], priority: priority)]), session: session)
+    try await eventually { environment.pipeline.prefetchInFlightCount(session: session) == 0 }
+    #expect((environment.caches.thumbnailMemory.totalCost > 0) == (priority >= .near))
+    #expect(environment.caches.raw.totalCost == 0)
+    #expect(environment.registry.control.opens == 0)
+    #expect(environment.pipeline.sourceDecodeCount == 0)
+    await environment.pipeline.shutdown()
+}
+
 @Test func inFlightBudgetBoundsBackgroundAndPromotesOrCancelsWaiters() async throws {
     let budget = InFlightBudget(limit: 100)
     #expect(try await budget.acquire(80, context: RequestContext(.book)))
@@ -200,6 +216,39 @@ private func browseAndDisplayChooseDecodeLevelsIndependently(_ sample: DecodeLev
     _ = try await environment.pipeline.thumbnail(for: identities[waiting], maxPixel: 128, priority: .visible)
     try await eventually { try await environment.caches.thumbnails.data(for: identities[waiting].cacheKey) != nil }
     #expect(environment.pipeline.sourceDecodeCount == decodes)
+    await environment.pipeline.shutdown()
+}
+
+@Test(arguments: [RenditionSpec.thumbnail, .browse])
+func prefetchMergedWithOverBudgetForegroundRepairsBeforeFinishing(_ rendition: RenditionSpec) async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let identity = try await environment.identity("image/size/3600x5400.jpg")
+    let occupied = environment.pipeline.inFlight.limit
+    _ = try await environment.pipeline.inFlight.acquire(occupied, context: RequestContext(.visible))
+    var ownsReservation = true
+    defer { if ownsReservation { environment.pipeline.inFlight.release(occupied) } }
+    let session = SessionID()
+    environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [PrefetchItem(identity: identity, renditions: [rendition], priority: .book)]), session: session)
+    // 先确定同键预取已在 bundle 的额度关口等待，再由前台加入并提升准入。
+    try await eventually { environment.pipeline.memory.waitingTasks == 1 }
+    let foreground = try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .visible)
+    #expect(foreground.image.height == 128)
+    try await eventually {
+        environment.pipeline.memory.waitingTasks == 1 || environment.pipeline.prefetchInFlightCount(session: session) == 0
+    }
+    #expect(environment.pipeline.prefetchInFlightCount(session: session) == 1)
+    #expect(environment.pipeline.memory.waitingTasks == 1)
+    #expect(try await environment.caches.thumbnails.contains(identity.cacheKey) == false)
+    #expect(try await environment.caches.browse?.contains(identity.cacheKey) == false)
+    #expect(environment.pipeline.sourceDecodeCount == 1)
+    environment.pipeline.inFlight.release(occupied)
+    ownsReservation = false
+    try await eventually { environment.pipeline.prefetchInFlightCount(session: session) == 0 }
+    #expect(try await environment.caches.thumbnails.data(for: identity.cacheKey) != nil)
+    #expect(try await environment.caches.browse?.data(for: identity.cacheKey) != nil)
+    #expect(environment.pipeline.memory.inFlightBytes == 0)
+    #expect(environment.pipeline.sourceDecodeCount == 1)
     await environment.pipeline.shutdown()
 }
 

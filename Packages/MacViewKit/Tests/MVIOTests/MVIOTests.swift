@@ -144,6 +144,34 @@ import Testing
 
 // MARK: 调度
 
+@Test func defaultDeadlineIsNineSeconds() {
+    #expect(IOConfiguration(helperExecutable: nil).deadline == .seconds(9))
+}
+
+@Test func currentVolumeHealthReflectsRunningReads() async throws {
+    let backend = ChunkBackend()
+    let scheduler = IOScheduler(configuration: .testing(metadata: 1), backend: backend)
+    let registry = FileSourceRegistry(scheduler: scheduler)
+    let source = FileByteSource(
+        identity: ContentIdentity(location: Location(root: .local, layers: [["big.bin"]]), size: 3 << 20, modificationNanos: 1),
+        path: "/test/big.bin", volume: testVolume, scheduler: scheduler
+    )
+    #expect(scheduler.currentVolumeHealth().isEmpty)
+    #expect(registry.currentVolumeHealth().isEmpty)
+
+    let reading = Task { try await source.read(0..<source.identity.size, priority: .visible, group: nil) }
+    await backend.gate.waitForStarted(1)
+    let running = [VolumeHealth(root: .local, state: .healthy, inFlight: 1)]
+    #expect(scheduler.currentVolumeHealth() == running)
+    #expect(registry.currentVolumeHealth() == running)
+
+    backend.gate.openAll()
+    #expect(try await reading.value.count == Int(source.identity.size))
+    let idle = [VolumeHealth(root: .local, state: .healthy)]
+    #expect(scheduler.currentVolumeHealth() == idle)
+    #expect(registry.currentVolumeHealth() == idle)
+}
+
 @Test func queuedRequestsStartByPriority() async throws {
     let scheduler = IOScheduler(configuration: .testing(metadata: 1))
     let gate = Gate()
@@ -338,7 +366,7 @@ private final class BundleMarker {}
 private let helperExecutable = Bundle(for: BundleMarker.self).bundleURL.deletingLastPathComponent().appending(path: "mvio-helper")
 
 extension IOConfiguration {
-    static func testing(metadata: Int, deadline: Duration = .seconds(10)) -> IOConfiguration {
+    static func testing(metadata: Int, deadline: Duration = .seconds(9)) -> IOConfiguration {
         var configuration = IOConfiguration(helperExecutable: nil)
         configuration.local.metadata = metadata
         configuration.setDeadlineForTesting(deadline)

@@ -594,8 +594,10 @@ public final class FileImagePipeline: ImagePipeline {
             switch rendition {
             case .metadata: _ = try await metadata(item.identity, context: context)
             case .thumbnail:
-                if try await diskData(caches.thumbnails, for: item.identity.cacheKey) != nil {
-                    _ = try await thumbnail(item.identity, maxPixel: configuration.thumbnailLongSide, context: context)
+                if try await lifetime.value(operation: { [self] in try await caches.thumbnails.contains(item.identity.cacheKey) }) {
+                    if context.priority >= .near {
+                        _ = try await thumbnail(item.identity, maxPixel: configuration.thumbnailLongSide, context: context)
+                    }
                 } else {
                     let loaded = try await bundle(item.identity, target: nil, context: context)
                     let key = item.identity.cacheKey + "|thumb|\(configuration.thumbnailLongSide)"
@@ -603,13 +605,22 @@ public final class FileImagePipeline: ImagePipeline {
                         try await thumbnail(loaded, maxPixel: configuration.thumbnailLongSide, priority: context.priority)
                     }
                     // 预取完成仍表示衍生件已经写入，不能随可见缩略图的提前交付一起提早归零。
-                    try await loaded.derivatives.value
+                    try await completePrefetchDerivatives(loaded, context: context)
                 }
             case .browse:
                 let loaded = try await bundle(item.identity, target: nil, context: context)
-                try await loaded.derivatives.value
+                try await completePrefetchDerivatives(loaded, context: context)
             case let .display(target): _ = try await exact(item.identity, target: target, allowOriginal: false, context: context)
             }
+        }
+    }
+
+    private func completePrefetchDerivatives(_ loaded: Bundle, context: RequestContext) async throws {
+        try await loaded.derivatives.value
+        if state.withLock({ $0.deferredDerivatives.contains(loaded.identity.cacheKey) }) {
+            // 合并到前台超额的 bundle 时，用预取自己的优先级等额度，再补写一次。
+            let repaired = try await bundle(loaded.identity, target: nil, context: context)
+            try await repaired.derivatives.value
         }
     }
 

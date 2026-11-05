@@ -184,6 +184,11 @@ public final class FileSourceRegistry: SourceRegistry {
         return Location(root: volume.root, layers: [volume.components(ofPath: path)])
     }
 
+    /// 读取调度器当下的卷健康状态和在途计数。
+    public func currentVolumeHealth() -> [VolumeHealth] {
+        scheduler.currentVolumeHealth()
+    }
+
     public func volumeHealth() -> AsyncStream<[VolumeHealth]> {
         scheduler.volumeHealth()
     }

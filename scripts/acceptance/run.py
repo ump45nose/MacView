@@ -394,6 +394,11 @@ def clean_env():
 
 
 def check_verdicts():
+    document = {"numbers": [1, -2.5, 1e-9], "mixed": [1, "[1,2]", None],
+                "nested": [[1, 2], [True, False]], "empty": []}
+    formatted = format_report(document)
+    if json.loads(formatted) != document or '"numbers": [1, -2.5, 1e-09]' not in formatted:
+        raise SystemExit("check-verdicts 失败：报告数字数组格式或语义错误")
     env = clean_env()
     env120 = {**env, "refreshHz": 120, "refreshHzAfter": 120}
     scroll = {"frames": 3000, "scrollMovements": 50, "windowFront": True,
@@ -2727,6 +2732,13 @@ def merge_during(env, during):
     return merged
 
 
+def format_report(document):
+    number = r"(?:-?(?:\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|Infinity)|NaN)"
+    arrays = rf"\[\n[ \t]*({number}(?:,\s*{number})*)\n[ \t]*\]"
+    formatted = json.dumps(document, ensure_ascii=False, indent=2)
+    return re.sub(arrays, lambda match: "[" + " ".join(match.group(1).split()) + "]", formatted)
+
+
 def write_report(out, scene, commit, env, measured, verdict):
     path = Path(out) / ("S2-T3-w37-occlusion.json" if scene == OCCLUSION else f"S2-T2-{scene}.json")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -2738,7 +2750,7 @@ def write_report(out, scene, commit, env, measured, verdict):
         "measured": measured,
         "verdict": verdict,
     }
-    path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n")
+    path.write_text(format_report(document) + "\n")
     print(f"{scene}: {verdict} -> {path}", flush=True)
 
 
