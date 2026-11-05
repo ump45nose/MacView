@@ -41,6 +41,7 @@ NFS_FAULT = ROOT / "build" / "acceptance" / "nfs-fault-mount"
 SMB_ROOT = Path("/Volumes/Picture")
 FRAME_MS = 8.33
 SCROLL_FRAME_MS = 8.333  # canvas-hitches.py 将 120 Hz 的一个刷新间隔保留三位小数。
+MIN_SCROLL_FRAMES = 3000
 REFRESH_120 = 119.0
 LOAD_LIMIT = int(subprocess.check_output(["/usr/sbin/sysctl", "-n", "hw.physicalcpu"], text=True).strip())
 PHYSICAL_FOOTPRINT_SOURCE = "proc_pid_rusage(RUSAGE_INFO_V4).ri_phys_footprint"
@@ -59,6 +60,8 @@ NAS_APP_SCENES = {"cached-first-screen", "nas-fault"}
 FOREGROUND = (set(SCENES) | {OCCLUSION}) - {"nas-throughput"}
 # 不看时序的场景只要求屏幕没锁。键鼠空闲、运行中输入、负载和外接显示器不参与判定。
 SCREEN_ONLY = {"main-thread", "memory-30min", "tiles-cancel", "panel-restart", OCCLUSION}
+# 这些场景在各自准备完成后准入；录制子进程把准入结果带回主进程。
+DEFERRED_ADMISSION = (FOREGROUND - SCREEN_ONLY) | {"main-thread"}
 # 开始前的空闲包含滚轮。录制过程中场景自己会发合成滚动，过程中的输入检查不含滚轮。
 START_EVENTS = (1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 22, 25, 26, 27)
 DURING_EVENTS = (1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 25, 26, 27)
@@ -76,9 +79,9 @@ C1_10_UNVERIFIED = {
 BUDGETS = {
     "first-image": {"lastDisplayP95Milliseconds": 150, "samples": 30},
     "preloaded-flip": {"lastDisplayP95Milliseconds": FRAME_MS, "flips": 100},
-    "scroll-cached": {"frameTimeP99Milliseconds": SCROLL_FRAME_MS, "refreshHz": 120},
-    "scroll-cold": {"frameTimeP99Milliseconds": SCROLL_FRAME_MS, "refreshHz": 120},
-    "main-thread": {"mainThreadFileReadOrImageIO": 0},
+    "scroll-cached": {"frameTimeP99Milliseconds": SCROLL_FRAME_MS, "refreshHz": 120, "minimumPresentedFrames": MIN_SCROLL_FRAMES},
+    "scroll-cold": {"frameTimeP99Milliseconds": SCROLL_FRAME_MS, "refreshHz": 120, "minimumPresentedFrames": MIN_SCROLL_FRAMES},
+    "main-thread": {"mainThreadFileReadOrImageIO": 0, "minimumPresentedFrames": MIN_SCROLL_FRAMES},
     "settle": {"settleRequestLatencyP99Milliseconds": 100},
     "nas-throughput": {"thumbnailToRawRatio": 0.9},
     "cached-first-screen": {"firstScreenP95Milliseconds": 100, "samplesPerRoot": 20},
@@ -158,6 +161,8 @@ def judge(scene, measured, env, budget=None):
     if scene in ("scroll-cached", "scroll-cold"):
         return judge_scroll(measured, env, limits)
     if scene == "main-thread":
+        if (measured.get("frames") or 0) < limits["minimumPresentedFrames"]:
+            return "unverified"
         total = measured.get("mainThreadSamples")
         known = measured.get("knownSymbolSamples")
         io_count = measured.get("fileReadOrImageIO")
@@ -224,7 +229,7 @@ def judge_scroll(measured, env, limits):
     after = env.get("refreshHzAfter")
     if not is_120(before) or not is_120(after):
         return "environment"
-    if not measured.get("frames") or not measured.get("scrollMovements"):
+    if (measured.get("frames") or 0) < limits["minimumPresentedFrames"] or not measured.get("scrollMovements"):
         return "unverified"
     frame = measured.get("frameTimeP99")
     if frame is None:
@@ -391,7 +396,7 @@ def clean_env():
 def check_verdicts():
     env = clean_env()
     env120 = {**env, "refreshHz": 120, "refreshHzAfter": 120}
-    scroll = {"frames": 100, "scrollMovements": 50, "windowFront": True,
+    scroll = {"frames": 3000, "scrollMovements": 50, "windowFront": True,
               "hitches": 0, "updateP99": 2.0, "renderP99": 2.0, "frameTimeP99": 8.333}
     memory = {"leaks": 0, "residentBytes": [100] * 1800,
               "physicalFootprintBytes": [100] * 1800, "physicalFootprintSource": PHYSICAL_FOOTPRINT_SOURCE,
@@ -403,7 +408,7 @@ def check_verdicts():
         "first-image": {"p95": 150, "samples": 30},
         "preloaded-flip": {"p95": 8.33, "flips": 100},
         "scroll-cached": scroll, "scroll-cold": scroll,
-        "main-thread": {"mainThreadSamples": 10, "knownSymbolSamples": 4, "fileReadOrImageIO": 0},
+        "main-thread": {"frames": 3000, "mainThreadSamples": 10, "knownSymbolSamples": 4, "fileReadOrImageIO": 0},
         "settle": {"settles": 1, "settleRequestLatencyP99": 100},
         "nas-throughput": {"samples": 3, "thumbnailToRawRatio": 0.9},
         "cached-first-screen": {"localP95": 100, "nfsP95": 100, "localSamples": 20, "nfsSamples": 20},
@@ -432,6 +437,8 @@ def check_verdicts():
         ("锁定状态未知", judge("first-image", valid["first-image"], _screen(env, locked=None)), "environment"),
         ("缺少符号", judge("main-thread", {**valid["main-thread"], "knownSymbolSamples": 0}, env), "unverified"),
         ("主线程读取", judge("main-thread", {**valid["main-thread"], "fileReadOrImageIO": 1}, env), "fail"),
+        ("旧主线程证据缺少呈现帧数", judge("main-thread", {**valid["main-thread"], "frames": None}, env), "unverified"),
+        ("主线程对应冷滚动不足3000帧", judge("main-thread", {**valid["main-thread"], "frames": 1253}, env), "unverified"),
         ("内存不是完整30分钟", judge("memory-30min", {**memory, "durationSeconds": 1000}, env), "unverified"),
         ("物理占用按秒忽略前5分钟", judge("memory-30min", {**memory, "physicalFootprintBytes": [10000] * 300 + [100] * 1500}, env), "pass"),
         ("resident 压缩下降不参与判定", judge("memory-30min", {**memory, "residentBytes": [100] * 1200 + [50] * 600}, env), "pass"),
@@ -455,6 +462,8 @@ def check_verdicts():
             (f"{scene} 只在结束时120", judge(scene, scroll, {**env, "refreshHzAfter": 120}), "environment"),
             (f"{scene} 只在开始时120", judge(scene, scroll, {**env120, "refreshHzAfter": 60}), "environment"),
             (f"{scene} 帧超预算", judge(scene, {**scroll, "frameTimeP99": 8.334}, env120), "fail"),
+            (f"{scene} 旧1253帧不可追认", judge(scene, {**scroll, "frames": 1253}, env120), "unverified"),
+            (f"{scene} 少于3000帧", judge(scene, {**scroll, "frames": 2999}, env120), "unverified"),
             (f"{scene} 卡顿仅作证据", judge(scene, {**scroll, "hitches": 1}, env120), "pass"),
             (f"{scene} 两个P99之和仅作证据", judge(scene, {**scroll, "renderP99": 6.34}, env120), "pass"),
             (f"{scene} 窗口不在前台", judge(scene, {**scroll, "windowFront": False}, env120), "environment"),
@@ -466,6 +475,21 @@ def check_verdicts():
     if merged["load"]["oneMinute"] != 1.0 or merged["load"].get("during") != 14.2 or merged["refreshHz"] != 59.94 or merged.get("refreshHzAfter") != 120:
         raise SystemExit(f"check-verdicts 失败：前后环境没有分别保留 {merged}")
     cases.append(("运行中负载不影响判定", judge("first-image", valid["first-image"], merged), "pass"))
+    admitted = merge_during(env120, {"admission": env120, "before": _load(env120, 48.9),
+                                    "load": {"oneMinute": 27}, "refreshHz": 120, "screen": {}})
+    if admitted["load"] != {**env120["load"], "before": 48.9, "during": 27}:
+        raise SystemExit(f"check-verdicts 失败：准备后的准入负载没有保留 {admitted['load']}")
+    for scene in sorted(DEFERRED_ADMISSION):
+        cases.append((f"{scene} 准备后准入，测量期间负载只记录", judge(scene, valid[scene], admitted), "pass"))
+    cases.append(("首屏准入后启动失败保留不可验证结论", judge("cached-first-screen", {"unavailable": True}, admitted), "unverified"))
+    cases.append(("首屏失败期间输入仍作废", judge("cached-first-screen", {"unavailable": True}, _screen(admitted, inputDuringRun=True)), "environment"))
+    fault_state = {"windows": [{"book": "nfs://server/share/album"}], "volumes": [
+        {"root": "/", "state": "healthy", "inFlight": 9, "stuck": False},
+        {"root": "nfs://other/share", "state": "failed", "inFlight": 8, "stuck": True},
+        {"root": "nfs://server/share", "state": "healthy", "inFlight": 1, "stuck": False},
+    ]}
+    if fault_volumes(fault_state) != [fault_state["volumes"][-1]] or not volume_in_flight(fault_state) or volume_failed(fault_state):
+        raise SystemExit("check-verdicts 失败：NAS 当前书匹配或卷状态字段错误")
     for name, got, expected in cases:
         if got != expected:
             raise SystemExit(f"check-verdicts 失败：{name} 得到 {got}，期望 {expected}")
@@ -617,18 +641,19 @@ def sample_conditions():
 
 
 # 一轮里等满 20 分钟仍不满足时，后面的场景只再看一眼，不再各等 20 分钟。
-WAIT_EXHAUSTED = False
+WAIT_EXHAUSTED = os.environ.get("MV_ACCEPTANCE_WAIT_EXHAUSTED") == "1"
 
 
-def wait_ready(scene=None):
+def wait_ready(scene=None, screen_only=False):
     global WAIT_EXHAUSTED
+    condition_scene = "memory-30min" if screen_only else scene
     if WAIT_EXHAUSTED:
         current = sample_conditions()
-        return current, not env_problem(current, scene)
+        return current, not env_problem(current, condition_scene)
     deadline = time.monotonic() + WAIT_READY
     while True:
         current = sample_conditions()
-        if not env_problem(current, scene):
+        if not env_problem(current, condition_scene):
             return current, True
         if time.monotonic() >= deadline:
             WAIT_EXHAUSTED = True
@@ -654,6 +679,15 @@ class MeasurementError(RuntimeError):
     def __init__(self, message, measured):
         self.measured = measured
         super().__init__(message)
+
+
+def admit_measurement(scene):
+    admission, ready = wait_ready(scene)
+    if not ready:
+        raise MeasurementError("准备后环境准入等待已耗尽", {
+            "environment": True, "reason": "准备后环境准入等待已耗尽", "admission": admission,
+        })
+    return {**admission, "inputMark": input_mark(DURING_EVENTS)}
 
 
 class MemoryStateMonitor:
@@ -1187,6 +1221,7 @@ def distinct_pages(count, samples):
 def scene_first_image():
     path = str(ensure_sample())
     app = App("first-image", prefetch_zero=True, empty_cache=True).start()
+    admission = None
     try:
         hide_docks(app.client)
         opened = app.client.request("open", {"path": path, "page": 0}, timeout=120)
@@ -1198,6 +1233,7 @@ def scene_first_image():
             return {"unavailable": True, "reason": "首图冷样本前提不满足：初始预载须为 0 且 HUD 隐藏", "initialState": initial}
         # 初始第0页已访问，30次计时只选择其余不同页。
         pages = [page + 1 for page in distinct_pages(count - 1, 30)]
+        admission = admit_measurement("first-image")
         samples = []
         for page in pages:
             app.client.request("open", {"path": path, "page": page}, timeout=120)
@@ -1206,7 +1242,11 @@ def scene_first_image():
         final = {"memory": state.get("memory"), "hudVisible": window_of(state).get("hudVisible")}
         return {"samples": len(samples), "p95": p95(samples), "milliseconds": samples, "pages": pages,
                 "frameCount": count, "prefetchDisabled": True, "panelsHidden": True,
-                "initialState": initial, "finalState": final}
+                "initialState": initial, "finalState": final, "admission": admission}
+    except Exception as exc:
+        if admission:
+            exc.measured = {**getattr(exc, "measured", {}), "admission": admission}
+        raise
     finally:
         app.stop()
 
@@ -1214,9 +1254,11 @@ def scene_first_image():
 def scene_preloaded_flip():
     path = str(ensure_sample())
     app = App("preloaded-flip", empty_cache=True).start()
+    admission = None
     try:
         app.client.request("open", {"path": path}, timeout=120)
         wait_idle(app.client, 180)
+        admission = admit_measurement("preloaded-flip")
         samples = []
         direction = 1
         for _ in range(100):
@@ -1233,12 +1275,17 @@ def scene_preloaded_flip():
             wait_prefetch_idle(app.client)
             app.client.request("perform", {"command": command})
             samples.append(wait_frame(app.client, frame + direction))
-        return {"flips": len(samples), "p95": p95(samples), "milliseconds": samples}
+        return {"flips": len(samples), "p95": p95(samples), "milliseconds": samples, "admission": admission}
+    except Exception as exc:
+        if admission:
+            exc.measured = {**getattr(exc, "measured", {}), "admission": admission}
+        raise
     finally:
         app.stop()
 
 
 def record_scroll(scene):
+    global WAIT_EXHAUSTED
     out = ROOT / "build" / "acceptance" / f"{scene}-record"
     if out.exists():
         shutil.rmtree(out)
@@ -1246,14 +1293,26 @@ def record_scroll(scene):
     trace = out / "record.trace"
     measured = {}
     try:
-        subprocess.run([str(ROOT / "scripts/acceptance/record-trackpad.sh"), scene, str(out), "--automatic"], cwd=ROOT, check=True)
+        subprocess.run([str(ROOT / "scripts/acceptance/record-trackpad.sh"), scene, str(out), "--automatic"], cwd=ROOT, check=True,
+                       env={**os.environ, "MV_ACCEPTANCE_WAIT_EXHAUSTED": "1" if WAIT_EXHAUSTED else "0"})
         measured, during = scroll_summary(out)
         profile = json.loads((out / "main-thread.json").read_text()) if scene == "scroll-cold" else None
         return measured, during, profile
     except Exception as exc:
         measured.update(json.loads((out / "error.json").read_text()) if (out / "error.json").exists() else {})
-        raise MeasurementError(str(exc), measured) from exc
+        prepared = json.loads((out / "window-before.json").read_text().strip() or "{}") if (out / "window-before.json").exists() else {}
+        if prepared.get("admission"):
+            measured["admission"] = prepared["admission"]
+        if prepared.get("ready") is False:
+            measured.update(environment=True, reason="准备后环境在 20 分钟内没有满足", admission=prepared.get("admission"))
+            return measured, {"admission": prepared.get("admission")}, None
+        failure = MeasurementError(str(exc), measured)
+        if (out / "during.json").exists():
+            failure.during = json.loads((out / "during.json").read_text())
+        raise failure from exc
     finally:
+        prepared = json.loads((out / "window-before.json").read_text().strip() or "{}") if (out / "window-before.json").exists() else {}
+        WAIT_EXHAUSTED = WAIT_EXHAUSTED or bool(prepared.get("waitExhausted"))
         raw = json.loads((out / "raw-files.json").read_text()) if (out / "raw-files.json").exists() else {}
         measured["recording"] = raw
         if raw.get("ready") is False:
@@ -1286,6 +1345,10 @@ def scroll_summary(out):
         "settles": phase.get("settles"),
         "trace": str(out / "record.trace"),
         "scrollMovements": during.get("scrollMovements"),
+        "scrollEvents": during.get("scrollEvents"),
+        "scrollSegments": during.get("scrollSegments"),
+        "durationSeconds": during.get("durationSeconds"),
+        "gestureSeconds": during.get("gestureSeconds"),
         "residentPeakBytes": during.get("residentPeakBytes"),
         "residentSamplingError": during.get("residentSamplingError"),
         "residentSampleCount": during.get("residentSampleCount"),
@@ -1328,7 +1391,10 @@ def scene_scroll_cold():
 
 def scene_main_thread():
     data = cold_recording()
-    return {**data["mainThread"], "recording": data["measured"].get("recording")}, data["during"]
+    return {**(data["mainThread"] or {}), "frames": data["measured"].get("frames"),
+            "scrollSegments": data["measured"].get("scrollSegments"),
+            "environment": data["measured"].get("environment", False),
+            "recording": data["measured"].get("recording")}, data["during"]
 
 
 def scene_settle():
@@ -1635,28 +1701,71 @@ def wait_first_screen(client, timeout=15):
 
 
 def first_screen_samples(path, name, times=20):
-    app = App(name, empty_cache=True).start()
+    result = {"path": path, "admission": None, "ready": None, "waitExhausted": WAIT_EXHAUSTED,
+              "samples": [], "measurements": [], "count": 0, "p95": None}
+    samples, measurements = result["samples"], result["measurements"]
+    mark, load = None, None
+    phase = "prepareStart"
     try:
-        app.client.request("open", {"path": path}, timeout=180)
-        wait_first_screen(app.client)
-        wait_idle(app.client, 180)
-    finally:
-        app.stop()
-    samples = []
-    for _ in range(times):
-        app = App(name, empty_cache=False).start()
+        app = App(name, empty_cache=True)
         try:
+            app.start()
+            phase = "prepareOpen"
             app.client.request("open", {"path": path}, timeout=180)
-            samples.append(wait_first_screen(app.client))
+            wait_first_screen(app.client)
+            wait_idle(app.client, 180)
         finally:
             app.stop()
+        phase = "admission"
+        admission, ready = wait_ready("cached-first-screen")
+        result.update(admission=admission, ready=ready, waitExhausted=WAIT_EXHAUSTED)
+        if not ready:
+            return result
+        mark = input_mark(DURING_EVENTS)
+        result["admission"] = {**admission, "inputMark": mark}
+        for _ in range(times):
+            phase, load = "start", None
+            app = App(name, empty_cache=False)
+            try:
+                app.start()
+                load = os.getloadavg()[0]
+                phase = "open"
+                app.client.request("open", {"path": path}, timeout=180)
+                phase = "firstScreen"
+                value = wait_first_screen(app.client)
+                samples.append(value)
+                measurements.append({"milliseconds": value, "load": {"oneMinute": load}})
+            finally:
+                app.stop()
+    except Exception as exc:
+        result.update(unavailable=True, error=str(exc), failure={
+            "phase": phase, "sampleIndex": len(samples) if mark is not None else None,
+            "load": {"oneMinute": load},
+        })
+        if isinstance(exc, DebugTimeout):
+            result["diagnostic"] = exc.detail
     numeric = [value for value in samples if value is not None]
-    return {"samples": samples, "count": len(numeric), "p95": p95(numeric) if len(numeric) == times else None}
+    result.update(count=len(numeric), p95=p95(numeric) if len(numeric) == times else None)
+    if mark is not None:
+        result["during"] = sampled_during(mark)
+    return result
+
+
+def first_screen_root_evidence(result):
+    return {key: result[key] for key in ("path", "admission", "ready", "waitExhausted", "during",
+                                         "unavailable", "error", "failure", "diagnostic") if key in result}
 
 
 def scene_cached_first_screen():
     local = first_screen_samples(str(ensure_sample()), "cached-first-screen-local")
-    measured = {"localP95": local["p95"], "localSamples": local["count"], "localMilliseconds": local["samples"], "protocol": "nfs"}
+    measured = {"localP95": local["p95"], "localSamples": local["count"], "localMilliseconds": local["samples"],
+                "localMeasurements": local["measurements"], "protocol": "nfs",
+                "rootAdmissions": [first_screen_root_evidence(local)], "admission": local["admission"],
+                "measurementInputDuringRun": bool((local.get("during") or {}).get("screen", {}).get("inputDuringRun"))}
+    if local["ready"] is False:
+        return {**measured, "environment": True, "reason": "本地根冷填充退出后环境准入等待已耗尽"}
+    if local.get("unavailable"):
+        return {**measured, "unavailable": True, "error": local["error"]}
     mount, error = ensure_nfs()
     album = find_samples(mount)[0] if mount else None
     if not mount or not album:
@@ -1666,13 +1775,31 @@ def scene_cached_first_screen():
         supplement = {"protocol": "smb"}
         if smb_album:
             smb = first_screen_samples(smb_album, "cached-first-screen-smb")
-            supplement.update(p95=smb["p95"], samples=smb["count"], path=smb_album)
+            supplement.update(p95=smb["p95"], samples=smb["count"], path=smb_album,
+                              measurements=smb["measurements"], admission=smb["admission"], ready=smb["ready"], during=smb.get("during"))
+            measured["rootAdmissions"].append(first_screen_root_evidence(smb))
+            if smb.get("admission"):
+                measured["admission"] = smb["admission"]
+            measured["measurementInputDuringRun"] |= bool((smb.get("during") or {}).get("screen", {}).get("inputDuringRun"))
+            if smb.get("unavailable"):
+                supplement.update(unavailable=True, error=smb["error"], failure=smb["failure"])
+            if smb["ready"] is False:
+                measured.update(environment=True, reason="SMB 根冷填充退出后环境准入等待已耗尽")
         else:
             supplement["error"] = "没有找到 /Volumes/Picture 上的 JPEG 目录"
         measured["supplement"] = supplement
         return measured
     remote = first_screen_samples(album, "cached-first-screen-nfs")
-    measured.update(nfsP95=remote["p95"], nfsSamples=remote["count"], nfsMilliseconds=remote["samples"], nfsAlbum=album)
+    measured.update(nfsP95=remote["p95"], nfsSamples=remote["count"], nfsMilliseconds=remote["samples"], nfsAlbum=album,
+                    nfsMeasurements=remote["measurements"])
+    if remote.get("admission"):
+        measured["admission"] = remote["admission"]
+    measured["rootAdmissions"].append(first_screen_root_evidence(remote))
+    measured["measurementInputDuringRun"] |= bool((remote.get("during") or {}).get("screen", {}).get("inputDuringRun"))
+    if remote.get("unavailable"):
+        measured.update(unavailable=True, error=remote["error"])
+    if remote["ready"] is False:
+        measured.update(environment=True, reason="NFS 根冷填充退出后环境准入等待已耗尽")
     return measured
 
 
@@ -1680,8 +1807,10 @@ def scene_large_dir():
     if not TREE.is_dir():
         return {"unavailable": True, "error": f"没有目录 {TREE}"}
     app = App("large-dir", empty_cache=True).start()
+    admission = None
     try:
         client = app.client
+        admission = admit_measurement("large-dir")
         open_id = client.send("open", {"path": str(TREE)})
         counts = []
         rtts = []
@@ -1719,7 +1848,12 @@ def scene_large_dir():
             "itemCounts": counts,
             "intermediateItemCounts": [count for count in counts if 0 < count < BUDGETS["large-dir"]["totalItems"]],
             "openOk": bool(opened and opened.get("ok")),
+            "admission": admission,
         }
+    except Exception as exc:
+        if admission:
+            exc.measured = {**getattr(exc, "measured", {}), "admission": admission}
+        raise
     finally:
         app.stop()
 
@@ -1738,7 +1872,10 @@ def control_send(port, command):
 
 
 def fault_volumes(state):
-    return [volume for volume in state.get("volumes") or [] if str(NFS_FAULT) in volume.get("root", "")]
+    book = window_of(state).get("book") or ""
+    return [{key: volume.get(key) for key in ("root", "state", "inFlight", "stuck")}
+            for volume in state.get("volumes") or []
+            if (root := volume.get("root")) and root != "/" and book.startswith(root)]
 
 
 def volume_failed(state):
@@ -1784,16 +1921,19 @@ def scene_nas_fault():
             app = App("nas-fault-smb", empty_cache=True).start()
             try:
                 app.client.request("open", {"path": smb}, timeout=180)
+                supplement["admission"] = admit_measurement("nas-fault")
                 started = time.monotonic()
                 app.client.request("state", timeout=2)
                 supplement.update(path=smb, roundTripMilliseconds=(time.monotonic() - started) * 1000)
             except (RuntimeError, TimeoutError, OSError) as exc:
+                supplement.update(getattr(exc, "measured", {}))
                 supplement["error"] = str(exc)
             finally:
                 app.stop()
         else:
             supplement["error"] = "没有找到 /Volumes/Picture 上的 JPEG 目录"
-        return {"unavailable": True, "nfsError": error or "NFS 上没有找到 JPEG 目录", "supplement": supplement, "protocol": "nfs"}
+        return {"unavailable": True, "nfsError": error or "NFS 上没有找到 JPEG 目录", "supplement": supplement, "protocol": "nfs",
+                "admission": supplement.get("admission"), "environment": supplement.get("environment", False)}
     if mount_fstype(NFS_FAULT):
         return {"unavailable": True, "error": f"测试挂载点已在使用，保留现状：{NFS_FAULT}"}
     NFS_FAULT.parent.mkdir(parents=True, exist_ok=True)
@@ -1804,6 +1944,7 @@ def scene_nas_fault():
     )
     app = None
     ready = None
+    admission = None
     try:
         if not proxy.stdout or not select.select([proxy.stdout], [], [], 60)[0]:
             return {"unavailable": True, "error": "NFS 故障代理在60秒内未就绪"}
@@ -1821,6 +1962,7 @@ def scene_nas_fault():
         opened = app.client.request("open", {"path": ready["path"], "page": 0}, timeout=180)
         # 初始页可能已在 open 返回前上屏，lastDisplay 只记录翻页计时；用真实图层就绪作前提。
         wait_exact(app.client, opened["page"], prime=True)
+        admission = admit_measurement("nas-fault")
         rtts, injections = [], []
         retry = True
         for mode in ("pause", "drop"):
@@ -1831,10 +1973,15 @@ def scene_nas_fault():
                 error_at = None
                 read_in_flight = False
                 initial_volumes = None
+                injection_volumes = None
+                final_volumes = []
                 while time.monotonic() - started < seconds:
                     sent = time.monotonic()
                     try:
                         state = app.client.request("state", timeout=1)
+                        final_volumes = fault_volumes(state)
+                        if injection_volumes is None:
+                            injection_volumes = final_volumes
                         if volume_in_flight(state):
                             read_in_flight = True
                             if initial_volumes is None:
@@ -1850,20 +1997,24 @@ def scene_nas_fault():
                 retry = retry and recovered
                 injections.append({"mode": mode, "seconds": seconds, "frame": frame,
                                    "readInFlight": read_in_flight, "inFlightVolumes": initial_volumes,
+                                   "injectionVolumes": injection_volumes, "faultEndVolumes": final_volumes,
                                    "errorSeconds": error_at, "retryExactSucceeded": recovered})
                 if not recovered:
                     return {"protocol": "nfs", "stateSamples": len(rtts), "injections": injections,
                             "maxRoundTripMilliseconds": max(rtts), "retrySucceeded": False,
                             "errorWithin10Seconds": False, "quitSeconds": None,
+                            "admission": admission,
                             "error": "故障恢复后当前页未重新显示 exact，停止后续注入"}
         # 独立验证退出：再次暂停代理，确认未读页存在在途I/O，保持暂停直到目标PID退出。
         control_send(ready["controlPort"], "pause")
         quit_frame = arm_fault_read(app.client)
         quit_read = False
         quit_volumes = None
+        quit_observed_volumes = []
         deadline = time.monotonic() + 2
         while time.monotonic() < deadline:
             state = app.client.request("state", timeout=1)
+            quit_observed_volumes = fault_volumes(state)
             if volume_in_flight(state):
                 quit_read = True
                 quit_volumes = fault_volumes(state)
@@ -1878,15 +2029,21 @@ def scene_nas_fault():
         required = [item for item in injections if item["seconds"] in (15, 60)]
         return {
             "protocol": "nfs", "stateSamples": len(rtts),
+            "admission": admission,
             "maxRoundTripMilliseconds": max(rtts) if rtts else None,
             "errorWithin10Seconds": len(required) == 4 and all(item["errorSeconds"] is not None and item["errorSeconds"] <= 10 for item in required),
             "injections": injections, "retrySucceeded": retry,
             "quitSeconds": quit_seconds, "quitReadInFlight": quit_read,
             "quitFrame": quit_frame, "quitInFlightVolumes": quit_volumes,
+            "quitVolumes": quit_observed_volumes,
             "quitExitedNormally": quit_normal,
             "quitExitCode": quit_code,
             "quitPID": quit_pid,
         }
+    except Exception as exc:
+        if admission:
+            exc.measured = {**getattr(exc, "measured", {}), "admission": admission}
+        raise
     finally:
         if ready is not None:
             try:
@@ -2347,21 +2504,36 @@ def scene_panel_restart():
     return {"before": before, "after": after, "matched": same_panel(before, after)}
 
 
+def scroll_to_edge(client, dy):
+    # 只有 continuousScroll（durationMs）响应包含 scrollMovements，可据此确认边界。
+    for _ in range(120):
+        scroll = client.request("scroll", {"dy": dy, "durationMs": 1000, "intervalMs": 8}, timeout=30)
+        if scroll.get("scrollMovements") == 0:
+            return
+    raise RuntimeError("滚动准备未到文档边界")
+
+
 def prepare_scroll(scene, socket_path):
     client = DebugClient(socket_path, phase=scene + ":prepare")
     try:
         client.request("open", {"path": str(ensure_sample())}, timeout=180)
         client.request("perform", {"command": "view.waterfall"})
         client.request("resize", {"width": 1400, "height": 900})
+        if scene in ("scroll-cached", "scroll-cold"):
+            scroll_to_edge(client, 12)
         if scene == "scroll-cached":
             wait_idle(client, 180)
-            for _ in range(12):
-                client.request("scroll", {"dy": -900, "steps": 6, "intervalMs": 16}, timeout=30)
+            scroll_to_edge(client, -12)
+            wait_idle(client, 180)
+            scroll_to_edge(client, 12)
             wait_idle(client, 180)
         elif scene not in ("scroll-cold", "settle"):
             raise SystemExit(f"不是滚动场景：{scene}")
         client.request("resize", {"width": 1400, "height": 900})
-        print(json.dumps({"windowFront": window_of(client.request("state")).get("windowFront")}))
+        admission, ready = wait_ready(scene)
+        print(json.dumps({"windowFront": window_of(client.request("state")).get("windowFront"),
+                          "admission": admission, "ready": ready, "waitExhausted": WAIT_EXHAUSTED}))
+        return ready
     finally:
         client.close()
 
@@ -2385,6 +2557,33 @@ def run_settle_scroll(client, seconds, sample_resident):
         # continuousScroll 在 ended 后已等 250 ms；这里只补齐本次停止的其余时间。
         time.sleep(max(0, min(deadline, burst + duration_ms / 1000 + 0.5) - time.monotonic()))
     result["durationSeconds"] = time.monotonic() - started
+    return result
+
+
+def run_segmented_scroll(client, seconds, sample_resident):
+    """每段是独立手势，交替方向；手势时长合计 60 秒，结束响应的间隔也留在录制内。"""
+    started = time.monotonic()
+    remaining_ms = int(seconds * 1000)
+    result = {"events": 0, "scrollMovements": 0, "windowFront": True, "scrollSegments": []}
+    while remaining_ms > 0:
+        duration_ms = min(8000, remaining_ms)
+        dy = -12 if len(result["scrollSegments"]) % 2 == 0 else 12
+        burst = time.monotonic()
+        pending = client.send("scroll", {"dy": dy, "durationMs": duration_ms, "intervalMs": 8})
+        deadline = burst + duration_ms / 1000
+        while time.monotonic() < deadline:
+            sample_resident()
+            time.sleep(min(1, max(0, deadline - time.monotonic())))
+        scroll = client.wait(pending, 30).get("result", {})
+        result["events"] += scroll.get("events", 0)
+        result["scrollMovements"] += scroll.get("scrollMovements", 0)
+        result["windowFront"] = result["windowFront"] and scroll.get("windowFront") is True
+        result["responsiveScrolling"] = scroll.get("responsiveScrolling")
+        result["scrollSegments"].append({"startElapsedSeconds": burst - started, "durationMs": duration_ms, "dy": dy,
+                                          "responseElapsedSeconds": time.monotonic() - started,
+                                          "events": scroll.get("events"), "scrollMovements": scroll.get("scrollMovements")})
+        remaining_ms -= duration_ms
+    result.update(durationSeconds=time.monotonic() - started, gestureSeconds=seconds)
     return result
 
 
@@ -2413,19 +2612,21 @@ def run_scroll(scene, socket_path, outdir, automatic=True, seconds=60):
 
         if automatic and scene == "settle":
             scroll = run_settle_scroll(client, seconds, sample_resident)
+        elif automatic:
+            scroll = run_segmented_scroll(client, seconds, sample_resident)
         else:
-            pending = client.send("scroll", {"dy": -12, "durationMs": int(seconds * 1000), "intervalMs": 8}) if automatic else None
-            if not automatic:
-                print(f"正在录制 {seconds} 秒：请在 MacView 中用触控板滚动、缩放。", flush=True)
+            print(f"正在录制 {seconds} 秒：请在 MacView 中用触控板滚动、缩放。", flush=True)
             deadline = time.monotonic() + seconds
             while time.monotonic() < deadline:
                 sample_resident()
                 time.sleep(min(1, max(0, deadline - time.monotonic())))
-            scroll = client.wait(pending, 30).get("result", {}) if automatic else {}
+            scroll = {}
         if scene != "settle":
             time.sleep(0.5)
         during = sample_conditions()
         during["before"] = before
+        during["admission"] = window_before.get("admission")
+        during["inputMark"] = mark
         during["screen"]["inputDuringRun"] = input_mark(DURING_EVENTS) > mark + 0.5
         # 连续手势的响应已经带回窗口和响应式滚动状态，不为辅助字段再等一次state。
         window = scroll if automatic else window_of(client.request("state", timeout=5))
@@ -2441,9 +2642,12 @@ def run_scroll(scene, socket_path, outdir, automatic=True, seconds=60):
         during["scrollEvents"] = scroll.get("events")
         during["driver"] = "synthetic" if automatic else "trackpad"
         during["responsiveScrolling"] = window.get("responsiveScrolling")
+        if automatic:
+            during["scrollSegments"] = scroll.get("scrollSegments")
+            during["gestureSeconds"] = scroll.get("gestureSeconds")
+            during["durationSeconds"] = scroll.get("durationSeconds")
         if scene == "settle":
             during["scrollBursts"] = scroll.get("scrollBursts")
-            during["durationSeconds"] = scroll.get("durationSeconds")
         (out / "during.json").write_text(json.dumps(during, ensure_ascii=False, indent=2) + "\n")
     except Exception as exc:
         measured = {"error": str(exc), "residentPeakBytes": max(resident, default=None), "residentSamplingError": rss_error,
@@ -2482,10 +2686,17 @@ def merge_during(env, during):
     if not during:
         return env
     merged = json.loads(json.dumps(env))
-    # 录制准备和构建之后的实际开跑环境；复用冷录制的其他场景也必须引用同一段环境。
+    # 准备后、启动测量工具前的准入负载才参与判定；before 是 xctrace 启动后的观察值。
+    admission = during.get("admission") or {}
+    before = during.get("before") or {}
     for key in ("load", "displayMode", "refreshHz", "screen"):
-        if key in (during.get("before") or {}):
-            merged[key] = during["before"][key]
+        source = admission if key == "load" and admission else before or admission
+        if key in source:
+            merged[key] = json.loads(json.dumps(source[key]))
+    if admission:
+        merged["admission"] = admission
+    if before.get("load"):
+        merged["load"]["before"] = before["load"].get("oneMinute")
     screen = during.get("screen") or {}
     merged["screenAfter"] = screen
     # 开始时的空闲秒数保留。滚动之后滚轮空闲会变成 0，那不是用户输入。
@@ -2495,7 +2706,7 @@ def merge_during(env, during):
         merged["screen"]["locked"] = False if initial is False and screen["locked"] is False else (True if initial or screen["locked"] else None)
     if "externalDisplay" in screen:
         merged["screen"]["externalDisplay"] = bool(merged["screen"].get("externalDisplay") or screen["externalDisplay"])
-    # 负载只看开跑前的 oneMinute。跑起来之后的值含场景自己和 xctrace，只留在 during。
+    # 后续负载包括重启、场景动作和 xctrace，保留观测但不重新准入。
     if during.get("load") and during["load"].get("oneMinute") is not None:
         merged["load"]["during"] = during["load"]["oneMinute"]
     if during.get("refreshHz") is not None:
@@ -2554,7 +2765,7 @@ def run_scene(scene, out, commit, base_env):
         env[key] = base_env[key]
     if scene in NAS_APP_SCENES:
         if screen_locked() is not False:
-            current, ready = wait_ready(scene)
+            current, ready = wait_ready(scene, screen_only=True)
             for key in ("load", "displayMode", "refreshHz", "screen"):
                 env[key] = current[key]
             if not ready:
@@ -2577,13 +2788,14 @@ def run_scene(scene, out, commit, base_env):
     during = None
     mark = None
     if scene in FOREGROUND:
-        current, ready = wait_ready(scene)
-        for key in ("load", "displayMode", "refreshHz", "screen"):
-            env[key] = current[key]
-        if not ready:
-            write_report(out, scene, commit, env, {"reason": "环境在 20 分钟内没有满足"}, "environment")
-            return
-        mark = input_mark(DURING_EVENTS)
+        if scene not in DEFERRED_ADMISSION:
+            current, ready = wait_ready(scene)
+            for key in ("load", "displayMode", "refreshHz", "screen"):
+                env[key] = current[key]
+            if not ready:
+                write_report(out, scene, commit, env, {"reason": "环境在 20 分钟内没有满足"}, "environment")
+                return
+            mark = input_mark(DURING_EVENTS)
     try:
         result = runner()
         if isinstance(result, tuple):
@@ -2594,16 +2806,25 @@ def run_scene(scene, out, commit, base_env):
         measured = {**getattr(exc, "measured", {}), "error": str(exc)}
         if isinstance(exc, DebugTimeout):
             measured["diagnostic"] = exc.detail
-        if during is None and mark is not None:
-            during = sampled_during(mark)
+        during = getattr(exc, "during", during)
+        if during is None and scene in FOREGROUND:
+            mark = (measured.get("admission") or {}).get("inputMark", mark)
+            during = sampled_during(mark) if mark is not None else sample_conditions()
+        if measured.get("admission"):
+            during = {**(during or {}), "admission": measured["admission"]}
         env = merge_during(env, during)
         measured["unavailable"] = True
         verdict = judge(scene, measured, env)
         write_report(out, scene, commit, env, measured, verdict)
         return
     # 滚动场景用录制期间的 during.json，里面的输入不含滚轮。其余前台场景在这里补一次。
-    if during is None and mark is not None:
-        during = sampled_during(mark)
+    if during is None and scene in FOREGROUND:
+        mark = (measured.get("admission") or {}).get("inputMark", mark)
+        during = sampled_during(mark) if mark is not None else sample_conditions()
+    if "measurementInputDuringRun" in measured:
+        during["screen"]["inputDuringRun"] = measured["measurementInputDuringRun"]
+    if measured.get("admission"):
+        during = {**(during or {}), "admission": measured["admission"]}
     env = merge_during(env, during)
     if isinstance(measured, dict) and measured.get("refreshHz") is None and env.get("refreshHz") is not None:
         measured["refreshHz"] = env["refreshHz"]
@@ -2642,8 +2863,7 @@ def main(argv):
         quit_app(args.quit_app)
         return 0
     if args.prepare_scroll:
-        prepare_scroll(args.prepare_scroll[0], args.prepare_scroll[1])
-        return 0
+        return 0 if prepare_scroll(args.prepare_scroll[0], args.prepare_scroll[1]) else 3
     if args.run_scroll:
         run_scroll(*args.run_scroll)
         return 0
