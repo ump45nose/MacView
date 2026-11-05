@@ -1,6 +1,6 @@
 #!/bin/sh
 # 启动隔离的 MacView，用 Animation Hitches 加 os_signpost 录制滚动，再汇总帧时间。
-# 用法：scripts/acceptance/record-trackpad.sh <场景> <输出目录> [--automatic|--smoke]
+# 用法：scripts/acceptance/record-trackpad.sh <场景> <输出目录> [--manual|--automatic|--smoke]
 # 场景为 scroll-cached、scroll-cold 或 settle。scroll-cold 同时录 Time Profiler。
 # 默认只录用户的真实触控板手势；自动验收显式使用 --automatic，--smoke 只空录1秒检查流程。
 # 只结束本脚本启动的 App PID。
@@ -91,7 +91,11 @@ while [ ! -S "$socket" ]; do
 	sleep 0.05
 done
 
-python3 -I "$PWD/scripts/acceptance/run.py" --prepare-scroll "$scene" "$socket" >"$out/window-before.json"
+if [ "$mode" = "--automatic" ]; then
+	python3 -I "$PWD/scripts/acceptance/run.py" --prepare-scroll "$scene" "$socket" --automatic >"$out/window-before.json"
+else
+	python3 -I "$PWD/scripts/acceptance/run.py" --prepare-scroll "$scene" "$socket" >"$out/window-before.json"
+fi
 
 raw_manifest="$out/raw-files.json"
 python3 -I "$PWD/scripts/acceptance/recording.py" begin "$raw_manifest"
