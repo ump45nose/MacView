@@ -3,7 +3,7 @@ import Foundation
 @testable import MVCache
 import MVFoundation
 import MVIO
-import MVMedia
+@testable import MVMedia
 import MVTestSupport
 import Synchronization
 import Testing
@@ -418,41 +418,62 @@ private func collect(_ stream: AsyncThrowingStream<RenderedImage, any Error>) as
     return result
 }
 
-// 没有预取时约 0.1 s；不加入预取、单独取另一张时约 1.2 s。限时只排除排在整个预取队列之后。
 @Test(.serialized, arguments: [IOPriority.adjacent, .background])
-func foregroundThumbnailJoiningPrefetchReturnsWithinLimit(_ priority: IOPriority) async throws {
-    let environment = try PipelineEnvironment(thumbnailLongSide: 1024, browseBounds: PixelSize(width: 3840, height: 2160))
+func foregroundThumbnailJoiningPrefetchPromotesDecodeAheadOfQueue(_ priority: IOPriority) async throws {
+    let decoder = ImageDecoder(maxConcurrentDecodes: 1)
+    let environment = try PipelineEnvironment(decoder: decoder)
     defer { environment.clean() }
+    // 先占住唯一的解码槽，让所有预取确定地排队，不靠大图负载和机器速度制造积压。
+    let decodeGate = DispatchSemaphore(value: 0), markerGate = DispatchSemaphore(value: 0)
+    defer { decodeGate.signal(); markerGate.signal() }
+    let blocker = Task { try await decoder.perform { decodeGate.wait() } }
+    try await eventually { decoder.limiter.runningCount == 1 }
+    let readGate = ReadGate()
+    defer { Task { await readGate.release() } }
+    environment.registry.control.gate = readGate
     var identities: [ContentIdentity] = []
-    for index in 0..<120 { identities.append(try await environment.copyIdentity("image/size/3600x5400.jpg", index: index)) }
+    for index in 0..<8 { identities.append(try await environment.copyIdentity("image/size/64x64.png", index: index)) }
     let session = SessionID()
+    defer { environment.pipeline.cancelAll(session: session) }
     environment.pipeline.setPrefetchPlan(PrefetchPlan(items: identities.map { PrefetchItem(identity: $0, renditions: [.thumbnail], priority: priority) }), session: session)
-    try await eventually { !environment.registry.control.reads.isEmpty }
-    // 预取的启动顺序不固定，所以一次加入多张还没有缩略图的。
-    var pending: [ContentIdentity] = []
-    for identity in identities where try await environment.caches.thumbnails.data(for: identity.cacheKey) == nil {
-        pending.append(identity)
-        if pending.count == 8 { break }
+    try await eventually { environment.registry.control.reads.count == identities.count }
+    let joining = identities[0]
+    let foregroundFinished = Atomic(false)
+    let foreground = Task {
+        defer { foregroundFinished.store(true, ordering: .relaxed) }
+        return try await environment.pipeline.thumbnail(for: joining, maxPixel: 32, priority: .visible)
     }
-    #expect(pending.count == 8)
-    let joining = pending
-    let started = ContinuousClock.now
-    let returned = try await withThrowingTaskGroup(of: Bool.self) { group in
-        group.addTask {
-            try await withThrowingTaskGroup(of: Void.self) { thumbnails in
-                for identity in joining {
-                    thumbnails.addTask { _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 180, priority: .visible) }
-                }
-                try await thumbnails.waitForAll()
-            }
-            return true
+    defer { foreground.cancel() }
+    // 读取仍停在门闩上时观察到提升，才能确定前台加入了同一份预取工作。
+    try await eventually { environment.registry.control.escalatedReads.contains(joining) }
+    await readGate.release()
+    try await eventually { decoder.limiter.waitingCount == identities.count }
+    let markerStarted = Atomic(false)
+    let marker = Task(priority: .medium) {
+        try await decoder.perform {
+            markerStarted.store(true, ordering: .relaxed)
+            markerGate.wait()
         }
-        group.addTask { try await Task.sleep(for: .seconds(5)); return false }
-        defer { group.cancelAll() }
-        return try await group.next()!
     }
-    #expect(returned, "\(priority) 预取未完成时，前台缩略图等待 \(ContinuousClock.now - started) 仍未返回")
-    environment.pipeline.cancelAll(session: session)
+    try await eventually { decoder.limiter.waitingCount == identities.count + 1 }
+    decodeGate.signal()
+    try await eventually { markerStarted.load(ordering: .relaxed) }
+    // 中优先级标记会挡住其余低优先级解码；只有被前台提升的那张能先进入 L1。
+    let baseSuffix = "|display|64x64|\(ResampleFilter.lanczos.rawValue)|\(Float(0).bitPattern)"
+    try await eventually { environment.caches.decoded.value(for: joining.cacheKey + baseSuffix) != nil }
+    #expect(identities.dropFirst().allSatisfy { environment.caches.decoded.value(for: $0.cacheKey + baseSuffix) == nil })
+    markerGate.signal()
+    // 实际交付也有五秒上限；超时直接失败并由 defer 取消前台任务。
+    let deadline = ContinuousClock.now + .seconds(5)
+    while !foregroundFinished.load(ordering: .relaxed), ContinuousClock.now < deadline {
+        try await Task.sleep(for: .milliseconds(5))
+    }
+    let finished = foregroundFinished.load(ordering: .relaxed)
+    try #require(finished, "前台缩略图未在五秒内完成交付")
+    #expect(try await foreground.value.image.height == 32)
+    #expect(environment.registry.control.opens == identities.count)
+    try await blocker.value
+    try await marker.value
     await environment.pipeline.shutdown()
 }
 
@@ -487,7 +508,7 @@ private final class PipelineEnvironment: Sendable {
     let caches: PipelineCaches
     let index: CacheIndex
     let pipeline: FileImagePipeline
-    init(browse: Bool = true, thumbnailLongSide: Int = 128, browseBounds: PixelSize = PixelSize(width: 320, height: 480)) throws {
+    init(browse: Bool = true, thumbnailLongSide: Int = 128, browseBounds: PixelSize = PixelSize(width: 320, height: 480), decoder: ImageDecoder = ImageDecoder()) throws {
         root = Fixtures.root.deletingLastPathComponent().appendingPathComponent("build/stage4-repair/pipeline-tests/\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         registry = CountingRegistry(base: FileSourceRegistry(scheduler: IOScheduler(configuration: IOConfiguration(helperExecutable: nil))))
@@ -495,7 +516,7 @@ private final class PipelineEnvironment: Sendable {
         let thumbnails = try DiskCache(tier: .thumbnails, cacheDirectory: root, budget: 128 << 20, index: index)
         let browseCache = try browse ? DiskCache(tier: .browse, cacheDirectory: root, budget: 128 << 20, index: index) : nil
         caches = PipelineCaches(raw: MemoryCache(budget: 64 << 20), decoded: MemoryCache(budget: 64 << 20), thumbnails: thumbnails, browse: browseCache, metadata: MetadataIndex(index: index))
-        pipeline = FileImagePipeline(sources: registry, decoder: ImageDecoder(), caches: caches, configuration: PipelineConfiguration(thumbnailLongSide: thumbnailLongSide, browseBounds: browseBounds))
+        pipeline = FileImagePipeline(sources: registry, decoder: decoder, caches: caches, configuration: PipelineConfiguration(thumbnailLongSide: thumbnailLongSide, browseBounds: browseBounds))
     }
     func identity(_ path: String) async throws -> ContentIdentity {
         let location = try await registry.location(for: Fixtures.url(path))
@@ -548,12 +569,14 @@ private final class ReadControl: Sendable {
         var gate: ReadGate?
         var fileURLs = 0
         var returnedReads: [ReturnedRead] = []
+        var escalatedReads: Set<ContentIdentity> = []
     }
     private let state = Mutex(State())
     var opens: Int { state.withLock { $0.opens } }
     var reads: [Read] { state.withLock { $0.reads } }
     var fileURLs: Int { state.withLock { $0.fileURLs } }
     var returnedReads: [ReturnedRead] { state.withLock { $0.returnedReads } }
+    var escalatedReads: Set<ContentIdentity> { state.withLock { $0.escalatedReads } }
     var gate: ReadGate? {
         get { state.withLock { $0.gate } }
         set { state.withLock { $0.gate = newValue } }
@@ -564,7 +587,8 @@ private final class ReadControl: Sendable {
     func didReturn(_ range: Range<Int64>, succeeded: Bool) {
         state.withLock { $0.returnedReads.append(ReturnedRead(range: range, succeeded: succeeded)) }
     }
-    func reset() { state.withLock { $0.opens = 0; $0.reads.removeAll(); $0.fileURLs = 0; $0.returnedReads.removeAll() } }
+    func escalated(_ identity: ContentIdentity) { state.withLock { _ = $0.escalatedReads.insert(identity) } }
+    func reset() { state.withLock { $0.opens = 0; $0.reads.removeAll(); $0.fileURLs = 0; $0.returnedReads.removeAll(); $0.escalatedReads.removeAll() } }
 }
 
 private final class CountingRegistry: SourceRegistry {
@@ -598,17 +622,21 @@ private struct CountingSource: ByteSource {
     var control: ReadControl
     var identity: ContentIdentity { base.identity }
     func read(_ range: Range<Int64>, priority: IOPriority, group: IORequestGroup?) async throws -> Data {
-        control.read(range, priority: priority)
-        await control.gate?.wait()
-        do {
-            try Task.checkCancellation()
-            let data = try await base.read(range, priority: priority, group: group)
-            // 子任务已被取消时，调用方会在插入缓存前丢弃结果。
-            control.didReturn(range, succeeded: !Task.isCancelled)
-            return data
-        } catch {
-            control.didReturn(range, succeeded: false)
-            throw error
+        try await withTaskPriorityEscalationHandler {
+            control.read(range, priority: priority)
+            await control.gate?.wait()
+            do {
+                try Task.checkCancellation()
+                let data = try await base.read(range, priority: priority, group: group)
+                // 子任务已被取消时，调用方会在插入缓存前丢弃结果。
+                control.didReturn(range, succeeded: !Task.isCancelled)
+                return data
+            } catch {
+                control.didReturn(range, succeeded: false)
+                throw error
+            }
+        } onPriorityEscalated: { _, priority in
+            if priority >= .userInitiated { control.escalated(identity) }
         }
     }
 }
