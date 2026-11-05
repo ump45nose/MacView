@@ -1,0 +1,1639 @@
+{
+  "stage": "S2-stage3-fifth-acceptance",
+  "sourceCommit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+  "startedAt": "2026-11-05T02:44:38.601987+00:00",
+  "allTimingEndedAt": "2026-11-05T03:28:34.904211+00:00",
+  "scope": "同一冻结App实跑9场景，4项原8c4结果逐字节复用；本轮不构建、不重签、不重跑Core/GUI自检。",
+  "rootTaskBaseline": {
+    "startedAt": "2026-11-05T02:38:26.152521+00:00",
+    "head": "d1041020300f71355351087a8f9fd1504e990059",
+    "mounts": "/dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk3s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk3s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk3s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk1s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk1s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk1s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, protect, root data)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n//yuwk@192.168.31.201/Adult on /Volumes/Adult (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/BackUp on /Volumes/BackUp (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Book on /Volumes/Book (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Cache on /Volumes/Cache (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Code on /Volumes/Code (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Learn on /Volumes/Learn (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Media on /Volumes/Media (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Music on /Volumes/Music (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Picture on /Volumes/Picture (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/plaud-daily on /Volumes/plaud-daily (smbfs, nodev, nosuid, mounted by yuwk)\n",
+    "existingCaffeinate": [
+      "24334 caffeinate       caffeinate -d -t 21600"
+    ],
+    "buildEntries": [
+      "DerivedData",
+      "acceptance",
+      "stage-1-work",
+      "stage4-repair"
+    ],
+    "existingTestUUIDs": [
+      "04449F88-3292-43DA-B17F-D4605FF36507",
+      "0E255468-3A2F-4E57-A5F1-8CDE6B0A6C8C",
+      "12E82A85-F60B-438A-A220-69CC1B3CD85A",
+      "33BDC3FC-2F6A-46AE-957E-4691AC560330",
+      "38110E16-F5A9-4277-9B45-0E1D46F43A32",
+      "5A54E68D-B533-4993-B35D-2F106F61A1E5",
+      "5F25E7F1-52D0-433C-88B1-C44CC054432A",
+      "7C9431FF-E034-4CDA-9751-48D80B53A2A4",
+      "87AF9F5E-28D1-47C8-B585-09E68C00E025",
+      "90826EE8-C5F9-4143-8E55-089C86947F27",
+      "DC7D630B-D506-4C06-8EF8-C2F405CB894A",
+      "DF1FD61D-3F9C-4FCA-A875-43AE7F1C1FC6",
+      "E1CE9CC3-6C31-41B3-A54B-7C620CB98E35",
+      "EFE802F9-815E-4C96-BF58-D68D05BBADB7"
+    ],
+    "physicalDiskFreeBytes": 197672529920,
+    "oldProtectedProcessesRetiredByReboot": [
+      72765,
+      21555,
+      21968
+    ],
+    "old12RawFilesRemovedByUser": true,
+    "existingKtraceFiles": [],
+    "rootCaffeinatePID": 28372,
+    "existingAcceptanceEntries": [
+      {
+        "path": "tmp",
+        "kind": "directory",
+        "bytes": 64
+      }
+    ]
+  },
+  "preservedPreviousEvidence": [
+    {
+      "source": "docs/reports/bench/S2-T2-cached-first-screen.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-cached-first-screen.json",
+      "bytes": 3607,
+      "sha256": "f9d23b18f64496b794c63eb429777d2f556fedf9619a43794961517700da434c"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-first-image.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-first-image.json",
+      "bytes": 1632,
+      "sha256": "777e729bf65d5912963d5da4342b068b6d16e3dc2b6e15c5f189733b9b474a24"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-large-dir.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-large-dir.json",
+      "bytes": 1676,
+      "sha256": "0260eeed18b487d1296cce09ad47994d3f210f185b2635a195124ba48a8966cf"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-main-thread.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-main-thread.json",
+      "bytes": 5050,
+      "sha256": "be029174c5fc1dce43c93383c22a0a63f6067166a2f58ad3bea13d8780f74d02"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-memory-30min.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-memory-30min.json",
+      "bytes": 643363,
+      "sha256": "2d97d67e034fdcd631bbdb8191b02659ab1e18d4c7127f5cbd905effaa4ad8f1"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-nas-fault.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-nas-fault.json",
+      "bytes": 3392,
+      "sha256": "c3a22a79ff8f1fda211949ed85491bb6fc39416c44a79e30bfe26a55967046bd"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-nas-throughput.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-nas-throughput.json",
+      "bytes": 2527,
+      "sha256": "785bd0a3c0547367ea2094a3a3863310d8b3333924f4b5030c0e0c45ac2c8fc6"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-panel-restart.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-panel-restart.json",
+      "bytes": 2218,
+      "sha256": "729c03127dd50af15546338d306a9abdf43f65696ebacf5f03d619d3cb3009f8"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-preloaded-flip.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-preloaded-flip.json",
+      "bytes": 1633,
+      "sha256": "e6e21999362569d27bd38bd4b1f0c0b523f1b82002ecebc3317601f1b4bf14d7"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-scroll-cached.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-scroll-cached.json",
+      "bytes": 1679,
+      "sha256": "154ab2afe8f32b2bbedc931ed0c15aa05905e8edcdc049037da8da7330bc1c8e"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-scroll-cold.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-scroll-cold.json",
+      "bytes": 1679,
+      "sha256": "7ae0f03b33d88a44045425760174c21e999d24408c79a34ea11c9ff35265e549"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-settle.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-settle.json",
+      "bytes": 1615,
+      "sha256": "336bb3f840f00f99e6557552176724ea9e3e8374cf897a1615357e9c4e2b8f36"
+    },
+    {
+      "source": "docs/reports/bench/S2-T2-tiles-cancel.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-T2-tiles-cancel.json",
+      "bytes": 1910,
+      "sha256": "fc69d0789237399b4937e3aabebcf470f9c145d88ecc5c95e8f5926e8c7554f6"
+    },
+    {
+      "source": "docs/reports/bench/S2-stage3-checks.json",
+      "backup": "docs/reports/bench/before-physical-footprint/S2-stage3-checks.json",
+      "bytes": 381440,
+      "sha256": "d20d7e130889edd42d88966aa0e52dc057654d9d38fd34e17270359931301c7a"
+    }
+  ],
+  "appReuse": {
+    "source": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app",
+    "restoredBundle": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app",
+    "binarySHA256": "f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8",
+    "cdhash": "828e639a107e00a70d06c738aedd9eb723c4ae50",
+    "copiedWithoutBuildOrResign": true,
+    "signature": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=828e639a107e00a70d06c738aedd9eb723c4ae50\nCandidateCDHashFull sha256=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nHash choices=sha256\nCMSDigest=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=828e639a107e00a70d06c738aedd9eb723c4ae50\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n",
+    "strictVerifyExitCode": 0,
+    "identityMatches": true,
+    "sourceManifest": {
+      "artifact": "供下一轮直接复用的冻结Debug -O App；未重新构建或重签",
+      "sourceCommit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+      "copiedAt": "2026-11-04T14:57:27.625861+00:00",
+      "sourceBundle": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app",
+      "bundle": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app",
+      "copyCommand": [
+        "/usr/bin/ditto",
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app",
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app"
+      ],
+      "copyExitCode": 0,
+      "bundleFilesMatchSource": true,
+      "entries": [
+        {
+          "path": "Contents",
+          "mode": "0o755",
+          "type": "directory"
+        },
+        {
+          "path": "Contents/Info.plist",
+          "mode": "0o644",
+          "type": "file",
+          "bytes": 1498,
+          "sha256": "182769fcdcff4e49f6cc41fa1fedbdb5a3f0e3e282de24aac8bc5470149c9019"
+        },
+        {
+          "path": "Contents/MacOS",
+          "mode": "0o755",
+          "type": "directory"
+        },
+        {
+          "path": "Contents/MacOS/MacView",
+          "mode": "0o755",
+          "type": "file",
+          "bytes": 15373808,
+          "sha256": "f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8"
+        },
+        {
+          "path": "Contents/PkgInfo",
+          "mode": "0o644",
+          "type": "file",
+          "bytes": 8,
+          "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+        },
+        {
+          "path": "Contents/Resources",
+          "mode": "0o755",
+          "type": "directory"
+        },
+        {
+          "path": "Contents/Resources/GRDB_GRDB.bundle",
+          "mode": "0o755",
+          "type": "directory"
+        },
+        {
+          "path": "Contents/Resources/GRDB_GRDB.bundle/Contents",
+          "mode": "0o755",
+          "type": "directory"
+        },
+        {
+          "path": "Contents/Resources/GRDB_GRDB.bundle/Contents/Info.plist",
+          "mode": "0o644",
+          "type": "file",
+          "bytes": 1118,
+          "sha256": "53bc98f2d3b0dcf4240cf1288da0808752eaedfe7824a568521ce93c38a5ea7a"
+        },
+        {
+          "path": "Contents/Resources/GRDB_GRDB.bundle/Contents/Resources",
+          "mode": "0o755",
+          "type": "directory"
+        },
+        {
+          "path": "Contents/Resources/GRDB_GRDB.bundle/Contents/Resources/PrivacyInfo.xcprivacy",
+          "mode": "0o644",
+          "type": "file",
+          "bytes": 397,
+          "sha256": "17784da62e51f74c5859df32fe402e01e25cdf6f797a4add06e2a3ce15c911f4"
+        },
+        {
+          "path": "Contents/Resources/en.lproj",
+          "mode": "0o755",
+          "type": "directory"
+        },
+        {
+          "path": "Contents/Resources/en.lproj/Localizable.strings",
+          "mode": "0o644",
+          "type": "file",
+          "bytes": 37022,
+          "sha256": "4e804f5ac9d20e4fa6b0ca3a8de6e82b1f6b0377862662e3d01d5200b063c284"
+        },
+        {
+          "path": "Contents/Resources/en.lproj/Localizable.stringsdict",
+          "mode": "0o644",
+          "type": "file",
+          "bytes": 5910,
+          "sha256": "de3626575bb8f5e81613dc66b15c5574943f3c54f1b8fbd274d897bb11f1895e"
+        },
+        {
+          "path": "Contents/Resources/zh-Hans.lproj",
+          "mode": "0o755",
+          "type": "directory"
+        },
+        {
+          "path": "Contents/Resources/zh-Hans.lproj/Localizable.strings",
+          "mode": "0o644",
+          "type": "file",
+          "bytes": 5842,
+          "sha256": "b1f95d55f7ee8ba34f7c95212c8738e0a06b0ecc7b520b17d7276305762d17f5"
+        },
+        {
+          "path": "Contents/_CodeSignature",
+          "mode": "0o755",
+          "type": "directory"
+        },
+        {
+          "path": "Contents/_CodeSignature/CodeResources",
+          "mode": "0o644",
+          "type": "file",
+          "bytes": 3945,
+          "sha256": "9f72c8d324f9298e6839f730bf69b9e34de78eda0dc7f30e04a1a03694b9b3fc"
+        }
+      ],
+      "bundleTreeSHA256": "1624536df2bc24553208ed8e2e75bf772716c8b35e2eee66f81135ee0547503b",
+      "binarySHA256": "f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8",
+      "cdhash": "828e639a107e00a70d06c738aedd9eb723c4ae50",
+      "codeSignature": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=828e639a107e00a70d06c738aedd9eb723c4ae50\nCandidateCDHashFull sha256=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nHash choices=sha256\nCMSDigest=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=828e639a107e00a70d06c738aedd9eb723c4ae50\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n",
+      "strictVerification": {
+        "command": [
+          "codesign",
+          "--verify",
+          "--strict",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app"
+        ],
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "reusePolicy": "从本bundle复制或直接启动；禁止重建/重签改变cdhash。原DerivedData-profile在验收收尾清理。"
+    }
+  },
+  "preflight": {
+    "startedAt": "2026-11-05T02:44:38.601987+00:00",
+    "sourceCommit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+    "archive": [
+      {
+        "source": "docs/reports/bench/S2-T2-cached-first-screen.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-cached-first-screen.json",
+        "bytes": 3607,
+        "sha256": "f9d23b18f64496b794c63eb429777d2f556fedf9619a43794961517700da434c"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-first-image.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-first-image.json",
+        "bytes": 1632,
+        "sha256": "777e729bf65d5912963d5da4342b068b6d16e3dc2b6e15c5f189733b9b474a24"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-large-dir.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-large-dir.json",
+        "bytes": 1676,
+        "sha256": "0260eeed18b487d1296cce09ad47994d3f210f185b2635a195124ba48a8966cf"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-main-thread.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-main-thread.json",
+        "bytes": 5050,
+        "sha256": "be029174c5fc1dce43c93383c22a0a63f6067166a2f58ad3bea13d8780f74d02"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-memory-30min.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-memory-30min.json",
+        "bytes": 643363,
+        "sha256": "2d97d67e034fdcd631bbdb8191b02659ab1e18d4c7127f5cbd905effaa4ad8f1"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-nas-fault.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-nas-fault.json",
+        "bytes": 3392,
+        "sha256": "c3a22a79ff8f1fda211949ed85491bb6fc39416c44a79e30bfe26a55967046bd"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-nas-throughput.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-nas-throughput.json",
+        "bytes": 2527,
+        "sha256": "785bd0a3c0547367ea2094a3a3863310d8b3333924f4b5030c0e0c45ac2c8fc6"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-panel-restart.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-panel-restart.json",
+        "bytes": 2218,
+        "sha256": "729c03127dd50af15546338d306a9abdf43f65696ebacf5f03d619d3cb3009f8"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-preloaded-flip.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-preloaded-flip.json",
+        "bytes": 1633,
+        "sha256": "e6e21999362569d27bd38bd4b1f0c0b523f1b82002ecebc3317601f1b4bf14d7"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-scroll-cached.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-scroll-cached.json",
+        "bytes": 1679,
+        "sha256": "154ab2afe8f32b2bbedc931ed0c15aa05905e8edcdc049037da8da7330bc1c8e"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-scroll-cold.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-scroll-cold.json",
+        "bytes": 1679,
+        "sha256": "7ae0f03b33d88a44045425760174c21e999d24408c79a34ea11c9ff35265e549"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-settle.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-settle.json",
+        "bytes": 1615,
+        "sha256": "336bb3f840f00f99e6557552176724ea9e3e8374cf897a1615357e9c4e2b8f36"
+      },
+      {
+        "source": "docs/reports/bench/S2-T2-tiles-cancel.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-T2-tiles-cancel.json",
+        "bytes": 1910,
+        "sha256": "fc69d0789237399b4937e3aabebcf470f9c145d88ecc5c95e8f5926e8c7554f6"
+      },
+      {
+        "source": "docs/reports/bench/S2-stage3-checks.json",
+        "backup": "docs/reports/bench/before-physical-footprint/S2-stage3-checks.json",
+        "bytes": 381440,
+        "sha256": "d20d7e130889edd42d88966aa0e52dc057654d9d38fd34e17270359931301c7a"
+      }
+    ],
+    "frozenBinarySHA256": "f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8",
+    "codeSignature": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=828e639a107e00a70d06c738aedd9eb723c4ae50\nCandidateCDHashFull sha256=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nHash choices=sha256\nCMSDigest=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=828e639a107e00a70d06c738aedd9eb723c4ae50\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n",
+    "strictVerifyExitCode": 0,
+    "sourceDiffSinceFrozenApp": " scripts/acceptance/recording.py |   4 +-\n scripts/acceptance/run.py       | 125 ++++++++++++++++++++++++++++++----------\n 2 files changed, 97 insertions(+), 32 deletions(-)\n",
+    "sourceBlobs": {
+      "App": "026406998e1128da2b4656edcdc90ec17e79fe9c",
+      "Packages/MacViewKit/Sources": "2389ae9ed58bcd9e5155b603b25c65115e69119b",
+      "Packages/MacViewKit/Tests": "8522d9644d28cecd33923c705072ad0d2a6b6eef",
+      "Makefile": "4a955a3f007ea2d7e2042f372e56b0f4baca5829",
+      "scripts/acceptance/run.py": "8fd95774682c6889a0cd8e4c26ab6fcda1e97e8a",
+      "scripts/acceptance/record-trackpad.sh": "6b4e24ade2af94c22b089e62f1c3a8e8cdf166ec",
+      "scripts/acceptance/recording.py": "3da93944d1b75e7c1bdfe6474d5e5bfb178c4a5b"
+    },
+    "conditions": {
+      "load": {
+        "oneMinute": 5.03759765625,
+        "limit": 10,
+        "limitSource": "sysctl -n hw.physicalcpu"
+      },
+      "displayMode": {
+        "width": 1728,
+        "height": 1080,
+        "pixelWidth": 3456,
+        "pixelHeight": 2160,
+        "refreshHz": 120.0,
+        "builtin": true,
+        "externalDisplay": false
+      },
+      "refreshHz": 120.0,
+      "screen": {
+        "locked": false,
+        "idleSeconds": 15.352733083,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      }
+    },
+    "releaseMvbenchExists": true
+  },
+  "execution": {
+    "scenes": [
+      {
+        "scene": "first-image",
+        "startedAt": "2026-11-05T02:45:05.282302+00:00",
+        "endedAt": "2026-11-05T02:45:51.542573+00:00",
+        "elapsedSeconds": 46.260231375,
+        "verdict": "pass"
+      },
+      {
+        "scene": "preloaded-flip",
+        "startedAt": "2026-11-05T02:45:51.543063+00:00",
+        "endedAt": "2026-11-05T02:45:59.255102+00:00",
+        "elapsedSeconds": 7.712045416999999,
+        "verdict": "pass"
+      },
+      {
+        "scene": "large-dir",
+        "startedAt": "2026-11-05T02:45:59.256629+00:00",
+        "endedAt": "2026-11-05T02:46:04.803420+00:00",
+        "elapsedSeconds": 5.5468028750000045,
+        "verdict": "pass"
+      },
+      {
+        "scene": "settle",
+        "startedAt": "2026-11-05T02:46:04.804769+00:00",
+        "endedAt": "2026-11-05T02:51:35.007895+00:00",
+        "elapsedSeconds": 330.202722542,
+        "verdict": "unverified"
+      },
+      {
+        "scene": "scroll-cached",
+        "startedAt": "2026-11-05T02:51:35.008315+00:00",
+        "endedAt": "2026-11-05T02:55:23.368913+00:00",
+        "elapsedSeconds": 228.360322666,
+        "verdict": "environment"
+      },
+      {
+        "scene": "scroll-cold",
+        "startedAt": "2026-11-05T02:55:23.369335+00:00",
+        "endedAt": "2026-11-05T02:55:35.465503+00:00",
+        "elapsedSeconds": 12.09618720800006,
+        "verdict": "fail"
+      },
+      {
+        "scene": "cached-first-screen",
+        "startedAt": "2026-11-05T02:55:35.466484+00:00",
+        "endedAt": "2026-11-05T02:56:26.639128+00:00",
+        "elapsedSeconds": 51.172596874999954,
+        "verdict": "fail"
+      },
+      {
+        "scene": "nas-fault",
+        "startedAt": "2026-11-05T02:56:26.639788+00:00",
+        "endedAt": "2026-11-05T02:58:22.871904+00:00",
+        "elapsedSeconds": 116.23202800000001,
+        "verdict": "unverified"
+      },
+      {
+        "scene": "memory-30min",
+        "startedAt": "2026-11-05T02:58:22.872762+00:00",
+        "endedAt": "2026-11-05T03:28:34.898570+00:00",
+        "elapsedSeconds": 1812.0234812499998,
+        "verdict": "fail"
+      }
+    ],
+    "appExits": [
+      {
+        "scene": "first-image",
+        "pid": 38326,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.10044329100000482,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-0.sock"
+      },
+      {
+        "scene": "preloaded-flip",
+        "pid": 38417,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.1161828749999998,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-1.sock"
+      },
+      {
+        "scene": "large-dir",
+        "pid": 38536,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 1.0465248329999994,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-2.sock"
+      },
+      {
+        "scene": "nas-authorization",
+        "pid": 50736,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.8768483750000087,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-3.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 50988,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.09999525000000631,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-4.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51204,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.22455491599998822,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-5.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51208,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.09596479200001795,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-6.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51217,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.0952327500000365,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-7.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51221,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.320823040999926,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-8.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51227,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3065670409999939,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-9.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51231,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.11331050000001142,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-10.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51288,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.10878916699994079,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-11.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51318,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.10254554200002985,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-12.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51347,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.0982744159999811,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-13.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51352,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3130167499999743,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-14.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51356,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.30629533399996944,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-15.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51360,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.38793091699994875,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-16.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51445,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.10761529100000189,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-17.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51453,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2984814159999587,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-18.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51458,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.08489345800001047,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-19.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51465,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3097623340000837,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-20.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51471,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.10551158400005534,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-21.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51477,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.10265908400003809,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-22.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51481,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.0980350830000134,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-23.sock"
+      },
+      {
+        "scene": "cached-first-screen-local",
+        "pid": 51564,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.08475462500007325,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-24.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51571,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.0916339999999991,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-25.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51678,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.14226079200000186,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-26.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51684,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3227916660000574,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-27.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51690,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2948628340000141,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-28.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51745,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.21168945800002348,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-29.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51780,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.34976154100002077,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-30.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51790,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.4357852499999808,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-31.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51796,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3703099589999965,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-32.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51805,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.26290716599999087,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-33.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51811,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.25273108399994726,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-34.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51895,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.35963708300005237,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-35.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51905,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.257561958999986,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-36.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51912,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2063890420000689,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-37.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51919,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3512915000000021,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-38.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51926,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2964241249999304,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-39.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 51982,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.23410762499997873,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-40.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 52016,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2722486249999747,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-41.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 52022,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.40888395900003616,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-42.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 52029,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3047010830000545,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-43.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 52035,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2085367500000075,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-44.sock"
+      },
+      {
+        "scene": "cached-first-screen-nfs",
+        "pid": 52041,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.31299254200007454,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-45.sock"
+      },
+      {
+        "scene": "nas-fault",
+        "pid": 53754,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.0806265410000151,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-46.sock"
+      },
+      {
+        "scene": "memory-30min",
+        "pid": 54231,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.26228104099982374,
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-47.sock"
+      }
+    ],
+    "returnCode": 0
+  },
+  "sourceMapping": {
+    "App": {
+      "frozenAppCommitBlob": "026406998e1128da2b4656edcdc90ec17e79fe9c",
+      "currentBlob": "026406998e1128da2b4656edcdc90ec17e79fe9c",
+      "identical": true
+    },
+    "Packages": {
+      "frozenAppCommitBlob": "ab70455cabbcc5d9df6a33c0123bb861aa683704",
+      "currentBlob": "ab70455cabbcc5d9df6a33c0123bb861aa683704",
+      "identical": true
+    },
+    "Makefile": {
+      "frozenAppCommitBlob": "4a955a3f007ea2d7e2042f372e56b0f4baca5829",
+      "currentBlob": "4a955a3f007ea2d7e2042f372e56b0f4baca5829",
+      "identical": true
+    }
+  },
+  "scriptContractReuse": {
+    "executedThisRound": false,
+    "source": "stage3_footprint_script agent最终回报，root 2026-11-05转交；没有落盘raw，stdin临时验证",
+    "sourceCommit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+    "sourceBlob": "8fd95774682c6889a0cd8e4c26ab6fcda1e97e8a",
+    "reportedResults": [
+      "check-verdicts: ok (98 cases)",
+      "syntax/合成契约/git diff --check通过",
+      "本机SDK字段逐项匹配，sizeof296、ri_phys_footprint offset72",
+      "唯一一次自己PID真实采样22937984 bytes",
+      "物理/resident/层级/elapsed同下标；采样错误None+明确记录为unverified；旧resident不追认通过；默认和显式9顺序；settle→cached→cold只冷录一次"
+    ],
+    "rawEvidenceAvailable": false
+  },
+  "reusedSceneEvidence": [
+    {
+      "scene": "main-thread",
+      "executedThisRound": false,
+      "sourceCommit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+      "verdict": "pass",
+      "sha256": "be029174c5fc1dce43c93383c22a0a63f6067166a2f58ad3bea13d8780f74d02",
+      "evidence": "docs/reports/bench/before-physical-footprint/S2-T2-main-thread.json"
+    },
+    {
+      "scene": "tiles-cancel",
+      "executedThisRound": false,
+      "sourceCommit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+      "verdict": "pass",
+      "sha256": "fc69d0789237399b4937e3aabebcf470f9c145d88ecc5c95e8f5926e8c7554f6",
+      "evidence": "docs/reports/bench/before-physical-footprint/S2-T2-tiles-cancel.json"
+    },
+    {
+      "scene": "panel-restart",
+      "executedThisRound": false,
+      "sourceCommit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+      "verdict": "pass",
+      "sha256": "729c03127dd50af15546338d306a9abdf43f65696ebacf5f03d619d3cb3009f8",
+      "evidence": "docs/reports/bench/before-physical-footprint/S2-T2-panel-restart.json"
+    },
+    {
+      "scene": "nas-throughput",
+      "executedThisRound": false,
+      "sourceCommit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+      "verdict": "pass",
+      "sha256": "785bd0a3c0547367ea2094a3a3863310d8b3333924f4b5030c0e0c45ac2c8fc6",
+      "evidence": "docs/reports/bench/before-physical-footprint/S2-T2-nas-throughput.json"
+    }
+  ],
+  "checks": {
+    "C3.1": {
+      "verdict": "pass",
+      "evidence": "unitTests.rawLog: visibleWaitingDecodeStartsBeforeNear、videoPosterReadsAtTheGivenPriority通过；Packages/Makefile树与8c4完全相同",
+      "executedThisRound": false,
+      "source": "before-physical-footprint/S2-stage3-checks.json#checks.C3.1",
+      "reuseMapping": "本轮冻结App SHA/cdhash与8c4相同；App、Packages、Makefile源树未变；本轮不重复构建测试或自检。"
+    },
+    "C3.2": {
+      "verdict": "pass",
+      "iterations": 100,
+      "p95UpperBoundMilliseconds": 8,
+      "sourceOpenDelta": 0,
+      "sourceReadDelta": 0,
+      "evidence": "prefetchedDisplayHitsMemoryCache通过；断言上界，测试不输出逐次计时",
+      "executedThisRound": false,
+      "source": "before-physical-footprint/S2-stage3-checks.json#checks.C3.2",
+      "reuseMapping": "本轮冻结App SHA/cdhash与8c4相同；App、Packages、Makefile源树未变；本轮不重复构建测试或自检。"
+    },
+    "C3.3": {
+      "verdict": "pass",
+      "executedThisRound": false,
+      "evidence": "源码blob映射复用中文Mock31PASS/1指定输入SKIP、ASCII32PASS；before-w36原输出可追溯，未声称重跑",
+      "source": "before-physical-footprint/S2-stage3-checks.json#checks.C3.3",
+      "reuseMapping": "本轮冻结App SHA/cdhash与8c4相同；App、Packages、Makefile源树未变；本轮不重复构建测试或自检。"
+    },
+    "C3.4": {
+      "verdict": "unverified",
+      "formalJSONs": 13,
+      "executedThisRound": [
+        "first-image",
+        "preloaded-flip",
+        "large-dir",
+        "settle",
+        "scroll-cached",
+        "scroll-cold",
+        "cached-first-screen",
+        "nas-fault",
+        "memory-30min"
+      ],
+      "reusedScenes": [
+        "main-thread",
+        "tiles-cancel",
+        "panel-restart",
+        "nas-throughput"
+      ],
+      "schemaVerdict": "pass",
+      "verdictCases": 98,
+      "verdictTestSource": "stage3_footprint_script agent回报，由root转交；本轮未独立重跑",
+      "evidence": "9场景全部按冻结脚本完成并写JSON；settle0样本/NASfault准备未完成均未验证，未伪称通过。2次录制(冷/缓存)均完成汇总及lsof后清新raw/自动trace。"
+    },
+    "C3.5": {
+      "verdict": "fail",
+      "sceneVerdicts": {
+        "pass": 8,
+        "fail": 2,
+        "environment": 1,
+        "unverified": 2
+      },
+      "evidence": "本轮实跑后按设计修正仅离线重判cold：4pass/2fail/1environment/2unverified，加4复用pass。cold帧P998.333ms通过；本地缓存首屏P95103.370ms及memory11stall/max3123.189ms仍失败。后续4场景留下一轮闲置窗口。"
+    },
+    "C3.6": {
+      "verdict": "pass",
+      "unitTests": 252,
+      "swiftWarnings": 0,
+      "executedUnitCommit": "b0a28c6",
+      "unitMappingToCurrent": "unitTests.sourceMapping Packages/Makefile相同",
+      "viewerPasses": 84,
+      "panelPasses": 46,
+      "evidence": "完整make test一次exit0/零Swift警告；后续仅Canvas修复，映射复用Core。最终冻结App Viewer干净窗口环境重试84PASS/0FAIL、Panel46PASS/0FAIL，均真实退出。初次首败及修后输入干扰6败完整保留。",
+      "executedThisRound": false,
+      "source": "before-physical-footprint/S2-stage3-checks.json#checks.C3.6",
+      "reuseMapping": "本轮冻结App SHA/cdhash与8c4相同；App、Packages、Makefile源树未变；本轮不重复构建测试或自检。"
+    },
+    "C3.7": {
+      "verdict": "pass",
+      "evidence": "cleanupVerification最终单次核对；本轮NFS正常diskutil卸载，代理已停止；48次App.stop真实kqueue exit0，录制2PID已消失；10SMB/14UUID/基线4build(含acceptance空tmp)/outputs冻结App/设计24334保留，root28372真实退出已嵌入，新增raw及trace均汇总+lsof后清理。"
+    },
+    "C3.8": {
+      "verdict": "pass",
+      "evidence": "unitTests.rawLog: backgroundBasesStayOutOfMemoryAndThumbnailsHaveTheirOwnBudget、memoryPressureAndBudgets、prefetchedDisplayHitsMemoryCache通过",
+      "executedThisRound": false,
+      "source": "before-physical-footprint/S2-stage3-checks.json#checks.C3.8",
+      "reuseMapping": "本轮冻结App SHA/cdhash与8c4相同；App、Packages、Makefile源树未变；本轮不重复构建测试或自检。"
+    },
+    "C3.9": {
+      "verdict": "pass",
+      "evidence": "unitTests.rawLog: inFlightBudgetBoundsBackgroundAndPromotesOrCancelsWaiters、derivativeBacklogIsBoundedAndForegroundCanDeferThenRepair通过",
+      "executedThisRound": false,
+      "source": "before-physical-footprint/S2-stage3-checks.json#checks.C3.9",
+      "reuseMapping": "本轮冻结App SHA/cdhash与8c4相同；App、Packages、Makefile源树未变；本轮不重复构建测试或自检。"
+    },
+    "C3.10": {
+      "verdict": "fail",
+      "memoryVerdict": "fail",
+      "physicalFootprintFluctuationVerdict": "pass",
+      "physicalFootprintRollingMedianDeviation": 0.017432180679574572,
+      "preloadedFlipVerdict": "pass",
+      "preloadedFlipP95": 5.809292,
+      "corePrefetchVerdict": "pass",
+      "unexpectedLeakItems": 0,
+      "evidence": "物理占用60秒中位偏差1.743218%及允许根之外泄漏0通过；memory复合判定因state>1s失败。"
+    },
+    "C3.11": {
+      "verdict": "pass",
+      "unitVerdict": "pass",
+      "executedUnitThisRound": false,
+      "unitEvidence": "before-physical-footprint/S2-stage3-checks.json#checks.C3.11；Packages树相同映射复用",
+      "firstImageEndToEndVerdict": "pass",
+      "firstImageSamples": 30,
+      "firstImageP95": 78.448292,
+      "evidence": "本轮同冻结App正式30不同页首次上屏P9578.448292ms；W3.6原分段定位仅作历史说明，不称本轮分段实测。"
+    },
+    "C3.12": {
+      "verdict": "fail",
+      "durationSeconds": 1800.005025875,
+      "stateSamples": 2371,
+      "physicalFootprintSamples": 1793,
+      "actions": 1738,
+      "maxRoundTripMilliseconds": 3123.1885000001967,
+      "stateBudgetVerdict": "fail",
+      "stalls": 11,
+      "stateTimedOut": false,
+      "unexpectedLeakItems": 0,
+      "memoryFluctuationVerdict": "pass",
+      "evidence": "完整1800.005秒，1793组physical/resident/elapsed/layers同下标，物理采样错误0；1700秒起11次state>1s，max3.123秒；单次3秒自动sample原文已嵌入memory JSON。根因未定位，不称修复。"
+    }
+  },
+  "sceneVerdicts": {
+    "panel-restart": "pass",
+    "settle": "unverified",
+    "nas-throughput": "pass",
+    "preloaded-flip": "pass",
+    "tiles-cancel": "pass",
+    "large-dir": "pass",
+    "memory-30min": "fail",
+    "nas-fault": "unverified",
+    "main-thread": "pass",
+    "first-image": "pass",
+    "scroll-cached": "environment",
+    "scroll-cold": "pass",
+    "cached-first-screen": "fail"
+  },
+  "cleanup": {
+    "status": "complete",
+    "rootCaffeinatePID": 28372,
+    "protectedDesignCaffeinatePID": 24334
+  },
+  "rawArtifacts": [
+    {
+      "path": "build/acceptance/scroll-cold-record/app.log",
+      "bytes": 679,
+      "sha256": "31136acb405d633248e31348181835ecaef32eace8d9383389691c063ae3ebe7",
+      "rawText": "2026-11-05 10:46:05.440 MacView[38652:169273] WARNING <NSToolbarItem: 0x7529012200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:46:05.491 MacView[38652:169273] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cold-record/app.pid",
+      "bytes": 6,
+      "sha256": "d3c862bcddda4efa321aaff529f91a406c098598f2d72acd1b69f08f428ab2e6",
+      "rawText": "38652\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cold-record/during.json",
+      "bytes": 1258,
+      "sha256": "2e6fafc414b23e07450a0e2c16318f318fbb9439245c6de25966bddc63fbd3c9",
+      "rawText": "{\n  \"load\": {\n    \"oneMinute\": 7.21533203125,\n    \"limit\": 10,\n    \"limitSource\": \"sysctl -n hw.physicalcpu\"\n  },\n  \"displayMode\": {\n    \"width\": 1728,\n    \"height\": 1080,\n    \"pixelWidth\": 3456,\n    \"pixelHeight\": 2160,\n    \"refreshHz\": 120.0,\n    \"builtin\": true,\n    \"externalDisplay\": false\n  },\n  \"refreshHz\": 120.0,\n  \"screen\": {\n    \"locked\": false,\n    \"idleSeconds\": 130.667458083,\n    \"inputDuringRun\": false,\n    \"externalDisplay\": false\n  },\n  \"before\": {\n    \"load\": {\n      \"oneMinute\": 6.2119140625,\n      \"limit\": 10,\n      \"limitSource\": \"sysctl -n hw.physicalcpu\"\n    },\n    \"displayMode\": {\n      \"width\": 1728,\n      \"height\": 1080,\n      \"pixelWidth\": 3456,\n      \"pixelHeight\": 2160,\n      \"refreshHz\": 120.0,\n      \"builtin\": true,\n      \"externalDisplay\": false\n    },\n    \"refreshHz\": 120.0,\n    \"screen\": {\n      \"locked\": false,\n      \"idleSeconds\": 69.886037083,\n      \"inputDuringRun\": false,\n      \"externalDisplay\": false\n    }\n  },\n  \"windowFrontBefore\": true,\n  \"windowFront\": true,\n  \"residentPeakBytes\": 1930231808,\n  \"residentSamplingError\": null,\n  \"residentSampleCount\": 60,\n  \"residentSamplingComplete\": true,\n  \"scrollMovements\": 1217,\n  \"scrollEvents\": 6315,\n  \"driver\": \"synthetic\",\n  \"responsiveScrolling\": false\n}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cold-record/hitches.json",
+      "bytes": 842,
+      "sha256": "8058518b123276345d883e8d061cf195afa978b3a3c207bae3c03e94edc28cfe",
+      "rawText": "{\n  \"app\": {},\n  \"appPhases\": [\n    {\n      \"end\": 2830.4377250833336,\n      \"name\": \"scroll-cold\",\n      \"start\": 2769.6585216666667\n    }\n  ],\n  \"displays\": [\n    {\n      \"builtIn\": \"Yes\",\n      \"maxRefreshRate\": 120,\n      \"name\": \"Built-In Display 1\"\n    }\n  ],\n  \"phases\": [\n    {\n      \"frameTimeMax\": 16.667,\n      \"frameTimeP50\": 8.333,\n      \"frameTimeP99\": 8.333,\n      \"frames\": 1253,\n      \"framesPerSecond\": 20.6,\n      \"hitchMilliseconds\": 75.0,\n      \"hitchRatioMsPerSecond\": 1.23,\n      \"hitches\": 9,\n      \"name\": \"scroll-cold\",\n      \"renderP50\": 2.412,\n      \"renderP99\": 5.564,\n      \"seconds\": 60.779,\n      \"settleEventDelayMax\": 0.0,\n      \"settleRequestLatencyMax\": 0.0,\n      \"settleRequestLatencyP99\": 0.0,\n      \"settles\": 0,\n      \"updateP50\": 1.565,\n      \"updateP99\": 3.51\n    }\n  ],\n  \"trace\": \"record.trace\"\n}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cold-record/main-thread.json",
+      "bytes": 233,
+      "sha256": "cfbb3803481c63c3f881b54373e908956ea83c02a727c4272efca31bafbfffc6",
+      "rawText": "{\n  \"mainThreadSamples\": 7109,\n  \"knownSymbolSamples\": 6696,\n  \"fileReadOrImageIO\": 0,\n  \"schema\": \"time-profile\",\n  \"tableSamples\": 12194,\n  \"examples\": [],\n  \"otherMainThreadFileOperations\": 0,\n  \"otherFileOperationExamples\": []\n}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cold-record/phase.json",
+      "bytes": 94,
+      "sha256": "3f5483440c142fd1749eb2873f627ef6c241fc75ffdc607a02dc755402be7dd3",
+      "rawText": "{\"phases\": [{\"name\": \"scroll-cold\", \"start\": 2769.6585216666667, \"end\": 2830.4377250833336}]}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cold-record/raw-files.json",
+      "bytes": 672,
+      "sha256": "cc711285fdba5d59938381e2d1839d2e0293ce622df50bc023488347d367aa0b",
+      "rawText": "{\n  \"rawDirectory\": \"/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T\",\n  \"existing\": {},\n  \"space\": {\n    \"volume\": \"/System/Volumes/Data\",\n    \"freeBytes\": 197356740608,\n    \"requiredBytes\": 60000000000\n  },\n  \"ready\": true,\n  \"added\": [\n    {\n      \"path\": \"/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsbUPC3k.ktrace\",\n      \"bytes\": 16555372280,\n      \"allocatedBytes\": 16555372544,\n      \"result\": \"deleted\"\n    }\n  ],\n  \"cleanupComplete\": true,\n  \"addedBytes\": 16555372280,\n  \"deletedBytes\": 16555372280,\n  \"trace\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cold-record/record.trace\",\n  \"traceDeleted\": true\n}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cold-record/window-before.json",
+      "bytes": 22,
+      "sha256": "1d017d2ac16a17fc7336eb1223abe7387c8aa501aa9e27e13557b4ebfac9590e",
+      "rawText": "{\"windowFront\": true}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cold-record/xctrace.log",
+      "bytes": 260,
+      "sha256": "7d6127314667db5438d4b38a85b67d2e8a835dfb13ebc3533d186f14d67999ff",
+      "rawText": "Starting recording with the Animation Hitches template and os_signpost, Time Profiler Instruments. Attaching to: MacView (38652). \nCtrl-C to stop the recording\nStopping recording...\nRecording completed. Saving output file...\nOutput file saved as: record.trace\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cached-record/app.log",
+      "bytes": 679,
+      "sha256": "26222adf6b43d86bad4f2f6e0bfb5439c86f88e4f7bfed819ec672befe02c7c1",
+      "rawText": "2026-11-05 10:51:35.723 MacView[46262:194703] WARNING <NSToolbarItem: 0x77d86c6200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:51:35.781 MacView[46262:194703] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cached-record/app.pid",
+      "bytes": 6,
+      "sha256": "7f7febba3393319a1a751a33635e61fcaa827695f832b8ae4dbe4486c418e879",
+      "rawText": "46262\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cached-record/during.json",
+      "bytes": 1255,
+      "sha256": "26298cd71c69f9d470a3843cd4a09fb8eef5c93c6835f1fa3006fba79b550385",
+      "rawText": "{\n  \"load\": {\n    \"oneMinute\": 8.00830078125,\n    \"limit\": 10,\n    \"limitSource\": \"sysctl -n hw.physicalcpu\"\n  },\n  \"displayMode\": {\n    \"width\": 1728,\n    \"height\": 1080,\n    \"pixelWidth\": 3456,\n    \"pixelHeight\": 2160,\n    \"refreshHz\": 120.0,\n    \"builtin\": true,\n    \"externalDisplay\": false\n  },\n  \"refreshHz\": 120.0,\n  \"screen\": {\n    \"locked\": false,\n    \"idleSeconds\": 0.0092855,\n    \"inputDuringRun\": true,\n    \"externalDisplay\": false\n  },\n  \"before\": {\n    \"load\": {\n      \"oneMinute\": 7.69873046875,\n      \"limit\": 10,\n      \"limitSource\": \"sysctl -n hw.physicalcpu\"\n    },\n    \"displayMode\": {\n      \"width\": 1728,\n      \"height\": 1080,\n      \"pixelWidth\": 3456,\n      \"pixelHeight\": 2160,\n      \"refreshHz\": 120.0,\n      \"builtin\": true,\n      \"externalDisplay\": false\n    },\n    \"refreshHz\": 120.0,\n    \"screen\": {\n      \"locked\": false,\n      \"idleSeconds\": 121.770279084,\n      \"inputDuringRun\": false,\n      \"externalDisplay\": false\n    }\n  },\n  \"windowFrontBefore\": true,\n  \"windowFront\": false,\n  \"residentPeakBytes\": 2012708864,\n  \"residentSamplingError\": null,\n  \"residentSampleCount\": 60,\n  \"residentSamplingComplete\": true,\n  \"scrollMovements\": 318,\n  \"scrollEvents\": 6319,\n  \"driver\": \"synthetic\",\n  \"responsiveScrolling\": false\n}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cached-record/hitches.json",
+      "bytes": 848,
+      "sha256": "39a570144949dc781bc0f1545da230426d31049b1eb060a080d1f65a0414b8c0",
+      "rawText": "{\n  \"app\": {},\n  \"appPhases\": [\n    {\n      \"end\": 3160.5054870416666,\n      \"name\": \"scroll-cached\",\n      \"start\": 3099.7348723333334\n    }\n  ],\n  \"displays\": [\n    {\n      \"builtIn\": \"Yes\",\n      \"maxRefreshRate\": 120,\n      \"name\": \"Built-In Display 1\"\n    }\n  ],\n  \"phases\": [\n    {\n      \"frameTimeMax\": 41.667,\n      \"frameTimeP50\": 8.333,\n      \"frameTimeP99\": 16.667,\n      \"frames\": 339,\n      \"framesPerSecond\": 5.6,\n      \"hitchMilliseconds\": 58.333,\n      \"hitchRatioMsPerSecond\": 0.96,\n      \"hitches\": 4,\n      \"name\": \"scroll-cached\",\n      \"renderP50\": 2.081,\n      \"renderP99\": 6.422,\n      \"seconds\": 60.771,\n      \"settleEventDelayMax\": 0.0,\n      \"settleRequestLatencyMax\": 0.0,\n      \"settleRequestLatencyP99\": 0.0,\n      \"settles\": 0,\n      \"updateP50\": 1.803,\n      \"updateP99\": 3.716\n    }\n  ],\n  \"trace\": \"record.trace\"\n}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cached-record/phase.json",
+      "bytes": 96,
+      "sha256": "fe0e18e8dbfbebb9488d7ea3562f7a579f5f0f2c1bbe1ed3d2108f3dfe3fa230",
+      "rawText": "{\"phases\": [{\"name\": \"scroll-cached\", \"start\": 3099.7348723333334, \"end\": 3160.5054870416666}]}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cached-record/raw-files.json",
+      "bytes": 674,
+      "sha256": "47a3fdee8bf14931b3633e4ffc79215437afe2e6be137a7171d9ed256b887ea6",
+      "rawText": "{\n  \"rawDirectory\": \"/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T\",\n  \"existing\": {},\n  \"space\": {\n    \"volume\": \"/System/Volumes/Data\",\n    \"freeBytes\": 197302599680,\n    \"requiredBytes\": 60000000000\n  },\n  \"ready\": true,\n  \"added\": [\n    {\n      \"path\": \"/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsSt1Dg4.ktrace\",\n      \"bytes\": 14353253720,\n      \"allocatedBytes\": 14359601152,\n      \"result\": \"deleted\"\n    }\n  ],\n  \"cleanupComplete\": true,\n  \"addedBytes\": 14353253720,\n  \"deletedBytes\": 14353253720,\n  \"trace\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cached-record/record.trace\",\n  \"traceDeleted\": true\n}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cached-record/window-before.json",
+      "bytes": 22,
+      "sha256": "1d017d2ac16a17fc7336eb1223abe7387c8aa501aa9e27e13557b4ebfac9590e",
+      "rawText": "{\"windowFront\": true}\n"
+    },
+    {
+      "path": "build/acceptance/scroll-cached-record/xctrace.log",
+      "bytes": 244,
+      "sha256": "40e9f82bfdd3af585f6a36e9d7c72b8f2cb388a40d446e2d0df039d9e144141b",
+      "rawText": "Starting recording with the Animation Hitches template and os_signpost Instrument. Attaching to: MacView (46262). \nCtrl-C to stop the recording\nStopping recording...\nRecording completed. Saving output file...\nOutput file saved as: record.trace\n"
+    },
+    {
+      "path": "build/acceptance/cached-first-screen-local-37270/app.log",
+      "bytes": 14259,
+      "sha256": "ab3df2a530a927570998eb1263d96472886e31d84de5c4aa0779a74e11dde82f",
+      "rawText": "2026-11-05 10:55:44.393 MacView[50988:212431] WARNING <NSToolbarItem: 0x752e19e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:44.441 MacView[50988:212431] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:46.764 MacView[51204:212923] WARNING <NSToolbarItem: 0x778617a200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:46.814 MacView[51204:212923] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:47.707 MacView[51208:212994] WARNING <NSToolbarItem: 0x76124da200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:47.757 MacView[51208:212994] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:48.419 MacView[51217:213095] WARNING <NSToolbarItem: 0x789042e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:48.470 MacView[51217:213095] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:49.102 MacView[51221:213157] WARNING <NSToolbarItem: 0x759c5c6200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:49.151 MacView[51221:213157] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:50.033 MacView[51227:213290] WARNING <NSToolbarItem: 0x77de4fa200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:50.090 MacView[51227:213290] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:50.952 MacView[51231:213364] WARNING <NSToolbarItem: 0x77879ae200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:51.004 MacView[51231:213364] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:51.658 MacView[51288:213512] WARNING <NSToolbarItem: 0x7a444fa200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:51.711 MacView[51288:213512] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:52.413 MacView[51318:213613] WARNING <NSToolbarItem: 0x799255a200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:52.467 MacView[51318:213613] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:53.132 MacView[51347:213771] WARNING <NSToolbarItem: 0x78bb5be200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:53.183 MacView[51347:213771] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:53.820 MacView[51352:213832] WARNING <NSToolbarItem: 0x7a8d242200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:53.878 MacView[51352:213832] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:54.743 MacView[51356:214001] WARNING <NSToolbarItem: 0x7598512200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:54.794 MacView[51356:214001] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:55.650 MacView[51360:214065] WARNING <NSToolbarItem: 0x76f05a6200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:55.701 MacView[51360:214065] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:56.662 MacView[51445:214283] WARNING <NSToolbarItem: 0x757218e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:56.713 MacView[51445:214283] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:57.376 MacView[51453:214361] WARNING <NSToolbarItem: 0x79201ea200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:57.427 MacView[51453:214361] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:58.299 MacView[51458:214424] WARNING <NSToolbarItem: 0x75605b6200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:58.354 MacView[51458:214424] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:59.014 MacView[51465:214510] WARNING <NSToolbarItem: 0x7a68692200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:59.070 MacView[51465:214510] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:55:59.961 MacView[51471:214614] WARNING <NSToolbarItem: 0x7d00402200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:00.012 MacView[51471:214614] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:00.669 MacView[51477:214672] WARNING <NSToolbarItem: 0x79da57e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:00.718 MacView[51477:214672] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:01.327 MacView[51481:214728] WARNING <NSToolbarItem: 0x77fc5d6200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:01.380 MacView[51481:214728] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:02.046 MacView[51564:214911] WARNING <NSToolbarItem: 0x749f9a2200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:02.099 MacView[51564:214911] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/cached-first-screen-nfs-37270/app.log",
+      "bytes": 14259,
+      "sha256": "274607bcb5f3dad74c1004938955f9ce5a7bfc4a27bf5c5736c9f82592b7a6a6",
+      "rawText": "2026-11-05 10:56:02.770 MacView[51571:214987] WARNING <NSToolbarItem: 0x79ee57a200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:02.822 MacView[51571:214987] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:08.928 MacView[51678:215864] WARNING <NSToolbarItem: 0x78dc5b6200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:08.978 MacView[51678:215864] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:09.785 MacView[51684:216140] WARNING <NSToolbarItem: 0x77a641a200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:09.838 MacView[51684:216140] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:10.728 MacView[51690:216358] WARNING <NSToolbarItem: 0x79bda06200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:10.778 MacView[51690:216358] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:11.602 MacView[51745:216637] WARNING <NSToolbarItem: 0x7ac9b16200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:11.651 MacView[51745:216637] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:12.436 MacView[51780:216910] WARNING <NSToolbarItem: 0x796e236200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:12.486 MacView[51780:216910] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:13.407 MacView[51790:217119] WARNING <NSToolbarItem: 0x7c14296200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:13.459 MacView[51790:217119] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:14.450 MacView[51796:217420] WARNING <NSToolbarItem: 0x7b824da200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:14.500 MacView[51796:217420] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:15.403 MacView[51805:217657] WARNING <NSToolbarItem: 0x772de2e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:15.453 MacView[51805:217657] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:16.272 MacView[51811:217877] WARNING <NSToolbarItem: 0x769e5f2200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:16.324 MacView[51811:217877] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:17.117 MacView[51895:218201] WARNING <NSToolbarItem: 0x7b7c64e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:17.171 MacView[51895:218201] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:18.067 MacView[51905:218417] WARNING <NSToolbarItem: 0x774f9fe200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:18.119 MacView[51905:218417] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:18.945 MacView[51912:218646] WARNING <NSToolbarItem: 0x7a4f63a200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:18.996 MacView[51912:218646] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:19.728 MacView[51919:218857] WARNING <NSToolbarItem: 0x784e44a200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:19.777 MacView[51919:218857] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:20.678 MacView[51926:219063] WARNING <NSToolbarItem: 0x7c8054e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:20.726 MacView[51926:219063] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:21.570 MacView[51982:219366] WARNING <NSToolbarItem: 0x7c040ca200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:21.626 MacView[51982:219366] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:22.430 MacView[52016:219719] WARNING <NSToolbarItem: 0x7963a16200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:22.478 MacView[52016:219719] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:23.302 MacView[52022:219919] WARNING <NSToolbarItem: 0x769e5e2200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:23.354 MacView[52022:219919] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:24.302 MacView[52029:220165] WARNING <NSToolbarItem: 0x7ad228e200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:24.356 MacView[52029:220165] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:25.204 MacView[52035:220360] WARNING <NSToolbarItem: 0x74f8566200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:25.255 MacView[52035:220360] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n2026-11-05 10:56:26.038 MacView[52041:220592] WARNING <NSToolbarItem: 0x793a4d2200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:56:26.088 MacView[52041:220592] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/first-image-37270/app.log",
+      "bytes": 679,
+      "sha256": "a0fb0341955de05fb88f0e602904a68e7d6b931e624e376530189db9111ea29e",
+      "rawText": "2026-11-05 10:45:48.264 MacView[38326:167734] WARNING <NSToolbarItem: 0x7496682200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:45:48.323 MacView[38326:167734] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/large-dir-37270/app.log",
+      "bytes": 679,
+      "sha256": "491a65b5ec05a3838a23fd7d9e4db9367875aeaf1dd110a4c98d0bd0fec466d8",
+      "rawText": "2026-11-05 10:45:59.695 MacView[38536:168828] WARNING <NSToolbarItem: 0x78f5d66200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:45:59.746 MacView[38536:168828] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/memory-30min-37270/app.log",
+      "bytes": 679,
+      "sha256": "0715b6dabbca411b0dbf4a266b96be8dafe64887f20995d9f5d3d0b4c17e5088",
+      "rawText": "2026-11-05 10:58:23.300 MacView[54231:228730] WARNING <NSToolbarItem: 0x79f04e2200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:58:23.352 MacView[54231:228730] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/nas-authorization-37270/app.log",
+      "bytes": 679,
+      "sha256": "7def9af421ade565e51230f1e1bfaf2c18c335f48eadbec6ec01f1874c0713c5",
+      "rawText": "2026-11-05 10:55:36.528 MacView[50736:211600] WARNING <NSToolbarItem: 0x766c5be200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:55:36.581 MacView[50736:211600] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/nas-fault-37270/app.log",
+      "bytes": 679,
+      "sha256": "bf60e47f0f5ec441894c72789ea31f1a609dd394c0ffcc0f2842c5d98ee4ff74",
+      "rawText": "2026-11-05 10:57:59.730 MacView[53754:226571] WARNING <NSToolbarItem: 0x7597a36200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:57:59.782 MacView[53754:226571] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/preloaded-flip-37270/app.log",
+      "bytes": 679,
+      "sha256": "215f291b6b613539655c96f69c36cb1af12ee79b67fdad167dd25ada99df1b02",
+      "rawText": "2026-11-05 10:45:51.951 MacView[38417:168185] WARNING <NSToolbarItem: 0x75445ce200> -> view was automatically measured but had an ambiguous height or width and the view's frame size had a zero height or width. Did you forget to add constraints on your view or its subview(s)? Try adding constraints or give the view an intrinsicContentSize\n2026-11-05 10:45:52.003 MacView[38417:168185] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.\n"
+    },
+    {
+      "path": "build/acceptance/nfs-fault.log",
+      "bytes": 136,
+      "sha256": "01fdf29f087600008cd12a2230ae39453b47a94ebbd019325a028906d5362d40",
+      "rawText": "代理：forward\n已卸载 /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/nfs-fault-mount，代理已停止\n"
+    }
+  ],
+  "exportAvailability": {
+    "originalXMLOrCSVRetained": false,
+    "reason": "canvas-hitches.py export以capture_output读入内存，未持久化XML；main_thread_samples同样只写汇总。原始trace和ktrace已按既定规则在汇总后清理，本轮不能补造导出。",
+    "retained": "现存全部record文件及App/NASproxy日志逐字节嵌入rawArtifacts；memory sample原文已嵌入memory场景JSON。"
+  },
+  "parentCaffeinateStop": {
+    "pid": 28372,
+    "command": "/usr/bin/caffeinate -d",
+    "signal": "SIGTERM",
+    "observedRealExit": true,
+    "elapsedSeconds": 0.0004687500000000039,
+    "at": "2026-11-05T03:33:14.508997+00:00",
+    "events": [
+      {
+        "pid": 28372,
+        "fflags": 2147483648,
+        "data": 0
+      }
+    ],
+    "protectedDesignCaffeinatePID": 24334,
+    "protectedDesignCaffeinateCommand": "caffeinate -d -t 21600"
+  },
+  "evidenceReviewedAtCommit": "ac5b10cf7708ef6d99369370bdaa3154f89018f3",
+  "coldRejudgement": {
+    "at": "2026-11-05T03:39:42.283825+00:00",
+    "performedNewRecording": false,
+    "executedAtCommit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+    "evaluatorCommit": "ac5b10cf7708ef6d99369370bdaa3154f89018f3",
+    "evaluatorSourceBlob": "48fcb543fb6aacb88ede1af325b6a90d157f39f7",
+    "ruleSource": ".spec/stage-3.md，第五轮中途设计修正（2026-11-05 11:05）及“刷新率单独处理”：有效120Hz只按帧时间P99≤8.333ms，hitches/两个P99之和仅诊断",
+    "previousVerdict": "fail",
+    "previousBudget": {
+      "frameTimeP99Milliseconds": 8.33,
+      "refreshHz": 120,
+      "submitPlusRenderP99Milliseconds": 8.33
+    },
+    "previousPolicyDerivedFlag": {
+      "performanceIssueAt120Hz": true
+    },
+    "preservedPreviousJSON": {
+      "path": "docs/reports/bench/before-refresh-interval/S2-T2-scroll-cold.json",
+      "sha256": "cd82d9542362194da876962d6bcd691860ec8f3b52c6d2e8fdcaf233229c2979"
+    },
+    "diagnosticFieldsSource": {
+      "path": "build/acceptance/scroll-cold-record/hitches.json",
+      "sha256": "8058518b123276345d883e8d061cf195afa978b3a3c207bae3c03e94edc28cfe",
+      "embeddedAt": "S2-stage3-checks.json#rawArtifacts",
+      "method": "读取原汇总phase[0]，无新采样"
+    },
+    "newDiagnosticFields": [
+      "hitchMilliseconds",
+      "hitchRatioMsPerSecond",
+      "frameTimeMax",
+      "frameTimeExceeds120HzBudget"
+    ]
+  },
+  "scriptCorrections": {
+    "commits": [
+      "ef5d933f1a704ea559892dc6135d0d52b300b70a",
+      "ac5b10cf7708ef6d99369370bdaa3154f89018f3"
+    ],
+    "AppOrPackagesChanged": false,
+    "independentDiffReview": "通过：仅NAS准备复用pageSlots初始exact；滚动预算8.333唯一判据；独立settle60秒2s/0.5s；显式顺序保留，默认NAS在录制之前。",
+    "sourceBlobs": {
+      "scripts/acceptance/run.py": "48fcb543fb6aacb88ede1af325b6a90d157f39f7",
+      "scripts/acceptance/record-trackpad.sh": "ca776dbf2696e3ea3fb5ba76ad52f0433787a652"
+    },
+    "workerVerification": {
+      "source": "stage3_footprint_script agent最终回报，root转交，无落盘raw",
+      "executedThisRoundByAcceptance": false,
+      "reported": [
+        "check-verdicts: ok (98 cases)",
+        "Python syntax、sh -n、git diff --check通过",
+        "stdin合成60秒24轮、独立settle入口、initial exact无lastDisplay、4场景/默认顺序通过"
+      ],
+      "launchedApp": false,
+      "builtApp": false,
+      "newRecording": false
+    },
+    "dynamicReverification": "本轮只cold已有数据离线重判；NAS准备/独立settle未实际复测，下一轮验证。"
+  },
+  "failureReview": {
+    "memory": "物理60秒偏差1.743218%和意外泄漏0通过；1700秒起11次停顿，3秒sample仅覆盖最后0.123秒及其后恢复，不能确定根因。",
+    "nasFault": "源码可见初始wait_frame依赖lastDisplay翻页计时的竞态，改用既有wait_exact(prime=True)读pageSlots；本轮无失败时state，不能动态证明实际原因，无注入样本。",
+    "cachedFirstScreen": "已有primer先wait_first_screen再wait_idle；prefetch.thumbnail明确等待derivatives。现有日志无L2未就绪证据，保留103.370ms失败；按设计负载回落重测一次。",
+    "settle": "连续60秒合成滚动没有停止间隙，正式0settles，未验证；改独立60秒滚2s停0.5s，实测留下一轮。",
+    "scrollCached": "运行中输入且windowFront变false，environment，留下一轮重录。",
+    "retainedExportLimitation": {
+      "originalXMLOrCSVRetained": false,
+      "reason": "canvas-hitches.py export以capture_output读入内存，未持久化XML；main_thread_samples同样只写汇总。原始trace和ktrace已按既定规则在汇总后清理，本轮不能补造导出。",
+      "retained": "现存全部record文件及App/NASproxy日志逐字节嵌入rawArtifacts；memory sample原文已嵌入memory场景JSON。"
+    }
+  },
+  "beforeCleanup": {
+    "at": "2026-11-05T03:40:24.998017+00:00",
+    "mounts": "/dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk3s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk3s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk3s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk1s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk1s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk1s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, protect, root data)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n//yuwk@192.168.31.201/Adult on /Volumes/Adult (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/BackUp on /Volumes/BackUp (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Book on /Volumes/Book (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Cache on /Volumes/Cache (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Code on /Volumes/Code (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Learn on /Volumes/Learn (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Media on /Volumes/Media (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Music on /Volumes/Music (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/Picture on /Volumes/Picture (smbfs, nodev, nosuid, mounted by yuwk)\n//yuwk@192.168.31.201/plaud-daily on /Volumes/plaud-daily (smbfs, nodev, nosuid, mounted by yuwk)\ndevices -- file:///Users/yuwk/Library/Containers/com.apple.CoreDevice.CoreDeviceService/Data/ on /Users/yuwk/Library/Developer/CoreDevice/DeviceFS (devicefs, local, nodev, nosuid, noowners, noatime, quarantine, nobrowse, fskit, mounted by yuwk)\n192.168.31.201:/fs/1000/nfs on /Users/yuwk/MacViewBench/nfs (nfs, nodev, nosuid, read-only, mounted by yuwk)\n",
+    "ownedAppPIDs": [
+      38326,
+      38417,
+      38536,
+      50736,
+      50988,
+      51204,
+      51208,
+      51217,
+      51221,
+      51227,
+      51231,
+      51288,
+      51318,
+      51347,
+      51352,
+      51356,
+      51360,
+      51445,
+      51453,
+      51458,
+      51465,
+      51471,
+      51477,
+      51481,
+      51564,
+      51571,
+      51678,
+      51684,
+      51690,
+      51745,
+      51780,
+      51790,
+      51796,
+      51805,
+      51811,
+      51895,
+      51905,
+      51912,
+      51919,
+      51926,
+      51982,
+      52016,
+      52022,
+      52029,
+      52035,
+      52041,
+      53754,
+      54231
+    ],
+    "recordingPIDs": [
+      38652,
+      46262
+    ]
+  },
+  "privateHarnesses": [
+    {
+      "path": "build/stage3-fifth-control/baseline.json",
+      "bytes": 2933,
+      "sha256": "96f1b56f67df5c8003761a1f8f511aba28d5d81990635216cb4b6c3dcf062a72",
+      "rawText": "{\n  \"startedAt\": \"2026-11-05T02:38:26.152521+00:00\",\n  \"head\": \"d1041020300f71355351087a8f9fd1504e990059\",\n  \"mounts\": \"/dev/disk3s1s1 on / (apfs, sealed, local, read-only, journaled)\\ndevfs on /dev (devfs, local, nobrowse)\\n/dev/disk3s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\\n/dev/disk3s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\\n/dev/disk3s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\\n/dev/disk1s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\\n/dev/disk1s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\\n/dev/disk1s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\\n/dev/disk3s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, protect, root data)\\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\\n//yuwk@192.168.31.201/Adult on /Volumes/Adult (smbfs, nodev, nosuid, mounted by yuwk)\\n//yuwk@192.168.31.201/BackUp on /Volumes/BackUp (smbfs, nodev, nosuid, mounted by yuwk)\\n//yuwk@192.168.31.201/Book on /Volumes/Book (smbfs, nodev, nosuid, mounted by yuwk)\\n//yuwk@192.168.31.201/Cache on /Volumes/Cache (smbfs, nodev, nosuid, mounted by yuwk)\\n//yuwk@192.168.31.201/Code on /Volumes/Code (smbfs, nodev, nosuid, mounted by yuwk)\\n//yuwk@192.168.31.201/Learn on /Volumes/Learn (smbfs, nodev, nosuid, mounted by yuwk)\\n//yuwk@192.168.31.201/Media on /Volumes/Media (smbfs, nodev, nosuid, mounted by yuwk)\\n//yuwk@192.168.31.201/Music on /Volumes/Music (smbfs, nodev, nosuid, mounted by yuwk)\\n//yuwk@192.168.31.201/Picture on /Volumes/Picture (smbfs, nodev, nosuid, mounted by yuwk)\\n//yuwk@192.168.31.201/plaud-daily on /Volumes/plaud-daily (smbfs, nodev, nosuid, mounted by yuwk)\\n\",\n  \"existingCaffeinate\": [\n    \"24334 caffeinate       caffeinate -d -t 21600\"\n  ],\n  \"buildEntries\": [\n    \"DerivedData\",\n    \"acceptance\",\n    \"stage-1-work\",\n    \"stage4-repair\"\n  ],\n  \"existingTestUUIDs\": [\n    \"04449F88-3292-43DA-B17F-D4605FF36507\",\n    \"0E255468-3A2F-4E57-A5F1-8CDE6B0A6C8C\",\n    \"12E82A85-F60B-438A-A220-69CC1B3CD85A\",\n    \"33BDC3FC-2F6A-46AE-957E-4691AC560330\",\n    \"38110E16-F5A9-4277-9B45-0E1D46F43A32\",\n    \"5A54E68D-B533-4993-B35D-2F106F61A1E5\",\n    \"5F25E7F1-52D0-433C-88B1-C44CC054432A\",\n    \"7C9431FF-E034-4CDA-9751-48D80B53A2A4\",\n    \"87AF9F5E-28D1-47C8-B585-09E68C00E025\",\n    \"90826EE8-C5F9-4143-8E55-089C86947F27\",\n    \"DC7D630B-D506-4C06-8EF8-C2F405CB894A\",\n    \"DF1FD61D-3F9C-4FCA-A875-43AE7F1C1FC6\",\n    \"E1CE9CC3-6C31-41B3-A54B-7C620CB98E35\",\n    \"EFE802F9-815E-4C96-BF58-D68D05BBADB7\"\n  ],\n  \"physicalDiskFreeBytes\": 197672529920,\n  \"oldProtectedProcessesRetiredByReboot\": [\n    72765,\n    21555,\n    21968\n  ],\n  \"old12RawFilesRemovedByUser\": true,\n  \"existingKtraceFiles\": [],\n  \"rootCaffeinatePID\": 28372,\n  \"existingAcceptanceEntries\": [\n    {\n      \"path\": \"tmp\",\n      \"kind\": \"directory\",\n      \"bytes\": 64\n    }\n  ]\n}\n"
+    },
+    {
+      "path": "build/stage3-fifth-control/execution.json",
+      "bytes": 14553,
+      "sha256": "de43f732b820e68611a0f5dc3585f26928c5a57735786a7d86be8775aac40cf0",
+      "rawText": "{\n  \"scenes\": [\n    {\n      \"scene\": \"first-image\",\n      \"startedAt\": \"2026-11-05T02:45:05.282302+00:00\",\n      \"endedAt\": \"2026-11-05T02:45:51.542573+00:00\",\n      \"elapsedSeconds\": 46.260231375,\n      \"verdict\": \"pass\"\n    },\n    {\n      \"scene\": \"preloaded-flip\",\n      \"startedAt\": \"2026-11-05T02:45:51.543063+00:00\",\n      \"endedAt\": \"2026-11-05T02:45:59.255102+00:00\",\n      \"elapsedSeconds\": 7.712045416999999,\n      \"verdict\": \"pass\"\n    },\n    {\n      \"scene\": \"large-dir\",\n      \"startedAt\": \"2026-11-05T02:45:59.256629+00:00\",\n      \"endedAt\": \"2026-11-05T02:46:04.803420+00:00\",\n      \"elapsedSeconds\": 5.5468028750000045,\n      \"verdict\": \"pass\"\n    },\n    {\n      \"scene\": \"settle\",\n      \"startedAt\": \"2026-11-05T02:46:04.804769+00:00\",\n      \"endedAt\": \"2026-11-05T02:51:35.007895+00:00\",\n      \"elapsedSeconds\": 330.202722542,\n      \"verdict\": \"unverified\"\n    },\n    {\n      \"scene\": \"scroll-cached\",\n      \"startedAt\": \"2026-11-05T02:51:35.008315+00:00\",\n      \"endedAt\": \"2026-11-05T02:55:23.368913+00:00\",\n      \"elapsedSeconds\": 228.360322666,\n      \"verdict\": \"environment\"\n    },\n    {\n      \"scene\": \"scroll-cold\",\n      \"startedAt\": \"2026-11-05T02:55:23.369335+00:00\",\n      \"endedAt\": \"2026-11-05T02:55:35.465503+00:00\",\n      \"elapsedSeconds\": 12.09618720800006,\n      \"verdict\": \"fail\"\n    },\n    {\n      \"scene\": \"cached-first-screen\",\n      \"startedAt\": \"2026-11-05T02:55:35.466484+00:00\",\n      \"endedAt\": \"2026-11-05T02:56:26.639128+00:00\",\n      \"elapsedSeconds\": 51.172596874999954,\n      \"verdict\": \"fail\"\n    },\n    {\n      \"scene\": \"nas-fault\",\n      \"startedAt\": \"2026-11-05T02:56:26.639788+00:00\",\n      \"endedAt\": \"2026-11-05T02:58:22.871904+00:00\",\n      \"elapsedSeconds\": 116.23202800000001,\n      \"verdict\": \"unverified\"\n    },\n    {\n      \"scene\": \"memory-30min\",\n      \"startedAt\": \"2026-11-05T02:58:22.872762+00:00\",\n      \"endedAt\": \"2026-11-05T03:28:34.898570+00:00\",\n      \"elapsedSeconds\": 1812.0234812499998,\n      \"verdict\": \"fail\"\n    }\n  ],\n  \"appExits\": [\n    {\n      \"scene\": \"first-image\",\n      \"pid\": 38326,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.10044329100000482,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-0.sock\"\n    },\n    {\n      \"scene\": \"preloaded-flip\",\n      \"pid\": 38417,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.1161828749999998,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-1.sock\"\n    },\n    {\n      \"scene\": \"large-dir\",\n      \"pid\": 38536,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 1.0465248329999994,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-2.sock\"\n    },\n    {\n      \"scene\": \"nas-authorization\",\n      \"pid\": 50736,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.8768483750000087,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-3.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 50988,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.09999525000000631,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-4.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51204,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.22455491599998822,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-5.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51208,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.09596479200001795,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-6.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51217,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.0952327500000365,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-7.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51221,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.320823040999926,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-8.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51227,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.3065670409999939,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-9.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51231,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.11331050000001142,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-10.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51288,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.10878916699994079,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-11.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51318,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.10254554200002985,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-12.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51347,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.0982744159999811,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-13.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51352,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.3130167499999743,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-14.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51356,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.30629533399996944,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-15.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51360,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.38793091699994875,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-16.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51445,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.10761529100000189,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-17.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51453,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.2984814159999587,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-18.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51458,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.08489345800001047,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-19.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51465,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.3097623340000837,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-20.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51471,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.10551158400005534,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-21.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51477,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.10265908400003809,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-22.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51481,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.0980350830000134,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-23.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-local\",\n      \"pid\": 51564,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.08475462500007325,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-24.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51571,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.0916339999999991,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-25.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51678,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.14226079200000186,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-26.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51684,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.3227916660000574,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-27.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51690,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.2948628340000141,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-28.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51745,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.21168945800002348,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-29.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51780,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.34976154100002077,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-30.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51790,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.4357852499999808,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-31.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51796,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.3703099589999965,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-32.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51805,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.26290716599999087,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-33.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51811,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.25273108399994726,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-34.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51895,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.35963708300005237,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-35.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51905,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.257561958999986,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-36.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51912,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.2063890420000689,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-37.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51919,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.3512915000000021,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-38.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51926,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.2964241249999304,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-39.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 51982,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.23410762499997873,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-40.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 52016,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.2722486249999747,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-41.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 52022,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.40888395900003616,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-42.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 52029,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.3047010830000545,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-43.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 52035,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.2085367500000075,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-44.sock\"\n    },\n    {\n      \"scene\": \"cached-first-screen-nfs\",\n      \"pid\": 52041,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.31299254200007454,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-45.sock\"\n    },\n    {\n      \"scene\": \"nas-fault\",\n      \"pid\": 53754,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.0806265410000151,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-46.sock\"\n    },\n    {\n      \"scene\": \"memory-30min\",\n      \"pid\": 54231,\n      \"exitCode\": 0,\n      \"normalQuit\": true,\n      \"quitSeconds\": 0.26228104099982374,\n      \"socket\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s-37270-47.sock\"\n    }\n  ],\n  \"returnCode\": 0\n}\n"
+    },
+    {
+      "path": "build/stage3-fifth-control/formal-run.log",
+      "bytes": 1951,
+      "sha256": "c2c41c2261f615375a516717b5e384cd0abfa29081c21466878230a999281414",
+      "rawText": "FIFTH_SCENE_START {\"scene\": \"first-image\", \"startedAt\": \"2026-11-05T02:45:05.282302+00:00\"}\nfirst-image: pass -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-first-image.json\nFIFTH_SCENE_START {\"scene\": \"preloaded-flip\", \"startedAt\": \"2026-11-05T02:45:51.543063+00:00\"}\npreloaded-flip: pass -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-preloaded-flip.json\nFIFTH_SCENE_START {\"scene\": \"large-dir\", \"startedAt\": \"2026-11-05T02:45:59.256629+00:00\"}\nlarge-dir: pass -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-large-dir.json\nFIFTH_SCENE_START {\"scene\": \"settle\", \"startedAt\": \"2026-11-05T02:46:04.804769+00:00\"}\nsettle: unverified -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-settle.json\nFIFTH_SCENE_START {\"scene\": \"scroll-cached\", \"startedAt\": \"2026-11-05T02:51:35.008315+00:00\"}\nscroll-cached: environment -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-scroll-cached.json\nFIFTH_SCENE_START {\"scene\": \"scroll-cold\", \"startedAt\": \"2026-11-05T02:55:23.369335+00:00\"}\nscroll-cold: fail -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-scroll-cold.json\nFIFTH_SCENE_START {\"scene\": \"cached-first-screen\", \"startedAt\": \"2026-11-05T02:55:35.466484+00:00\"}\ncached-first-screen: fail -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-cached-first-screen.json\nFIFTH_SCENE_START {\"scene\": \"nas-fault\", \"startedAt\": \"2026-11-05T02:56:26.639788+00:00\"}\nnas-fault: unverified -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-nas-fault.json\nFIFTH_SCENE_START {\"scene\": \"memory-30min\", \"startedAt\": \"2026-11-05T02:58:22.872762+00:00\"}\nmemory-30min: fail -> /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/docs/reports/bench/S2-T2-memory-30min.json\n"
+    },
+    {
+      "path": "build/stage3-fifth-control/frozen-app-restore.json",
+      "bytes": 7237,
+      "sha256": "3689f9587ad419dd5b871092d04162bb74398377c7a2051313998be0f1e041b3",
+      "rawText": "{\n  \"source\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app\",\n  \"restoredBundle\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app\",\n  \"binarySHA256\": \"f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8\",\n  \"cdhash\": \"828e639a107e00a70d06c738aedd9eb723c4ae50\",\n  \"copiedWithoutBuildOrResign\": true,\n  \"signature\": \"Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\\nIdentifier=io.github.ump45nose.MacView\\nFormat=app bundle with Mach-O thin (arm64)\\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\\nVersionPlatform=1\\nVersionMin=1769472\\nVersionSDK=1769984\\nHash type=sha256 size=32\\nCandidateCDHash sha256=828e639a107e00a70d06c738aedd9eb723c4ae50\\nCandidateCDHashFull sha256=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\\nHash choices=sha256\\nCMSDigest=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\\nCMSDigestType=2\\nExecutable Segment base=0\\nExecutable Segment limit=6045696\\nExecutable Segment flags=0x1\\nPage size=16384\\nCDHash=828e639a107e00a70d06c738aedd9eb723c4ae50\\nSignature=adhoc\\nInfo.plist entries=22\\nTeamIdentifier=not set\\nSealed Resources version=2 rules=13 files=5\\nInternal requirements count=0 size=12\\nTotal signatures=1\\nChosen signature=1\\n\",\n  \"strictVerifyExitCode\": 0,\n  \"identityMatches\": true,\n  \"sourceManifest\": {\n    \"artifact\": \"供下一轮直接复用的冻结Debug -O App；未重新构建或重签\",\n    \"sourceCommit\": \"8c4d28298d1dc0d9bcfb80879fb2f159237feca6\",\n    \"copiedAt\": \"2026-11-04T14:57:27.625861+00:00\",\n    \"sourceBundle\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app\",\n    \"bundle\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app\",\n    \"copyCommand\": [\n      \"/usr/bin/ditto\",\n      \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app\",\n      \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app\"\n    ],\n    \"copyExitCode\": 0,\n    \"bundleFilesMatchSource\": true,\n    \"entries\": [\n      {\n        \"path\": \"Contents\",\n        \"mode\": \"0o755\",\n        \"type\": \"directory\"\n      },\n      {\n        \"path\": \"Contents/Info.plist\",\n        \"mode\": \"0o644\",\n        \"type\": \"file\",\n        \"bytes\": 1498,\n        \"sha256\": \"182769fcdcff4e49f6cc41fa1fedbdb5a3f0e3e282de24aac8bc5470149c9019\"\n      },\n      {\n        \"path\": \"Contents/MacOS\",\n        \"mode\": \"0o755\",\n        \"type\": \"directory\"\n      },\n      {\n        \"path\": \"Contents/MacOS/MacView\",\n        \"mode\": \"0o755\",\n        \"type\": \"file\",\n        \"bytes\": 15373808,\n        \"sha256\": \"f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8\"\n      },\n      {\n        \"path\": \"Contents/PkgInfo\",\n        \"mode\": \"0o644\",\n        \"type\": \"file\",\n        \"bytes\": 8,\n        \"sha256\": \"82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0\"\n      },\n      {\n        \"path\": \"Contents/Resources\",\n        \"mode\": \"0o755\",\n        \"type\": \"directory\"\n      },\n      {\n        \"path\": \"Contents/Resources/GRDB_GRDB.bundle\",\n        \"mode\": \"0o755\",\n        \"type\": \"directory\"\n      },\n      {\n        \"path\": \"Contents/Resources/GRDB_GRDB.bundle/Contents\",\n        \"mode\": \"0o755\",\n        \"type\": \"directory\"\n      },\n      {\n        \"path\": \"Contents/Resources/GRDB_GRDB.bundle/Contents/Info.plist\",\n        \"mode\": \"0o644\",\n        \"type\": \"file\",\n        \"bytes\": 1118,\n        \"sha256\": \"53bc98f2d3b0dcf4240cf1288da0808752eaedfe7824a568521ce93c38a5ea7a\"\n      },\n      {\n        \"path\": \"Contents/Resources/GRDB_GRDB.bundle/Contents/Resources\",\n        \"mode\": \"0o755\",\n        \"type\": \"directory\"\n      },\n      {\n        \"path\": \"Contents/Resources/GRDB_GRDB.bundle/Contents/Resources/PrivacyInfo.xcprivacy\",\n        \"mode\": \"0o644\",\n        \"type\": \"file\",\n        \"bytes\": 397,\n        \"sha256\": \"17784da62e51f74c5859df32fe402e01e25cdf6f797a4add06e2a3ce15c911f4\"\n      },\n      {\n        \"path\": \"Contents/Resources/en.lproj\",\n        \"mode\": \"0o755\",\n        \"type\": \"directory\"\n      },\n      {\n        \"path\": \"Contents/Resources/en.lproj/Localizable.strings\",\n        \"mode\": \"0o644\",\n        \"type\": \"file\",\n        \"bytes\": 37022,\n        \"sha256\": \"4e804f5ac9d20e4fa6b0ca3a8de6e82b1f6b0377862662e3d01d5200b063c284\"\n      },\n      {\n        \"path\": \"Contents/Resources/en.lproj/Localizable.stringsdict\",\n        \"mode\": \"0o644\",\n        \"type\": \"file\",\n        \"bytes\": 5910,\n        \"sha256\": \"de3626575bb8f5e81613dc66b15c5574943f3c54f1b8fbd274d897bb11f1895e\"\n      },\n      {\n        \"path\": \"Contents/Resources/zh-Hans.lproj\",\n        \"mode\": \"0o755\",\n        \"type\": \"directory\"\n      },\n      {\n        \"path\": \"Contents/Resources/zh-Hans.lproj/Localizable.strings\",\n        \"mode\": \"0o644\",\n        \"type\": \"file\",\n        \"bytes\": 5842,\n        \"sha256\": \"b1f95d55f7ee8ba34f7c95212c8738e0a06b0ecc7b520b17d7276305762d17f5\"\n      },\n      {\n        \"path\": \"Contents/_CodeSignature\",\n        \"mode\": \"0o755\",\n        \"type\": \"directory\"\n      },\n      {\n        \"path\": \"Contents/_CodeSignature/CodeResources\",\n        \"mode\": \"0o644\",\n        \"type\": \"file\",\n        \"bytes\": 3945,\n        \"sha256\": \"9f72c8d324f9298e6839f730bf69b9e34de78eda0dc7f30e04a1a03694b9b3fc\"\n      }\n    ],\n    \"bundleTreeSHA256\": \"1624536df2bc24553208ed8e2e75bf772716c8b35e2eee66f81135ee0547503b\",\n    \"binarySHA256\": \"f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8\",\n    \"cdhash\": \"828e639a107e00a70d06c738aedd9eb723c4ae50\",\n    \"codeSignature\": \"Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app/Contents/MacOS/MacView\\nIdentifier=io.github.ump45nose.MacView\\nFormat=app bundle with Mach-O thin (arm64)\\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\\nVersionPlatform=1\\nVersionMin=1769472\\nVersionSDK=1769984\\nHash type=sha256 size=32\\nCandidateCDHash sha256=828e639a107e00a70d06c738aedd9eb723c4ae50\\nCandidateCDHashFull sha256=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\\nHash choices=sha256\\nCMSDigest=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\\nCMSDigestType=2\\nExecutable Segment base=0\\nExecutable Segment limit=6045696\\nExecutable Segment flags=0x1\\nPage size=16384\\nCDHash=828e639a107e00a70d06c738aedd9eb723c4ae50\\nSignature=adhoc\\nInfo.plist entries=22\\nTeamIdentifier=not set\\nSealed Resources version=2 rules=13 files=5\\nInternal requirements count=0 size=12\\nTotal signatures=1\\nChosen signature=1\\n\",\n    \"strictVerification\": {\n      \"command\": [\n        \"codesign\",\n        \"--verify\",\n        \"--strict\",\n        \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app\"\n      ],\n      \"exitCode\": 0,\n      \"stdout\": \"\",\n      \"stderr\": \"\"\n    },\n    \"reusePolicy\": \"从本bundle复制或直接启动；禁止重建/重签改变cdhash。原DerivedData-profile在验收收尾清理。\"\n  }\n}\n"
+    },
+    {
+      "path": "build/stage3-fifth-control/preflight.json",
+      "bytes": 6334,
+      "sha256": "2d4e6bf00ac3aa6517ddabe3858ea558ec6201a6bf0e0ed46b11cedb9cebce49",
+      "rawText": "{\n  \"startedAt\": \"2026-11-05T02:44:38.601987+00:00\",\n  \"sourceCommit\": \"d77eea55a71c6ddd2bd63eb85e44fe1b336dd374\",\n  \"archive\": [\n    {\n      \"source\": \"docs/reports/bench/S2-T2-cached-first-screen.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-cached-first-screen.json\",\n      \"bytes\": 3607,\n      \"sha256\": \"f9d23b18f64496b794c63eb429777d2f556fedf9619a43794961517700da434c\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-first-image.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-first-image.json\",\n      \"bytes\": 1632,\n      \"sha256\": \"777e729bf65d5912963d5da4342b068b6d16e3dc2b6e15c5f189733b9b474a24\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-large-dir.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-large-dir.json\",\n      \"bytes\": 1676,\n      \"sha256\": \"0260eeed18b487d1296cce09ad47994d3f210f185b2635a195124ba48a8966cf\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-main-thread.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-main-thread.json\",\n      \"bytes\": 5050,\n      \"sha256\": \"be029174c5fc1dce43c93383c22a0a63f6067166a2f58ad3bea13d8780f74d02\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-memory-30min.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-memory-30min.json\",\n      \"bytes\": 643363,\n      \"sha256\": \"2d97d67e034fdcd631bbdb8191b02659ab1e18d4c7127f5cbd905effaa4ad8f1\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-nas-fault.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-nas-fault.json\",\n      \"bytes\": 3392,\n      \"sha256\": \"c3a22a79ff8f1fda211949ed85491bb6fc39416c44a79e30bfe26a55967046bd\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-nas-throughput.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-nas-throughput.json\",\n      \"bytes\": 2527,\n      \"sha256\": \"785bd0a3c0547367ea2094a3a3863310d8b3333924f4b5030c0e0c45ac2c8fc6\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-panel-restart.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-panel-restart.json\",\n      \"bytes\": 2218,\n      \"sha256\": \"729c03127dd50af15546338d306a9abdf43f65696ebacf5f03d619d3cb3009f8\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-preloaded-flip.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-preloaded-flip.json\",\n      \"bytes\": 1633,\n      \"sha256\": \"e6e21999362569d27bd38bd4b1f0c0b523f1b82002ecebc3317601f1b4bf14d7\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-scroll-cached.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-scroll-cached.json\",\n      \"bytes\": 1679,\n      \"sha256\": \"154ab2afe8f32b2bbedc931ed0c15aa05905e8edcdc049037da8da7330bc1c8e\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-scroll-cold.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-scroll-cold.json\",\n      \"bytes\": 1679,\n      \"sha256\": \"7ae0f03b33d88a44045425760174c21e999d24408c79a34ea11c9ff35265e549\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-settle.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-settle.json\",\n      \"bytes\": 1615,\n      \"sha256\": \"336bb3f840f00f99e6557552176724ea9e3e8374cf897a1615357e9c4e2b8f36\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-T2-tiles-cancel.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-T2-tiles-cancel.json\",\n      \"bytes\": 1910,\n      \"sha256\": \"fc69d0789237399b4937e3aabebcf470f9c145d88ecc5c95e8f5926e8c7554f6\"\n    },\n    {\n      \"source\": \"docs/reports/bench/S2-stage3-checks.json\",\n      \"backup\": \"docs/reports/bench/before-physical-footprint/S2-stage3-checks.json\",\n      \"bytes\": 381440,\n      \"sha256\": \"d20d7e130889edd42d88966aa0e52dc057654d9d38fd34e17270359931301c7a\"\n    }\n  ],\n  \"frozenBinarySHA256\": \"f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8\",\n  \"codeSignature\": \"Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\\nIdentifier=io.github.ump45nose.MacView\\nFormat=app bundle with Mach-O thin (arm64)\\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\\nVersionPlatform=1\\nVersionMin=1769472\\nVersionSDK=1769984\\nHash type=sha256 size=32\\nCandidateCDHash sha256=828e639a107e00a70d06c738aedd9eb723c4ae50\\nCandidateCDHashFull sha256=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\\nHash choices=sha256\\nCMSDigest=828e639a107e00a70d06c738aedd9eb723c4ae50b638a358232ef3b81d2466be\\nCMSDigestType=2\\nExecutable Segment base=0\\nExecutable Segment limit=6045696\\nExecutable Segment flags=0x1\\nPage size=16384\\nCDHash=828e639a107e00a70d06c738aedd9eb723c4ae50\\nSignature=adhoc\\nInfo.plist entries=22\\nTeamIdentifier=not set\\nSealed Resources version=2 rules=13 files=5\\nInternal requirements count=0 size=12\\nTotal signatures=1\\nChosen signature=1\\n\",\n  \"strictVerifyExitCode\": 0,\n  \"sourceDiffSinceFrozenApp\": \" scripts/acceptance/recording.py |   4 +-\\n scripts/acceptance/run.py       | 125 ++++++++++++++++++++++++++++++----------\\n 2 files changed, 97 insertions(+), 32 deletions(-)\\n\",\n  \"sourceBlobs\": {\n    \"App\": \"026406998e1128da2b4656edcdc90ec17e79fe9c\",\n    \"Packages/MacViewKit/Sources\": \"2389ae9ed58bcd9e5155b603b25c65115e69119b\",\n    \"Packages/MacViewKit/Tests\": \"8522d9644d28cecd33923c705072ad0d2a6b6eef\",\n    \"Makefile\": \"4a955a3f007ea2d7e2042f372e56b0f4baca5829\",\n    \"scripts/acceptance/run.py\": \"8fd95774682c6889a0cd8e4c26ab6fcda1e97e8a\",\n    \"scripts/acceptance/record-trackpad.sh\": \"6b4e24ade2af94c22b089e62f1c3a8e8cdf166ec\",\n    \"scripts/acceptance/recording.py\": \"3da93944d1b75e7c1bdfe6474d5e5bfb178c4a5b\"\n  },\n  \"conditions\": {\n    \"load\": {\n      \"oneMinute\": 5.03759765625,\n      \"limit\": 10,\n      \"limitSource\": \"sysctl -n hw.physicalcpu\"\n    },\n    \"displayMode\": {\n      \"width\": 1728,\n      \"height\": 1080,\n      \"pixelWidth\": 3456,\n      \"pixelHeight\": 2160,\n      \"refreshHz\": 120.0,\n      \"builtin\": true,\n      \"externalDisplay\": false\n    },\n    \"refreshHz\": 120.0,\n    \"screen\": {\n      \"locked\": false,\n      \"idleSeconds\": 15.352733083,\n      \"inputDuringRun\": false,\n      \"externalDisplay\": false\n    }\n  },\n  \"releaseMvbenchExists\": true\n}\n"
+    },
+    {
+      "path": "build/stage3-fifth-control/progress.json",
+      "bytes": 4776,
+      "sha256": "7a02c8e5a6d6c85bd670f52fd49bad84de84630be880f1d518e9e4995a52762b",
+      "rawText": "{\n  \"pid\": 37270,\n  \"startedAt\": \"2026-11-05T02:45:05.231971+00:00\",\n  \"requestedScenes\": [\n    \"first-image\",\n    \"preloaded-flip\",\n    \"large-dir\",\n    \"settle\",\n    \"scroll-cached\",\n    \"scroll-cold\",\n    \"cached-first-screen\",\n    \"nas-fault\",\n    \"memory-30min\"\n  ],\n  \"completed\": [\n    {\n      \"scene\": \"first-image\",\n      \"startedAt\": \"2026-11-05T02:45:05.282302+00:00\",\n      \"endedAt\": \"2026-11-05T02:45:51.542573+00:00\",\n      \"elapsedSeconds\": 46.260231375,\n      \"verdict\": \"pass\"\n    },\n    {\n      \"scene\": \"preloaded-flip\",\n      \"startedAt\": \"2026-11-05T02:45:51.543063+00:00\",\n      \"endedAt\": \"2026-11-05T02:45:59.255102+00:00\",\n      \"elapsedSeconds\": 7.712045416999999,\n      \"verdict\": \"pass\"\n    },\n    {\n      \"scene\": \"large-dir\",\n      \"startedAt\": \"2026-11-05T02:45:59.256629+00:00\",\n      \"endedAt\": \"2026-11-05T02:46:04.803420+00:00\",\n      \"elapsedSeconds\": 5.5468028750000045,\n      \"verdict\": \"pass\"\n    },\n    {\n      \"scene\": \"settle\",\n      \"startedAt\": \"2026-11-05T02:46:04.804769+00:00\",\n      \"endedAt\": \"2026-11-05T02:51:35.007895+00:00\",\n      \"elapsedSeconds\": 330.202722542,\n      \"verdict\": \"unverified\"\n    },\n    {\n      \"scene\": \"scroll-cached\",\n      \"startedAt\": \"2026-11-05T02:51:35.008315+00:00\",\n      \"endedAt\": \"2026-11-05T02:55:23.368913+00:00\",\n      \"elapsedSeconds\": 228.360322666,\n      \"verdict\": \"environment\"\n    },\n    {\n      \"scene\": \"scroll-cold\",\n      \"startedAt\": \"2026-11-05T02:55:23.369335+00:00\",\n      \"endedAt\": \"2026-11-05T02:55:35.465503+00:00\",\n      \"elapsedSeconds\": 12.09618720800006,\n      \"verdict\": \"fail\"\n    },\n    {\n      \"scene\": \"cached-first-screen\",\n      \"startedAt\": \"2026-11-05T02:55:35.466484+00:00\",\n      \"endedAt\": \"2026-11-05T02:56:26.639128+00:00\",\n      \"elapsedSeconds\": 51.172596874999954,\n      \"verdict\": \"fail\"\n    },\n    {\n      \"scene\": \"nas-fault\",\n      \"startedAt\": \"2026-11-05T02:56:26.639788+00:00\",\n      \"endedAt\": \"2026-11-05T02:58:22.871904+00:00\",\n      \"elapsedSeconds\": 116.23202800000001,\n      \"verdict\": \"unverified\"\n    },\n    {\n      \"scene\": \"memory-30min\",\n      \"startedAt\": \"2026-11-05T02:58:22.872762+00:00\",\n      \"endedAt\": \"2026-11-05T03:28:34.898570+00:00\",\n      \"elapsedSeconds\": 1812.0234812499998,\n      \"verdict\": \"fail\"\n    }\n  ],\n  \"activeScene\": null,\n  \"phase\": \"finished\",\n  \"sceneStartedMonotonic\": 797.794980958,\n  \"returnCode\": 0,\n  \"updatedAt\": \"2026-11-05T03:28:34.904211+00:00\",\n  \"elapsedSeconds\": 2609.668874292,\n  \"sceneElapsedSeconds\": 1812.0291155,\n  \"memory\": {\n    \"elapsedSeconds\": 1810.7466823749999,\n    \"stateSamples\": 2371,\n    \"stalls\": 11,\n    \"maxRoundTripMilliseconds\": 3123.1885000001967,\n    \"stateTimedOut\": false,\n    \"lastState\": {\n      \"cacheBudgets\": {\n        \"browseDiskBytes\": 53687091200,\n        \"decodedBytes\": 1073741824,\n        \"preloadBytes\": 536870912,\n        \"rawBytes\": 536870912,\n        \"thumbnailDiskBytes\": 10737418240,\n        \"thumbnailMemoryBytes\": 536870912\n      },\n      \"fileErrors\": [],\n      \"memory\": {\n        \"decodedBytes\": 363539968,\n        \"inFlightBytes\": 0,\n        \"preloadBytes\": 45516032,\n        \"rawBytes\": 530861408,\n        \"thumbnailMemoryBytes\": 248742016,\n        \"waitingTasks\": 0\n      },\n      \"residentBytes\": 1777729536,\n      \"volumes\": [\n        {\n          \"inFlight\": 0,\n          \"root\": \"/\",\n          \"state\": \"healthy\",\n          \"stuck\": 0\n        }\n      ],\n      \"windows\": [\n        {\n          \"book\": \"/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set\",\n          \"browseMode\": \"waterfall\",\n          \"docksVisible\": true,\n          \"firstScreenThumbnailMilliseconds\": 1347.170333,\n          \"frame\": 6,\n          \"frameCount\": 85,\n          \"hudVisible\": false,\n          \"itemCount\": 85,\n          \"lastDisplay\": {\n            \"milliseconds\": 133.546042,\n            \"page\": 6,\n            \"quality\": \"exact\"\n          },\n          \"loadError\": null,\n          \"page\": 6,\n          \"pageSlots\": [],\n          \"panels\": {\n            \"bookshelf\": {\n              \"itemExtent\": 100,\n              \"sort\": null,\n              \"style\": \"list\"\n            },\n            \"pageList\": {\n              \"itemExtent\": 100,\n              \"sort\": null,\n              \"style\": \"list\"\n            }\n          },\n          \"prefetchIdle\": true,\n          \"prefetchInFlightCount\": 0,\n          \"responsiveScrolling\": false,\n          \"scaleMode\": \"fitWindow\",\n          \"tiles\": {\n            \"cancelled\": 0,\n            \"inFlight\": 0,\n            \"requested\": 0\n          },\n          \"viewport\": {\n            \"height\": 767,\n            \"width\": 698\n          },\n          \"visibleRange\": [\n            6,\n            10\n          ],\n          \"windowFront\": false,\n          \"zoom\": 1\n        }\n      ]\n    }\n  }\n}\n"
+    },
+    {
+      "path": "build/stage3-fifth-control/root-caffeinate-exit.json",
+      "bytes": 396,
+      "sha256": "270fe75b6d66f1c7bd27d198efecba4a17b629c34b538b95540941128dd79438",
+      "rawText": "{\n  \"pid\": 28372,\n  \"command\": \"/usr/bin/caffeinate -d\",\n  \"signal\": \"SIGTERM\",\n  \"observedRealExit\": true,\n  \"elapsedSeconds\": 0.0004687500000000039,\n  \"at\": \"2026-11-05T03:33:14.508997+00:00\",\n  \"events\": [\n    {\n      \"pid\": 28372,\n      \"fflags\": 2147483648,\n      \"data\": 0\n    }\n  ],\n  \"protectedDesignCaffeinatePID\": 24334,\n  \"protectedDesignCaffeinateCommand\": \"caffeinate -d -t 21600\"\n}\n"
+    },
+    {
+      "path": "build/stage3-fifth-control/run-fifth.py",
+      "bytes": 3727,
+      "sha256": "e390da265454689352a100ec4209a1332c2f8296d470aed5abf4e33305bd1f3b",
+      "rawText": "import datetime\nimport importlib.util\nimport json\nimport os\nfrom pathlib import Path\nimport sys\nimport threading\nimport time\n\nsys.dont_write_bytecode = True\nROOT = Path(__file__).resolve().parents[2]\nCONTROL = ROOT / 'build/stage3-fifth-control'\nspec = importlib.util.spec_from_file_location('fifth_frozen_acceptance', ROOT / 'scripts/acceptance/run.py')\nrun = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(run)\nSCENES = ['first-image', 'preloaded-flip', 'large-dir', 'settle', 'scroll-cached', 'scroll-cold', 'cached-first-screen', 'nas-fault', 'memory-30min']\nstarted = time.monotonic()\nstatus = {'pid': os.getpid(), 'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'requestedScenes': SCENES, 'completed': [], 'activeScene': None, 'phase': 'starting'}\nscene_runs, exits, monitors = [], [], []\nfinished = threading.Event()\n\ndef snapshot():\n    data = dict(status)\n    data['updatedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()\n    data['elapsedSeconds'] = time.monotonic() - started\n    if data.get('sceneStartedMonotonic'):\n        data['sceneElapsedSeconds'] = time.monotonic() - data['sceneStartedMonotonic']\n    if monitors:\n        monitor = monitors[-1]\n        data['memory'] = {'elapsedSeconds': time.monotonic() - monitor.started,\n                          'stateSamples': len(monitor.round_trips), 'stalls': len(monitor.stalls),\n                          'maxRoundTripMilliseconds': max(monitor.round_trips, default=None),\n                          'stateTimedOut': monitor.timed_out, 'lastState': monitor.last_state}\n    temporary = CONTROL / 'progress.pending.json'\n    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\\n')\n    temporary.replace(CONTROL / 'progress.json')\n\ndef heartbeat():\n    while not finished.wait(60):\n        snapshot()\n\noriginal_scene = run.run_scene\n\ndef run_scene(scene, out, commit, base):\n    status.update(activeScene=scene, phase='running', sceneStartedMonotonic=time.monotonic())\n    record = {'scene': scene, 'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat()}\n    scene_runs.append(record)\n    snapshot()\n    print('FIFTH_SCENE_START ' + json.dumps(record), flush=True)\n    try:\n        return original_scene(scene, out, commit, base)\n    finally:\n        path = Path(out) / ('S2-T2-' + scene + '.json')\n        record.update(endedAt=datetime.datetime.now(datetime.timezone.utc).isoformat(), elapsedSeconds=time.monotonic() - status['sceneStartedMonotonic'])\n        if path.exists():\n            document = json.loads(path.read_text())\n            record['verdict'] = document['verdict']\n        status['completed'] = [dict(item) for item in scene_runs]\n        snapshot()\n\noriginal_stop = run.App.stop\n\ndef stop(app):\n    pid = app.pid\n    result = original_stop(app)\n    exits.append({'scene': app.name, 'pid': pid, 'exitCode': app.exit_code, 'normalQuit': app.quit_exited_normally, 'quitSeconds': result, 'socket': app.socket})\n    return result\n\noriginal_monitor_init = run.MemoryStateMonitor.__init__\n\ndef monitor_init(monitor, *args, **kwargs):\n    original_monitor_init(monitor, *args, **kwargs)\n    monitors.append(monitor)\n\nrun.run_scene = run_scene\nrun.App.stop = stop\nrun.MemoryStateMonitor.__init__ = monitor_init\nthreading.Thread(target=heartbeat, daemon=True).start()\ncode = 1\ntry:\n    code = run.main(SCENES + ['--out', str(ROOT / 'docs/reports/bench')])\nfinally:\n    run.stop_live()\n    status.update(phase='finished', activeScene=None, returnCode=code)\n    finished.set()\n    snapshot()\n    (CONTROL / 'execution.json').write_text(json.dumps({'scenes': scene_runs, 'appExits': exits, 'returnCode': code}, ensure_ascii=False, indent=2) + '\\n')\nraise SystemExit(code)\n"
+    }
+  ],
+  "testNFSUnmount": [
+    {
+      "path": "/Users/yuwk/MacViewBench/nfs",
+      "command": [
+        "diskutil",
+        "unmount",
+        "/Users/yuwk/MacViewBench/nfs"
+      ],
+      "exitCode": 0,
+      "stdout": "Unmount successful for /Users/yuwk/MacViewBench/nfs\n",
+      "stderr": ""
+    }
+  ],
+  "cleanupActions": [
+    {
+      "path": "build/acceptance/cached-first-screen-local-37270",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/cached-first-screen-nfs-37270",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/first-image-37270",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/large-dir-37270",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/memory-30min-37270",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/nas-authorization-37270",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/nas-fault-37270",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/nfs-fault.log",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/preloaded-flip-37270",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/scroll-cached-record",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/scroll-cold-record",
+      "removed": true,
+      "reason": "本轮场景隔离数据/录制汇总，证据已嵌入checks"
+    },
+    {
+      "path": "build/acceptance/tmp",
+      "preserved": true,
+      "contentsRemoved": true,
+      "reason": "根基线已有空目录，恢复为空"
+    },
+    {
+      "path": "build/w37",
+      "removed": true,
+      "reason": "本轮新增，sample/冻结App身份已保全；outputs明确交付物保留"
+    },
+    {
+      "path": "build/DerivedData-profile",
+      "removed": true,
+      "reason": "本轮新增，sample/冻结App身份已保全；outputs明确交付物保留"
+    },
+    {
+      "path": "build/stage3-fifth-control",
+      "removed": true,
+      "reason": "临时harness/日志/基线/root真实退出证据均已嵌入checks"
+    }
+  ],
+  "cleanupVerification": {
+    "collectedAt": "2026-11-05T03:42:01.931128+00:00",
+    "sourceCommit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+    "reviewedAtCommit": "ac5b10cf7708ef6d99369370bdaa3154f89018f3",
+    "buildEntries": [
+      "DerivedData",
+      "acceptance",
+      "stage-1-work",
+      "stage4-repair"
+    ],
+    "baselineBuildEntries": [
+      "DerivedData",
+      "acceptance",
+      "stage-1-work",
+      "stage4-repair"
+    ],
+    "baselineBuildEntriesPreserved": true,
+    "acceptanceEntries": [
+      "tmp"
+    ],
+    "acceptanceTmpEmpty": true,
+    "testNFSMounts": [],
+    "smbCount": 10,
+    "smbMountsUnchanged": true,
+    "smbMountPoints": [
+      "/Volumes/Adult",
+      "/Volumes/BackUp",
+      "/Volumes/Book",
+      "/Volumes/Cache",
+      "/Volumes/Code",
+      "/Volumes/Learn",
+      "/Volumes/Media",
+      "/Volumes/Music",
+      "/Volumes/Picture",
+      "/Volumes/plaud-daily"
+    ],
+    "testUUIDCount": 14,
+    "originalUUIDsPreserved": true,
+    "currentKtraceFiles": [],
+    "rawBaselineCount": 0,
+    "newRawAndTraceCleanedAfterLsof": true,
+    "allNewRawGone": true,
+    "ownedAppAndControllerPIDsRemaining": [],
+    "taskProcessesRemaining": [],
+    "rootCaffeinate28372Absent": true,
+    "designCaffeinate24334Preserved": true,
+    "designCaffeinateCommand": "caffeinate -d -t 21600",
+    "frozenArtifactPreserved": true,
+    "frozenArtifactBinarySHA256": "f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8",
+    "retiredOldPIDAndOldRawAudit": "按2026-11-05重启及最新答复，不核对72765/21555/21968或用户已移除12旧raw。",
+    "temporaryHarnessAndLogDirectoriesRemoved": true,
+    "verdict": "pass"
+  },
+  "endedAt": "2026-11-05T03:42:01.931128+00:00",
+  "finalConclusion": {
+    "gate": "G2未通过，不合main",
+    "sourceCommit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+    "offlineRejudgementCommit": "ac5b10cf7708ef6d99369370bdaa3154f89018f3",
+    "executedThisRound": 9,
+    "reused": 4,
+    "verdictCounts": {
+      "pass": 8,
+      "fail": 2,
+      "environment": 1,
+      "unverified": 2
+    },
+    "nextRoundScenes": [
+      "cached-first-screen",
+      "nas-fault",
+      "scroll-cached",
+      "settle"
+    ],
+    "memory": "物理占用波动1.743218%和意外泄漏0通过；主线程11次停顿、最大3123.189ms失败，原因未定位。"
+  },
+  "designRevision": {
+    "source": ".spec/stage-3.md，第五轮中途的结果和设计修正（11:05）及刷新率单独处理",
+    "specSHA256": "674af3d6486df5c0340a1f5c23c905299679257c37720957f4653cbd8195dfb8",
+    "verdictCorrection": "有效120Hz帧时间P99≤一个刷新间隔8.333ms；hitches及两个P99之和仅诊断。脚本提交后仅离线重判同raw，不重录。",
+    "preservedOldColdVerdict": {
+      "path": "docs/reports/bench/before-refresh-interval/S2-T2-scroll-cold.json",
+      "sha256": "cd82d9542362194da876962d6bcd691860ec8f3b52c6d2e8fdcaf233229c2979"
+    },
+    "nextRoundScenes": [
+      "cached-first-screen",
+      "nas-fault",
+      "scroll-cached",
+      "settle"
+    ],
+    "memoryStatus": "本轮11次state>1s停顿已复现，原因未定位；只凭采样不能认定旧CAflush同一根因。",
+    "status": "已在ac5b10c提交后应用，cold只离线重判一次，无新录制"
+  },
+  "architectureAudit": {
+    "verdict": "pass",
+    "performedBeforeAcceptance": true,
+    "documents": [
+      "AGENTS.md",
+      ".spec/stage-3.md",
+      ".spec/requirements.md",
+      ".spec/architecture.md",
+      ".spec/stages.md",
+      "docs/plans/requirements.md §5",
+      "docs/architecture.md",
+      "docs/plans/roadmap.md"
+    ],
+    "scope": "验收前审读架构和脚本调用链；正式时序只一个活动agent，不构建/测试；App只经隔离DebugSocket驱动，NAS只读，不改系统设置。"
+  }
+}

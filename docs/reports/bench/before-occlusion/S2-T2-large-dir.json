@@ -1,0 +1,103 @@
+{
+  "scene": "large-dir",
+  "commit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+  "env": {
+    "load": {
+      "oneMinute": 6.33056640625,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 6.1435546875
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 120.0,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 57.319009333,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-05T02:45:59Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/generated/tree/10000",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 62.728502166,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 120.0,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "maxRoundTripMilliseconds": 250,
+    "totalItems": 10000,
+    "intermediateItemCount": true
+  },
+  "measured": {
+    "stateSamples": 71,
+    "maxRoundTripMilliseconds": 142.79933299999925,
+    "itemCountChanges": 2,
+    "itemCounts": [
+      0,
+      5460,
+      10000
+    ],
+    "intermediateItemCounts": [
+      5460
+    ],
+    "openOk": true,
+    "refreshHz": 120.0
+  },
+  "verdict": "pass"
+}
