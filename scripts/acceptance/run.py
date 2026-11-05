@@ -1703,7 +1703,8 @@ def scene_nas_fault():
         }).start()
         hide_docks(app.client)
         opened = app.client.request("open", {"path": ready["path"], "page": 0}, timeout=180)
-        wait_frame(app.client, opened["frame"])
+        # 初始页可能已在 open 返回前上屏，lastDisplay 只记录翻页计时；用真实图层就绪作前提。
+        wait_exact(app.client, opened["page"], prime=True)
         rtts, injections = [], []
         retry = True
         for mode in ("pause", "drop"):
