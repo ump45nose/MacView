@@ -1,0 +1,5013 @@
+{
+  "schemaVersion": 1,
+  "task": "S2-T3第八轮本地首屏A/B",
+  "kind": "diagnostic-ab",
+  "verdict": "diagnostic",
+  "sourceCommit": "c3f34970ce62f000762578e1f80b74905023ccfe",
+  "notFormalAcceptance": true,
+  "method": {
+    "order": "各一次冷填充，然后4轮，每轮new连续5次、old连续5次；总40次重启后立即打开",
+    "noLoadAdmission": true,
+    "noInstrumentation": true,
+    "noRebuildOrResign": true,
+    "perSideSeparateInitiallyEmptyCache": true,
+    "coldFillCompletion": "既有wait_idle返回后立即只读查询SQLite及文件数；不补齐，不另开书预热",
+    "openPath": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+    "sampleCompletion": "既有firstScreenThumbnailMilliseconds；完成后退出，不额外等待预取归零",
+    "beforeOpen": "新进程、删除该侧session.json以防恢复目标书；state确认book=null；同样的目标实例前台确认路径；没有负载等待",
+    "firstScreenTimeoutSeconds": 15,
+    "percentile": "P50=median，P95=nearest-rank ceil(0.95*n)",
+    "driverInitializationNote": "驱动首次在只读显示探针初始化时退出139，当时未启动App、冷填充或采样；修正ctypes函数类型后开始本次完整42实例序列，没有补样本。"
+  },
+  "fixture": {
+    "resolved": "/Users/yuwk/WorkSpace/Code/Github/MacView/Fixtures/local/sample-set",
+    "filesystemProbe": {
+      "command": [
+        "df",
+        "-P",
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/Fixtures/local/sample-set"
+      ],
+      "output": "Filesystem   512-blocks      Used Available Capacity  Mounted on\n/dev/disk3s5  965595304 535462472 376612096    59%    /System/Volumes/Data",
+      "localDeviceVerified": true
+    },
+    "files": 85,
+    "entryMetadataSHA256": "1bef06ea611ba6097a56e3fc5a5dadbef8456053d556e6c5e77cba9bcc11ffa3",
+    "entryFingerprintRule": "按名称排序的name/size/mtimeNs JSON SHA256，不包含用户图像"
+  },
+  "identities": {
+    "new": {
+      "bundle": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app",
+      "binarySHA256": "424364778d4bcccc288063ea26e7bc03add21b8864a67cf6ec9c0864d0aa5cb2",
+      "cdhash": "08e033c998ea5b1f2ea08121481e2bbc81d2746f",
+      "bundleTreeSHA256": "5bfe11de2baf418fb2f8a4eff5437cfd738da76f8b139e055d8d64ee9fb849c3",
+      "strictVerificationExitCode": 0,
+      "sourceCommit": "c3f34970ce62f000762578e1f80b74905023ccfe"
+    },
+    "old": {
+      "bundle": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-eighth-ab/old-freeze/MacView.app",
+      "binarySHA256": "f6bd50e887be3666cdb960bdb47c3a25088a8a6c56797a22529e3258dd9d01f8",
+      "cdhash": "828e639a107e00a70d06c738aedd9eb723c4ae50",
+      "bundleTreeSHA256": "f642667b5b5611e50554c126aee8d6f9dcbda1f9f72c5557ef69d72d1ea291d0",
+      "strictVerificationExitCode": 0,
+      "sourceCommit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+      "sourceCommitProvenance": {
+        "evidence": "旧冻结manifest.sourceCommit；主控保留的替换前根基线已核验，结合原manifest SHA256及原二进制/cdhash关联。",
+        "originalFrozenManifestSHA256": "578bca3c61dc444c690345873c7cfa96c6cce13e04f22ba3d3db51ba446acba6"
+      }
+    }
+  },
+  "oldFrozenBackup": {
+    "manifestSHA256": "578bca3c61dc444c690345873c7cfa96c6cce13e04f22ba3d3db51ba446acba6",
+    "completeFrozenDirectoryTreeMatchBeforeReplacement": true,
+    "preservedUnmodifiedUntilComparisonFinished": true,
+    "manifestMatchAtEnd": true,
+    "strictVerificationExitCodeAtEnd": 0
+  },
+  "validation": {
+    "contentSourceCommit": "c3f34970ce62f000762578e1f80b74905023ccfe",
+    "testedBeforeCommitWithoutSourceChanges": true,
+    "sourceFingerprintRule": "按 sourceFingerprints 中每项 gitCommand 的 git ls-files -z 返回顺序；不另排序、不按扩展名筛选。逐项拼接 UTF-8(path) + NUL字节 + 文件原始字节SHA256的小写十六进制ASCII + 换行字节，再对整体做SHA256。",
+    "appCoreFiles": 164,
+    "appCoreFingerprint": "e24ab3deafe6b974c69c06a57eb400fbb05ec1de7945ed009f182994e1960f82",
+    "allTestedFiles": 196,
+    "allTestedFilesFingerprint": "c0d552b5d092e88da10f55bc3739878a2370f327337e25c0c3dc32e3af08f862",
+    "unitTests": {
+      "command": "TMPDIR=\"$PWD/build/stage3-eighth-validation/tmp/\" make test",
+      "tests": 257,
+      "processes": 13,
+      "exitCode": 0,
+      "seconds": 43.072,
+      "swiftWarnings": 0
+    },
+    "build": {
+      "commands": [
+        [
+          "xcodegen",
+          "generate",
+          "--quiet"
+        ],
+        [
+          "xcodebuild",
+          "-quiet",
+          "-project",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/MacView.xcodeproj",
+          "-scheme",
+          "MacView",
+          "-configuration",
+          "Debug",
+          "-destination",
+          "platform=macOS,arch=arm64",
+          "-derivedDataPath",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile",
+          "SWIFT_OPTIMIZATION_LEVEL=-O",
+          "build"
+        ]
+      ],
+      "exitCode": 0,
+      "seconds": 576.205,
+      "swiftWarnings": 0,
+      "toolDiagnostic": "CoreSimulator framework较旧；macOS构建成功，未改环境"
+    },
+    "selfTestLaunchRecipe": "open -n -a <本轮App> --stdout <隔离stdout> --stderr <隔离stderr> --env TMPDIR=<工作区tmp>/ --args -<自检参数> YES -MVSelfTestFixtures <本地Fixtures> -MVDebugSocket <唯一socket> -MVSupportDirectory <隔离support> -MVCacheDirectory <隔离cache> -MVLayoutFile <隔离layout>",
+    "selftests": [
+      {
+        "name": "real-confirm",
+        "pid": 25283,
+        "exitStatusRaw": 0,
+        "exitCode": 0,
+        "seconds": 4.398,
+        "passes": 25,
+        "failures": [],
+        "skips": [],
+        "summary": [
+          "SELFTEST OK"
+        ]
+      },
+      {
+        "name": "viewer",
+        "pid": 25377,
+        "exitStatusRaw": 3072,
+        "exitCode": 12,
+        "seconds": 31.108,
+        "passes": 72,
+        "failures": [
+          "FAIL 拖动平移：(0.0, 0.0) → (0.0, 0.0)",
+          "FAIL 翻到已预载的页不超过一帧：21.514333 ms ≤ 16.666666666666668 ms",
+          "FAIL 瀑布流单击第 11 页进入分页：waterfall、11",
+          "FAIL 移动后请求新块：4",
+          "FAIL 移出视口的块被丢弃：0，其中 0 个在途时取消",
+          "FAIL 只保留可见的块：4 / 4",
+          "FAIL loop.gif 帧序号前进：0 → 0，当前帧 0",
+          "FAIL loop.gif 正在播放",
+          "FAIL loop.gif 窗口恢复后继续",
+          "FAIL loop.png 帧序号前进：0 → 0，当前帧 0",
+          "FAIL loop.png 正在播放",
+          "FAIL loop.png 窗口恢复后继续"
+        ],
+        "skips": [],
+        "summary": [
+          "SELFTEST FAILED 12"
+        ]
+      },
+      {
+        "name": "panel",
+        "pid": 27159,
+        "exitStatusRaw": 0,
+        "exitCode": 0,
+        "seconds": 29.449,
+        "passes": 46,
+        "failures": [],
+        "skips": [],
+        "summary": [
+          "SELFTEST OK"
+        ]
+      }
+    ],
+    "viewerControlled": {
+      "pid": 30375,
+      "exitStatusRaw": 256,
+      "exitCode": 1,
+      "seconds": 31.136191375000003,
+      "frontConfirmedSeconds": 1.318773167,
+      "passes": 83,
+      "failures": [
+        "FAIL 翻到已预载的页不超过一帧：13.448083 ms ≤ 8.333333333333334 ms"
+      ],
+      "summary": [
+        "SELFTEST FAILED 1"
+      ],
+      "skips": []
+    },
+    "viewerFrontEvidence": {
+      "observations": 115,
+      "activeTrue": 115,
+      "windowFrontTrue": 107,
+      "falseOnlyDuringIntentionalAnimatedWindowHide": true,
+      "initial": {
+        "elapsedSeconds": 1.2511812919999998,
+        "phase": "initial",
+        "pid": 30375,
+        "peerPID": 30375,
+        "windowFront": true,
+        "active": true,
+        "key": true,
+        "occlusionVisible": true,
+        "individualStateRule": "windowFront=true proves key/visible/active/occlusion conjunction; false does not expose individual AppKit flags",
+        "frontmostPID": 30375,
+        "loadOneMinute": 10.83544921875,
+        "screenLocked": false,
+        "windows": [
+          {
+            "zIndex": 4,
+            "number": 1082,
+            "onScreen": true,
+            "bounds": {
+              "Height": 852.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "layer": 0
+          }
+        ],
+        "book": null,
+        "browseMode": "paged",
+        "scaleMode": "fitWindow",
+        "zoom": 1
+      },
+      "loadOneMinuteMin": 10.83544921875,
+      "loadOneMinuteMax": 13.2900390625
+    },
+    "selftestEnvironmentBefore": {
+      "load": {
+        "oneMinute": 14.99609375,
+        "limit": 10,
+        "limitSource": "sysctl -n hw.physicalcpu"
+      },
+      "displayMode": {
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160,
+        "refreshHz": 60.0,
+        "builtin": false,
+        "externalDisplay": true
+      },
+      "refreshHz": 60.0,
+      "screen": {
+        "locked": false,
+        "idleSeconds": 6737.982636625,
+        "inputDuringRun": false,
+        "externalDisplay": true
+      }
+    },
+    "viewerControlledEnvironmentAfter": {
+      "load": {
+        "oneMinute": 13.02392578125,
+        "limit": 10,
+        "limitSource": "sysctl -n hw.physicalcpu"
+      },
+      "displayMode": {
+        "width": 1728,
+        "height": 1080,
+        "pixelWidth": 3456,
+        "pixelHeight": 2160,
+        "refreshHz": 120.0,
+        "builtin": true,
+        "externalDisplay": false
+      },
+      "refreshHz": 120.0,
+      "screen": {
+        "locked": false,
+        "idleSeconds": 33.936523625,
+        "inputDuringRun": false,
+        "externalDisplay": false
+      }
+    },
+    "viewerConclusion": "首次12项FAIL保留。受控复核仅预载时序13.448083 ms > 120 Hz一帧8.333333 ms未通过；其余11项未再出现。首次前台证据不足且显示器也变了，不能将首次失败唯一归因为前台。本轮未放宽阈值，未报告全部自检通过。",
+    "localStateVolumes": {
+      "pid": 27869,
+      "exitCode": 0,
+      "itemCount": 7,
+      "volumes": [
+        {
+          "root": "/",
+          "state": "healthy",
+          "inFlight": 0,
+          "stuck": 0
+        }
+      ]
+    },
+    "temporaryDirectoryLimitation": "open传工作区TMPDIR后，既有Viewer自检的NSTemporaryDirectory仍给系统临时目录；已观察到的唯一临时根由自检删除。A/B不运行自检。",
+    "sourceContentUnchangedAfterAB": true,
+    "existingBenchFilesUnchanged": true,
+    "existingBenchFingerprint": {
+      "files": 229,
+      "sha256": "bc4b7a29512e98bb04956d3caa9d7324948a6fce2bb6274e4a96c170200c8ccd"
+    },
+    "offlineChecks": {
+      "sampleOrderAndSideIndices": true,
+      "recomputedPercentiles": true,
+      "all42UniqueInstanceExitsNormal": true,
+      "allBeforeOpenBooksEmpty": true,
+      "sourceAndFixturesUnchanged": true,
+      "existingBenchUnchanged": true,
+      "frozenAllManifestFileHashesMatch": true
+    },
+    "sourceFingerprints": {
+      "appCore": {
+        "gitCommand": [
+          "git",
+          "ls-files",
+          "-z",
+          "App",
+          "Packages/MacViewKit/Sources"
+        ],
+        "files": 164,
+        "swiftFiles": 163,
+        "nonSwiftFiles": [
+          "App/Resources/Localizable.xcstrings"
+        ],
+        "sha256": "e24ab3deafe6b974c69c06a57eb400fbb05ec1de7945ed009f182994e1960f82",
+        "recomputedAtCommit": "c3f34970ce62f000762578e1f80b74905023ccfe"
+      },
+      "withTests": {
+        "gitCommand": [
+          "git",
+          "ls-files",
+          "-z",
+          "App",
+          "Packages/MacViewKit/Sources",
+          "Packages/MacViewKit/Tests"
+        ],
+        "files": 196,
+        "swiftFiles": 195,
+        "nonSwiftFiles": [
+          "App/Resources/Localizable.xcstrings"
+        ],
+        "sha256": "c0d552b5d092e88da10f55bc3739878a2370f327337e25c0c3dc32e3af08f862",
+        "recomputedAtCommit": "c3f34970ce62f000762578e1f80b74905023ccfe"
+      }
+    },
+    "sourceFingerprintAudit": {
+      "status": "reproduced-with-original-pathspec",
+      "originalValuesPreserved": true,
+      "explanation": "此前声明省略精确pathspec，造成与App/Packages全部.swift口径混淆。原采集包含Localizable.xcstrings，不包含pathspec之外的Package.swift/Package.resolved；按原命令复算两项均匹配，无需改变原指纹值。",
+      "excludedOutsidePathspec": [
+        "Packages/MacViewKit/Package.swift",
+        "Packages/MacViewKit/Package.resolved"
+      ]
+    },
+    "gitTreeEvidence": {
+      "commit": "c3f34970ce62f000762578e1f80b74905023ccfe",
+      "rootTree": "035ed562ead1fe4e4fc4bab21332a23a42fef173",
+      "paths": {
+        "App": "75ff60478ee22bd261f8f95436ec911aa9671781",
+        "Packages": "f72871a29fad8ce3ab511eb80b5463362e7b53ae",
+        "Packages/MacViewKit/Sources": "7e82df9a4685f48534f2361d16ed344fbf041141",
+        "Packages/MacViewKit/Tests": "0f5911f76a39a0175c9869347ead5572a5e50e8e"
+      },
+      "worktreeDiffCommand": [
+        "git",
+        "diff",
+        "--quiet",
+        "c3f34970ce62f000762578e1f80b74905023ccfe",
+        "--",
+        "App",
+        "Packages"
+      ],
+      "worktreeDiffExitCode": 0
+    }
+  },
+  "displayContexts": {
+    "d0bb2c3f6b": [
+      {
+        "id": 1,
+        "main": true,
+        "builtin": true,
+        "bounds": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Width": 1728.0,
+          "Height": 1080.0
+        },
+        "width": 1728,
+        "height": 1080,
+        "pixelWidth": 3456,
+        "pixelHeight": 2160,
+        "refreshHz": 120.0
+      }
+    ]
+  },
+  "initialDisplayRef": "d0bb2c3f6b",
+  "coldFill": {
+    "new": {
+      "pid": 44594,
+      "preparation": {
+        "startupSeconds": 1.0059741249999998,
+        "activationPollSeconds": 0.021149582999999916,
+        "actions": [
+          {
+            "command": "resize",
+            "width": 1200,
+            "height": 800
+          },
+          {
+            "command": [
+              "/usr/bin/open",
+              "-a",
+              "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app"
+            ]
+          }
+        ],
+        "peerPID": 44594,
+        "initialBook": null
+      },
+      "firstScreenMilliseconds": 640.764208,
+      "waitIdleSecondsAfterOpen": 2.0191606249999996,
+      "countsAtWaitIdle": {
+        "thumbnails": 84,
+        "browse": 84,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 84,
+          "browse": 84
+        }
+      },
+      "countReadSecondsAfterWaitIdle": 0.019140084,
+      "before": {
+        "wallTime": 1793887947.0748181,
+        "monotonicSeconds": 1.485660083,
+        "idleSeconds": 765.081303458,
+        "inputMark": -763.595643375,
+        "oneMinuteLoad": 12.65087890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1085,
+            "bounds": {
+              "Height": 888.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 771,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887949.1586628,
+        "monotonicSeconds": 3.569529833,
+        "idleSeconds": 767.165113708,
+        "inputMark": -763.595583875,
+        "oneMinuteLoad": 12.65087890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1085,
+            "bounds": {
+              "Height": 888.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 771,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 0
+      },
+      "exit": {
+        "pid": 44594,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.1344555839999999
+      },
+      "countsAfterExit": {
+        "thumbnails": 84,
+        "browse": 84,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 84,
+          "browse": 84
+        }
+      }
+    },
+    "old": {
+      "pid": 44680,
+      "preparation": {
+        "startupSeconds": 1.005355583,
+        "activationPollSeconds": 0.000407166999999653,
+        "actions": [],
+        "peerPID": 44680,
+        "initialBook": null
+      },
+      "firstScreenMilliseconds": 519.861708,
+      "waitIdleSecondsAfterOpen": 2.2186003339999996,
+      "countsAtWaitIdle": {
+        "thumbnails": 82,
+        "browse": 82,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 82,
+          "browse": 82
+        }
+      },
+      "countReadSecondsAfterWaitIdle": 0.017167625000000797,
+      "before": {
+        "wallTime": 1793887950.329351,
+        "monotonicSeconds": 4.738810083,
+        "idleSeconds": 768.335645958,
+        "inputMark": -763.596835875,
+        "oneMinuteLoad": 12.65087890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1094,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887952.586676,
+        "monotonicSeconds": 6.997590583,
+        "idleSeconds": 770.593156125,
+        "inputMark": -763.5955655419999,
+        "oneMinuteLoad": 15.0009765625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1094,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 0
+      },
+      "exit": {
+        "pid": 44680,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.12759833399999998
+      },
+      "countsAfterExit": {
+        "thumbnails": 82,
+        "browse": 82,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 82,
+          "browse": 82
+        }
+      }
+    }
+  },
+  "samples": [
+    {
+      "order": 1,
+      "round": 1,
+      "side": "new",
+      "sideIndex": 1,
+      "blockIndex": 1,
+      "pid": 44795,
+      "milliseconds": 112.77091700000001,
+      "loadOneMinute": 15.0009765625,
+      "preparation": {
+        "startupSeconds": 0.5400115420000002,
+        "activationPollSeconds": 0.00026745900000069156,
+        "actions": [],
+        "peerPID": 44795,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887953.276783,
+        "monotonicSeconds": 7.687804625,
+        "idleSeconds": 771.283440292,
+        "inputMark": -763.595635667,
+        "oneMinuteLoad": 15.0009765625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1099,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887953.404856,
+        "monotonicSeconds": 7.815904458,
+        "idleSeconds": 771.411480875,
+        "inputMark": -763.5955764170001,
+        "oneMinuteLoad": 15.0009765625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1099,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 19.40458300000003,
+      "openToObservedCompletionMilliseconds": 117.03449999999992,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.059249999971200396,
+      "exit": {
+        "pid": 44795,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3405505419999999
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 2,
+      "round": 1,
+      "side": "new",
+      "sideIndex": 2,
+      "blockIndex": 2,
+      "pid": 44801,
+      "milliseconds": 54.865125000000006,
+      "loadOneMinute": 15.0009765625,
+      "preparation": {
+        "startupSeconds": 0.5315979580000008,
+        "activationPollSeconds": 0.00034283399999957,
+        "actions": [],
+        "peerPID": 44801,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887954.3235662,
+        "monotonicSeconds": 8.734324333,
+        "idleSeconds": 772.330002708,
+        "inputMark": -763.595678375,
+        "oneMinuteLoad": 15.0009765625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1104,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887954.424541,
+        "monotonicSeconds": 8.835383125,
+        "idleSeconds": 772.43108075,
+        "inputMark": -763.595697625,
+        "oneMinuteLoad": 15.0009765625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1104,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 20.442040999999023,
+      "openToObservedCompletionMilliseconds": 78.79537500000033,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.019249999926529426,
+      "exit": {
+        "pid": 44801,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3066787919999996
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 3,
+      "round": 1,
+      "side": "new",
+      "sideIndex": 3,
+      "blockIndex": 3,
+      "pid": 44811,
+      "milliseconds": 47.70891700000001,
+      "loadOneMinute": 15.0009765625,
+      "preparation": {
+        "startupSeconds": 0.5478178329999999,
+        "activationPollSeconds": 0.0003294999999994275,
+        "actions": [],
+        "peerPID": 44811,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887955.34159,
+        "monotonicSeconds": 9.7526095,
+        "idleSeconds": 773.348214083,
+        "inputMark": -763.5956045830001,
+        "oneMinuteLoad": 15.0009765625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1109,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1186.0,
+              "X": 271.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887955.4169579,
+        "monotonicSeconds": 9.828017041,
+        "idleSeconds": 773.423582042,
+        "inputMark": -763.5955650010001,
+        "oneMinuteLoad": 15.0009765625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1109,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1198.0,
+              "X": 265.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 44.00949999999959,
+      "openToObservedCompletionMilliseconds": 72.80358400000075,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.03958199999587464,
+      "exit": {
+        "pid": 44811,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3893679159999994
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 4,
+      "round": 1,
+      "side": "new",
+      "sideIndex": 4,
+      "blockIndex": 4,
+      "pid": 44824,
+      "milliseconds": 48.751167,
+      "loadOneMinute": 18.20361328125,
+      "preparation": {
+        "startupSeconds": 0.557919042,
+        "activationPollSeconds": 0.0017170000000010788,
+        "actions": [],
+        "peerPID": 44824,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887956.415472,
+        "monotonicSeconds": 10.82641975,
+        "idleSeconds": 774.422020333,
+        "inputMark": -763.595600583,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1114,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887956.512369,
+        "monotonicSeconds": 10.923206625,
+        "idleSeconds": 774.518890708,
+        "inputMark": -763.5956840829999,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1114,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 42.649207999998495,
+      "openToObservedCompletionMilliseconds": 75.3784159999995,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.08349999997925295,
+      "exit": {
+        "pid": 44824,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.24569187499999856
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 5,
+      "round": 1,
+      "side": "new",
+      "sideIndex": 5,
+      "blockIndex": 5,
+      "pid": 44911,
+      "milliseconds": 62.720833000000006,
+      "loadOneMinute": 18.20361328125,
+      "preparation": {
+        "startupSeconds": 0.5377793749999995,
+        "activationPollSeconds": 0.0018171249999987538,
+        "actions": [],
+        "peerPID": 44911,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887957.385518,
+        "monotonicSeconds": 11.796159625,
+        "idleSeconds": 775.391934917,
+        "inputMark": -763.595775292,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1119,
+            "bounds": {
+              "Height": 878.0,
+              "Width": 1190.0,
+              "X": 269.0,
+              "Y": 49.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887957.518403,
+        "monotonicSeconds": 11.928609083,
+        "idleSeconds": 775.524571583,
+        "inputMark": -763.5959625,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1119,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 55.942957999999265,
+      "openToObservedCompletionMilliseconds": 86.66495800000007,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.18720800005311844,
+      "exit": {
+        "pid": 44911,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2803200839999995
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 6,
+      "round": 1,
+      "side": "old",
+      "sideIndex": 1,
+      "blockIndex": 1,
+      "pid": 44915,
+      "milliseconds": 212.408958,
+      "loadOneMinute": 18.20361328125,
+      "preparation": {
+        "startupSeconds": 0.5588961250000004,
+        "activationPollSeconds": 0.0004077080000008948,
+        "actions": [],
+        "peerPID": 44915,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887958.402868,
+        "monotonicSeconds": 12.81325525,
+        "idleSeconds": 776.409005167,
+        "inputMark": -763.595749917,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1124,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1190.0,
+              "X": 269.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887958.674686,
+        "monotonicSeconds": 13.085564416,
+        "idleSeconds": 776.681229625,
+        "inputMark": -763.595665209,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1124,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 0
+      },
+      "openRoundTripMilliseconds": 64.47541600000051,
+      "openToObservedCompletionMilliseconds": 235.04250000000047,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.08470800001880718,
+      "exit": {
+        "pid": 44915,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.20015949999999982
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 7,
+      "round": 1,
+      "side": "old",
+      "sideIndex": 2,
+      "blockIndex": 2,
+      "pid": 44919,
+      "milliseconds": 95.631167,
+      "loadOneMinute": 18.20361328125,
+      "preparation": {
+        "startupSeconds": 0.5299235419999988,
+        "activationPollSeconds": 0.00033512499999943657,
+        "actions": [],
+        "peerPID": 44919,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887959.440928,
+        "monotonicSeconds": 13.851713875,
+        "idleSeconds": 777.447430792,
+        "inputMark": -763.595716917,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1129,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887959.579306,
+        "monotonicSeconds": 13.985382791,
+        "idleSeconds": 777.582814042,
+        "inputMark": -763.597431251,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1129,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 72
+      },
+      "openRoundTripMilliseconds": 19.08770899999901,
+      "openToObservedCompletionMilliseconds": 111.22933399999901,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -1.7143340000185248,
+      "exit": {
+        "pid": 44919,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3208773340000004
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 8,
+      "round": 1,
+      "side": "old",
+      "sideIndex": 3,
+      "blockIndex": 3,
+      "pid": 44928,
+      "milliseconds": 93.4705,
+      "loadOneMinute": 18.20361328125,
+      "preparation": {
+        "startupSeconds": 0.5537216670000014,
+        "activationPollSeconds": 0.00038349999999987006,
+        "actions": [],
+        "peerPID": 44928,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887960.515913,
+        "monotonicSeconds": 14.926900583,
+        "idleSeconds": 778.522502292,
+        "inputMark": -763.595601709,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1134,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887960.649226,
+        "monotonicSeconds": 15.060233875,
+        "idleSeconds": 778.655802708,
+        "inputMark": -763.595568833,
+        "oneMinuteLoad": 18.20361328125,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1134,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 76
+      },
+      "openRoundTripMilliseconds": 19.438333000000085,
+      "openToObservedCompletionMilliseconds": 111.20729099999949,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.03287600000234647,
+      "exit": {
+        "pid": 44928,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.8494759580000011
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 9,
+      "round": 1,
+      "side": "old",
+      "sideIndex": 4,
+      "blockIndex": 4,
+      "pid": 45011,
+      "milliseconds": 91.73241700000001,
+      "loadOneMinute": 19.70849609375,
+      "preparation": {
+        "startupSeconds": 0.5135959580000016,
+        "activationPollSeconds": 0.0003247920000006843,
+        "actions": [],
+        "peerPID": 45011,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887962.069071,
+        "monotonicSeconds": 16.480058125,
+        "idleSeconds": 780.075689625,
+        "inputMark": -763.5956315,
+        "oneMinuteLoad": 19.70849609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1139,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887962.2122939,
+        "monotonicSeconds": 16.623061291,
+        "idleSeconds": 780.218784,
+        "inputMark": -763.595722709,
+        "oneMinuteLoad": 19.70849609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1139,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 55
+      },
+      "openRoundTripMilliseconds": 44.79849999999885,
+      "openToObservedCompletionMilliseconds": 116.87541699999926,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.09120900003267707,
+      "exit": {
+        "pid": 45011,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.7257742910000005
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 10,
+      "round": 1,
+      "side": "old",
+      "sideIndex": 5,
+      "blockIndex": 5,
+      "pid": 45020,
+      "milliseconds": 131.59662500000002,
+      "loadOneMinute": 19.70849609375,
+      "preparation": {
+        "startupSeconds": 0.5297931249999976,
+        "activationPollSeconds": 0.0003412079999982609,
+        "actions": [],
+        "peerPID": 45020,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887963.55392,
+        "monotonicSeconds": 17.964900583,
+        "idleSeconds": 781.56051225,
+        "inputMark": -763.595611667,
+        "oneMinuteLoad": 19.70849609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1144,
+            "bounds": {
+              "Height": 872.0,
+              "Width": 1184.0,
+              "X": 272.0,
+              "Y": 52.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887963.697561,
+        "monotonicSeconds": 18.107542166,
+        "idleSeconds": 781.703529292,
+        "inputMark": -763.595987126,
+        "oneMinuteLoad": 19.70849609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1144,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 52
+      },
+      "openRoundTripMilliseconds": 57.87058399999978,
+      "openToObservedCompletionMilliseconds": 139.8052920000019,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.3754589999935831,
+      "exit": {
+        "pid": 45020,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.24967945799999924
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 11,
+      "round": 2,
+      "side": "new",
+      "sideIndex": 6,
+      "blockIndex": 1,
+      "pid": 45024,
+      "milliseconds": 52.936958000000004,
+      "loadOneMinute": 19.70849609375,
+      "preparation": {
+        "startupSeconds": 0.5114033750000004,
+        "activationPollSeconds": 0.0006057079999983728,
+        "actions": [],
+        "peerPID": 45024,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887964.57457,
+        "monotonicSeconds": 18.985572791,
+        "idleSeconds": 782.581185667,
+        "inputMark": -763.595612876,
+        "oneMinuteLoad": 19.70849609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1149,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1190.0,
+              "X": 269.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887964.672318,
+        "monotonicSeconds": 19.083147583,
+        "idleSeconds": 782.678805583,
+        "inputMark": -763.595658,
+        "oneMinuteLoad": 19.70849609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1149,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 21.768124999997696,
+      "openToObservedCompletionMilliseconds": 75.40695799999853,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.04512399998546357,
+      "exit": {
+        "pid": 45024,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2788708750000026
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 12,
+      "round": 2,
+      "side": "new",
+      "sideIndex": 7,
+      "blockIndex": 2,
+      "pid": 45033,
+      "milliseconds": 50.620875000000005,
+      "loadOneMinute": 19.70849609375,
+      "preparation": {
+        "startupSeconds": 0.5336232080000016,
+        "activationPollSeconds": 0.0016630000000006362,
+        "actions": [],
+        "peerPID": 45033,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887965.549628,
+        "monotonicSeconds": 19.960644833,
+        "idleSeconds": 783.556239917,
+        "inputMark": -763.595595084,
+        "oneMinuteLoad": 19.70849609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1154,
+            "bounds": {
+              "Height": 872.0,
+              "Width": 1184.0,
+              "X": 272.0,
+              "Y": 52.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887965.629916,
+        "monotonicSeconds": 20.038690166,
+        "idleSeconds": 783.634504292,
+        "inputMark": -763.5958141259999,
+        "oneMinuteLoad": 19.70849609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1154,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 44.94474999999909,
+      "openToObservedCompletionMilliseconds": 75.28445799999872,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.21904200000477658,
+      "exit": {
+        "pid": 45033,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2601529169999992
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 13,
+      "round": 2,
+      "side": "new",
+      "sideIndex": 8,
+      "blockIndex": 3,
+      "pid": 45038,
+      "milliseconds": 51.105875000000005,
+      "loadOneMinute": 24.6962890625,
+      "preparation": {
+        "startupSeconds": 0.5423949169999993,
+        "activationPollSeconds": 0.000354916999999233,
+        "actions": [],
+        "peerPID": 45038,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887966.503786,
+        "monotonicSeconds": 20.914765958,
+        "idleSeconds": 784.510380875,
+        "inputMark": -763.595614917,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1159,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1190.0,
+              "X": 269.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887966.5986612,
+        "monotonicSeconds": 21.009721333,
+        "idleSeconds": 784.605286667,
+        "inputMark": -763.595565334,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1159,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 28.592875000001072,
+      "openToObservedCompletionMilliseconds": 82.44087500000319,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.04958300003821137,
+      "exit": {
+        "pid": 45038,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.38523774999999816
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 14,
+      "round": 2,
+      "side": "new",
+      "sideIndex": 9,
+      "blockIndex": 4,
+      "pid": 45122,
+      "milliseconds": 51.735958000000004,
+      "loadOneMinute": 24.6962890625,
+      "preparation": {
+        "startupSeconds": 0.5328241670000011,
+        "activationPollSeconds": 0.004164333000002074,
+        "actions": [],
+        "peerPID": 45122,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887967.557682,
+        "monotonicSeconds": 21.968333541,
+        "idleSeconds": 785.564171708,
+        "inputMark": -763.595838167,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1164,
+            "bounds": {
+              "Height": 872.0,
+              "Width": 1184.0,
+              "X": 272.0,
+              "Y": 52.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887967.6280801,
+        "monotonicSeconds": 22.038801125,
+        "idleSeconds": 785.634536458,
+        "inputMark": -763.595735333,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1164,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 45.0322089999986,
+      "openToObservedCompletionMilliseconds": 67.07154200000076,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.10283400004595933,
+      "exit": {
+        "pid": 45122,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3218362920000004
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 15,
+      "round": 2,
+      "side": "new",
+      "sideIndex": 10,
+      "blockIndex": 5,
+      "pid": 45126,
+      "milliseconds": 52.56037500000001,
+      "loadOneMinute": 24.6962890625,
+      "preparation": {
+        "startupSeconds": 0.5889672499999996,
+        "activationPollSeconds": 0.0045124170000008235,
+        "actions": [
+          {
+            "command": "resize",
+            "width": 1200,
+            "height": 800
+          },
+          {
+            "command": [
+              "/usr/bin/open",
+              "-a",
+              "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app"
+            ]
+          }
+        ],
+        "peerPID": 45126,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887968.630034,
+        "monotonicSeconds": 23.040983708,
+        "idleSeconds": 786.636610458,
+        "inputMark": -763.59562675,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1169,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1198.0,
+              "X": 265.0,
+              "Y": 47.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 771,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887968.751476,
+        "monotonicSeconds": 23.162509041,
+        "idleSeconds": 786.758085333,
+        "inputMark": -763.595576292,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1169,
+            "bounds": {
+              "Height": 890.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 771,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 57.78625000000304,
+      "openToObservedCompletionMilliseconds": 88.23766700000135,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.05045799989744637,
+      "exit": {
+        "pid": 45126,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.26856895799999947
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 16,
+      "round": 2,
+      "side": "old",
+      "sideIndex": 6,
+      "blockIndex": 1,
+      "pid": 45131,
+      "milliseconds": 83.189209,
+      "loadOneMinute": 24.6962890625,
+      "preparation": {
+        "startupSeconds": 0.5594259590000021,
+        "activationPollSeconds": 0.0002591249999994716,
+        "actions": [],
+        "peerPID": 45131,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887969.629865,
+        "monotonicSeconds": 24.040812708,
+        "idleSeconds": 787.636402125,
+        "inputMark": -763.595589417,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1174,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887969.750761,
+        "monotonicSeconds": 24.161476083,
+        "idleSeconds": 787.757058083,
+        "inputMark": -763.5955819999999,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1174,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 78
+      },
+      "openRoundTripMilliseconds": 55.722624999997805,
+      "openToObservedCompletionMilliseconds": 96.31854199999879,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.007417000070120139,
+      "exit": {
+        "pid": 45131,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.31291729199999807
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 17,
+      "round": 2,
+      "side": "old",
+      "sideIndex": 7,
+      "blockIndex": 2,
+      "pid": 45139,
+      "milliseconds": 97.294875,
+      "loadOneMinute": 24.6962890625,
+      "preparation": {
+        "startupSeconds": 0.5227952090000016,
+        "activationPollSeconds": 0.0004097499999993204,
+        "actions": [],
+        "peerPID": 45139,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887970.6345348,
+        "monotonicSeconds": 25.045533458,
+        "idleSeconds": 788.641136458,
+        "inputMark": -763.595603,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1179,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887970.765525,
+        "monotonicSeconds": 25.172845458,
+        "idleSeconds": 788.76860375,
+        "inputMark": -763.595758292,
+        "oneMinuteLoad": 24.6962890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1179,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 65
+      },
+      "openRoundTripMilliseconds": 46.996749999998144,
+      "openToObservedCompletionMilliseconds": 106.19141599999793,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.15529200000585774,
+      "exit": {
+        "pid": 45139,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.29292516599999985
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 18,
+      "round": 2,
+      "side": "old",
+      "sideIndex": 8,
+      "blockIndex": 3,
+      "pid": 45194,
+      "milliseconds": 103.865875,
+      "loadOneMinute": 24.23974609375,
+      "preparation": {
+        "startupSeconds": 0.5317861669999999,
+        "activationPollSeconds": 0.0022607919999977355,
+        "actions": [],
+        "peerPID": 45194,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887971.6597571,
+        "monotonicSeconds": 26.070783541,
+        "idleSeconds": 789.666383125,
+        "inputMark": -763.5955995840001,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1184,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887971.789896,
+        "monotonicSeconds": 26.200770416,
+        "idleSeconds": 789.796342583,
+        "inputMark": -763.595572167,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1184,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 49
+      },
+      "openRoundTripMilliseconds": 51.88974999999729,
+      "openToObservedCompletionMilliseconds": 110.47991699999926,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.02741700008357384,
+      "exit": {
+        "pid": 45194,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.28625950000000344
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 19,
+      "round": 2,
+      "side": "old",
+      "sideIndex": 9,
+      "blockIndex": 4,
+      "pid": 45228,
+      "milliseconds": 95.15450000000001,
+      "loadOneMinute": 24.23974609375,
+      "preparation": {
+        "startupSeconds": 0.5211857500000008,
+        "activationPollSeconds": 0.0018989579999981743,
+        "actions": [],
+        "peerPID": 45228,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887972.6805341,
+        "monotonicSeconds": 27.091495958,
+        "idleSeconds": 790.687105542,
+        "inputMark": -763.595609584,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1189,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887972.8150358,
+        "monotonicSeconds": 27.224252875,
+        "idleSeconds": 790.819848625,
+        "inputMark": -763.5955957499999,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1189,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 78
+      },
+      "openRoundTripMilliseconds": 49.14716699999744,
+      "openToObservedCompletionMilliseconds": 111.41224999999721,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.013834000078816189,
+      "exit": {
+        "pid": 45228,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.32673175000000043
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 20,
+      "round": 2,
+      "side": "old",
+      "sideIndex": 10,
+      "blockIndex": 5,
+      "pid": 45236,
+      "milliseconds": 90.80237500000001,
+      "loadOneMinute": 24.23974609375,
+      "preparation": {
+        "startupSeconds": 0.5078533749999998,
+        "activationPollSeconds": 0.00035679100000152175,
+        "actions": [],
+        "peerPID": 45236,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887973.693515,
+        "monotonicSeconds": 28.104436166,
+        "idleSeconds": 791.700032958,
+        "inputMark": -763.5955967919999,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1194,
+            "bounds": {
+              "Height": 872.0,
+              "Width": 1184.0,
+              "X": 272.0,
+              "Y": 52.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887973.83712,
+        "monotonicSeconds": 28.243990916,
+        "idleSeconds": 791.839567083,
+        "inputMark": -763.595576167,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1194,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 44
+      },
+      "openRoundTripMilliseconds": 49.99058299999959,
+      "openToObservedCompletionMilliseconds": 116.53949999999824,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.020624999933716026,
+      "exit": {
+        "pid": 45236,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.31613716600000075
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 21,
+      "round": 3,
+      "side": "new",
+      "sideIndex": 11,
+      "blockIndex": 1,
+      "pid": 45241,
+      "milliseconds": 48.807416,
+      "loadOneMinute": 24.23974609375,
+      "preparation": {
+        "startupSeconds": 0.5113028329999985,
+        "activationPollSeconds": 0.006747708000002461,
+        "actions": [],
+        "peerPID": 45241,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887974.722168,
+        "monotonicSeconds": 29.133120375,
+        "idleSeconds": 792.728720958,
+        "inputMark": -763.5956005830001,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1199,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887974.819633,
+        "monotonicSeconds": 29.230327583,
+        "idleSeconds": 792.826059167,
+        "inputMark": -763.5957315840001,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1199,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 43.259917000000314,
+      "openToObservedCompletionMilliseconds": 74.60966700000071,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.13100099998553105,
+      "exit": {
+        "pid": 45241,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3633094159999999
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 22,
+      "round": 3,
+      "side": "new",
+      "sideIndex": 12,
+      "blockIndex": 2,
+      "pid": 45246,
+      "milliseconds": 51.635958,
+      "loadOneMinute": 24.23974609375,
+      "preparation": {
+        "startupSeconds": 0.573859290999998,
+        "activationPollSeconds": 0.0002302080000013973,
+        "actions": [],
+        "peerPID": 45246,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887975.8072488,
+        "monotonicSeconds": 30.218317833,
+        "idleSeconds": 793.813905042,
+        "inputMark": -763.595587209,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1204,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1190.0,
+              "X": 269.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887975.887447,
+        "monotonicSeconds": 30.297923875,
+        "idleSeconds": 793.893732042,
+        "inputMark": -763.595808167,
+        "oneMinuteLoad": 24.23974609375,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1204,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 43.37312499999868,
+      "openToObservedCompletionMilliseconds": 76.14549999999909,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.2209580000247513,
+      "exit": {
+        "pid": 45246,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2752200000000009
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 23,
+      "round": 3,
+      "side": "new",
+      "sideIndex": 13,
+      "blockIndex": 3,
+      "pid": 45318,
+      "milliseconds": 51.345542,
+      "loadOneMinute": 24.14013671875,
+      "preparation": {
+        "startupSeconds": 0.5207567500000003,
+        "activationPollSeconds": 0.0002689169999996466,
+        "actions": [],
+        "peerPID": 45318,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887976.757458,
+        "monotonicSeconds": 31.168416583,
+        "idleSeconds": 794.764030708,
+        "inputMark": -763.595614125,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1209,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1190.0,
+              "X": 269.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887976.858712,
+        "monotonicSeconds": 31.269471208,
+        "idleSeconds": 794.86519475,
+        "inputMark": -763.595723542,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1209,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 44.64454200000034,
+      "openToObservedCompletionMilliseconds": 73.43658399999953,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.10941700005062671,
+      "exit": {
+        "pid": 45318,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2597652499999974
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 24,
+      "round": 3,
+      "side": "new",
+      "sideIndex": 14,
+      "blockIndex": 4,
+      "pid": 45338,
+      "milliseconds": 46.04900000000001,
+      "loadOneMinute": 24.14013671875,
+      "preparation": {
+        "startupSeconds": 0.5246839159999972,
+        "activationPollSeconds": 0.00022400000000288856,
+        "actions": [],
+        "peerPID": 45338,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887977.7184389,
+        "monotonicSeconds": 32.129422875,
+        "idleSeconds": 795.725013125,
+        "inputMark": -763.59559025,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1214,
+            "bounds": {
+              "Height": 872.0,
+              "Width": 1184.0,
+              "X": 272.0,
+              "Y": 52.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887977.818464,
+        "monotonicSeconds": 32.229383583,
+        "idleSeconds": 795.824961,
+        "inputMark": -763.5955774170001,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1214,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 43.51595800000041,
+      "openToObservedCompletionMilliseconds": 73.09070799999517,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.012832999999545791,
+      "exit": {
+        "pid": 45338,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.24942141700000064
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 25,
+      "round": 3,
+      "side": "new",
+      "sideIndex": 15,
+      "blockIndex": 5,
+      "pid": 45342,
+      "milliseconds": 54.538833000000004,
+      "loadOneMinute": 24.14013671875,
+      "preparation": {
+        "startupSeconds": 0.5380338750000035,
+        "activationPollSeconds": 0.0002102090000022372,
+        "actions": [],
+        "peerPID": 45342,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887978.688597,
+        "monotonicSeconds": 33.099592666,
+        "idleSeconds": 796.695194167,
+        "inputMark": -763.5956015009999,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1219,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887978.784574,
+        "monotonicSeconds": 33.195375708,
+        "idleSeconds": 796.791048417,
+        "inputMark": -763.5956727089999,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1219,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 18.04574999999886,
+      "openToObservedCompletionMilliseconds": 75.99337500000303,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.07120800000137706,
+      "exit": {
+        "pid": 45342,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.23746304200000168
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 26,
+      "round": 3,
+      "side": "old",
+      "sideIndex": 11,
+      "blockIndex": 1,
+      "pid": 45348,
+      "milliseconds": 89.384792,
+      "loadOneMinute": 24.14013671875,
+      "preparation": {
+        "startupSeconds": 0.5507507920000023,
+        "activationPollSeconds": 0.001790874999997527,
+        "actions": [],
+        "peerPID": 45348,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887979.6688151,
+        "monotonicSeconds": 34.079789208,
+        "idleSeconds": 797.675394208,
+        "inputMark": -763.595605,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1224,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1186.0,
+              "X": 271.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887979.79744,
+        "monotonicSeconds": 34.205904625,
+        "idleSeconds": 797.801617125,
+        "inputMark": -763.5957125,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1224,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 45
+      },
+      "openRoundTripMilliseconds": 42.989583000000664,
+      "openToObservedCompletionMilliseconds": 104.66604200000518,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.10750000006254368,
+      "exit": {
+        "pid": 45348,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.30760804199999825
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 27,
+      "round": 3,
+      "side": "old",
+      "sideIndex": 12,
+      "blockIndex": 2,
+      "pid": 45356,
+      "milliseconds": 93.86654200000001,
+      "loadOneMinute": 24.14013671875,
+      "preparation": {
+        "startupSeconds": 0.5501658329999941,
+        "activationPollSeconds": 0.00024191699999676075,
+        "actions": [],
+        "peerPID": 45356,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887980.724892,
+        "monotonicSeconds": 35.135905166,
+        "idleSeconds": 798.731491125,
+        "inputMark": -763.595585959,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1229,
+            "bounds": {
+              "Height": 872.0,
+              "Width": 1184.0,
+              "X": 272.0,
+              "Y": 52.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887980.83208,
+        "monotonicSeconds": 35.23642075,
+        "idleSeconds": 798.838276958,
+        "inputMark": -763.6018562080001,
+        "oneMinuteLoad": 24.14013671875,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1229,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 86
+      },
+      "openRoundTripMilliseconds": 44.66191699999911,
+      "openToObservedCompletionMilliseconds": 98.02679199999886,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -6.270249000003503,
+      "exit": {
+        "pid": 45356,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.35999337499999484
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 28,
+      "round": 3,
+      "side": "old",
+      "sideIndex": 13,
+      "blockIndex": 3,
+      "pid": 45430,
+      "milliseconds": 105.73925000000001,
+      "loadOneMinute": 24.2890625,
+      "preparation": {
+        "startupSeconds": 0.5081751669999974,
+        "activationPollSeconds": 0.00024279200000165702,
+        "actions": [],
+        "peerPID": 45430,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887981.7806468,
+        "monotonicSeconds": 36.191633541,
+        "idleSeconds": 799.787253083,
+        "inputMark": -763.595619542,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1234,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1186.0,
+              "X": 271.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887981.9261591,
+        "monotonicSeconds": 36.335750333,
+        "idleSeconds": 799.931723708,
+        "inputMark": -763.5959733750001,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1234,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 46
+      },
+      "openRoundTripMilliseconds": 49.35529200000133,
+      "openToObservedCompletionMilliseconds": 122.14820900000234,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.3538330000552037,
+      "exit": {
+        "pid": 45430,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2419811660000022
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 29,
+      "round": 3,
+      "side": "old",
+      "sideIndex": 14,
+      "blockIndex": 4,
+      "pid": 45448,
+      "milliseconds": 92.816333,
+      "loadOneMinute": 24.2890625,
+      "preparation": {
+        "startupSeconds": 0.530699417000001,
+        "activationPollSeconds": 0.00027187500000280806,
+        "actions": [],
+        "peerPID": 45448,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887982.773673,
+        "monotonicSeconds": 37.184649,
+        "idleSeconds": 800.78024475,
+        "inputMark": -763.5955957499999,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1239,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1186.0,
+              "X": 271.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887982.880219,
+        "monotonicSeconds": 37.29084275,
+        "idleSeconds": 800.886413292,
+        "inputMark": -763.595570542,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1239,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 85
+      },
+      "openRoundTripMilliseconds": 17.30670799999956,
+      "openToObservedCompletionMilliseconds": 103.50091699999808,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.0252079999114585,
+      "exit": {
+        "pid": 45448,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.11026212499999843
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 30,
+      "round": 3,
+      "side": "old",
+      "sideIndex": 15,
+      "blockIndex": 5,
+      "pid": 45457,
+      "milliseconds": 87.423084,
+      "loadOneMinute": 24.2890625,
+      "preparation": {
+        "startupSeconds": 0.5772643339999988,
+        "activationPollSeconds": 0.00036912499999885995,
+        "actions": [],
+        "peerPID": 45457,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887983.618882,
+        "monotonicSeconds": 38.0297885,
+        "idleSeconds": 801.625416417,
+        "inputMark": -763.595627917,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1244,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1186.0,
+              "X": 271.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887983.7436538,
+        "monotonicSeconds": 38.154213583,
+        "idleSeconds": 801.749943417,
+        "inputMark": -763.595729834,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1244,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 77
+      },
+      "openRoundTripMilliseconds": 47.705666999995344,
+      "openToObservedCompletionMilliseconds": 105.92629199999948,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.10191700005890425,
+      "exit": {
+        "pid": 45457,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2940108749999979
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 31,
+      "round": 4,
+      "side": "new",
+      "sideIndex": 16,
+      "blockIndex": 1,
+      "pid": 45464,
+      "milliseconds": 49.504000000000005,
+      "loadOneMinute": 24.2890625,
+      "preparation": {
+        "startupSeconds": 0.5364730419999972,
+        "activationPollSeconds": 0.0005067080000031865,
+        "actions": [],
+        "peerPID": 45464,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887984.635613,
+        "monotonicSeconds": 39.046243375,
+        "idleSeconds": 802.642065167,
+        "inputMark": -763.595821792,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1249,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887984.735565,
+        "monotonicSeconds": 39.146502125,
+        "idleSeconds": 802.742087583,
+        "inputMark": -763.5955854580001,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1249,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 41.936500000005594,
+      "openToObservedCompletionMilliseconds": 77.10525000000246,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.23633399999312132,
+      "exit": {
+        "pid": 45464,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2622182080000002
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 32,
+      "round": 4,
+      "side": "new",
+      "sideIndex": 17,
+      "blockIndex": 2,
+      "pid": 45469,
+      "milliseconds": 48.51329200000001,
+      "loadOneMinute": 24.2890625,
+      "preparation": {
+        "startupSeconds": 0.5355371670000011,
+        "activationPollSeconds": 0.00021716700000240508,
+        "actions": [],
+        "peerPID": 45469,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887985.602171,
+        "monotonicSeconds": 40.013189791,
+        "idleSeconds": 803.608802917,
+        "inputMark": -763.595613126,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1254,
+            "bounds": {
+              "Height": 874.0,
+              "Width": 1186.0,
+              "X": 271.0,
+              "Y": 51.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887985.697133,
+        "monotonicSeconds": 40.107859625,
+        "idleSeconds": 803.703516833,
+        "inputMark": -763.5956572079999,
+        "oneMinuteLoad": 24.2890625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1254,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 41.35616700000355,
+      "openToObservedCompletionMilliseconds": 76.77158300000286,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.044081999931222526,
+      "exit": {
+        "pid": 45469,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.25695970799999657
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 33,
+      "round": 4,
+      "side": "new",
+      "sideIndex": 18,
+      "blockIndex": 3,
+      "pid": 45501,
+      "milliseconds": 47.771083000000004,
+      "loadOneMinute": 25.06640625,
+      "preparation": {
+        "startupSeconds": 0.5217363749999961,
+        "activationPollSeconds": 0.0004144999999979859,
+        "actions": [],
+        "peerPID": 45501,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887986.543474,
+        "monotonicSeconds": 40.954401791,
+        "idleSeconds": 804.550019,
+        "inputMark": -763.595617209,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1259,
+            "bounds": {
+              "Height": 872.0,
+              "Width": 1184.0,
+              "X": 272.0,
+              "Y": 52.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887986.6448371,
+        "monotonicSeconds": 41.055505833,
+        "idleSeconds": 804.651272083,
+        "inputMark": -763.59576625,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1259,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 41.04408300000273,
+      "openToObservedCompletionMilliseconds": 73.71962500000251,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.14904099996471132,
+      "exit": {
+        "pid": 45501,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3751489170000042
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 34,
+      "round": 4,
+      "side": "new",
+      "sideIndex": 19,
+      "blockIndex": 4,
+      "pid": 45560,
+      "milliseconds": 48.418708,
+      "loadOneMinute": 25.06640625,
+      "preparation": {
+        "startupSeconds": 0.5604087090000007,
+        "activationPollSeconds": 0.0004240840000022672,
+        "actions": [],
+        "peerPID": 45560,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887987.630233,
+        "monotonicSeconds": 42.041182583,
+        "idleSeconds": 805.63679075,
+        "inputMark": -763.595608167,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1264,
+            "bounds": {
+              "Height": 872.0,
+              "Width": 1184.0,
+              "X": 272.0,
+              "Y": 52.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887987.732343,
+        "monotonicSeconds": 42.142890791,
+        "idleSeconds": 805.73871,
+        "inputMark": -763.595819209,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1264,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 41.56862500000358,
+      "openToObservedCompletionMilliseconds": 73.26270800000145,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.21104199992549866,
+      "exit": {
+        "pid": 45560,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.24302841600000136
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 35,
+      "round": 4,
+      "side": "new",
+      "sideIndex": 20,
+      "blockIndex": 5,
+      "pid": 45564,
+      "milliseconds": 51.066916000000006,
+      "loadOneMinute": 25.06640625,
+      "preparation": {
+        "startupSeconds": 0.5621526669999994,
+        "activationPollSeconds": 0.0002647499999994807,
+        "actions": [],
+        "peerPID": 45564,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887988.6327958,
+        "monotonicSeconds": 43.043808083,
+        "idleSeconds": 806.639414292,
+        "inputMark": -763.5956062089999,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1269,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1190.0,
+              "X": 269.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887988.7092311,
+        "monotonicSeconds": 43.11982775,
+        "idleSeconds": 806.715676542,
+        "inputMark": -763.595848792,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1269,
+            "bounds": {
+              "Height": 884.0,
+              "Width": 1200.0,
+              "X": 264.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 2
+      },
+      "openRoundTripMilliseconds": 45.5005419999992,
+      "openToObservedCompletionMilliseconds": 73.48799999999756,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.2425830000163387,
+      "exit": {
+        "pid": 45564,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.2672156249999986
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 36,
+      "round": 4,
+      "side": "old",
+      "sideIndex": 16,
+      "blockIndex": 1,
+      "pid": 45568,
+      "milliseconds": 106.62108400000001,
+      "loadOneMinute": 25.06640625,
+      "preparation": {
+        "startupSeconds": 0.5588771250000022,
+        "activationPollSeconds": 0.0003684169999971232,
+        "actions": [],
+        "peerPID": 45568,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887989.5899148,
+        "monotonicSeconds": 44.00068725,
+        "idleSeconds": 807.596399292,
+        "inputMark": -763.5957120420001,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1274,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1190.0,
+              "X": 269.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887989.748372,
+        "monotonicSeconds": 44.157922875,
+        "idleSeconds": 807.75377975,
+        "inputMark": -763.595856875,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1274,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 9
+      },
+      "openRoundTripMilliseconds": 61.067957999995315,
+      "openToObservedCompletionMilliseconds": 119.09537500000056,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.14483300003576005,
+      "exit": {
+        "pid": 45568,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.29538170800000074
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 37,
+      "round": 4,
+      "side": "old",
+      "sideIndex": 17,
+      "blockIndex": 2,
+      "pid": 45575,
+      "milliseconds": 115.79420900000001,
+      "loadOneMinute": 25.06640625,
+      "preparation": {
+        "startupSeconds": 0.5604989170000039,
+        "activationPollSeconds": 0.004590833000001737,
+        "actions": [
+          {
+            "command": "resize",
+            "width": 1200,
+            "height": 800
+          }
+        ],
+        "peerPID": 45575,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887990.67261,
+        "monotonicSeconds": 45.0832875,
+        "idleSeconds": 808.679086917,
+        "inputMark": -763.595799417,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1279,
+            "bounds": {
+              "Height": 881.0,
+              "Width": 1196.0,
+              "X": 266.0,
+              "Y": 48.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 771,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887990.841853,
+        "monotonicSeconds": 45.247693333,
+        "idleSeconds": 808.843269958,
+        "inputMark": -763.5955766249999,
+        "oneMinuteLoad": 25.06640625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1279,
+            "bounds": {
+              "Height": 888.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 46.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 771,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 41
+      },
+      "openRoundTripMilliseconds": 81.40258300000625,
+      "openToObservedCompletionMilliseconds": 140.40758300000533,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.22279200000241417,
+      "exit": {
+        "pid": 45575,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.5953767079999963
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 38,
+      "round": 4,
+      "side": "old",
+      "sideIndex": 18,
+      "blockIndex": 3,
+      "pid": 45659,
+      "milliseconds": 94.12729200000001,
+      "loadOneMinute": 27.78369140625,
+      "preparation": {
+        "startupSeconds": 0.5413272500000019,
+        "activationPollSeconds": 0.00031483300000445524,
+        "actions": [],
+        "peerPID": 45659,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887992.056221,
+        "monotonicSeconds": 46.467199208,
+        "idleSeconds": 810.062798958,
+        "inputMark": -763.59559975,
+        "oneMinuteLoad": 27.78369140625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1284,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887992.1870432,
+        "monotonicSeconds": 46.594027833,
+        "idleSeconds": 810.189933875,
+        "inputMark": -763.5959060419999,
+        "oneMinuteLoad": 27.78369140625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1284,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 75
+      },
+      "openRoundTripMilliseconds": 62.13216700000146,
+      "openToObservedCompletionMilliseconds": 103.85079200000291,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -0.30629199991949463,
+      "exit": {
+        "pid": 45659,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.3534827920000012
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 39,
+      "round": 4,
+      "side": "old",
+      "sideIndex": 19,
+      "blockIndex": 4,
+      "pid": 45663,
+      "milliseconds": 115.33404100000001,
+      "loadOneMinute": 27.78369140625,
+      "preparation": {
+        "startupSeconds": 0.5274560420000043,
+        "activationPollSeconds": 0.00022145900000225538,
+        "actions": [],
+        "peerPID": 45663,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887993.1319559,
+        "monotonicSeconds": 47.542927041,
+        "idleSeconds": 811.138523917,
+        "inputMark": -763.5955968760001,
+        "oneMinuteLoad": 27.78369140625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1289,
+            "bounds": {
+              "Height": 878.0,
+              "Width": 1190.0,
+              "X": 269.0,
+              "Y": 49.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887993.2894661,
+        "monotonicSeconds": 47.697392541,
+        "idleSeconds": 811.29450025,
+        "inputMark": -763.597107709,
+        "oneMinuteLoad": 27.78369140625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1289,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 74
+      },
+      "openRoundTripMilliseconds": 72.76333399999402,
+      "openToObservedCompletionMilliseconds": 127.65016699999876,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": -1.5108330000117576,
+      "exit": {
+        "pid": 45663,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.28439937499999957
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    },
+    {
+      "order": 40,
+      "round": 4,
+      "side": "old",
+      "sideIndex": 20,
+      "blockIndex": 5,
+      "pid": 45673,
+      "milliseconds": 90.65525000000001,
+      "loadOneMinute": 27.78369140625,
+      "preparation": {
+        "startupSeconds": 0.5501867910000016,
+        "activationPollSeconds": 0.00022129100000256585,
+        "actions": [],
+        "peerPID": 45673,
+        "initialBook": null
+      },
+      "before": {
+        "wallTime": 1793887994.19631,
+        "monotonicSeconds": 48.60732075,
+        "idleSeconds": 812.202923292,
+        "inputMark": -763.595602542,
+        "oneMinuteLoad": 27.78369140625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1294,
+            "bounds": {
+              "Height": 876.0,
+              "Width": 1188.0,
+              "X": 270.0,
+              "Y": 50.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": null,
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 0,
+        "prefetchInFlightCount": 0
+      },
+      "after": {
+        "wallTime": 1793887994.3494349,
+        "monotonicSeconds": 48.752657208,
+        "idleSeconds": 812.348231833,
+        "inputMark": -763.595574625,
+        "oneMinuteLoad": 27.78369140625,
+        "screenLocked": false,
+        "windowFront": true,
+        "geometry": {
+          "displayRef": "d0bb2c3f6b",
+          "window": {
+            "number": 1294,
+            "bounds": {
+              "Height": 886.0,
+              "Width": 1202.0,
+              "X": 263.0,
+              "Y": 45.0
+            },
+            "onScreen": true
+          },
+          "screenID": 1
+        },
+        "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "viewport": {
+          "height": 767,
+          "width": 698
+        },
+        "itemCount": 85,
+        "prefetchInFlightCount": 18
+      },
+      "openRoundTripMilliseconds": 45.29495899999603,
+      "openToObservedCompletionMilliseconds": 122.68987499999895,
+      "inputObserved": false,
+      "inputIdleProgressErrorMilliseconds": 0.027917000039678896,
+      "exit": {
+        "pid": 45673,
+        "exitCode": 0,
+        "normalQuit": true,
+        "quitSeconds": 0.30325812499999927
+      },
+      "cacheCountsAfterExit": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      }
+    }
+  ],
+  "summary": {
+    "new": {
+      "samples": 20,
+      "numericSamples": 20,
+      "p50Milliseconds": 51.08639550000001,
+      "p95Milliseconds": 62.720833000000006,
+      "maxMilliseconds": 112.77091700000001,
+      "firstTwo": [
+        {
+          "order": 1,
+          "sideIndex": 1,
+          "milliseconds": 112.77091700000001,
+          "loadOneMinute": 15.0009765625
+        },
+        {
+          "order": 2,
+          "sideIndex": 2,
+          "milliseconds": 54.865125000000006,
+          "loadOneMinute": 15.0009765625
+        }
+      ],
+      "countsAtColdFillIdle": {
+        "thumbnails": 84,
+        "browse": 84,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 84,
+          "browse": 84
+        }
+      },
+      "countsAfterSamples": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      },
+      "loadOneMinuteMin": 15.0009765625,
+      "loadOneMinuteMax": 25.06640625,
+      "inputObservedSamples": [],
+      "notFrontAtObservationSamples": []
+    },
+    "old": {
+      "samples": 20,
+      "numericSamples": 20,
+      "p50Milliseconds": 94.64089600000001,
+      "p95Milliseconds": 131.59662500000002,
+      "maxMilliseconds": 212.408958,
+      "firstTwo": [
+        {
+          "order": 6,
+          "sideIndex": 1,
+          "milliseconds": 212.408958,
+          "loadOneMinute": 18.20361328125
+        },
+        {
+          "order": 7,
+          "sideIndex": 2,
+          "milliseconds": 95.631167,
+          "loadOneMinute": 18.20361328125
+        }
+      ],
+      "countsAtColdFillIdle": {
+        "thumbnails": 82,
+        "browse": 82,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 82,
+          "browse": 82
+        }
+      },
+      "countsAfterSamples": {
+        "thumbnails": 85,
+        "browse": 85,
+        "metadata": 86,
+        "files": {
+          "thumbnails": 85,
+          "browse": 85
+        }
+      },
+      "loadOneMinuteMin": 18.20361328125,
+      "loadOneMinuteMax": 27.78369140625,
+      "inputObservedSamples": [],
+      "notFrontAtObservationSamples": []
+    }
+  },
+  "cleanup": {
+    "all42InstancesExitedNormally": true,
+    "instanceCount": 42,
+    "oldFrozenBackupRemovedAfterComparison": true,
+    "newDerivedDataRemovedAfterCopy": true,
+    "validationTemporaryEvidenceRemovedAfterMetadataExtraction": true,
+    "temporaryABDirectoryRemoved": true,
+    "existingFourBuildDirectoriesAndAcceptanceTmpPreserved": true,
+    "newFrozenBundleVerified": true,
+    "keepAwakeControllerReport": {
+      "controllerPID": 9854,
+      "action": "主控先ps确认本轮caffeinate -d，再TERM；会话84333退出143，后ps确认9854消失",
+      "designPID": 96517,
+      "designProcessPreserved": true
+    },
+    "offlineEvidenceRetainedPendingFinalExtraction": false,
+    "removedPaths": [
+      "build/stage3-eighth-ab",
+      "build/DerivedData-profile",
+      "build/stage3-eighth-validation"
+    ],
+    "remainingBuildDirectories": [
+      "DerivedData",
+      "acceptance",
+      "stage-1-work",
+      "stage4-repair"
+    ],
+    "remainingOwnAppPIDMatches": [],
+    "acceptanceTmpEmpty": true,
+    "frozenBinarySHA256": "424364778d4bcccc288063ea26e7bc03add21b8864a67cf6ec9c0864d0aa5cb2",
+    "frozenManifestSHA256": "debf8d7877a5a4f01fdea84231f8c440363bd9e329909497b1ebc187e7f92dbe"
+  },
+  "finalDisplayRef": "d0bb2c3f6b",
+  "comparison": {
+    "p50ReductionMilliseconds": 43.5545005,
+    "p95ReductionMilliseconds": 68.87579200000002,
+    "interpretationLimit": "交替块用于减轻负载偏差；样本内负载与显示、窗口、输入只记录，不作正式准入或预算判定。未加埋点，不能把首屏差值唯一归因到某一处代码。",
+    "rounds": [
+      {
+        "round": 1,
+        "new": {
+          "p50Milliseconds": 54.865125000000006,
+          "p95Milliseconds": 112.77091700000001,
+          "loadRange": [15.0009765625, 18.20361328125]
+        },
+        "old": {
+          "p50Milliseconds": 95.631167,
+          "p95Milliseconds": 212.408958,
+          "loadRange": [18.20361328125, 19.70849609375]
+        }
+      },
+      {
+        "round": 2,
+        "new": {
+          "p50Milliseconds": 51.735958000000004,
+          "p95Milliseconds": 52.936958000000004,
+          "loadRange": [19.70849609375, 24.6962890625]
+        },
+        "old": {
+          "p50Milliseconds": 95.15450000000001,
+          "p95Milliseconds": 103.865875,
+          "loadRange": [24.23974609375, 24.6962890625]
+        }
+      },
+      {
+        "round": 3,
+        "new": {
+          "p50Milliseconds": 51.345542,
+          "p95Milliseconds": 54.538833000000004,
+          "loadRange": [24.14013671875, 24.23974609375]
+        },
+        "old": {
+          "p50Milliseconds": 92.816333,
+          "p95Milliseconds": 105.73925000000001,
+          "loadRange": [24.14013671875, 24.2890625]
+        }
+      },
+      {
+        "round": 4,
+        "new": {
+          "p50Milliseconds": 48.51329200000001,
+          "p95Milliseconds": 51.066916000000006,
+          "loadRange": [24.2890625, 25.06640625]
+        },
+        "old": {
+          "p50Milliseconds": 106.62108400000001,
+          "p95Milliseconds": 115.79420900000001,
+          "loadRange": [25.06640625, 27.78369140625]
+        }
+      }
+    ]
+  },
+  "offlineColdFillAudit": {
+    "kind": "post-run-read-only",
+    "evidence": {
+      "new": {
+        "coldObservation": {
+          "pid": 44594,
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchInFlightCount": 0,
+          "firstScreenMilliseconds": 640.764208,
+          "countsAtWaitIdle": {
+            "thumbnails": 84,
+            "browse": 84,
+            "metadata": 86,
+            "files": {
+              "thumbnails": 84,
+              "browse": 84
+            }
+          },
+          "countsAfterNormalExit": {
+            "thumbnails": 84,
+            "browse": 84,
+            "metadata": 86,
+            "files": {
+              "thumbnails": 84,
+              "browse": 84
+            }
+          },
+          "beforeBook": null,
+          "beforeItemCount": 0,
+          "waitIdleSecondsAfterOpen": 2.0191606249999996,
+          "countReadSecondsAfterWaitIdle": 0.019140084
+        },
+        "sqliteHistory": {
+          "databaseBirthTime": 1793887946.679644,
+          "databaseMtimeNs": 1793887978866846231,
+          "walBirthTime": 1793887946.680223,
+          "walMtimeNs": 1793887988799677981,
+          "walFrames": 87,
+          "committedSnapshots": 45,
+          "baseCounts": {
+            "browse": 85,
+            "thumbnails": 85
+          },
+          "firstCommitCounts": {
+            "browse": 85,
+            "thumbnails": 85
+          },
+          "minimumCountsInRecoverableSnapshots": {
+            "thumbnails": 85,
+            "browse": 85
+          },
+          "coldSnapshotRecoverable": false
+        },
+        "metadataContainersAfterSampling": [
+          {
+            "container": {
+              "layers": [
+                [
+                  "Users",
+                  "yuwk",
+                  "WorkSpace",
+                  "Code",
+                  "Github",
+                  "MacView",
+                  ".worktree",
+                  "s2-p0",
+                  "Fixtures",
+                  "local",
+                  "generated",
+                  "image"
+                ]
+              ],
+              "root": {
+                "local": {}
+              }
+            },
+            "rows": 1
+          },
+          {
+            "container": {
+              "layers": [
+                [
+                  "Users",
+                  "yuwk",
+                  "WorkSpace",
+                  "Code",
+                  "Github",
+                  "MacView",
+                  ".worktree",
+                  "s2-p0",
+                  "Fixtures",
+                  "local",
+                  "sample-set"
+                ]
+              ],
+              "root": {
+                "local": {}
+              }
+            },
+            "rows": 85
+          }
+        ],
+        "all85FinalCacheKeysMapToTargetPages": true,
+        "fileTimes": {
+          "currentFilesBornNoLaterThanColdObservation": {
+            "thumbnails": 83,
+            "browse": 83
+          },
+          "currentFilesBornAfterColdObservation": [
+            {
+              "key": "96dbfa5875d8f9f44cbcc7980a1215f6",
+              "page": "0002.jpg",
+              "currentFiles": {
+                "thumbnails": {
+                  "birthTime": 1793887988.7990825,
+                  "mtimeNs": 1793887988799157689,
+                  "bytes": 185593,
+                  "sqliteAccessed": 1793887988.799605
+                },
+                "browse": {
+                  "birthTime": 1793887987.8342109,
+                  "mtimeNs": 1793887987834377063,
+                  "bytes": 678198,
+                  "sqliteAccessed": 1793887987.8349462
+                }
+              }
+            },
+            {
+              "key": "f84f5cf09555f541a2951ab3c8cc98a8",
+              "page": "0003.jpg",
+              "currentFiles": {
+                "thumbnails": {
+                  "birthTime": 1793887988.7972605,
+                  "mtimeNs": 1793887988797390603,
+                  "bytes": 103393,
+                  "sqliteAccessed": 1793887988.798437
+                },
+                "browse": {
+                  "birthTime": 1793887987.8000815,
+                  "mtimeNs": 1793887987800225686,
+                  "bytes": 316786,
+                  "sqliteAccessed": 1793887987.800747
+                }
+              }
+            }
+          ],
+          "interpretation": "文件出生时间属于现存版本；DiskCache.store会原子替换文件，后写时间不能证明冷时一定缺失。新侧候选0002/0003，旧侧候选0001..0004，不能唯一确定冷时缺的键。"
+        },
+        "logObservability": "日志只见既有AppKit约束警告，没有逐预取成功/错误/取消记录；不能据此确认没有错误或取消。"
+      },
+      "old": {
+        "coldObservation": {
+          "pid": 44680,
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchInFlightCount": 0,
+          "firstScreenMilliseconds": 519.861708,
+          "countsAtWaitIdle": {
+            "thumbnails": 82,
+            "browse": 82,
+            "metadata": 86,
+            "files": {
+              "thumbnails": 82,
+              "browse": 82
+            }
+          },
+          "countsAfterNormalExit": {
+            "thumbnails": 82,
+            "browse": 82,
+            "metadata": 86,
+            "files": {
+              "thumbnails": 82,
+              "browse": 82
+            }
+          },
+          "beforeBook": null,
+          "beforeItemCount": 0,
+          "waitIdleSecondsAfterOpen": 2.2186003339999996,
+          "countReadSecondsAfterWaitIdle": 0.017167625000000797
+        },
+        "sqliteHistory": {
+          "databaseBirthTime": 1793887950.0347161,
+          "databaseMtimeNs": 1793887983654341187,
+          "walBirthTime": 1793887950.0353053,
+          "walMtimeNs": 1793887994400708408,
+          "walFrames": 102,
+          "committedSnapshots": 43,
+          "baseCounts": {
+            "browse": 85,
+            "thumbnails": 85
+          },
+          "firstCommitCounts": {
+            "browse": 85,
+            "thumbnails": 85
+          },
+          "minimumCountsInRecoverableSnapshots": {
+            "thumbnails": 85,
+            "browse": 85
+          },
+          "coldSnapshotRecoverable": false
+        },
+        "metadataContainersAfterSampling": [
+          {
+            "container": {
+              "layers": [
+                [
+                  "Users",
+                  "yuwk",
+                  "WorkSpace",
+                  "Code",
+                  "Github",
+                  "MacView",
+                  ".worktree",
+                  "s2-p0",
+                  "Fixtures",
+                  "local",
+                  "generated",
+                  "image"
+                ]
+              ],
+              "root": {
+                "local": {}
+              }
+            },
+            "rows": 1
+          },
+          {
+            "container": {
+              "layers": [
+                [
+                  "Users",
+                  "yuwk",
+                  "WorkSpace",
+                  "Code",
+                  "Github",
+                  "MacView",
+                  ".worktree",
+                  "s2-p0",
+                  "Fixtures",
+                  "local",
+                  "sample-set"
+                ]
+              ],
+              "root": {
+                "local": {}
+              }
+            },
+            "rows": 85
+          }
+        ],
+        "all85FinalCacheKeysMapToTargetPages": true,
+        "fileTimes": {
+          "currentFilesBornNoLaterThanColdObservation": {
+            "thumbnails": 81,
+            "browse": 81
+          },
+          "currentFilesBornAfterColdObservation": [
+            {
+              "key": "bfbccecbdfd3c270761b4f879b763524",
+              "page": "0001.jpg",
+              "currentFiles": {
+                "thumbnails": {
+                  "birthTime": 1793887958.6623838,
+                  "mtimeNs": 1793887958662456249,
+                  "bytes": 149484,
+                  "sqliteAccessed": 1793887994.298734
+                },
+                "browse": {
+                  "birthTime": 1793887958.6725183,
+                  "mtimeNs": 1793887958672598637,
+                  "bytes": 481648,
+                  "sqliteAccessed": 1793887994.251536
+                }
+              }
+            },
+            {
+              "key": "96dbfa5875d8f9f44cbcc7980a1215f6",
+              "page": "0002.jpg",
+              "currentFiles": {
+                "thumbnails": {
+                  "birthTime": 1793887994.38047,
+                  "mtimeNs": 1793887994380633841,
+                  "bytes": 185593,
+                  "sqliteAccessed": 1793887994.381763
+                },
+                "browse": {
+                  "birthTime": 1793887994.3979576,
+                  "mtimeNs": 1793887994398222447,
+                  "bytes": 678198,
+                  "sqliteAccessed": 1793887994.398964
+                }
+              }
+            },
+            {
+              "key": "f84f5cf09555f541a2951ab3c8cc98a8",
+              "page": "0003.jpg",
+              "currentFiles": {
+                "thumbnails": {
+                  "birthTime": 1793887994.3875299,
+                  "mtimeNs": 1793887994387652183,
+                  "bytes": 103393,
+                  "sqliteAccessed": 1793887994.388188
+                },
+                "browse": {
+                  "birthTime": 1793887994.4001286,
+                  "mtimeNs": 1793887994400214116,
+                  "bytes": 316786,
+                  "sqliteAccessed": 1793887994.400651
+                }
+              }
+            },
+            {
+              "key": "16c8a5f4b32548d9ce1dcb7894d88a3f",
+              "page": "0004.jpg",
+              "currentFiles": {
+                "thumbnails": {
+                  "birthTime": 1793887958.5776143,
+                  "mtimeNs": 1793887958577932931,
+                  "bytes": 115765,
+                  "sqliteAccessed": 1793887994.299375
+                },
+                "browse": {
+                  "birthTime": 1793887958.6164892,
+                  "mtimeNs": 1793887958616622523,
+                  "bytes": 367598,
+                  "sqliteAccessed": 1793887958.617128
+                }
+              }
+            }
+          ],
+          "interpretation": "文件出生时间属于现存版本；DiskCache.store会原子替换文件，后写时间不能证明冷时一定缺失。新侧候选0002/0003，旧侧候选0001..0004，不能唯一确定冷时缺的键。"
+        },
+        "logObservability": "日志只见既有AppKit约束警告，没有逐预取成功/错误/取消记录；不能据此确认没有错误或取消。"
+      }
+    },
+    "waitIdleScope": "在数值首屏完成之后调用既有wait_idle；随后记录的book为目标书、itemCount=85、prefetchInFlightCount=0，且84/82计数在正常退出后不变，所以这份记录不是启动前空书的零值。未保存wait_idle每次轮询原始状态、预取计划/键/完成结果，不能证明85项都成功落盘。",
+    "unverified": [
+      "冷时缺失的唯一键/页：冷时只留计数，没有键集或SQLite快照；现存DB及匹配WAL代数可恢复快照最少均85/85，已不能还原84/82时的键集。",
+      "冷时state.loadError、pageSlots及各预取错误未保存，不能宣称无错误。",
+      "是否取消、再次deferred或先清标记后仍在写：没有相应运行时记录，未验证。"
+    ],
+    "keyMapping": "按现有ContentIdentity.cacheKey规范的64位小端长度/字段编码离线计算；最终两侧全部85个缓存键均映射到本地目标书85页。"
+  },
+  "postRunReview": {
+    "kind": "static-possibilities-not-runtime-proof",
+    "findings": [
+      "补写bundle仍按identity合并，后来visible/near可提升context；单次补写仍可能超额而跳过衍生件。",
+      "deferred标记在真实写入前清除；另一补写任务已清标记时，prefetch可能不再等待实际落盘。",
+      "wait_idle仅证明预取计数归零，无法区分成功、失败或再次延后。"
+    ],
+    "scope": "由主控只读Core复核给出；没有证明本次84/82由其中哪条触发。本轮不改代码、不加重试兜底，交回设计前提未完全成立。"
+  },
+  "findings": [
+    {
+      "kind": "measured",
+      "conclusion": "新首屏总体改善，四轮各自P50都低于旧版。",
+      "newP50Milliseconds": 51.08639550000001,
+      "newP95Milliseconds": 62.720833000000006,
+      "oldP50Milliseconds": 94.64089600000001,
+      "oldP95Milliseconds": 131.59662500000002
+    },
+    {
+      "kind": "measured",
+      "conclusion": "新冷填充仍缺1、旧缺3；两侧首次采样退出后都达到85/85。新前两次112.771/54.865 ms，旧212.409/95.631 ms。最初慢样本减轻，但新首样本与冷填充空洞没有消失，不能宣布85/85承诺修复完成。"
+    },
+    {
+      "kind": "limit",
+      "conclusion": "仅本地诊断；两侧负载随40次重启升高。没有负载准入、没有埋点，结果不是正式预算验收，也不能唯一分解各代码修改收益。"
+    }
+  ],
+  "interference": {
+    "displays": "40样本与两次冷填充均为同一内建1728×1080、3456×2160像素、120Hz，无外接；与旧诊断及首轮Viewer自检的外接60Hz环境不同，不能跨轮直接作同条件比较。",
+    "inputObservedSamples": [],
+    "allSamplesFrontBeforeAndAfter": true,
+    "loadOneMinuteRange": [15.0009765625, 27.78369140625],
+    "activationRestorationSamples": [15, 37],
+    "viewportHeights": [767, 771],
+    "viewportNote": "同一准备算法在目标未前台时调用既有resize/open-a；样本15、37执行恢复，viewer高度771pt，其余767pt（宽均698pt）。原始窗口/屏幕和恢复动作逐样本保留，不抹平这个差异。"
+  }
+}
