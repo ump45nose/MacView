@@ -3,6 +3,7 @@ DERIVED := build/DerivedData
 APP := $(DERIVED)/Build/Products/Debug/MacView.app
 LOCAL_FIXTURES := Fixtures/local/generated
 FIXTURES_TMP := build/fixtures-tmp
+TEST_ARGS ?=
 
 .PHONY: project build test bench run clean
 
@@ -22,7 +23,7 @@ test:
 		swift run --package-path $(PACKAGE) mvbench fixtures --root $(CURDIR)/$(FIXTURES_TMP) && \
 		mkdir -p $(dir $(LOCAL_FIXTURES)) && mv $(FIXTURES_TMP)/local/generated $(LOCAL_FIXTURES) && \
 		rm -rf $(FIXTURES_TMP); }
-	swift test --package-path $(PACKAGE) --disable-xctest
+	swift test --package-path $(PACKAGE) --disable-xctest $(TEST_ARGS)
 
 # 用法：make bench ARGS="env --path /Volumes/Picture"
 bench:

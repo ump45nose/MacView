@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: 构建与测试
+    # App 和 SwiftPM 包最低要求 macOS 27；macos-15 无法运行测试。
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: 确认工具链
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+          swift --version
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 生成工程
+        run: make project
+
+      - name: 不签名构建 App
+        run: |
+          xcodebuild -quiet -project MacView.xcodeproj -scheme MacView -configuration Debug \
+            -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+
+      # make test 生成合成夹具，再运行 Swift Testing；不需要 NAS 或用户文件。
+      # Finder 自动化用 SwiftPM --skip 跳过；所有 App 界面自检及 xctrace 留在本机执行。
+      # 重生成清单依赖系统字体/CoreText → ImageIO 的产物，留在本机验证，不改测试。
+      # 2026-11-05：main 本机单测通过；CI 仅 3 个归档中的 7 张中文标题 JPEG 大小/哈希不同。
+      # 本机 PingFangSC-Semibold 21.0d1e1，runner 为 22.0d5e2；Helvetica 版本相同。
+      # 证据：https://github.com/ump45nose/MacView/actions/runs/42014177009
+      # 入库夹具和生成的本地夹具仍由其余完整性测试核对。
+      - name: 生成夹具并运行测试
+        run: |
+          mkdir -p build
+          set +e
+          make test TEST_ARGS="--skip NameOrderTests.finderOrder --skip FixturesTests.regeneratingReproducesTheCommittedManifest" 2>&1 | tee build/test.log
+          test_status=${PIPESTATUS[0]}
+          if [ "$test_status" -ne 0 ]; then
+            echo "::group::失败测试摘要"
+            grep -nE '✘|failed|error:|recorded an issue|threw error' build/test.log | tail -n 60 || true
+            echo "::endgroup::"
+          fi
+          exit "$test_status"
