@@ -1,29 +1,30 @@
 {
   "scene": "large-dir",
-  "commit": "8c4d28298d1dc0d9bcfb80879fb2f159237feca6",
+  "commit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
   "env": {
     "load": {
-      "oneMinute": 23.392578125,
+      "oneMinute": 6.33056640625,
       "limit": 10,
-      "limitSource": "sysctl -n hw.physicalcpu"
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 6.1435546875
     },
     "displayMode": {
-      "width": 1920,
+      "width": 1728,
       "height": 1080,
-      "pixelWidth": 3840,
+      "pixelWidth": 3456,
       "pixelHeight": 2160,
-      "refreshHz": 60.0,
-      "builtin": false,
-      "externalDisplay": true
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
     },
-    "refreshHz": 60.0,
+    "refreshHz": 120.0,
     "screen": {
       "locked": false,
-      "idleSeconds": 0.33181475,
+      "idleSeconds": 57.319009333,
       "inputDuringRun": false,
-      "externalDisplay": true
+      "externalDisplay": false
     },
-    "collectedAt": "2026-11-04T14:19:10Z",
+    "collectedAt": "2026-11-05T02:45:59Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -33,7 +34,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 864,
+        "linkSpeedMbps": 720,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -60,7 +61,23 @@
         "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/generated/tree/10000",
         "source": "/dev/disk3s5"
       }
-    ]
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 62.728502166,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 120.0,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    }
   },
   "budget": {
     "maxRoundTripMilliseconds": 250,
@@ -68,7 +85,19 @@
     "intermediateItemCount": true
   },
   "measured": {
-    "reason": "环境在 20 分钟内没有满足"
+    "stateSamples": 71,
+    "maxRoundTripMilliseconds": 142.79933299999925,
+    "itemCountChanges": 2,
+    "itemCounts": [
+      0,
+      5460,
+      10000
+    ],
+    "intermediateItemCounts": [
+      5460
+    ],
+    "openOk": true,
+    "refreshHz": 120.0
   },
-  "verdict": "environment"
+  "verdict": "pass"
 }
