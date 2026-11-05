@@ -1,12 +1,12 @@
 {
   "scene": "scroll-cached",
-  "commit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+  "commit": "ab80b91a7f824115cfa59809fcf2b0ff2aec20dc",
   "env": {
     "load": {
-      "oneMinute": 7.69873046875,
+      "oneMinute": 48.89453125,
       "limit": 10,
       "limitSource": "sysctl -n hw.physicalcpu",
-      "during": 8.00830078125
+      "during": 25.67431640625
     },
     "displayMode": {
       "width": 1728,
@@ -20,11 +20,11 @@
     "refreshHz": 120.0,
     "screen": {
       "locked": false,
-      "idleSeconds": 121.770279084,
-      "inputDuringRun": true,
+      "idleSeconds": 1700.013303208,
+      "inputDuringRun": false,
       "externalDisplay": false
     },
-    "collectedAt": "2026-11-05T02:51:35Z",
+    "collectedAt": "2026-11-05T10:42:08Z",
     "machine": {
       "chip": "Apple M1 Pro",
       "efficiencyCores": 2,
@@ -34,7 +34,7 @@
     },
     "network": [
       {
-        "linkSpeedMbps": 720,
+        "linkSpeedMbps": 960,
         "name": "en0",
         "type": "IEEE80211",
         "wifiPHYMode": "802.11ax"
@@ -64,8 +64,8 @@
     ],
     "screenAfter": {
       "locked": false,
-      "idleSeconds": 0.0092855,
-      "inputDuringRun": true,
+      "idleSeconds": 1760.784148416,
+      "inputDuringRun": false,
       "externalDisplay": false
     },
     "refreshHzAfter": 120.0,
@@ -80,50 +80,52 @@
     }
   },
   "budget": {
-    "frameTimeP99Milliseconds": 8.33,
-    "refreshHz": 120,
-    "submitPlusRenderP99Milliseconds": 8.33
+    "frameTimeP99Milliseconds": 8.333,
+    "refreshHz": 120
   },
   "measured": {
-    "frames": 339,
-    "hitches": 4,
-    "updateP99": 3.716,
-    "renderP99": 6.422,
+    "frames": 357,
+    "hitches": 6,
+    "hitchMilliseconds": 50.0,
+    "hitchRatioMsPerSecond": 0.82,
+    "updateP99": 3.193,
+    "renderP99": 6.71,
     "frameTimeP99": 16.667,
+    "frameTimeMax": 16.667,
     "refreshHz": 120.0,
     "settleRequestLatencyP99": 0.0,
-    "settles": 0,
+    "settles": 2,
     "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cached-record/record.trace",
     "scrollMovements": 318,
-    "residentPeakBytes": 2012708864,
+    "residentPeakBytes": 1975648256,
     "residentSamplingError": null,
     "residentSampleCount": 60,
     "residentSamplingComplete": true,
     "windowFrontBefore": true,
-    "submitPlusRenderP99": 10.138,
-    "performanceIssueAt120Hz": true,
-    "windowFront": false,
+    "submitPlusRenderP99": 9.903,
+    "frameTimeExceeds120HzBudget": true,
+    "windowFront": true,
     "responsiveScrolling": false,
     "recording": {
       "rawDirectory": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T",
       "existing": {},
       "space": {
         "volume": "/System/Volumes/Data",
-        "freeBytes": 197302599680,
+        "freeBytes": 195259662336,
         "requiredBytes": 60000000000
       },
       "ready": true,
       "added": [
         {
-          "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsSt1Dg4.ktrace",
-          "bytes": 14353253720,
-          "allocatedBytes": 14359601152,
+          "path": "/var/folders/py/gj39wxxn3fz1r3dgt15zrh3m0000gn/T/instrumentsSgAini.ktrace",
+          "bytes": 18611647048,
+          "allocatedBytes": 18617675776,
           "result": "deleted"
         }
       ],
       "cleanupComplete": true,
-      "addedBytes": 14353253720,
-      "deletedBytes": 14353253720,
+      "addedBytes": 18611647048,
+      "deletedBytes": 18611647048,
       "trace": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/acceptance/scroll-cached-record/record.trace",
       "traceDeleted": true
     }

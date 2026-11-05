@@ -1,0 +1,181 @@
+{
+  "scene": "first-image",
+  "commit": "d77eea55a71c6ddd2bd63eb85e44fe1b336dd374",
+  "env": {
+    "load": {
+      "oneMinute": 6.35302734375,
+      "limit": 10,
+      "limitSource": "sysctl -n hw.physicalcpu",
+      "during": 7.12548828125
+    },
+    "displayMode": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    },
+    "refreshHz": 120.0,
+    "screen": {
+      "locked": false,
+      "idleSeconds": 45.40194275,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "collectedAt": "2026-11-05T02:45:05Z",
+    "machine": {
+      "chip": "Apple M1 Pro",
+      "efficiencyCores": 2,
+      "memoryBytes": 34359738368,
+      "model": "MacBookPro18,1",
+      "performanceCores": 8
+    },
+    "network": [
+      {
+        "linkSpeedMbps": 720,
+        "name": "en0",
+        "type": "IEEE80211",
+        "wifiPHYMode": "802.11ax"
+      },
+      {
+        "name": "utun1234"
+      },
+      {
+        "name": "utun4"
+      }
+    ],
+    "route": {
+      "host": "192.168.31.201",
+      "interface": "en0"
+    },
+    "system": {
+      "build": "26A434",
+      "version": "27.0.1"
+    },
+    "volumes": [
+      {
+        "fileSystem": "apfs",
+        "mountPoint": "/System/Volumes/Data",
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+        "source": "/dev/disk3s5"
+      }
+    ],
+    "screenAfter": {
+      "locked": false,
+      "idleSeconds": 49.471731208,
+      "inputDuringRun": false,
+      "externalDisplay": false
+    },
+    "refreshHzAfter": 120.0,
+    "displayModeAfter": {
+      "width": 1728,
+      "height": 1080,
+      "pixelWidth": 3456,
+      "pixelHeight": 2160,
+      "refreshHz": 120.0,
+      "builtin": true,
+      "externalDisplay": false
+    }
+  },
+  "budget": {
+    "lastDisplayP95Milliseconds": 150,
+    "samples": 30
+  },
+  "measured": {
+    "samples": 30,
+    "p95": 78.448292,
+    "milliseconds": [
+      72.78675,
+      64.535125,
+      68.375291,
+      64.420958,
+      68.808125,
+      71.184375,
+      72.640083,
+      72.16825,
+      73.054291,
+      78.448292,
+      77.619167,
+      71.671083,
+      66.653416,
+      72.085,
+      65.286041,
+      68.887584,
+      63.35475,
+      68.710458,
+      65.382334,
+      72.108166,
+      70.88275,
+      66.065375,
+      68.849833,
+      72.719,
+      63.770334,
+      70.764542,
+      71.340958,
+      72.722959,
+      64.730583,
+      106.61125
+    ],
+    "pages": [
+      1,
+      4,
+      7,
+      10,
+      12,
+      15,
+      18,
+      21,
+      24,
+      27,
+      30,
+      32,
+      35,
+      38,
+      41,
+      44,
+      47,
+      50,
+      53,
+      55,
+      58,
+      61,
+      64,
+      67,
+      70,
+      73,
+      75,
+      78,
+      81,
+      84
+    ],
+    "frameCount": 85,
+    "prefetchDisabled": true,
+    "panelsHidden": true,
+    "initialState": {
+      "memory": {
+        "decodedBytes": 25190400,
+        "inFlightBytes": 0,
+        "preloadBytes": 0,
+        "rawBytes": 24399067,
+        "thumbnailMemoryBytes": 0,
+        "waitingTasks": 0
+      },
+      "hudVisible": false
+    },
+    "finalState": {
+      "memory": {
+        "decodedBytes": 815632640,
+        "inFlightBytes": 19699200,
+        "preloadBytes": 0,
+        "rawBytes": 317820655,
+        "thumbnailMemoryBytes": 0,
+        "waitingTasks": 0
+      },
+      "hudVisible": false
+    },
+    "refreshHz": 120.0
+  },
+  "verdict": "pass"
+}
