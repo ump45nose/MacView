@@ -222,6 +222,22 @@ import Testing
     #expect(try FileManager.default.contentsOfDirectory(atPath: directory.url.appendingPathComponent("thumbnails/tmp").path).isEmpty)
 }
 
+@Test func diskContainsOnlyChecksItsTierIndex() async throws {
+    let directory = try CacheTestDirectory()
+    defer { directory.remove() }
+    let index = try CacheIndex(databaseURL: directory.database)
+    let thumbnails = try DiskCache(tier: .thumbnails, cacheDirectory: directory.url, budget: 100, index: index)
+    let browse = try DiskCache(tier: .browse, cacheDirectory: directory.url, budget: 100, index: index)
+    try await seedAccessRows(index, keys: ["indexed-only"])
+    // 索引行没有对应文件；存在探测仍命中，且不会产生文件读取的访问记录。
+    #expect(try await thumbnails.contains("indexed-only"))
+    #expect(try await thumbnails.data(for: "indexed-only") == nil)
+    #expect(try await thumbnails.contains("missing") == false)
+    #expect(try await browse.contains("indexed-only") == false)
+    try await index.flush()
+    #expect(try accessTime(index, key: "indexed-only") == 1)
+}
+
 // MARK: 目录差异与按书元数据
 
 @Test func directoryDiffUsesLocationsAndContentIdentities() async throws {

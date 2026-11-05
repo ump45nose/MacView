@@ -36,6 +36,14 @@ public final class DiskCache: Sendable {
         try await data(for: [key])[key]
     }
 
+    /// 只查索引，不读取文件或更新访问时间。
+    public func contains(_ key: String) async throws -> Bool {
+        let tier = tier.rawValue
+        return try await index.pool.read { database in
+            try Bool.fetchOne(database, sql: "SELECT EXISTS(SELECT 1 FROM disk_entries WHERE tier = ? AND key = ?)", arguments: [tier, key])!
+        }
+    }
+
     public func data(for keys: [String]) async throws -> [String: Data] {
         let keys = Array(Set(keys))
         guard !keys.isEmpty else { return [:] }

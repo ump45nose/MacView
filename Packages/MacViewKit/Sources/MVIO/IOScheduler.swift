@@ -37,7 +37,7 @@ public struct IOConfiguration: Sendable {
     /// 为 nil 时网络卷也在进程内执行，只用于测试。
     public var helperExecutable: URL?
 
-    private var storedDeadline: Duration = .seconds(10)
+    private var storedDeadline: Duration = .seconds(9)
 
     public init(helperExecutable: URL?) {
         self.helperExecutable = helperExecutable
@@ -152,6 +152,11 @@ public final class IOScheduler: Sendable {
     }
 
     // MARK: 卷健康
+
+    /// 读取全部卷当下的健康状态和在途计数，不订阅或发布流。
+    public func currentVolumeHealth() -> [VolumeHealth] {
+        state.withLock { Self.health($0) }
+    }
 
     /// 先给出当前状态，之后每次变化给出全部卷的状态。
     public func volumeHealth() -> AsyncStream<[VolumeHealth]> {
