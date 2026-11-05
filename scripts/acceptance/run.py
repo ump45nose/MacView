@@ -1304,7 +1304,7 @@ def record_scroll(scene):
         if prepared.get("admission"):
             measured["admission"] = prepared["admission"]
         if prepared.get("ready") is False:
-            measured.update(environment=True, reason="准备后环境在 20 分钟内没有满足", admission=prepared.get("admission"))
+            measured.update(environment=True, reason="环境准入等待已耗尽", admission=prepared.get("admission"))
             return measured, {"admission": prepared.get("admission")}, None
         failure = MeasurementError(str(exc), measured)
         if (out / "during.json").exists():
@@ -1346,6 +1346,8 @@ def scroll_summary(out):
         "trace": str(out / "record.trace"),
         "scrollMovements": during.get("scrollMovements"),
         "scrollEvents": during.get("scrollEvents"),
+        "events": during.get("events"),
+        "eventsPerSecond": during.get("eventsPerSecond"),
         "scrollSegments": during.get("scrollSegments"),
         "durationSeconds": during.get("durationSeconds"),
         "gestureSeconds": during.get("gestureSeconds"),
@@ -1393,6 +1395,8 @@ def scene_main_thread():
     data = cold_recording()
     return {**(data["mainThread"] or {}), "frames": data["measured"].get("frames"),
             "scrollSegments": data["measured"].get("scrollSegments"),
+            "events": data["measured"].get("events"), "gestureSeconds": data["measured"].get("gestureSeconds"),
+            "eventsPerSecond": data["measured"].get("eventsPerSecond"),
             "environment": data["measured"].get("environment", False),
             "recording": data["measured"].get("recording")}, data["during"]
 
@@ -2504,37 +2508,37 @@ def scene_panel_restart():
     return {"before": before, "after": after, "matched": same_panel(before, after)}
 
 
-def scroll_to_edge(client, dy):
-    # 只有 continuousScroll（durationMs）响应包含 scrollMovements，可据此确认边界。
-    for _ in range(120):
-        scroll = client.request("scroll", {"dy": dy, "durationMs": 1000, "intervalMs": 8}, timeout=30)
-        if scroll.get("scrollMovements") == 0:
-            return
-    raise RuntimeError("滚动准备未到文档边界")
-
-
-def prepare_scroll(scene, socket_path):
+def prepare_scroll(scene, socket_path, automatic=False):
+    if scene not in ("scroll-cached", "scroll-cold", "settle"):
+        raise SystemExit(f"不是滚动场景：{scene}")
     client = DebugClient(socket_path, phase=scene + ":prepare")
+    prepared = {"admission": None, "ready": True, "automatic": automatic}
     try:
-        client.request("open", {"path": str(ensure_sample())}, timeout=180)
-        client.request("perform", {"command": "view.waterfall"})
-        client.request("resize", {"width": 1400, "height": 900})
-        if scene in ("scroll-cached", "scroll-cold"):
-            scroll_to_edge(client, 12)
-        if scene == "scroll-cached":
-            wait_idle(client, 180)
-            scroll_to_edge(client, -12)
-            wait_idle(client, 180)
-            scroll_to_edge(client, 12)
-            wait_idle(client, 180)
-        elif scene not in ("scroll-cold", "settle"):
-            raise SystemExit(f"不是滚动场景：{scene}")
-        client.request("resize", {"width": 1400, "height": 900})
-        admission, ready = wait_ready(scene)
-        print(json.dumps({"windowFront": window_of(client.request("state")).get("windowFront"),
-                          "admission": admission, "ready": ready, "waitExhausted": WAIT_EXHAUSTED}))
-        return ready
+        if automatic and scene in ("scroll-cold", "settle"):
+            admission, ready = wait_ready(scene)
+            prepared.update(admission=admission, ready=ready)
+        if prepared["ready"]:
+            client.request("open", {"path": str(ensure_sample())}, timeout=180)
+            client.request("perform", {"command": "view.waterfall"})
+            client.request("resize", {"width": 1400, "height": 900})
+            if scene == "scroll-cached":
+                for dy in (-900, 900):
+                    # steps 路径的 dy 是总位移，不含 continuousScroll 的边界反向。
+                    for _ in range(20):
+                        client.request("scroll", {"dy": dy, "steps": 6, "intervalMs": 16}, timeout=30)
+                    wait_idle(client, 180)
+                visible = window_of(client.request("state")).get("visibleRange") or []
+                if not visible or visible[0] != 0:
+                    raise RuntimeError(f"缓存准备后未回到顶部：visibleRange={visible}")
+                if automatic:
+                    admission, ready = wait_ready(scene)
+                    prepared.update(admission=admission, ready=ready)
+        prepared["windowFront"] = window_of(client.request("state")).get("windowFront")
+        return prepared["ready"]
     finally:
+        # open 或后续准备失败时也带回已经完成的准入，不回退到主进程的旧环境。
+        prepared["waitExhausted"] = WAIT_EXHAUSTED
+        print(json.dumps(prepared))
         client.close()
 
 
@@ -2567,9 +2571,9 @@ def run_segmented_scroll(client, seconds, sample_resident):
     result = {"events": 0, "scrollMovements": 0, "windowFront": True, "scrollSegments": []}
     while remaining_ms > 0:
         duration_ms = min(8000, remaining_ms)
-        dy = -12 if len(result["scrollSegments"]) % 2 == 0 else 12
+        dy = -8 if len(result["scrollSegments"]) % 2 == 0 else 8
         burst = time.monotonic()
-        pending = client.send("scroll", {"dy": dy, "durationMs": duration_ms, "intervalMs": 8})
+        pending = client.send("scroll", {"dy": dy, "durationMs": duration_ms, "intervalMs": 3})
         deadline = burst + duration_ms / 1000
         while time.monotonic() < deadline:
             sample_resident()
@@ -2579,11 +2583,16 @@ def run_segmented_scroll(client, seconds, sample_resident):
         result["scrollMovements"] += scroll.get("scrollMovements", 0)
         result["windowFront"] = result["windowFront"] and scroll.get("windowFront") is True
         result["responsiveScrolling"] = scroll.get("responsiveScrolling")
+        gesture_seconds = duration_ms / 1000
         result["scrollSegments"].append({"startElapsedSeconds": burst - started, "durationMs": duration_ms, "dy": dy,
                                           "responseElapsedSeconds": time.monotonic() - started,
-                                          "events": scroll.get("events"), "scrollMovements": scroll.get("scrollMovements")})
+                                          "events": scroll.get("events"), "scrollMovements": scroll.get("scrollMovements"),
+                                          "gestureSeconds": gesture_seconds,
+                                          "eventsPerSecond": scroll.get("events", 0) / gesture_seconds})
         remaining_ms -= duration_ms
-    result.update(durationSeconds=time.monotonic() - started, gestureSeconds=seconds)
+    gesture_seconds = sum(segment["gestureSeconds"] for segment in result["scrollSegments"])
+    result.update(durationSeconds=time.monotonic() - started, gestureSeconds=gesture_seconds,
+                  eventsPerSecond=result["events"] / gesture_seconds if gesture_seconds else None)
     return result
 
 
@@ -2643,6 +2652,8 @@ def run_scroll(scene, socket_path, outdir, automatic=True, seconds=60):
         during["driver"] = "synthetic" if automatic else "trackpad"
         during["responsiveScrolling"] = window.get("responsiveScrolling")
         if automatic:
+            during["events"] = scroll.get("events")
+            during["eventsPerSecond"] = scroll.get("eventsPerSecond")
             during["scrollSegments"] = scroll.get("scrollSegments")
             during["gestureSeconds"] = scroll.get("gestureSeconds")
             during["durationSeconds"] = scroll.get("durationSeconds")
@@ -2837,6 +2848,7 @@ def parse_args(argv):
     parser.add_argument("--out", default="docs/reports/bench")
     parser.add_argument("--check-verdicts", action="store_true")
     parser.add_argument("--prepare-scroll", nargs=2, metavar=("SCENE", "SOCKET"))
+    parser.add_argument("--automatic", action="store_true", help="滚动准备时执行自动验收的环境准入")
     parser.add_argument("--run-scroll", nargs=3, metavar=("SCENE", "SOCKET", "OUT"))
     parser.add_argument("--observe-scroll", nargs=3, metavar=("SCENE", "SOCKET", "OUT"))
     parser.add_argument("--smoke-scroll", nargs=3, metavar=("SCENE", "SOCKET", "OUT"))
@@ -2863,7 +2875,7 @@ def main(argv):
         quit_app(args.quit_app)
         return 0
     if args.prepare_scroll:
-        return 0 if prepare_scroll(args.prepare_scroll[0], args.prepare_scroll[1]) else 3
+        return 0 if prepare_scroll(args.prepare_scroll[0], args.prepare_scroll[1], automatic=args.automatic) else 3
     if args.run_scroll:
         run_scroll(*args.run_scroll)
         return 0
