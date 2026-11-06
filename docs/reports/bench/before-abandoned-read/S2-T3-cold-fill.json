@@ -1,0 +1,5462 @@
+{
+  "schemaVersion": 1,
+  "purpose": "阶段3第九次交回：c3f3497基线与6d51394最终冻结App各20次同法本地冷填充对照。",
+  "method": {
+    "sequence": "全新空隔离support/cache且layout不存在 → open → wait_idle → 立即只读索引计数 → quit并确认实际退出",
+    "sampleCountPerGroup": 20,
+    "loadAdmission": false,
+    "cacheRepair": false,
+    "firstScreenSampling": false,
+    "networkVolumeAccess": false,
+    "caffeinateManaged": false,
+    "waitIdleImplementation": "scripts/acceptance/run.py:wait_idle，prefetchIdle为真返回，50ms轮询，180秒上限；检查目标书85项且prefetchInFlightCount=0。",
+    "counts": "L2=thumbnails、L3=browse的disk_entries行数；同时计文件、目标85项命中数和缺失项。",
+    "keySetEncoding": "keySets以SHA256(sorted keys以换行连接并以换行结束)为键；expectedIndices按sample.catalog从0索引，otherKeys保留全部额外键，可无损恢复。",
+    "exitObservation": "select.kqueue NOTE_EXIT|NOTE_EXITSTATUS；停止仅针对唯一socket参数匹配且LOCAL_PEERPID一致的本轮PID。",
+    "processCommandRecipes": [
+      "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView -MVDebugSocket <socket> -MVSupportDirectory <isolationRoot>/support -MVCacheDirectory <isolationRoot>/cache -MVLayoutFile <isolationRoot>/layout.json"
+    ],
+    "processCommandRecipeRule": "每条本轮ps命令完整匹配对应recipe；<isolationRoot>/<socket>分别替换为该次root/socket。"
+  },
+  "sample": {
+    "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+    "resolvedPath": "/Users/yuwk/WorkSpace/Code/Github/MacView/Fixtures/local/sample-set",
+    "expectedItems": 85,
+    "filesystem": "Filesystem   512-blocks      Used Available Capacity  Mounted on\n/dev/disk3s5  965595304 534245376 377829192    59%    /System/Volumes/Data",
+    "catalogFields": [
+      "name",
+      "cacheKey",
+      "bytes",
+      "modificationNanos"
+    ],
+    "catalog": [
+      [
+        "0001.jpg",
+        "bfbccecbdfd3c270761b4f879b763524",
+        9921463,
+        1655648233000000000
+      ],
+      [
+        "0002.jpg",
+        "96dbfa5875d8f9f44cbcc7980a1215f6",
+        12472937,
+        1655648233000000000
+      ],
+      [
+        "0003.jpg",
+        "f84f5cf09555f541a2951ab3c8cc98a8",
+        8311988,
+        1655648233000000000
+      ],
+      [
+        "0004.jpg",
+        "16c8a5f4b32548d9ce1dcb7894d88a3f",
+        8430993,
+        1655648233000000000
+      ],
+      [
+        "0005.jpg",
+        "6c39de523142954b468b4d430257ec62",
+        8650071,
+        1655648233000000000
+      ],
+      [
+        "0006.jpg",
+        "70c3f0b5940fb92fced84b49add37e4a",
+        8864408,
+        1655648233000000000
+      ],
+      [
+        "0007.jpg",
+        "c2cc650780e15f517f4424dda017b983",
+        10158078,
+        1655648233000000000
+      ],
+      [
+        "0008.jpg",
+        "d2990079f2bafa29f1a0d23b7f3e8f4b",
+        9485768,
+        1655648233000000000
+      ],
+      [
+        "0009.jpg",
+        "860e219ecade3ebe7fb83cde8a778084",
+        9108317,
+        1655648233000000000
+      ],
+      [
+        "0010.jpg",
+        "a70dabe479c5e8093e101084f0b891db",
+        9271140,
+        1655648233000000000
+      ],
+      [
+        "0011.jpg",
+        "5d6ac8755ae657db33f81c48a045681b",
+        8678080,
+        1655648233000000000
+      ],
+      [
+        "0012.jpg",
+        "4ffe4210a2ee7e2430321daf437e0ceb",
+        9155850,
+        1655648233000000000
+      ],
+      [
+        "0013.jpg",
+        "4e75d11bca96dd93d5291a0733ce6f83",
+        9620722,
+        1655648233000000000
+      ],
+      [
+        "0014.jpg",
+        "df52f5e1b7200aa3cfcff07e8d8e192b",
+        9318177,
+        1655648233000000000
+      ],
+      [
+        "0015.jpg",
+        "575e61ce5b8c7ace8b2322d68f2a578d",
+        9146860,
+        1655648233000000000
+      ],
+      [
+        "0016.jpg",
+        "c3a5d5d154f128cc1ee4c2183547d153",
+        8981507,
+        1655648233000000000
+      ],
+      [
+        "0017.jpg",
+        "a416fd719ea1bd9e7ea5ebe61d420d78",
+        9359199,
+        1655648233000000000
+      ],
+      [
+        "0018.jpg",
+        "25e3eca39e0dbfac36da1d9dad32db7e",
+        9862575,
+        1655648233000000000
+      ],
+      [
+        "0019.jpg",
+        "c864d5840fcd27d23c5be02f47328316",
+        9814316,
+        1655648233000000000
+      ],
+      [
+        "0020.jpg",
+        "1fe0fac34f1346f25aeb7dfa98d4385d",
+        9553691,
+        1655648233000000000
+      ],
+      [
+        "0021.jpg",
+        "5abb6b92508905d66740fbfc210cee63",
+        10271374,
+        1655648233000000000
+      ],
+      [
+        "0022.jpg",
+        "835e51a75026b83ed05a2842c7d8dbd4",
+        9969457,
+        1655648233000000000
+      ],
+      [
+        "0023.jpg",
+        "c2ea47b38521d4d20b33767d6c8c5f4a",
+        13583946,
+        1655648237000000000
+      ],
+      [
+        "0024.jpg",
+        "75734583e25faf6a0946b7f4177cc4e4",
+        9851345,
+        1655648233000000000
+      ],
+      [
+        "0025.jpg",
+        "81549658dacd27371e182e63c5c8e8fd",
+        9711377,
+        1655648233000000000
+      ],
+      [
+        "0026.jpg",
+        "c8aa46ff89ed34fe57e88398bd358c5f",
+        9419738,
+        1655648233000000000
+      ],
+      [
+        "0027.jpg",
+        "76636a67d44d6e90daaa1b32867c5324",
+        10471032,
+        1655648233000000000
+      ],
+      [
+        "0028.jpg",
+        "3cfd7c84350d5df82954bfe6399af4a8",
+        12445651,
+        1655648233000000000
+      ],
+      [
+        "0029.jpg",
+        "50c3a27022e6790c5e08afac7bf0d822",
+        10098729,
+        1655648233000000000
+      ],
+      [
+        "0030.jpg",
+        "d416eaccc731dcfe0bd2e0ae4c095757",
+        11287940,
+        1655648233000000000
+      ],
+      [
+        "0031.jpg",
+        "e16d07202dfb8a49157426397c66a049",
+        12086031,
+        1655648233000000000
+      ],
+      [
+        "0032.jpg",
+        "c8ba2dee625db75261c4ae356bd0d065",
+        10972265,
+        1655648233000000000
+      ],
+      [
+        "0033.jpg",
+        "1f027ec13789847f7c85bae0184c6ddd",
+        10414252,
+        1655648233000000000
+      ],
+      [
+        "0034.jpg",
+        "3e82db5c64b92954929985de8549ff5d",
+        9934592,
+        1655648233000000000
+      ],
+      [
+        "0035.jpg",
+        "06287c38038a4b3ec5aee7a794c97f09",
+        8561228,
+        1655648233000000000
+      ],
+      [
+        "0036.jpg",
+        "836d0ca89efc05e33d9f468b3cf98684",
+        8211279,
+        1655648233000000000
+      ],
+      [
+        "0037.jpg",
+        "3cc6e84cc316b2480f4b5c991170c217",
+        11467308,
+        1655648233000000000
+      ],
+      [
+        "0038.jpg",
+        "2220ed977ab816ff9e47510088edeb69",
+        10459231,
+        1655648233000000000
+      ],
+      [
+        "0039.jpg",
+        "65891ce36a7db7c2717f34993865c2ae",
+        10286135,
+        1655648233000000000
+      ],
+      [
+        "0040.jpg",
+        "278e9bb31b9e9e39502e792a00988409",
+        9859430,
+        1655648233000000000
+      ],
+      [
+        "0041.jpg",
+        "b42086468ae969e92eac2fdb0b251af2",
+        8899015,
+        1655648233000000000
+      ],
+      [
+        "0042.jpg",
+        "dabcfe16a035d3f05261971b0f3fb4e0",
+        8273465,
+        1655648233000000000
+      ],
+      [
+        "0043.jpg",
+        "9e82997bd3be4e6d7ec45abe4cef68dc",
+        7638351,
+        1655648233000000000
+      ],
+      [
+        "0044.jpg",
+        "dcd09e4aa4e2860f2f9b4ea0796846de",
+        8466189,
+        1655648233000000000
+      ],
+      [
+        "0045.jpg",
+        "e17e88b9461b77e6b725adef03ccd1c8",
+        8561140,
+        1655648233000000000
+      ],
+      [
+        "0046.jpg",
+        "56cf50998dba244f4e9a885a528394c9",
+        8693926,
+        1655648233000000000
+      ],
+      [
+        "0047.jpg",
+        "5bbc5e881d8403a3ce374359ecc972ca",
+        9348445,
+        1655648233000000000
+      ],
+      [
+        "0048.jpg",
+        "982847854dcc1cf1407eb23bf8417d1f",
+        8117016,
+        1655648233000000000
+      ],
+      [
+        "0049.jpg",
+        "c596708959562ad2bfbb37486b41b489",
+        8741259,
+        1655648233000000000
+      ],
+      [
+        "0050.jpg",
+        "49dba4dcc5bdde7441deb81456b6048b",
+        8613298,
+        1655648233000000000
+      ],
+      [
+        "0051.jpg",
+        "bd1a7440e746916132e2be6aa3877e15",
+        8118379,
+        1655648233000000000
+      ],
+      [
+        "0052.jpg",
+        "eeb3a89c5926b572ac7bdd4f141ae993",
+        8512777,
+        1655648233000000000
+      ],
+      [
+        "0053.jpg",
+        "e9627ac901191ad22981184e5a1cace3",
+        7959338,
+        1655648233000000000
+      ],
+      [
+        "0054.jpg",
+        "7371f7bc89976df406978cb3655c0dd8",
+        8825620,
+        1655648233000000000
+      ],
+      [
+        "0055.jpg",
+        "b4271e7c632c09d19cf699b41c11b818",
+        8024468,
+        1655648233000000000
+      ],
+      [
+        "0056.jpg",
+        "8db5892f755042290546af8ca41d4e3d",
+        9264981,
+        1655648233000000000
+      ],
+      [
+        "0057.jpg",
+        "52b60bf375891a8cf6c7e5f2e763b659",
+        8645926,
+        1655648233000000000
+      ],
+      [
+        "0058.jpg",
+        "f4f2638840144285464554e321a6c9df",
+        8217401,
+        1655648233000000000
+      ],
+      [
+        "0059.jpg",
+        "a5c96fbecc8c72baf01261e4dbe99106",
+        8757286,
+        1655648233000000000
+      ],
+      [
+        "0060.jpg",
+        "837146441de451484127b8a213f5e8ff",
+        8570476,
+        1655648233000000000
+      ],
+      [
+        "0061.jpg",
+        "626ecf624becc6a79010f9168b9f0eac",
+        8294136,
+        1655648233000000000
+      ],
+      [
+        "0062.jpg",
+        "f7ec81ebecadbc6ed88f3dad334833aa",
+        8256196,
+        1655648237000000000
+      ],
+      [
+        "0063.jpg",
+        "78e2d3bf6fe7ffef1b0464b8143e7a46",
+        9368356,
+        1655648237000000000
+      ],
+      [
+        "0064.jpg",
+        "6c1597364b207b6069e59aabae48d558",
+        9013731,
+        1655648237000000000
+      ],
+      [
+        "0065.jpg",
+        "0a3167f50663ea3164fee603558d8afd",
+        9889498,
+        1655648237000000000
+      ],
+      [
+        "0066.jpg",
+        "54d184cce79ff5f5f0679bad975834be",
+        8666760,
+        1655648237000000000
+      ],
+      [
+        "0067.jpg",
+        "786fd47ae24970b3546f39d3721e321a",
+        9029788,
+        1655648237000000000
+      ],
+      [
+        "0068.jpg",
+        "c4c90c3b4a231471854d8efd3111a517",
+        9253091,
+        1655648237000000000
+      ],
+      [
+        "0069.jpg",
+        "29f3a29c33371fc9e1899d7a030d2499",
+        9543224,
+        1655648237000000000
+      ],
+      [
+        "0070.jpg",
+        "3280763352f701d1523f719099fd8de9",
+        8685436,
+        1655648237000000000
+      ],
+      [
+        "0071.jpg",
+        "a2ddabbfe5a0997c6edeecb7d89913c5",
+        8675050,
+        1655648237000000000
+      ],
+      [
+        "0072.jpg",
+        "79c8ef39f40eebc46c227c8481d959f4",
+        8581712,
+        1655648237000000000
+      ],
+      [
+        "0073.jpg",
+        "913f27a7538c2779ba7c2bf92a1fd5d2",
+        8389718,
+        1655648237000000000
+      ],
+      [
+        "0074.jpg",
+        "e21871a7bcc896e226da655de2b565c1",
+        9316170,
+        1655648237000000000
+      ],
+      [
+        "0075.jpg",
+        "275755576ac5397f432b5aecb4d5cbd7",
+        8708587,
+        1655648237000000000
+      ],
+      [
+        "0076.jpg",
+        "a7a819b2a981c33cc6e16d782a01a9a3",
+        8959578,
+        1655648237000000000
+      ],
+      [
+        "0077.jpg",
+        "2f6091c8be7ceca6c92ed7d229e115e9",
+        9908306,
+        1655648237000000000
+      ],
+      [
+        "0078.jpg",
+        "6a55a7492d42b40092c8d8159f6392d4",
+        9217650,
+        1655648237000000000
+      ],
+      [
+        "0079.jpg",
+        "354e8ee20b7a5b3e704d31c5581c3a3c",
+        9432812,
+        1655648237000000000
+      ],
+      [
+        "0080.jpg",
+        "27acc13534a4944e2a9af4b4d42ffb9f",
+        8351982,
+        1655648237000000000
+      ],
+      [
+        "0081.jpg",
+        "14d6e26a755bed9fb19066248dfe2708",
+        8578516,
+        1655648237000000000
+      ],
+      [
+        "0082.jpg",
+        "2ba1efd881debd5ac0c3eec6614c3286",
+        8893104,
+        1655648237000000000
+      ],
+      [
+        "0083.jpg",
+        "1a603e33bdb741fcc09beabbb79841c9",
+        9163459,
+        1655648237000000000
+      ],
+      [
+        "0084.jpg",
+        "fce999b83ad3faf5b26ae5e117f3159b",
+        8914315,
+        1655648237000000000
+      ],
+      [
+        "0085.jpg",
+        "e59dd11b32b58a77d56f9b42d1b9cfe7",
+        21966699,
+        1655648237000000000
+      ]
+    ]
+  },
+  "baseline": {
+    "status": "complete",
+    "sourceCommit": "c3f34970ce62f000762578e1f80b74905023ccfe",
+    "runnerHead": "eeeaee8bc91aa75ed6432781630b8eb0a24f52f5",
+    "frozenManifest": "outputs/stage3-frozen/manifest.json",
+    "frozenVerification": {
+      "manifestEntries": 18,
+      "allPathsTypesModesSizesHashesMatch": true,
+      "binarySHA256": "424364778d4bcccc288063ea26e7bc03add21b8864a67cf6ec9c0864d0aa5cb2",
+      "cdhash": "08e033c998ea5b1f2ea08121481e2bbc81d2746f",
+      "strictVerifyExitCode": 0
+    },
+    "restore": {
+      "command": [
+        "/usr/bin/ditto",
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/outputs/stage3-frozen/MacView.app",
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app"
+      ],
+      "exitCode": 0,
+      "verification": {
+        "manifestEntries": 18,
+        "allPathsTypesModesSizesHashesMatch": true,
+        "binarySHA256": "424364778d4bcccc288063ea26e7bc03add21b8864a67cf6ec9c0864d0aa5cb2",
+        "cdhash": "08e033c998ea5b1f2ea08121481e2bbc81d2746f",
+        "strictVerifyExitCode": 0
+      }
+    },
+    "sourceFingerprintVerification": {
+      "appCore": {
+        "files": 164,
+        "sha256": "e24ab3deafe6b974c69c06a57eb400fbb05ec1de7945ed009f182994e1960f82"
+      },
+      "withTests": {
+        "files": 196,
+        "sha256": "c0d552b5d092e88da10f55bc3739878a2370f327337e25c0c3dc32e3af08f862"
+      }
+    },
+    "sourceDiffExitCode": 0,
+    "startedAt": "2026-11-05T14:55:23.593838+00:00",
+    "runs": [
+      {
+        "number": 1,
+        "startedAt": "2026-11-05T14:55:23.642941+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-01",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-01.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 8.16845703125,
+          "screenLocked": false,
+          "inputIdleSeconds": 3341.646766875,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 93896,
+        "peerPID": 93896,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.803167167,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 78,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.4817776670000002,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 26,
+          "notFrontCount": 0,
+          "maxPrefetch": 78,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 8.15478515625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3344.958537125,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.14139370900000037,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 8.15478515625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3345.174752167,
+          "displayMode": 0
+        },
+        "seconds": 3.5279480830000005,
+        "finishedAt": "2026-11-05T14:55:27.171712+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 2,
+        "startedAt": "2026-11-05T14:55:27.217883+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-02",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-02.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 8.15478515625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3345.226503333,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 93995,
+        "peerPID": 93995,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.6942142919999998,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 85,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 3.691880874999999,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 83,
+            "fileCount": 83,
+            "keySet": "2626603aba5a2c66c68f4121c5d6c5c5574f3522fd023fb071bcf8c0679173ce",
+            "expectedCount": 83,
+            "missingExpectedIndices": [1, 2],
+            "indexedMissingFiles": [],
+            "bytes": 10944059
+          },
+          "L3": {
+            "count": 83,
+            "fileCount": 83,
+            "keySet": "2626603aba5a2c66c68f4121c5d6c5c5574f3522fd023fb071bcf8c0679173ce",
+            "expectedCount": 83,
+            "missingExpectedIndices": [1, 2],
+            "indexedMissingFiles": [],
+            "bytes": 37150490
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 62,
+          "notFrontCount": 0,
+          "maxPrefetch": 84,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 15.02880859375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3350.256333542,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.13583195799999892,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 15.02880859375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3350.451582625,
+          "displayMode": 0
+        },
+        "seconds": 5.2248315,
+        "finishedAt": "2026-11-05T14:55:32.448498+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 3,
+        "startedAt": "2026-11-05T14:55:32.483101+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-03",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-03.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 15.02880859375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3350.491633792,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94090,
+        "peerPID": 94090,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.6092297920000007,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 87,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.3794713749999996,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 23,
+          "notFrontCount": 0,
+          "maxPrefetch": 87,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 15.9873046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3353.082008167,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12034108399999965,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 15.9873046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3353.270430375,
+          "displayMode": 0
+        },
+        "seconds": 2.7784383750000003,
+        "finishedAt": "2026-11-05T14:55:35.267378+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 4,
+        "startedAt": "2026-11-05T14:55:35.305479+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-04",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-04.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 15.9873046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3353.309326875,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94105,
+        "peerPID": 94105,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8163659580000004,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 75,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.9889976669999996,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 17,
+          "notFrontCount": 0,
+          "maxPrefetch": 75,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 15.9873046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3355.726178167,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.1129617500000002,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 15.9873046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3355.904222958,
+          "displayMode": 0
+        },
+        "seconds": 2.5945440830000006,
+        "finishedAt": "2026-11-05T14:55:37.901141+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 5,
+        "startedAt": "2026-11-05T14:55:37.937518+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-05",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-05.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 15.9873046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3355.941352875,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94195,
+        "peerPID": 94195,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.9388354579999998,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 77,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.1024694589999982,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 19,
+          "notFrontCount": 0,
+          "maxPrefetch": 74,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 17.349609375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3358.593078083,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11704620800000143,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 17.349609375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3358.768927375,
+          "displayMode": 0
+        },
+        "seconds": 2.8270353329999978,
+        "finishedAt": "2026-11-05T14:55:40.765830+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 6,
+        "startedAt": "2026-11-05T14:55:40.850337+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-06",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-06.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 17.349609375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3358.854693042,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94203,
+        "peerPID": 94203,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7892264579999981,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 80,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0570268750000018,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 18,
+          "notFrontCount": 0,
+          "maxPrefetch": 80,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 17.349609375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3361.328877625,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12325987500000224,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 17.349609375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3361.509881292,
+          "displayMode": 0
+        },
+        "seconds": 2.654459499999998,
+        "finishedAt": "2026-11-05T14:55:43.506808+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 7,
+        "startedAt": "2026-11-05T14:55:43.541201+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-07",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-07.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 17.349609375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3361.544968333,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94298,
+        "peerPID": 94298,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7407023340000016,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 79,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0299315,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 18,
+          "notFrontCount": 0,
+          "maxPrefetch": 79,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 18.3623046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3363.93849275,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11891533300000035,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 18.3623046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3364.116375792,
+          "displayMode": 0
+        },
+        "seconds": 2.5711432079999987,
+        "finishedAt": "2026-11-05T14:55:46.113313+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 8,
+        "startedAt": "2026-11-05T14:55:46.145350+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-08",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-08.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 18.3623046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3364.153187,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94353,
+        "peerPID": 94353,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8273353750000005,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 74,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.9673958339999977,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "bd039c628d8a491c16a8fbdc573d3ff5b950990ef261b65befe6b5542c13ce81",
+            "expectedCount": 84,
+            "missingExpectedIndices": [2],
+            "indexedMissingFiles": [],
+            "bytes": 11129652
+          },
+          "L3": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "bd039c628d8a491c16a8fbdc573d3ff5b950990ef261b65befe6b5542c13ce81",
+            "expectedCount": 84,
+            "missingExpectedIndices": [2],
+            "indexedMissingFiles": [],
+            "bytes": 37828688
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 17,
+          "notFrontCount": 0,
+          "maxPrefetch": 74,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 18.3623046875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3366.557517458,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11607504200000207,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 20.0146484375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3366.737668292,
+          "displayMode": 0
+        },
+        "seconds": 2.5840412090000022,
+        "finishedAt": "2026-11-05T14:55:48.734676+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 9,
+        "startedAt": "2026-11-05T14:55:48.800122+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-09",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-09.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 20.0146484375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3366.803910542,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94405,
+        "peerPID": 94405,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.855407624999998,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 84,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.2556157500000005,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 22,
+          "notFrontCount": 0,
+          "maxPrefetch": 84,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 20.0146484375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3369.556214333,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.15085858400000163,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 20.0146484375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3369.759454417,
+          "displayMode": 0
+        },
+        "seconds": 2.9553484999999995,
+        "finishedAt": "2026-11-05T14:55:51.756481+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 10,
+        "startedAt": "2026-11-05T14:55:51.786962+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-10",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-10.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 20.0146484375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3369.791564458,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94494,
+        "peerPID": 94494,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8146553329999975,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 87,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 2.0514949579999993,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 35,
+          "notFrontCount": 0,
+          "maxPrefetch": 86,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 22.81591796875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3373.273087958,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12825362499999926,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 22.81591796875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3373.459223708,
+          "displayMode": 0
+        },
+        "seconds": 3.6671160830000034,
+        "finishedAt": "2026-11-05T14:55:55.456160+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 11,
+        "startedAt": "2026-11-05T14:55:55.488817+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-11",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-11.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 22.81591796875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3373.498701375,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94514,
+        "peerPID": 94514,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.756446167,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 77,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.065725540999999,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 19,
+          "notFrontCount": 0,
+          "maxPrefetch": 77,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 22.81591796875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3375.93638625,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.1176263750000004,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 22.81591796875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3376.108653125,
+          "displayMode": 0
+        },
+        "seconds": 2.609531208,
+        "finishedAt": "2026-11-05T14:55:58.105584+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 12,
+        "startedAt": "2026-11-05T14:55:58.146992+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-12",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-12.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 22.81591796875,
+          "screenLocked": false,
+          "inputIdleSeconds": 3376.153169833,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94600,
+        "peerPID": 94600,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8210770000000025,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 74,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.9641890829999937,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 17,
+          "notFrontCount": 0,
+          "maxPrefetch": 74,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 24.75244140625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3378.566984708,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12112499999999926,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 24.75244140625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3378.743633333,
+          "displayMode": 0
+        },
+        "seconds": 2.590046375,
+        "finishedAt": "2026-11-05T14:56:00.740561+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 13,
+        "startedAt": "2026-11-05T14:56:00.782791+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-13",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-13.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 24.75244140625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3378.786554833,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94612,
+        "peerPID": 94612,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8125260840000053,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 79,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.9864977089999982,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "bd039c628d8a491c16a8fbdc573d3ff5b950990ef261b65befe6b5542c13ce81",
+            "expectedCount": 84,
+            "missingExpectedIndices": [2],
+            "indexedMissingFiles": [],
+            "bytes": 11129652
+          },
+          "L3": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "bd039c628d8a491c16a8fbdc573d3ff5b950990ef261b65befe6b5542c13ce81",
+            "expectedCount": 84,
+            "missingExpectedIndices": [2],
+            "indexedMissingFiles": [],
+            "bytes": 37828688
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 17,
+          "notFrontCount": 0,
+          "maxPrefetch": 78,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 24.75244140625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3381.237410667,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12951325000000224,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 24.75244140625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3381.425003042,
+          "displayMode": 0
+        },
+        "seconds": 2.6379734579999976,
+        "finishedAt": "2026-11-05T14:56:03.421958+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 14,
+        "startedAt": "2026-11-05T14:56:03.460925+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-14",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-14.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 24.75244140625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3381.465165208,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94702,
+        "peerPID": 94702,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8050699579999971,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 75,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.9732365829999949,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "4abbb9d483292ee21d585a70d2fc116421e41b80741919f3fae52fb54e0ff412",
+            "expectedCount": 84,
+            "missingExpectedIndices": [1],
+            "indexedMissingFiles": [],
+            "bytes": 11047452
+          },
+          "L3": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "4abbb9d483292ee21d585a70d2fc116421e41b80741919f3fae52fb54e0ff412",
+            "expectedCount": 84,
+            "missingExpectedIndices": [1],
+            "indexedMissingFiles": [],
+            "bytes": 37467276
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 17,
+          "notFrontCount": 0,
+          "maxPrefetch": 75,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 28.13525390625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3383.861194125,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12025379199999975,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 28.13525390625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3384.053367667,
+          "displayMode": 0
+        },
+        "seconds": 2.587848874999999,
+        "finishedAt": "2026-11-05T14:56:06.050338+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 15,
+        "startedAt": "2026-11-05T14:56:06.085746+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-15",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-15.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 28.13525390625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3384.089570625,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94760,
+        "peerPID": 94760,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7426285839999949,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 76,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0533317920000016,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "22b58226b6022fd173affed6700cb960a23b981a90bf473a668fd0a9742cb955",
+            "expectedCount": 84,
+            "missingExpectedIndices": [57],
+            "indexedMissingFiles": [],
+            "bytes": 11120583
+          },
+          "L3": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "22b58226b6022fd173affed6700cb960a23b981a90bf473a668fd0a9742cb955",
+            "expectedCount": 84,
+            "missingExpectedIndices": [57],
+            "indexedMissingFiles": [],
+            "bytes": 37807050
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 19,
+          "notFrontCount": 0,
+          "maxPrefetch": 76,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 28.13525390625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3386.481601083,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11441208299999772,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 28.13525390625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3386.653550083,
+          "displayMode": 0
+        },
+        "seconds": 2.5635841249999984,
+        "finishedAt": "2026-11-05T14:56:08.650506+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 16,
+        "startedAt": "2026-11-05T14:56:08.684790+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-16",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-16.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 28.13525390625,
+          "screenLocked": false,
+          "inputIdleSeconds": 3386.688513125,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94806,
+        "peerPID": 94806,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.802770332999998,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 81,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.1367027919999941,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 20,
+          "notFrontCount": 0,
+          "maxPrefetch": 80,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 29.9658203125,
+          "screenLocked": false,
+          "inputIdleSeconds": 3389.235743833,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.1223924580000002,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 29.9658203125,
+          "screenLocked": false,
+          "inputIdleSeconds": 3389.446624833,
+          "displayMode": 0
+        },
+        "seconds": 2.7583097500000022,
+        "finishedAt": "2026-11-05T14:56:11.444025+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 17,
+        "startedAt": "2026-11-05T14:56:11.496263+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-17",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-17.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 29.9658203125,
+          "screenLocked": false,
+          "inputIdleSeconds": 3389.504500458,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94897,
+        "peerPID": 94897,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7589206660000016,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 80,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.1389977919999978,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 20,
+          "notFrontCount": 0,
+          "maxPrefetch": 80,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 29.88818359375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3391.995948083,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11691858300000035,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 29.88818359375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3392.176683958,
+          "displayMode": 0
+        },
+        "seconds": 2.671755833000006,
+        "finishedAt": "2026-11-05T14:56:14.173656+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 18,
+        "startedAt": "2026-11-05T14:56:14.210752+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-18",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-18.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 29.88818359375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3392.215174958,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 94907,
+        "peerPID": 94907,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 1.020685874999998,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 69,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.8941243330000006,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 16,
+          "notFrontCount": 0,
+          "maxPrefetch": 69,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 29.88818359375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3394.726330292,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11572499999999764,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 29.88818359375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3394.901865208,
+          "displayMode": 0
+        },
+        "seconds": 2.6863824589999936,
+        "finishedAt": "2026-11-05T14:56:16.898825+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 19,
+        "startedAt": "2026-11-05T14:56:16.943371+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-19",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-19.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 29.88818359375,
+          "screenLocked": false,
+          "inputIdleSeconds": 3394.947254167,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 95017,
+        "peerPID": 95017,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8166543749999988,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 73,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0063276249999973,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 18,
+          "notFrontCount": 0,
+          "maxPrefetch": 73,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 30.61767578125,
+          "screenLocked": false,
+          "inputIdleSeconds": 3397.391085292,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11589962499999729,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 30.61767578125,
+          "screenLocked": false,
+          "inputIdleSeconds": 3397.58093225,
+          "displayMode": 0
+        },
+        "seconds": 2.6333640830000036,
+        "finishedAt": "2026-11-05T14:56:19.577866+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      },
+      {
+        "number": 20,
+        "startedAt": "2026-11-05T14:56:19.653598+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline/run-20",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9-93877-20.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 30.61767578125,
+          "screenLocked": false,
+          "inputIdleSeconds": 3397.661189958,
+          "displayMode": 0
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 95024,
+        "peerPID": 95024,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.786601417,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 83,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0216034580000013,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "bd039c628d8a491c16a8fbdc573d3ff5b950990ef261b65befe6b5542c13ce81",
+            "expectedCount": 84,
+            "missingExpectedIndices": [2],
+            "indexedMissingFiles": [],
+            "bytes": 11129652
+          },
+          "L3": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "bd039c628d8a491c16a8fbdc573d3ff5b950990ef261b65befe6b5542c13ce81",
+            "expectedCount": 84,
+            "missingExpectedIndices": [2],
+            "indexedMissingFiles": [],
+            "bytes": 37828688
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 18,
+          "notFrontCount": 0,
+          "maxPrefetch": 83,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 30.61767578125,
+          "screenLocked": false,
+          "inputIdleSeconds": 3400.092420792,
+          "displayMode": 0
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.1207465410000026,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 30.61767578125,
+          "screenLocked": false,
+          "inputIdleSeconds": 3400.271111833,
+          "displayMode": 0
+        },
+        "seconds": 2.608079624999995,
+        "finishedAt": "2026-11-05T14:56:22.268076+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true,
+        "processCommandRecipe": 0
+      }
+    ],
+    "finishedAt": "2026-11-05T14:56:22.418399+00:00",
+    "completed": 20,
+    "uniquePIDs": 20,
+    "uniqueSockets": 20,
+    "allExitedNormally": true,
+    "L2Counts": [85, 83, 85, 85, 85, 85, 85, 84, 85, 85, 85, 85, 84, 84, 84, 85, 85, 85, 85, 84],
+    "L3Counts": [85, 83, 85, 85, 85, 85, 85, 84, 85, 85, 85, 85, 84, 84, 84, 85, 85, 85, 85, 84],
+    "fullBoth": 14,
+    "incompleteCacheRuns": [2, 8, 13, 14, 15, 20],
+    "finding": "20次均打开85页目标书且wait_idle在prefetch计数0时返回；14次L2/L3为85，6次缺1至2项，两层缺键一致。"
+  },
+  "new": {
+    "status": "complete",
+    "sourceCommit": "6d5139402b2f8fa820389a4886c6af21ac8c3d83",
+    "runnerHead": "6d5139402b2f8fa820389a4886c6af21ac8c3d83",
+    "frozenManifest": "outputs/stage3-frozen/manifest.json",
+    "frozenVerification": {
+      "manifestEntries": 18,
+      "allPathsTypesModesSizesHashesMatch": true,
+      "binarySHA256": "e87ed329985e41d8f36ca8f886582933115960db4c05364c212bfcda84defc5b",
+      "cdhash": "be79aff47374c77c65a81e2486f73eea37bf4902",
+      "strictVerifyExitCode": 0
+    },
+    "runningAppVerification": {
+      "manifestEntries": 18,
+      "allPathsTypesModesSizesHashesMatch": true,
+      "binarySHA256": "e87ed329985e41d8f36ca8f886582933115960db4c05364c212bfcda84defc5b",
+      "cdhash": "be79aff47374c77c65a81e2486f73eea37bf4902",
+      "strictVerifyExitCode": 0
+    },
+    "sameMethodAsBaseline": true,
+    "startedAt": "2026-11-05T15:32:21.547621+00:00",
+    "runs": [
+      {
+        "number": 1,
+        "startedAt": "2026-11-05T15:32:21.594314+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-01",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-01.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 16.625,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 14.68706625
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 38958,
+        "peerPID": 38958,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 1.101740083,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 75,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.228595833,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "19a58e1cd8ea49216361a597b3757ebe65e3319e4d82c8ce0ce14dc3ffad860a",
+            "expectedCount": 84,
+            "missingExpectedIndices": [58],
+            "indexedMissingFiles": [],
+            "bytes": 11109871
+          },
+          "L3": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "19a58e1cd8ea49216361a597b3757ebe65e3319e4d82c8ce0ce14dc3ffad860a",
+            "expectedCount": 84,
+            "missingExpectedIndices": [58],
+            "indexedMissingFiles": [],
+            "bytes": 37764409
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 23,
+          "notFrontCount": 0,
+          "maxPrefetch": 75,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 16.625,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 17.748182917
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.17007074999999983,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 16.625,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 17.991081375
+        },
+        "seconds": 3.3037430829999996,
+        "finishedAt": "2026-11-05T15:32:24.902804+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 2,
+        "startedAt": "2026-11-05T15:32:25.039385+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-02",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-02.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 16.625,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 18.129524708
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 38968,
+        "peerPID": 38968,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.9743412499999993,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 75,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0248045000000001,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 19,
+          "notFrontCount": 0,
+          "maxPrefetch": 75,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 16.89501953125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 20.846434542
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11876479199999945,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 16.89501953125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 21.030323
+        },
+        "seconds": 2.9004035419999994,
+        "finishedAt": "2026-11-05T15:32:27.942007+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 3,
+        "startedAt": "2026-11-05T15:32:27.983027+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-03",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-03.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 16.89501953125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 21.076050167
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39071,
+        "peerPID": 39071,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": false,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7561442920000001,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 82,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.215934291,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 23,
+          "notFrontCount": 0,
+          "maxPrefetch": 82,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 16.89501953125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 23.676504875
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12133733300000138,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 16.89501953125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 23.857776833
+        },
+        "seconds": 2.781358667000001,
+        "finishedAt": "2026-11-05T15:32:30.769473+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 4,
+        "startedAt": "2026-11-05T15:32:30.810254+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-04",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-04.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 16.89501953125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 23.900366917
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39077,
+        "peerPID": 39077,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": false,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.938705208,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 71,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0417414160000007,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 19,
+          "notFrontCount": 0,
+          "maxPrefetch": 71,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 17.4638671875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 26.524540042
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.15433291600000132,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 17.4638671875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 26.815748417
+        },
+        "seconds": 2.9092720419999996,
+        "finishedAt": "2026-11-05T15:32:33.727497+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 5,
+        "startedAt": "2026-11-05T15:32:33.765067+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-05",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-05.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 17.4638671875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 26.854202542
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39169,
+        "peerPID": 39169,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.6963117089999997,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 83,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.1787041670000011,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 22,
+          "notFrontCount": 0,
+          "maxPrefetch": 82,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 18.54736328125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 29.395719292
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12539179200000028,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 18.54736328125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 29.586248
+        },
+        "seconds": 2.7317875419999993,
+        "finishedAt": "2026-11-05T15:32:36.497943+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 6,
+        "startedAt": "2026-11-05T15:32:36.535688+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-06",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-06.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 18.54736328125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 29.624852875
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39255,
+        "peerPID": 39255,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.9842295409999995,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 64,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.8414680830000023,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 16,
+          "notFrontCount": 0,
+          "maxPrefetch": 64,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 18.54736328125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 32.108414958
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12600791599999894,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 18.54736328125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 32.29083825
+        },
+        "seconds": 2.6655855000000006,
+        "finishedAt": "2026-11-05T15:32:39.202489+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 7,
+        "startedAt": "2026-11-05T15:32:39.240113+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-07",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-07.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 18.54736328125,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 32.329180042
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39265,
+        "peerPID": 39265,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7444694999999975,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 87,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.9365709580000008,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 34,
+          "notFrontCount": 0,
+          "maxPrefetch": 85,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 23.14794921875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 35.694770833
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11901770800000122,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 23.14794921875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 35.887175167
+        },
+        "seconds": 3.5579349160000007,
+        "finishedAt": "2026-11-05T15:32:42.799137+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 8,
+        "startedAt": "2026-11-05T15:32:42.855958+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-08",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-08.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 23.14794921875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 35.950800083
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39361,
+        "peerPID": 39361,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.6462250420000011,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 87,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 2.4433429170000025,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 44,
+          "notFrontCount": 0,
+          "maxPrefetch": 87,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 27.9404296875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 39.681878625
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.1138334169999986,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 27.9404296875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 39.865054875
+        },
+        "seconds": 3.91384725,
+        "finishedAt": "2026-11-05T15:32:46.776805+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 9,
+        "startedAt": "2026-11-05T15:32:46.824422+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-09",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-09.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 27.9404296875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 39.913440625
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39447,
+        "peerPID": 39447,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8815664580000018,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 70,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.984194083000002,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "56876285d994223bc22511712a2a6b6fa0f10f473de353fb83cc678138aa5dfe",
+            "expectedCount": 84,
+            "missingExpectedIndices": [63],
+            "indexedMissingFiles": [],
+            "bytes": 11150155
+          },
+          "L3": {
+            "count": 84,
+            "fileCount": 84,
+            "keySet": "56876285d994223bc22511712a2a6b6fa0f10f473de353fb83cc678138aa5dfe",
+            "expectedCount": 84,
+            "missingExpectedIndices": [63],
+            "indexedMissingFiles": [],
+            "bytes": 37885366
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 18,
+          "notFrontCount": 0,
+          "maxPrefetch": 70,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 27.9404296875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 42.432340583
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.13069254200000202,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 27.9404296875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 42.620441958
+        },
+        "seconds": 2.706392417,
+        "finishedAt": "2026-11-05T15:32:49.532184+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 10,
+        "startedAt": "2026-11-05T15:32:49.562463+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-10",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-10.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 27.9404296875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 42.66224725
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39457,
+        "peerPID": 39457,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.9745848340000016,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 70,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.9031590419999986,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 17,
+          "notFrontCount": 0,
+          "maxPrefetch": 70,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 29.14599609375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 45.136762625
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.13077841699999837,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 29.14599609375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 45.323807375
+        },
+        "seconds": 2.661355041,
+        "finishedAt": "2026-11-05T15:32:52.235661+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 11,
+        "startedAt": "2026-11-05T15:32:52.305041+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-11",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-11.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 29.14599609375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 45.399923917
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39550,
+        "peerPID": 39550,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8949322080000002,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 75,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.9112937499999987,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 17,
+          "notFrontCount": 0,
+          "maxPrefetch": 75,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 29.14599609375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 47.825770292
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12651058300000528,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 29.14599609375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 48.011241042
+        },
+        "seconds": 2.609176125000001,
+        "finishedAt": "2026-11-05T15:32:54.922915+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 12,
+        "startedAt": "2026-11-05T15:32:54.957075+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-12",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-12.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 29.14599609375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 48.049444583
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39559,
+        "peerPID": 39559,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.9417528749999988,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 71,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.9373084160000005,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 18,
+          "notFrontCount": 0,
+          "maxPrefetch": 71,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 29.05419921875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 50.530863375
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11637958300000406,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 29.05419921875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 50.702299375
+        },
+        "seconds": 2.652524250000006,
+        "finishedAt": "2026-11-05T15:32:57.613998+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 13,
+        "startedAt": "2026-11-05T15:32:57.644899+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-13",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-13.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 29.05419921875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 50.741288958
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39648,
+        "peerPID": 39648,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7985764579999994,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 79,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0475974169999986,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 20,
+          "notFrontCount": 0,
+          "maxPrefetch": 79,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 29.05419921875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 53.231902083
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.1206172919999986,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 29.05419921875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 53.436033625
+        },
+        "seconds": 2.695908832999997,
+        "finishedAt": "2026-11-05T15:33:00.349384+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 14,
+        "startedAt": "2026-11-05T15:33:00.422077+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-14",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-14.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 29.05419921875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 53.511164833
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39659,
+        "peerPID": 39659,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7906665419999968,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 81,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0489543340000012,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 20,
+          "notFrontCount": 0,
+          "maxPrefetch": 81,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 30.3310546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 55.973365708
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12927020800000122,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 30.3310546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 56.15835825
+        },
+        "seconds": 2.6467337499999957,
+        "finishedAt": "2026-11-05T15:33:03.070037+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 15,
+        "startedAt": "2026-11-05T15:33:03.109187+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-15",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-15.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 30.3310546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 56.198521542
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39750,
+        "peerPID": 39750,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8174405419999999,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 75,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0494094579999995,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 20,
+          "notFrontCount": 0,
+          "maxPrefetch": 75,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 30.3310546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 58.699273542
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.12295637500000112,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 30.3310546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 58.874506167
+        },
+        "seconds": 2.6756641660000042,
+        "finishedAt": "2026-11-05T15:33:05.786214+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 16,
+        "startedAt": "2026-11-05T15:33:05.829372+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-16",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-16.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 30.3310546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 58.919968583
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39766,
+        "peerPID": 39766,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": false,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7565421660000027,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 79,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.0838734579999993,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 20,
+          "notFrontCount": 0,
+          "maxPrefetch": 79,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 30.46435546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 61.362885292
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11340516699999625,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 30.46435546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 61.569758
+        },
+        "seconds": 2.6501270839999975,
+        "finishedAt": "2026-11-05T15:33:08.482198+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 17,
+        "startedAt": "2026-11-05T15:33:08.563285+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-17",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-17.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 30.46435546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 61.653927
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39854,
+        "peerPID": 39854,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.9856252920000017,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 69,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 0.8357255420000058,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 16,
+          "notFrontCount": 0,
+          "maxPrefetch": 69,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 30.46435546875,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 64.111461667
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11137737500000355,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 29.8662109375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 64.294447208
+        },
+        "seconds": 2.6401100830000033,
+        "finishedAt": "2026-11-05T15:33:11.206138+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 18,
+        "startedAt": "2026-11-05T15:33:11.245760+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-18",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-18.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 29.8662109375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 64.337021458
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39914,
+        "peerPID": 39914,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.8367503750000012,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 78,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.208387166999998,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 22,
+          "notFrontCount": 0,
+          "maxPrefetch": 78,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 29.8662109375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 66.992109792
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.13419241600000476,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 29.8662109375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 67.187369375
+        },
+        "seconds": 2.849930458000003,
+        "finishedAt": "2026-11-05T15:33:14.099089+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 19,
+        "startedAt": "2026-11-05T15:33:14.138847+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-19",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-19.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 29.8662109375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 67.227877875
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 39956,
+        "peerPID": 39956,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.7224154170000006,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 80,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.127237375,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 21,
+          "notFrontCount": 0,
+          "maxPrefetch": 80,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 34.20068359375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 69.720307917
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.1262444159999987,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 34.20068359375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 69.955057917
+        },
+        "seconds": 2.732687333000001,
+        "finishedAt": "2026-11-05T15:33:16.872586+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      },
+      {
+        "number": 20,
+        "startedAt": "2026-11-05T15:33:16.918559+00:00",
+        "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/run-20",
+        "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/s9n-38916-20.sock",
+        "beforeLaunch": {
+          "loadOneMinute": 34.20068359375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 70.01238775
+        },
+        "errors": [],
+        "emptyBeforeLaunch": {
+          "cache": true,
+          "support": true,
+          "layoutAbsent": true
+        },
+        "pid": 40046,
+        "peerPID": 40046,
+        "processCommandRecipe": 0,
+        "beforeOpen": {
+          "book": null,
+          "itemCount": 0,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "diskBeforeOpen": {
+          "L2": 0,
+          "L3": 0,
+          "L2Files": 0,
+          "L3Files": 0,
+          "metadata": 0
+        },
+        "openSeconds": 0.6329853750000041,
+        "opened": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": false,
+          "prefetchInFlightCount": 86,
+          "windowFront": true,
+          "loadError": null
+        },
+        "waitIdleSeconds": 1.2270841250000046,
+        "idle": {
+          "book": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/Fixtures/local/sample-set",
+          "itemCount": 85,
+          "prefetchIdle": true,
+          "prefetchInFlightCount": 0,
+          "windowFront": true,
+          "loadError": null
+        },
+        "coldFill": {
+          "L2": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 11233045
+          },
+          "L3": {
+            "count": 85,
+            "fileCount": 85,
+            "keySet": "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581",
+            "expectedCount": 85,
+            "missingExpectedIndices": [],
+            "indexedMissingFiles": [],
+            "bytes": 38145474
+          },
+          "metadataCount": 86
+        },
+        "waitIdleObservation": {
+          "count": 23,
+          "notFrontCount": 0,
+          "maxPrefetch": 86,
+          "errors": []
+        },
+        "fileErrorsAtIdle": [],
+        "atIdle": {
+          "loadOneMinute": 34.20068359375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 72.499655833
+        },
+        "inputDuringFill": false,
+        "quitSeconds": 0.11671904199999972,
+        "exitCode": 0,
+        "quitExitedNormally": true,
+        "actualExitObserved": true,
+        "pidStillListed": false,
+        "afterExit": {
+          "loadOneMinute": 34.20068359375,
+          "displayMode": 0,
+          "screenLocked": false,
+          "inputIdleSeconds": 72.678001208
+        },
+        "seconds": 2.665145416999998,
+        "finishedAt": "2026-11-05T15:33:19.589724+00:00",
+        "isolatedRootRemoved": true,
+        "socketRemoved": true
+      }
+    ],
+    "environment": {
+      "before": {
+        "loadOneMinute": 16.625,
+        "displayMode": 0,
+        "screenLocked": false,
+        "inputIdleSeconds": 14.674391625
+      },
+      "after": {
+        "loadOneMinute": 34.20068359375,
+        "displayMode": 0,
+        "screenLocked": false,
+        "inputIdleSeconds": 72.881206417
+      }
+    },
+    "ownership": {
+      "runnerPID": 38916,
+      "temporaryRoot": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final",
+      "initialBuildDirectories": [
+        "DerivedData",
+        "DerivedData-profile",
+        "acceptance",
+        "stage-1-work",
+        "stage3-ninth-validation",
+        "stage3-work",
+        "stage4-repair"
+      ],
+      "initialCaffeinatePIDs": [82652],
+      "acceptanceTmpInitiallyEmpty": true,
+      "remainingOwnedPIDs": [],
+      "finalCaffeinatePIDs": [82652],
+      "caffeinateUnchanged": true,
+      "frozenReverifiedAfterRuns": {
+        "manifestEntries": 18,
+        "allPathsTypesModesSizesHashesMatch": true,
+        "binarySHA256": "e87ed329985e41d8f36ca8f886582933115960db4c05364c212bfcda84defc5b",
+        "cdhash": "be79aff47374c77c65a81e2486f73eea37bf4902",
+        "strictVerifyExitCode": 0
+      },
+      "runningAppReverifiedAfterRuns": {
+        "manifestEntries": 18,
+        "allPathsTypesModesSizesHashesMatch": true,
+        "binarySHA256": "e87ed329985e41d8f36ca8f886582933115960db4c05364c212bfcda84defc5b",
+        "cdhash": "be79aff47374c77c65a81e2486f73eea37bf4902",
+        "strictVerifyExitCode": 0
+      },
+      "finalBuildDirectoriesExcludingTemporaryRoot": [
+        "DerivedData",
+        "DerivedData-profile",
+        "acceptance",
+        "stage-1-work",
+        "stage3-ninth-validation",
+        "stage3-work",
+        "stage4-repair"
+      ],
+      "originalBuildDirectoryNamesPreserved": true,
+      "acceptanceTmpStillEmpty": true,
+      "remainingAppOrHelperPIDsForRunningBundle": [],
+      "remainingOwnedMounts": [],
+      "baselineCanonicalSHA256Preserved": "96c55fe98e0a3eb089c5dd4316610de61d6574baf9e9921e213d50dc2e77347b",
+      "validationMetadataPreserved": true,
+      "temporaryRootRemoved": true,
+      "temporaryScriptLogsAndCachesRemoved": true,
+      "profileAppRetainedForHandoff": true,
+      "sourceDiffAgainstFrozenCommitExitCode": 0
+    },
+    "finishedAt": "2026-11-05T15:33:19.792955+00:00",
+    "completed": 20,
+    "uniquePIDs": 20,
+    "uniqueSockets": 20,
+    "allExitedNormally": true,
+    "L2Counts": [84, 85, 85, 85, 85, 85, 85, 85, 84, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85],
+    "L3Counts": [84, 85, 85, 85, 85, 85, 85, 85, 84, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85],
+    "fullBoth": 18,
+    "verdict": "fail",
+    "incompleteCacheRuns": [1, 9],
+    "finding": "20次均为85项目标书、prefetchIdle=true且计数0；第1和9次L2/L3各缺1项，其余18次双层85；不满足20/20门槛，停在步骤4。",
+    "stopAtStep": 4
+  },
+  "keySets": {
+    "fe74523f0931bd616fb00500b282b8d93c3b8c76bdc983b2ced4a4bce3157581": {
+      "expectedIndices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
+      "otherKeys": []
+    },
+    "2626603aba5a2c66c68f4121c5d6c5c5574f3522fd023fb071bcf8c0679173ce": {
+      "expectedIndices": [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
+      "otherKeys": []
+    },
+    "bd039c628d8a491c16a8fbdc573d3ff5b950990ef261b65befe6b5542c13ce81": {
+      "expectedIndices": [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
+      "otherKeys": []
+    },
+    "4abbb9d483292ee21d585a70d2fc116421e41b80741919f3fae52fb54e0ff412": {
+      "expectedIndices": [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
+      "otherKeys": []
+    },
+    "22b58226b6022fd173affed6700cb960a23b981a90bf473a668fd0a9742cb955": {
+      "expectedIndices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
+      "otherKeys": []
+    },
+    "19a58e1cd8ea49216361a597b3757ebe65e3319e4d82c8ce0ce14dc3ffad860a": {
+      "expectedIndices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
+      "otherKeys": []
+    },
+    "56876285d994223bc22511712a2a6b6fa0f10f473de353fb83cc678138aa5dfe": {
+      "expectedIndices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84],
+      "otherKeys": []
+    }
+  },
+  "environment": {
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+    "hardware": [
+      "MacBookPro18,1",
+      "10",
+      "34359738368"
+    ],
+    "before": {
+      "loadOneMinute": 8.16845703125,
+      "screenLocked": false,
+      "inputIdleSeconds": 3341.64168225,
+      "displayMode": 0
+    },
+    "after": {
+      "loadOneMinute": 30.61767578125,
+      "screenLocked": false,
+      "inputIdleSeconds": 3400.421397958,
+      "displayMode": 0
+    },
+    "displayModes": [
+      {
+        "width": 1728,
+        "height": 1080,
+        "pixelWidth": 3456,
+        "pixelHeight": 2160,
+        "refreshHz": 120.0,
+        "builtin": true,
+        "externalDisplay": false
+      }
+    ]
+  },
+  "ownership": {
+    "runnerPID": 93877,
+    "temporaryRoot": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-baseline",
+    "initialBuildDirectories": [
+      "DerivedData",
+      "acceptance",
+      "stage-1-work",
+      "stage4-repair"
+    ],
+    "initialCaffeinatePIDs": [82652, 96517],
+    "initialMacViewPIDs": [],
+    "acceptanceTmpInitiallyEmpty": true,
+    "remainingOwnedPIDs": [],
+    "finalCaffeinatePIDs": [82652, 96517],
+    "caffeinateUnchanged": true,
+    "frozenReverifiedAfterRuns": {
+      "manifestEntries": 18,
+      "allPathsTypesModesSizesHashesMatch": true,
+      "binarySHA256": "424364778d4bcccc288063ea26e7bc03add21b8864a67cf6ec9c0864d0aa5cb2",
+      "cdhash": "08e033c998ea5b1f2ea08121481e2bbc81d2746f",
+      "strictVerifyExitCode": 0
+    },
+    "restoredProfileRemoved": true,
+    "finalBuildDirectoriesExcludingTemporaryRoot": [
+      "DerivedData",
+      "acceptance",
+      "stage-1-work",
+      "stage4-repair"
+    ],
+    "originalBuildDirectoryNamesPreserved": true,
+    "acceptanceTmpStillEmpty": true,
+    "temporaryRootRemoved": true,
+    "temporaryScriptLogsAndCachesRemoved": true,
+    "finalBuildDirectories": [
+      "DerivedData",
+      "acceptance",
+      "stage-1-work",
+      "stage4-repair"
+    ]
+  },
+  "validation": {
+    "spec": ".spec/stage-3.md 第九次交回 2026-11-05 22:45，步骤2",
+    "startedAt": "2026-11-05T15:10:32.785848+00:00",
+    "finishedAt": "2026-11-05T15:22:14.479463+00:00",
+    "architectureReview": {
+      "result": "pass",
+      "checks": [
+        "Bundle.derivatives 可选，超额为 nil；image(for:) 两处等待 ?.value",
+        "每轮 fresh RequestContext(min(context.priority, .book))；只在真实衍生任务完成后返回；错误原样传播，取消/关闭经 bundle 退出",
+        "无次数上限、磁盘检查或新增状态；deferredDerivatives 仅供前台 retryDerivatives",
+        "公开接口及测试 seam 无新增；原回归扩展真实额度/第二次 visible 提优，覆盖 thumbnail 与 browse"
+      ],
+      "deferredDesignNote": "瀑布流可见/近处的 browse 预取不看 L3、直接读原图入内存；按本轮不做范围保留。"
+    },
+    "regression": {
+      "review": "符合第九次22:45设计；无新增公开接口/状态/磁盘检查/重试上限。既有internal inFlight用于真实额度占满，第二次visible请求在补写等待时提升；两个rendition均验证预取归零时L2/L3已写完。",
+      "red": {
+        "sourceSHA256": {
+          "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift": "2dd22d8667d8ad9ef015d1d10766d60840156c7932bf7f97da15e11c407c3fb8",
+          "Packages/MacViewKit/Tests/MVPipelineTests/MVPipelineTests.swift": "3d72670f7a433c156baaeaf2bee78e91ddfe3f93b562ea59693e40432209b14b"
+        },
+        "headProductSourceMatches": true,
+        "issues": 8,
+        "testCount": 1,
+        "parameterizedCases": [
+          "thumbnail",
+          "browse"
+        ],
+        "assertions": [
+          "✘ Test prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_:) recorded an issue with 1 argument rendition → .browse at MVPipelineTests.swift:248:5: Expectation failed: environment.pipeline.prefetchInFlightCount(session: session) == 1",
+          "✘ Test prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_:) recorded an issue with 1 argument rendition → .browse at MVPipelineTests.swift:249:5: Expectation failed: environment.pipeline.memory.waitingTasks == 1",
+          "✘ Test prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_:) recorded an issue with 1 argument rendition → .browse at MVPipelineTests.swift:256:5: Expectation failed: try await environment.caches.thumbnails.data(for: identity.cacheKey) != nil",
+          "✘ Test prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_:) recorded an issue with 1 argument rendition → .browse at MVPipelineTests.swift:257:5: Expectation failed: try await environment.caches.browse?.data(for: identity.cacheKey) != nil",
+          "✘ Test prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_:) recorded an issue with 1 argument rendition → .thumbnail at MVPipelineTests.swift:248:5: Expectation failed: environment.pipeline.prefetchInFlightCount(session: session) == 1",
+          "✘ Test prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_:) recorded an issue with 1 argument rendition → .thumbnail at MVPipelineTests.swift:249:5: Expectation failed: environment.pipeline.memory.waitingTasks == 1",
+          "✘ Test prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_:) recorded an issue with 1 argument rendition → .thumbnail at MVPipelineTests.swift:256:5: Expectation failed: try await environment.caches.thumbnails.data(for: identity.cacheKey) != nil",
+          "✘ Test prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_:) recorded an issue with 1 argument rendition → .thumbnail at MVPipelineTests.swift:257:5: Expectation failed: try await environment.caches.browse?.data(for: identity.cacheKey) != nil"
+        ],
+        "summary": [
+          "✘ Test run with 1 test in 0 suites failed after 0.082 seconds with 8 issues."
+        ],
+        "command": "swift test --package-path Packages/MacViewKit --disable-xctest --filter prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing > outputs/stage3-ninth-core/red.log 2>&1",
+        "exitCode": 1,
+        "originalToolSessionID": 62098
+      },
+      "green": {
+        "sourceSHA256": {
+          "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift": "f05b36f74441309475243442707b45b670c94b300cfdd0e256d03e15a1c874dd",
+          "Packages/MacViewKit/Tests/MVPipelineTests/MVPipelineTests.swift": "3d72670f7a433c156baaeaf2bee78e91ddfe3f93b562ea59693e40432209b14b"
+        },
+        "summary": [
+          "✔ Test prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_:) with 2 test cases passed after 0.096 seconds.",
+          "✔ Test run with 1 test in 0 suites passed after 0.096 seconds."
+        ],
+        "command": "swift test --package-path Packages/MacViewKit --disable-xctest --filter prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing > outputs/stage3-ninth-core/green.log 2>&1",
+        "exitCode": 0,
+        "originalToolSessionID": 58598
+      },
+      "pipeline": {
+        "summary": [
+          "✔ Test run with 28 tests in 0 suites passed after 1.162 seconds."
+        ],
+        "command": "swift test --package-path Packages/MacViewKit --disable-xctest --filter MVPipelineTests > outputs/stage3-ninth-core/pipeline.log 2>&1",
+        "exitCode": 0,
+        "originalToolSessionID": 37241
+      },
+      "rawLogSHA256": {
+        "red.log": "3b497a9e0da4bc2e7a07a01cd5bcd078922937b753125e5e3bf572e41fc1f4b4",
+        "green.log": "4516bb0205e8e3aa022be5e84bd4fe5c2623d0e71ce68dabceb0b7af386dabeb",
+        "pipeline.log": "bab1a72270cf51d808429cf7f757fe6ed68420dffb67405adf4ed35bfe8774b4",
+        "red-source-sha256.txt": "9e6af2ecc0b6f02877e81b45bbc277b6bb88ef5feacb052a42867401b9937d23"
+      },
+      "cwd": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0",
+      "environment": {
+        "explicitOverrides": {},
+        "TMPDIR": "继承工具默认环境；原执行时未读取具体值",
+        "evidenceOrigin": "执行代理按原始工具调用补充命令、session_id 与退出码；复核阶段未重跑红绿。"
+      }
+    },
+    "offline": {
+      "pythonSyntax": "pass",
+      "shellSyntax": "pass",
+      "checkVerdictsCases": 122,
+      "nestedRecordExternalCaffeinatePropagation": [
+        {
+          "command": [
+            "<offline fake workspace>/scripts/acceptance/record-trackpad.sh",
+            "scroll-cached",
+            "<offline fake workspace>/build/acceptance/scroll-cached-record",
+            "--automatic"
+          ],
+          "environment": {
+            "MV_ACCEPTANCE_EXTERNAL_CAFFEINATE": "1",
+            "MV_ACCEPTANCE_WAIT_EXHAUSTED": "1"
+          }
+        }
+      ],
+      "shellExternalCaffeinate": {
+        "external1Calls": 0,
+        "external0Calls": 1
+      },
+      "noAppLaunched": true,
+      "noNASAccess": true,
+      "noRealCaffeinateLaunched": true,
+      "commands": [
+        "python3 compile(scripts/acceptance/run.py) without writing pyc",
+        "sh -n scripts/acceptance/record-trackpad.sh",
+        "MV_ACCEPTANCE_EXTERNAL_CAFFEINATE=1 python3 -I scripts/acceptance/run.py --check-verdicts"
+      ],
+      "exitCodes": [0, 0, 0],
+      "syntheticChecks": [
+        "真实 SQLite/WAL 读 thumbnails 与 browse 两层计数；只读缺库/坏库保留 unavailable",
+        "L2 缺数只跳过该根；fail 优先于零样本及另一根 unavailable；输入作废仍优先",
+        "L3 只记录；不补写缓存；完整根在退出和准入后采样",
+        "13 场景分别记录脚本 commit、manifest sourceCommit 及实际 App cdhash",
+        "外部常亮 CLI/环境变量、默认行为及嵌套 record 环境传递；shell 用工作区假 caffeinate 验证零真实调用"
+      ]
+    },
+    "makeTest": {
+      "command": [
+        "make",
+        "test"
+      ],
+      "cwd": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0",
+      "environment": {
+        "TMPDIR": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/tmp/",
+        "MV_ACCEPTANCE_EXTERNAL_CAFFEINATE": "1",
+        "CLANG_MODULE_CACHE_PATH": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/clang-module-cache",
+        "XDG_CACHE_HOME": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/cache"
+      },
+      "startedAt": "2026-11-05T15:10:48.721365+00:00",
+      "seconds": 65.520590583,
+      "exitCode": 0,
+      "warningLines": [],
+      "resultLines": [
+        "Build complete! (8.92秒)",
+        "✔ Test run with 30 tests in 6 suites passed after 1.400 seconds.",
+        "✔ Test run with 20 tests in 5 suites passed after 0.679 seconds.",
+        "✔ Test run with 18 tests in 0 suites passed after 0.476 seconds.",
+        "✔ Test run with 10 tests in 1 suite passed after 5.080 seconds.",
+        "✔ Test run with 26 tests in 5 suites passed after 8.975 seconds.",
+        "✔ Test run with 28 tests in 0 suites passed after 3.292 seconds.",
+        "✔ Test run with 15 tests in 0 suites passed after 0.493 seconds.",
+        "✔ Test run with 35 tests in 1 suite passed after 0.132 seconds.",
+        "✔ Test run with 22 tests in 0 suites passed after 0.629 seconds.",
+        "✔ Test run with 12 tests in 3 suites passed after 0.764 seconds.",
+        "✔ Test run with 11 tests in 1 suite passed after 0.006 seconds.",
+        "✔ Test run with 17 tests in 0 suites passed after 2.330 seconds.",
+        "✔ Test run with 13 tests in 3 suites passed after 0.138 seconds."
+      ],
+      "testCount": 257,
+      "targetSummaryCount": 13,
+      "logSHA256": "b6c800e6af8f525e3f9b3fbd0eb1190ec71733030f88451375f763e2e9642254"
+    },
+    "appBuild": {
+      "command": [
+        "xcodebuild",
+        "-quiet",
+        "-project",
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/MacView.xcodeproj",
+        "-scheme",
+        "MacView",
+        "-configuration",
+        "Debug",
+        "-destination",
+        "platform=macOS,arch=arm64",
+        "-derivedDataPath",
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile",
+        "-clonedSourcePackagesDirPath",
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/source-packages",
+        "-packageCachePath",
+        "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/package-cache",
+        "-skipPackageUpdates",
+        "-disableAutomaticPackageResolution",
+        "SWIFT_OPTIMIZATION_LEVEL=-O",
+        "build"
+      ],
+      "cwd": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0",
+      "environment": {
+        "TMPDIR": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/tmp/",
+        "MV_ACCEPTANCE_EXTERNAL_CAFFEINATE": "1",
+        "CLANG_MODULE_CACHE_PATH": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/clang-module-cache",
+        "XDG_CACHE_HOME": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/cache"
+      },
+      "dependencySource": "Copied existing workspace build/DerivedData/SourcePackages; skip updates; no remote package fetch",
+      "startedAt": "2026-11-05T15:19:02.513202+00:00",
+      "exitCode": 0,
+      "seconds": 39.750123666,
+      "finishedAt": "2026-11-05T15:19:42.263577+00:00",
+      "warningLines": [],
+      "app": {
+        "path": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app",
+        "binarySHA256": "e87ed329985e41d8f36ca8f886582933115960db4c05364c212bfcda84defc5b",
+        "signatureExitCode": 0,
+        "strictVerifyExitCode": 0,
+        "cdhash": "be79aff47374c77c65a81e2486f73eea37bf4902",
+        "signatureType": "adhoc",
+        "identifier": "io.github.ump45nose.MacView",
+        "signatureCommand": [
+          "/usr/bin/codesign",
+          "-d",
+          "--verbose=4",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app"
+        ],
+        "verifyCommand": [
+          "/usr/bin/codesign",
+          "--verify",
+          "--deep",
+          "--strict",
+          "--verbose=2",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app"
+        ]
+      },
+      "sources": {
+        "fileCount": 204,
+        "beforeFingerprint": "ab5d680e97d7c396151bbea6a8fac93830ea53fa110046205689eb202f51d667",
+        "afterFingerprint": "ab5d680e97d7c396151bbea6a8fac93830ea53fa110046205689eb202f51d667",
+        "changedFiles": {},
+        "algorithm": "SHA-256 of UTF-8 JSON object with relative-path keys, SHA-256 content values, sorted keys and compact separators"
+      },
+      "caffeinatePIDs": [
+        "82652",
+        "96517"
+      ],
+      "macViewPIDs": [],
+      "projectGeneration": {
+        "command": [
+          "xcodegen",
+          "generate",
+          "--quiet"
+        ],
+        "exitCode": 0
+      },
+      "logSHA256": "871772be201f6deabfd38d0153344e1358aaa1b34997947fb4564585942108cb",
+      "swiftWarningCount": 0,
+      "compilerWarningCount": 0,
+      "sourceCommit": "6d5139402b2f8fa820389a4886c6af21ac8c3d83",
+      "sourceTreeHeadAtBuildStart": "eeeaee8bc91aa75ed6432781630b8eb0a24f52f5",
+      "contentUnchangedAcrossCommit": true,
+      "nonfatalToolDiagnostic": "Xcode 报本机 CoreSimulator 组件版本不匹配并关闭模拟器支持；目标为 macOS，构建退出 0，无编译警告。"
+    },
+    "abandonedDependencyFetch": {
+      "commands": [
+        [
+          "xcodegen",
+          "generate",
+          "--quiet"
+        ],
+        [
+          "xcodebuild",
+          "-quiet",
+          "-project",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/MacView.xcodeproj",
+          "-scheme",
+          "MacView",
+          "-configuration",
+          "Debug",
+          "-destination",
+          "platform=macOS,arch=arm64",
+          "-derivedDataPath",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile",
+          "-clonedSourcePackagesDirPath",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/source-packages",
+          "-packageCachePath",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-validation/package-cache",
+          "SWIFT_OPTIMIZATION_LEVEL=-O",
+          "build"
+        ]
+      ],
+      "exitCodes": [0, -15],
+      "seconds": 367.736689958,
+      "reason": "新建的私有包缓存尝试远端依赖拉取后停住；只终止本次 xcodebuild/git 后代，转用既有工作区 SourcePackages 的私有副本并禁止更新。",
+      "appBuildCompleted": false,
+      "logSHA256": "d75ac0f50f3d99aa37df98662ffcd6bd4462b2e8a119eb2800d6e80b0f084ef8"
+    },
+    "sourceFingerprints": {
+      "algorithm": "SHA-256 of UTF-8 JSON object with relative-path keys, SHA-256 content values, sorted keys and compact separators",
+      "files": 167,
+      "sha256": "7f0a0c0e0b6f8fa6ce0b21a65fdf2aa96e9a840deed037893707b85d41794d35",
+      "criticalFileSHA256": {
+        "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift": "f05b36f74441309475243442707b45b670c94b300cfdd0e256d03e15a1c874dd",
+        "Packages/MacViewKit/Tests/MVPipelineTests/MVPipelineTests.swift": "3d72670f7a433c156baaeaf2bee78e91ddfe3f93b562ea59693e40432209b14b",
+        "docs/architecture.md": "15e9a8716d93a58aa5c6479e7db8c8d261b46814bae1bbcd2107d671f1b6230e",
+        "scripts/acceptance/run.py": "fbf2e39d305f17b1a8018e535a86ea528e348e6374f90ad75986de137d95369b",
+        "scripts/acceptance/record-trackpad.sh": "0003c55f07a0e84db646010ae27397598ec32bc2f0e34af4f06dfbd51b767d46",
+        "project.yml": "214c830ac0f867754fc6c2815cf2837fb4982674c73282699c23c95483293a87",
+        "Packages/MacViewKit/Package.swift": "f1cc3871fc388c9f20b5b6a31651cd48f8da11a9cd5d8e740dd06c98ba5ba16a",
+        "Packages/MacViewKit/Package.resolved": "56f87025824a7003be700d98d217e28699c90fedce24e24941cfdb072862fa3a"
+      },
+      "reviewedAndBuiltTreeCommit": "6d5139402b2f8fa820389a4886c6af21ac8c3d83",
+      "completeReviewedTree": {
+        "fileCount": 204,
+        "beforeFingerprint": "ab5d680e97d7c396151bbea6a8fac93830ea53fa110046205689eb202f51d667",
+        "afterFingerprint": "ab5d680e97d7c396151bbea6a8fac93830ea53fa110046205689eb202f51d667",
+        "changedFiles": {},
+        "algorithm": "SHA-256 of UTF-8 JSON object with relative-path keys, SHA-256 content values, sorted keys and compact separators"
+      }
+    },
+    "ownership": {
+      "createdCaffeinate": false,
+      "initialCaffeinatePIDs": [
+        "82652",
+        "96517"
+      ],
+      "afterBuildCaffeinatePIDs": [
+        "82652",
+        "96517"
+      ],
+      "caffeinateUnchanged": true,
+      "appStartedByValidation": false,
+      "nasAccessByValidation": false,
+      "ownedLiveProcessesAfterBuild": [],
+      "removedTemporaryPaths": [
+        "outputs/stage3-ninth-core",
+        "build/stage3-ninth-validation/*.log",
+        "build/stage3-ninth-validation/*.json",
+        "build/stage3-ninth-validation/tmp",
+        "build/stage3-ninth-validation/cache",
+        "build/stage3-ninth-validation/home-cache"
+      ],
+      "retainedForNextStage": [
+        "build/DerivedData-profile",
+        "build/stage3-ninth-validation/source-packages",
+        "build/stage3-ninth-validation/package-cache",
+        "build/stage3-ninth-validation/clang-module-cache"
+      ],
+      "cleanupOwner": "阶段主控；完成所有冻结 App 验收后清理上述私有目录。"
+    }
+  },
+  "nasPreflight": {
+    "attempts": [
+      {
+        "startedAt": "2026-11-05T15:22:10.428237+00:00",
+        "sourceCommit": "6d5139402b2f8fa820389a4886c6af21ac8c3d83",
+        "cdhash": "be79aff47374c77c65a81e2486f73eea37bf4902",
+        "externalCaffeinate": true,
+        "mountCommand": [
+          "/sbin/mount_nfs",
+          "-o",
+          "ro,vers=3,tcp,port=2049",
+          "192.168.31.201:/fs/1000/nfs",
+          "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/nfs"
+        ],
+        "mount": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/nfs",
+        "ready": true,
+        "mountResult": {
+          "returnCode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "mountedLine": "192.168.31.201:/fs/1000/nfs on /Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/nfs (nfs, nodev, nosuid, read-only, mounted by yuwk)",
+        "preflight": {
+          "ready": true,
+          "directory": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/nfs/Picture/YY/秀人/1001-2000/[XiuRen秀人网] 2019.04.15 NO.1397 杨晨晨sugar[58+1P186M]",
+          "signature": {
+            "binary": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView",
+            "cdhash": "be79aff47374c77c65a81e2486f73eea37bf4902",
+            "returnCode": 0,
+            "details": "Executable=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView\nIdentifier=io.github.ump45nose.MacView\nFormat=app bundle with Mach-O thin (arm64)\nCodeDirectory v=20400 size=30324 flags=0x2(adhoc) hashes=937+7 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769984\nHash type=sha256 size=32\nCandidateCDHash sha256=be79aff47374c77c65a81e2486f73eea37bf4902\nCandidateCDHashFull sha256=be79aff47374c77c65a81e2486f73eea37bf490288eda11dc6dc254425228742\nHash choices=sha256\nCMSDigest=be79aff47374c77c65a81e2486f73eea37bf490288eda11dc6dc254425228742\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=6045696\nExecutable Segment flags=0x1\nPage size=16384\nCDHash=be79aff47374c77c65a81e2486f73eea37bf4902\nSignature=adhoc\nInfo.plist entries=22\nTeamIdentifier=not set\nSealed Resources version=2 rules=13 files=5\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+          },
+          "timeoutSeconds": 1200,
+          "pid": 27260,
+          "tccd": {
+            "prompting": [
+              "2026-11-05 23:22:13.645 Df tccd[433:2e3bf5] [com.apple.TCC:access] AUTHREQ_PROMPTING: msgID=164.978, service=kTCCServiceSystemPolicyNetworkVolumes, subject=Sub:{io.github.ump45nose.MacView}Resp:{TCCDProcess: identifier=io.github.ump45nose.MacView, pid=27260, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView},"
+            ],
+            "result": [
+              "2026-11-05 23:31:56.444 Df tccd[433:2e3bf5] [com.apple.TCC:access] AUTHREQ_RESULT: msgID=164.978, authValue=2, authReason=2, authVersion=1, desired_auth=0, error=(null),"
+            ],
+            "requests": [
+              "2026-11-05 23:22:13.638 Df tccd[433:2e3bf5] [com.apple.TCC:access] AUTHREQ_CTX: msgID=164.978, function=TCCAccessRequest, service=kTCCServiceSystemPolicyNetworkVolumes, preflight=no, query=1, client_dict=(null), daemon_dict=<private>",
+              "2026-11-05 23:22:13.638 Df tccd[433:2e3bf5] [com.apple.TCC:access] AUTHREQ_ATTRIBUTION: msgID=164.978, attribution={responsible={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=27260, auid=501, euid=501, responsible_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, accessing={TCCDProcess: identifier=io.github.ump45nose.MacView, pid=27350, auid=501, euid=501, binary_path=/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/DerivedData-profile/Build/Products/Debug/MacView.app/Contents/MacOS/MacView}, requesting={TCCDProcess: identifier=com.apple.sandboxd, pid=164, auid=0, euid=0, binary_path=/usr/libexec/sandboxd}, },",
+              "2026-11-05 23:22:13.643 Df tccd[433:2e3bf5] [com.apple.TCC:access] AUTHREQ_SUBJECT: msgID=164.978, subject=io.github.ump45nose.MacView,"
+            ],
+            "denied": false,
+            "returnCode": 0,
+            "diagnostic": "",
+            "requestLineCountBeforeCompaction": 129,
+            "resultCountBeforeCompaction": 32,
+            "compaction": "保留弹窗对应msgID的原始CTX/ATTRIBUTION/SUBJECT、PROMPTING和RESULT；其他已授权重复请求只记数量。"
+          },
+          "itemCount": 59,
+          "waitSeconds": 588.008671417,
+          "openErrorCounts": {
+            "读取超时": 31,
+            "open: Interrupted system call": 29
+          },
+          "openErrorCount": 60,
+          "openErrorSequenceRLE": [
+            {
+              "error": "读取超时",
+              "count": 31
+            },
+            {
+              "error": "open: Interrupted system call",
+              "count": 29
+            }
+          ]
+        },
+        "instances": [
+          {
+            "pid": 27260,
+            "socket": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/n9-27252-0.sock",
+            "root": "/Users/yuwk/WorkSpace/Code/Github/MacView/.worktree/s2-p0/build/stage3-ninth-final/nas-authorization-0",
+            "quitSeconds": 0.10007600000005823,
+            "exitCode": 0,
+            "actualExitObserved": true,
+            "quitExitedNormally": true,
+            "rootRemoved": true,
+            "socketRemoved": true
+          }
+        ],
+        "unmount": {
+          "returnCode": 0,
+          "stderr": ""
+        },
+        "mountDirectoryRemoved": true,
+        "finishedAt": "2026-11-05T15:32:01.012227+00:00"
+      }
+    ],
+    "retryRequiredAfterNonNetworkWork": false
+  },
+  "finalCleanup": {
+    "recordedAt": "2026-11-05T15:38:32.193219+00:00",
+    "observation": "记录步骤4停止后已完成的最终清理；本次仅补写元数据，未重跑检查。new.ownership 是当时交接观察，profileAppRetainedForHandoff=true 不代表清理后仍存在。",
+    "removed": [
+      "build/DerivedData-profile",
+      "build/stage3-ninth-validation",
+      "build/stage3-work"
+    ],
+    "stage3WorkOrigin": "本轮 make test 的 NameOrderTests 与 ReadingTestSupport 创建的空测试父目录。",
+    "preservedBuildEntries": [
+      "DerivedData",
+      "acceptance",
+      "stage-1-work",
+      "stage4-repair"
+    ],
+    "acceptanceTmpEmpty": true,
+    "outputsEntries": [
+      "stage3-frozen"
+    ],
+    "preservedArtifacts": [
+      "outputs/stage3-frozen/MacView.app",
+      "outputs/stage3-frozen/manifest.json",
+      "docs/reports/bench/S2-T3-cold-fill.json"
+    ],
+    "profileAppRetainedAfterFinalCleanup": false,
+    "beforeRemoval": {
+      "directoryOpenFileCheckCommand": "/usr/sbin/lsof -nP +D <目录>",
+      "directoriesChecked": [
+        "build/DerivedData-profile",
+        "build/stage3-ninth-validation",
+        "build/stage3-work"
+      ],
+      "lsofExitCodes": [1, 1, 1],
+      "openFileHolders": []
+    },
+    "remaining": {
+      "macViewPIDs": [],
+      "roundNineScriptsLogsSockets": [],
+      "roundNineOwnedMounts": [],
+      "stage3NinthCoreDirectoryExists": false
+    },
+    "mounts": {
+      "readOnlyCheckCommand": "/sbin/mount",
+      "tableUnchangedAcrossCleanup": true,
+      "preservedSMBMountCount": 10,
+      "mountsModifiedByCleanup": false
+    },
+    "caffeinate": {
+      "beforePIDs": [82652],
+      "afterPIDs": [82652],
+      "unchangedAcrossCleanup": true,
+      "startedOrStoppedByCleanup": false
+    },
+    "frozenVerification": {
+      "manifestEntries": 18,
+      "allPathsTypesModesSizesHashesMatch": true,
+      "matchedBuildBundleBeforeRemoval": true,
+      "matchedManifestAfterCleanup": true,
+      "binarySHA256": "e87ed329985e41d8f36ca8f886582933115960db4c05364c212bfcda84defc5b",
+      "cdhash": "be79aff47374c77c65a81e2486f73eea37bf4902",
+      "signatureReadCommand": [
+        "/usr/bin/codesign",
+        "-d",
+        "--verbose=4",
+        "outputs/stage3-frozen/MacView.app"
+      ],
+      "signatureReadExitCode": 0,
+      "strictVerifyCommand": [
+        "/usr/bin/codesign",
+        "--verify",
+        "--deep",
+        "--strict",
+        "--verbose=2",
+        "outputs/stage3-frozen/MacView.app"
+      ],
+      "strictVerifyExitCode": 0
+    },
+    "appStartedByCleanup": false,
+    "nasAccessByCleanup": false,
+    "sourceFilesModified": false
+  }
+}
