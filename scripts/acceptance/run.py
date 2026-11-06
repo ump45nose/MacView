@@ -49,8 +49,9 @@ REFRESH_120 = 119.0
 LOAD_LIMIT = int(subprocess.check_output(["/usr/sbin/sysctl", "-n", "hw.physicalcpu"], text=True).strip())
 PHYSICAL_FOOTPRINT_SOURCE = "proc_pid_rusage(RUSAGE_INFO_V4).ri_phys_footprint"
 MEMORY_KEYS = ("rawBytes", "decodedBytes", "thumbnailMemoryBytes", "preloadBytes", "inFlightBytes", "waitingTasks")
-IDLE_SECONDS = 45.0
 WAIT_READY = 20 * 60
+# 负载高时启动可能很慢；超过这个时间按 PID 结束、重试一次，仍不行就记 environment。
+STARTUP_SECONDS = 60
 
 SCENES = [
     "first-image", "preloaded-flip", "large-dir", "tiles-cancel", "panel-restart",
@@ -114,22 +115,26 @@ def p95(values):
 
 
 def env_problem(env, scene=None):
+    """必须满足的前提：屏幕没锁；测过窗口时，窗口在内置屏上可见。负载和输入不在这里，见 busy()。"""
     screen = env.get("screen") or {}
     if screen.get("locked") is not False:
         return True
     if scene in SCREEN_ONLY:
         return False
-    load = (env.get("load") or {}).get("oneMinute")
-    idle = screen.get("idleSeconds")
-    if idle is None or idle < IDLE_SECONDS:
-        return True
-    if screen.get("inputDuringRun"):
-        return True
-    if screen.get("externalDisplay"):
-        return True
-    if load is None or load >= (env.get("load") or {}).get("limit", LOAD_LIMIT):
+    if (env.get("window") or {}).get("windowFront") is False:
         return True
     return False
+
+
+def busy(env):
+    """负载 ≥ 物理核心数或过程中有输入。只会让时序变差：通过照算通过，没通过记 environment。"""
+    load = env.get("load") or {}
+    limit = load.get("limit", LOAD_LIMIT)
+    if load.get("oneMinute") is None:
+        return True
+    if any(load.get(key) is not None and load[key] >= limit for key in ("oneMinute", "before", "during")):
+        return True
+    return bool((env.get("screen") or {}).get("inputDuringRun"))
 
 
 def is_120(hz):
@@ -137,7 +142,14 @@ def is_120(hz):
 
 
 def judge(scene, measured, env, budget=None):
-    """纯判定。环境不满足时结果作废，先于测量结论。"""
+    """纯判定。环境不满足时结果作废；负载高或有输入时只有通过算数。"""
+    verdict = judge_measurement(scene, measured, env, budget)
+    if verdict != "pass" and scene in FOREGROUND and scene not in SCREEN_ONLY and busy(env):
+        return "environment"
+    return verdict
+
+
+def judge_measurement(scene, measured, env, budget=None):
     limits = dict(BUDGETS[scene])
     if budget:
         limits.update(budget)
@@ -441,10 +453,17 @@ def check_verdicts():
         cases.append((f"{scene} 空样本", judge(scene, empty, env120), "unverified"))
     cases += [
         ("预算收紧", judge("first-image", valid["first-image"], env, {"lastDisplayP95Milliseconds": 100}), "fail"),
-        ("键鼠未空闲", judge("first-image", valid["first-image"], _screen(env, idleSeconds=10)), "environment"),
-        ("运行中输入", judge("first-image", valid["first-image"], _screen(env, inputDuringRun=True)), "environment"),
-        ("外接显示器", judge("first-image", valid["first-image"], _screen(env, externalDisplay=True)), "environment"),
-        ("开跑前负载过高", judge("first-image", valid["first-image"], _load(env, LOAD_LIMIT)), "environment"),
+        ("键鼠未空闲不再作废", judge("first-image", valid["first-image"], _screen(env, idleSeconds=10)), "pass"),
+        ("外接显示器不再作废", judge("first-image", valid["first-image"], _screen(env, externalDisplay=True)), "pass"),
+        ("运行中输入时通过照算", judge("first-image", valid["first-image"], _screen(env, inputDuringRun=True)), "pass"),
+        ("运行中输入时超预算作废", judge("first-image", valid["first-image"], _screen(env, inputDuringRun=True), {"lastDisplayP95Milliseconds": 100}), "environment"),
+        ("负载高时通过照算", judge("first-image", valid["first-image"], _load(env, LOAD_LIMIT)), "pass"),
+        ("负载高时超预算作废", judge("first-image", valid["first-image"], _load(env, LOAD_LIMIT), {"lastDisplayP95Milliseconds": 100}), "environment"),
+        ("测量中负载高时超预算作废", judge("first-image", valid["first-image"], _during_load(env, LOAD_LIMIT), {"lastDisplayP95Milliseconds": 100}), "environment"),
+        ("负载未知时超预算作废", judge("first-image", valid["first-image"], _load(env, None), {"lastDisplayP95Milliseconds": 100}), "environment"),
+        ("负载高时空样本作废", judge("first-image", {}, _load(env, LOAD_LIMIT)), "environment"),
+        ("窗口不在内置屏上可见", judge("first-image", valid["first-image"], {**env, "window": {"windowFront": False}}), "environment"),
+        ("窗口在内置屏上可见", judge("first-image", valid["first-image"], {**env, "window": {"windowFront": True}}), "pass"),
         ("锁定状态未知", judge("first-image", valid["first-image"], _screen(env, locked=None)), "environment"),
         ("缺少符号", judge("main-thread", {**valid["main-thread"], "knownSymbolSamples": 0}, env), "unverified"),
         ("主线程读取", judge("main-thread", {**valid["main-thread"], "fileReadOrImageIO": 1}, env), "fail"),
@@ -485,14 +504,19 @@ def check_verdicts():
     merged = merge_during(env, {"load": {"oneMinute": 14.2}, "refreshHz": 120, "screen": {}})
     if merged["load"]["oneMinute"] != 1.0 or merged["load"].get("during") != 14.2 or merged["refreshHz"] != 59.94 or merged.get("refreshHzAfter") != 120:
         raise SystemExit(f"check-verdicts 失败：前后环境没有分别保留 {merged}")
-    cases.append(("运行中负载不影响判定", judge("first-image", valid["first-image"], merged), "pass"))
+    cases.append(("运行中负载高时通过照算", judge("first-image", valid["first-image"], merged), "pass"))
+    windowed = merge_during(env, {"windowFront": False, "windowFrontBefore": True, "screen": {}})
+    if windowed.get("window") != {"windowFront": False, "windowFrontBefore": True}:
+        raise SystemExit(f"check-verdicts 失败：过程中的窗口状态没有并入环境 {windowed.get('window')}")
+    cases.append(("过程中窗口离开内置屏", judge("first-image", valid["first-image"], windowed), "environment"))
     admitted = merge_during(env120, {"admission": env120, "before": _load(env120, 48.9),
                                     "load": {"oneMinute": 27}, "refreshHz": 120, "screen": {}})
     if admitted["load"] != {**env120["load"], "before": 48.9, "during": 27}:
         raise SystemExit(f"check-verdicts 失败：准备后的准入负载没有保留 {admitted['load']}")
     for scene in sorted(DEFERRED_ADMISSION):
         cases.append((f"{scene} 准备后准入，测量期间负载只记录", judge(scene, valid[scene], admitted), "pass"))
-    cases.append(("首屏准入后启动失败保留不可验证结论", judge("cached-first-screen", {"unavailable": True}, admitted), "unverified"))
+    cases.append(("首屏准入后启动失败、负载高时作废", judge("cached-first-screen", {"unavailable": True}, admitted), "environment"))
+    cases.append(("首屏启动失败、负载低时保留不可验证结论", judge("cached-first-screen", {"unavailable": True}, env120), "unverified"))
     cases.append(("首屏失败期间输入仍作废", judge("cached-first-screen", {"unavailable": True}, _screen(admitted, inputDuringRun=True)), "environment"))
     filled = {"itemCount": 2, "l2Count": 2, "l3Count": 0, "missingL2Items": 0}
     short = {**filled, "l2Count": 1, "missingL2Items": 1}
@@ -591,9 +615,35 @@ def check_verdicts():
                 cases.append(("首屏缺项证据跨后续根异常保留", judge("cached-first-screen", {**exc.measured, "unavailable": True}, env120), "fail"))
             else:
                 raise SystemExit("check-verdicts 失败：后续根异常没有附带已知证据")
-        with patch.dict(globals(), {"WAIT_EXHAUSTED": True, "sample_conditions": lambda: _load(env120, LOAD_LIMIT)}), patch.object(time, "sleep") as sleep:
+        with patch.dict(globals(), {"WAIT_EXHAUSTED": True, "sample_conditions": lambda: _screen(env120, locked=True)}), patch.object(time, "sleep") as sleep:
             if wait_ready("cached-first-screen")[1] or sleep.called:
                 raise SystemExit("check-verdicts 失败：WAIT_EXHAUSTED 没有只再看一次环境")
+        class StubClient:
+            def request(self, *args, **kwargs):
+                return {}
+            def close(self):
+                pass
+        for failures, expected in ((1, [False, True]), (2, [False, False])):
+            attempts, killed = [], []
+            def flaky_connect(self, deadline):
+                attempts.append(deadline)
+                if len(attempts) <= failures:
+                    raise TimeoutError("套接字没有出现")
+                return StubClient()
+            with patch.object(App, "_launch", lambda self: None), patch.object(App, "_connect", flaky_connect), \
+                    patch.object(App, "kill", lambda self: killed.append(self.pid)):
+                app = App("startup-check")
+                app.root = directory / "startup"
+                app.support, app.cache, app.layout = app.root / "support", app.root / "cache", app.root / "layout.json"
+                try:
+                    app.start()
+                    raised = None
+                except MeasurementError as exc:
+                    raised = exc
+            if [item["ok"] for item in app.launches] != expected or len(killed) != failures or any("seconds" not in item for item in app.launches):
+                raise SystemExit(f"check-verdicts 失败：启动超时没有按 PID 结束并重试一次 {app.launches}")
+            if (failures == 2) != (raised is not None) or (raised and judge("first-image", {**raised.measured, "unavailable": True}, env120) != "environment"):
+                raise SystemExit("check-verdicts 失败：两次启动超时没有记 environment")
         manifest = directory / "manifest.json"
         manifest.write_text(json.dumps({"sourceCommit": "frozen-source", "cdhash": "signed-app"}))
         signed = subprocess.CompletedProcess([], 0, "", "CDHash=signed-app\n")
@@ -685,6 +735,7 @@ def screen_locked():
 
 
 def display_probe():
+    """内置屏的显示模式和刷新率（帧时间看它），另记全部在线显示器。没有内置屏时读主屏，builtin 为 False。"""
     cf, cg = cf_library()
     cg.CGMainDisplayID.restype = ctypes.c_uint32
     cg.CGDisplayCopyDisplayMode.argtypes = [ctypes.c_uint32]
@@ -698,24 +749,36 @@ def display_probe():
     cg.CGDisplayIsBuiltin.restype = ctypes.c_int
     cg.CGGetOnlineDisplayList.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint32)]
     cg.CGGetOnlineDisplayList.restype = ctypes.c_int32
+    release = getattr(cg, "CGDisplayModeRelease", None)
+    if release is not None:
+        release.argtypes = [ctypes.c_void_p]
+
+    def mode_of(display):
+        mode = cg.CGDisplayCopyDisplayMode(display)
+        if not mode:
+            return {"width": 0, "height": 0, "pixelWidth": 0, "pixelHeight": 0, "refreshHz": 0.0}
+        result = {
+            "width": int(cg.CGDisplayModeGetWidth(mode)), "height": int(cg.CGDisplayModeGetHeight(mode)),
+            "pixelWidth": int(cg.CGDisplayModeGetPixelWidth(mode)), "pixelHeight": int(cg.CGDisplayModeGetPixelHeight(mode)),
+            "refreshHz": float(cg.CGDisplayModeGetRefreshRate(mode)),
+        }
+        if release is not None:
+            release(mode)
+        return result
+
     main_id = cg.CGMainDisplayID()
-    mode = cg.CGDisplayCopyDisplayMode(main_id)
-    width = int(cg.CGDisplayModeGetWidth(mode)) if mode else 0
-    height = int(cg.CGDisplayModeGetHeight(mode)) if mode else 0
-    pixel_width = int(cg.CGDisplayModeGetPixelWidth(mode)) if mode else 0
-    pixel_height = int(cg.CGDisplayModeGetPixelHeight(mode)) if mode else 0
-    refresh = float(cg.CGDisplayModeGetRefreshRate(mode)) if mode else 0.0
     ids = (ctypes.c_uint32 * 16)()
     count = ctypes.c_uint32(0)
     cg.CGGetOnlineDisplayList(16, ids, ctypes.byref(count))
-    external = any(not cg.CGDisplayIsBuiltin(ids[index]) for index in range(count.value))
-    builtin = bool(cg.CGDisplayIsBuiltin(main_id))
-    if mode and hasattr(cg, "CGDisplayModeRelease"):
-        cg.CGDisplayModeRelease.argtypes = [ctypes.c_void_p]
-        cg.CGDisplayModeRelease(mode)
+    displays = [{"id": int(ids[index]), "builtin": bool(cg.CGDisplayIsBuiltin(ids[index])), "main": ids[index] == main_id, **mode_of(ids[index])}
+                for index in range(count.value)]
+    chosen = next((item for item in displays if item["builtin"]), None) or next((item for item in displays if item["main"]), None)
+    if chosen is None:
+        chosen = {"id": int(main_id), "builtin": False, "main": True, **mode_of(main_id)}
     return {
-        "width": width, "height": height, "pixelWidth": pixel_width, "pixelHeight": pixel_height,
-        "refreshHz": refresh, "builtin": builtin, "externalDisplay": external,
+        "width": chosen["width"], "height": chosen["height"], "pixelWidth": chosen["pixelWidth"], "pixelHeight": chosen["pixelHeight"],
+        "refreshHz": chosen["refreshHz"], "builtin": chosen["builtin"],
+        "externalDisplay": any(not item["builtin"] for item in displays), "displays": displays,
     }
 
 
@@ -1069,11 +1132,12 @@ class DebugClient:
         return message.get("result")
 
 
-def launch_app(socket_path, support, cache, layout, log, app_sleep_disabled=False):
+def launch_app(socket_path, support, cache, layout, log, app_sleep_disabled=False, background=True):
+    """场景和自检用 `open -n -g`，不抢前台；`record-trackpad.sh` 给用户录制，仍用 `open -n -a`。"""
     binary = app_binary()
     temporary = Path(support).resolve().parent / "tmp"
     temporary.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["/usr/bin/open", "-n", "-a", str(binary.parents[2]), "--stdout", str(log), "--stderr", str(log),
+    subprocess.run(["/usr/bin/open", "-n"] + (["-g"] if background else []) + ["-a", str(binary.parents[2]), "--stdout", str(log), "--stderr", str(log),
                     "--env", f"TMPDIR={temporary}/",
                     "--args", "-MVDebugSocket", str(socket_path), "-MVSupportDirectory", str(support),
                     "-MVCacheDirectory", str(cache), "-MVLayoutFile", str(layout)] +
@@ -1110,6 +1174,7 @@ class App:
         self.exit_code = None
         self.client = None
         self.quit_exited_normally = False
+        self.launches = []
 
     def start(self):
         # 全部是该场景在工作区生成的私有状态。冷场景重新初始化，重启场景保留设置与缓存。
@@ -1131,9 +1196,28 @@ class App:
         if prefetch is not None:
             document = {"version": 1, "value": {"prefetch": prefetch}}
             (self.support / "settings.json").write_text(json.dumps(document) + "\n")
+        for attempt in (1, 2):
+            began = time.monotonic()
+            deadline = began + STARTUP_SECONDS
+            try:
+                self._launch()
+                self.client = self._connect(deadline)
+                self.client.request("state", timeout=max(1, deadline - time.monotonic()))
+            except TimeoutError as exc:
+                self.launches.append({"attempt": attempt, "pid": self.pid, "seconds": round(time.monotonic() - began, 3), "ok": False, "error": str(exc)})
+                self._abandon_launch()
+                if attempt == 2:
+                    raise MeasurementError(f"启动后 {STARTUP_SECONDS} 秒没有响应调试接口，重试一次仍超时",
+                                           {"environment": True, "reason": "启动超时", "launches": self.launches}) from exc
+                continue
+            self.launches.append({"attempt": attempt, "pid": self.pid, "seconds": round(time.monotonic() - began, 3), "ok": True})
+            return self
+
+    def _launch(self):
         socket_path = Path(self.socket)
         if socket_path.exists():
             socket_path.unlink()
+        self.exit_code = None
         self.pid = launch_app(self.socket, self.support, self.cache, self.layout, self.root / "app.log",
                               app_sleep_disabled=self.app_sleep_disabled)
         App.live.append(self)
@@ -1141,12 +1225,21 @@ class App:
         # SDK sys/event.h：NOTE_EXITSTATUS 对可发送信号的非子进程也有效，data 是 wait(2) 状态。
         self.exit_watch.control([select.kevent(self.pid, filter=select.KQ_FILTER_PROC, flags=select.KQ_EV_ADD | select.KQ_EV_ONESHOT,
                                                fflags=select.KQ_NOTE_EXIT | 0x04000000)], 0)
-        self.client = self._connect()
-        self.client.request("state", timeout=20)
-        return self
 
-    def _connect(self):
-        deadline = time.monotonic() + 30
+    def _abandon_launch(self):
+        """只结束本次启动的 PID。"""
+        if self.client is not None:
+            self.client.close()
+            self.client = None
+        try:
+            self.kill()
+        except OSError:
+            pass
+        if self in App.live:
+            App.live.remove(self)
+        Path(self.socket).unlink(missing_ok=True)
+
+    def _connect(self, deadline):
         last = "套接字没有出现"
         while time.monotonic() < deadline:
             if self.wait_exit(0):
@@ -2898,6 +2991,8 @@ def merge_during(env, during):
         merged["screen"]["locked"] = False if initial is False and screen["locked"] is False else (True if initial or screen["locked"] else None)
     if "externalDisplay" in screen:
         merged["screen"]["externalDisplay"] = bool(merged["screen"].get("externalDisplay") or screen["externalDisplay"])
+    if "windowFront" in during:
+        merged["window"] = {"windowFront": during["windowFront"], "windowFrontBefore": during.get("windowFrontBefore")}
     # 后续负载包括重启、场景动作和 xctrace，保留观测但不重新准入。
     if during.get("load") and during["load"].get("oneMinute") is not None:
         merged["load"]["during"] = during["load"]["oneMinute"]
@@ -3085,7 +3180,7 @@ def main(argv):
         os.environ["MV_ACCEPTANCE_EXTERNAL_CAFFEINATE"] = "1"
     os.chdir(ROOT)
     if args.launch_app:
-        print(launch_app(*[str(Path(path).resolve()) for path in args.launch_app]))
+        print(launch_app(*[str(Path(path).resolve()) for path in args.launch_app], background=False))
         return 0
     if args.main_thread_summary:
         trace, output = args.main_thread_summary

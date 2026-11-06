@@ -62,9 +62,13 @@ final class SelfTest {
     }
 
     private func run() async {
-        NSApp.activate()
+        TestPresentation.activateIfAllowed()
         // 激活是异步的：中途才激活时，按键分派的路径会变。
-        for _ in 0..<30 where !NSApp.isActive { try? await Task.sleep(for: .milliseconds(100)) }
+        if TestPresentation.activationAllowed {
+            for _ in 0..<30 where !NSApp.isActive { try? await Task.sleep(for: .milliseconds(100)) }
+        } else {
+            print("INFO 不激活 App（需要焦点的检查加 -\(TestPresentation.activateKey) YES）")
+        }
         if !app.isMock { await runReal(); return }
         dumpMenu()
         guard let first = app.controllers.first, let window = first.window else {

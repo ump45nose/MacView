@@ -260,6 +260,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let shown = selected ?? first
             shown?.window?.tabGroup?.selectedWindow = shown?.window
             shown?.window?.makeKeyAndOrderFront(nil)
+            #if DEBUG
+            TestPresentation.present(shown?.window)
+            #endif
             front = shown ?? front
         }
         return front
@@ -378,6 +381,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // tabbingMode 为 .preferred 时，新窗口会自动并入当前窗口的标签组；这里要的是独立窗口。
         window.tabbingMode = .disallowed
         window.makeKeyAndOrderFront(nil)
+        #if DEBUG
+        TestPresentation.present(window)
+        #endif
         window.tabbingMode = .preferred
         return controller
     }
@@ -390,6 +396,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             currentWindow.addTabbedWindow(window, ordered: .above)
         }
         window.makeKeyAndOrderFront(nil)
+        #if DEBUG
+        TestPresentation.present(window)
+        #endif
         return controller
     }
 
@@ -423,7 +432,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.onSessionChange = { [weak self] in self?.scheduleSessionSave() }
         let window = controller.window!
         if controllers.isEmpty {
+            #if DEBUG
+            if TestPresentation.isTestInstance { TestPresentation.place(window) } else { window.center() }
+            #else
             window.center()
+            #endif
             cascadePoint = .zero
         }
         cascadePoint = window.cascadeTopLeft(from: cascadePoint)

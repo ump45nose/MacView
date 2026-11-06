@@ -302,7 +302,8 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 连续和瀑布模式包 `CanvasView`，分页和连续之间切换时保持当前页。瀑布流尺寸按窗口保存在 `session.json`。
   - `CanvasView` 在 Debug 构建开了 `-MVViewerSelfTest` 或 `-MVDebugSocket` 时关掉响应式滚动，否则收不到合成事件；帧时间验收要看这一点。
 - 调试接口（`App/Debug/DebugSocket.swift`，只在 Debug 构建编译，只在传 `-MVDebugSocket <路径>` 时开启，权限 0600）：
-  - Unix 域套接字，一行一个 JSON。请求 `{"id":1,"command":"state","args":{}}`，响应 `{"id":1,"ok":true,"result":{…}}` 或 `{"id":1,"ok":false,"error":"…"}`。一次一个连接，命令按顺序在主线程执行。验收以 `open -n` 启动独立实例，套接字使用不超过 103 字节的绝对路径；support、cache 和 layout 均指向隔离目录，按本次实例的 PID 管理，退出结果以进程实际退出为准。
+  - Unix 域套接字，一行一个 JSON。请求 `{"id":1,"command":"state","args":{}}`，响应 `{"id":1,"ok":true,"result":{…}}` 或 `{"id":1,"ok":false,"error":"…"}`。一次一个连接，命令按顺序在主线程执行。验收以 `open -n -g` 启动独立实例（`record-trackpad.sh` 给用户录制，仍用 `open -n -a`），套接字使用不超过 103 字节的绝对路径；support、cache 和 layout 均指向隔离目录，按本次实例的 PID 管理，退出结果以进程实际退出为准。
+  - 不干扰用户：调试接口和自检不调用 `NSApp.activate()`。测试实例（传了调试接口或任一自检参数）的第一个窗口放在 `maximumFramesPerSecond` 最大的屏（本机是内置屏）可见区域中央，窗口出现时只用 `orderFrontRegardless` 抬到最上面，见 `App/Debug/TestPresentation.swift`，挂在 `AppDelegate` 的 `#if DEBUG` 分支里，Release 不变。
 
     | 命令 | 参数 | 结果 |
     |---|---|---|
@@ -314,10 +315,11 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     | `quit` | — | 正常退出流程 |
 
   - `windows[]`：`book`、`page`、`frame`、`frameCount`、`browseMode`、`scaleMode`、`zoom`、`viewport`（点）、`visibleRange`（`[起, 止)`，分页模式是当前页帧）、`loadError`（整本书或当前分页的加载错误）、`lastDisplay`（`{page, quality, milliseconds}`，从翻页调用到目标质量图设到图层的用时，只有分页模式）。
-  - 验收用只读字段：`prefetchIdle`、`prefetchInFlightCount`、`windowFront`、`responsiveScrolling`、`docksVisible`、`hudVisible`、`firstScreenThumbnailMilliseconds`、`itemCount`；`pageSlots` 返回各页的 `page`、`hasImage` 和 `quality`，可确认初始页图层已就绪。`panels` 返回书架和页面列表的 `style`、`itemExtent`、`sort`，`tiles` 返回当前分块的 `requested`、`cancelled`、`inFlight` 计数。
+  - `windowFront`：窗口可见、`occlusionState` 含 `.visible`、所在屏是内置屏（`CGDisplayIsBuiltin`），不要求 App 处于激活状态。另有三个只读字段：`windowScreen`（`displayID`、`name`、`builtin`、`frame`、`visibleFrame`、`maximumFramesPerSecond`）、`windowFrame`（`[x, y, 宽, 高]`，全局坐标，点）和 `appActive`。
+  - 验收用只读字段：`prefetchIdle`、`prefetchInFlightCount`、`windowFront`、`windowScreen`、`windowFrame`、`appActive`、`responsiveScrolling`、`docksVisible`、`hudVisible`、`firstScreenThumbnailMilliseconds`、`itemCount`；`pageSlots` 返回各页的 `page`、`hasImage` 和 `quality`，可确认初始页图层已就绪。`panels` 返回书架和页面列表的 `style`、`itemExtent`、`sort`，`tiles` 返回当前分块的 `requested`、`cancelled`、`inFlight` 计数。
   - `memory` 返回 `rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes`、`inFlightBytes` 和 `waitingTasks`；`cacheBudgets` 返回对应四项内存预算以及 `thumbnailDiskBytes`、`browseDiskBytes` 两项磁盘预算。
   - 合成滚动和屏幕状态有关：屏幕锁定时事件不生效。
-- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。
+- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。自检默认不激活 App，离不开键盘焦点的项走未激活的回退或记 `SKIP`；加 `-MVSelfTestActivate YES` 才激活，留给用户键鼠空闲时跑。
 - 观测：用 os_signpost 标记帧时间和请求延迟，用 Instruments 的 Animation Hitches 验收。
 
 ### 3.9 P1 扩展点（P0 只体现在接口形状上）

@@ -51,5 +51,8 @@ final class SettingsWindowController: NSWindowController {
         Task { await state.model.loadAll() }
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+        #if DEBUG
+        TestPresentation.present(window)
+        #endif
     }
 }

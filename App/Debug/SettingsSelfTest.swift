@@ -27,7 +27,7 @@ final class SettingsSelfTest {
     }
 
     private func run() async {
-        NSApp.activate()
+        TestPresentation.activateIfAllowed()
         guard let services = app.services, let controller = app.controllers.first, let window = controller.window,
               let path = UserDefaults.standard.string(forKey: "MVSelfTestFixtures") else {
             log.check(false, "设置自检需要真实服务、窗口与 -MVSelfTestFixtures")

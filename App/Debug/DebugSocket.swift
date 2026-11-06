@@ -23,7 +23,6 @@ final class DebugSocket: Sendable {
     @MainActor
     static func startIfRequested(app: AppDelegate) -> DebugSocket? {
         guard let path = UserDefaults.standard.string(forKey: "MVDebugSocket"), !path.isEmpty else { return nil }
-        NSApp.activate()
         let socket = DebugSocket(path: path, commands: DebugCommands(app: app))
         let thread = Thread { socket.serve() }
         thread.name = "MacView.DebugSocket"
@@ -342,16 +341,15 @@ final class DebugCommands: Sendable {
         ])
     }
 
-    /// 只操作当前进程；无法取得前台时由验收脚本判为环境不满足。
+    /// 不抢前台，只把窗口抬到所在屏的最上面；被遮挡或不在内置屏上时由验收脚本判为环境不满足。
     private func orderFront(_ window: NSWindow) {
         window.orderFrontRegardless()
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
     }
 
+    /// 窗口在内置屏上可见、没被遮挡；不要求 App 处于激活状态。
     private func windowIsFront(_ window: NSWindow?) -> Bool {
         guard let window else { return false }
-        return window.isVisible && window.isKeyWindow && NSApp.isActive && window.occlusionState.contains(.visible)
+        return window.isVisible && window.occlusionState.contains(.visible) && TestPresentation.isBuiltin(window.screen)
     }
 
     // MARK: state
@@ -379,6 +377,22 @@ final class DebugCommands: Sendable {
                 "thumbnailMemoryBytes": .number(Double($0.thumbnailMemoryBytes)), "preloadBytes": .number(Double($0.preloadBytes)),
                 "inFlightBytes": .number(Double($0.inFlightBytes)), "waitingTasks": .number(Double($0.waitingTasks)),
             ]) } ?? .null,
+        ])
+    }
+
+    private func rect(_ rect: NSRect) -> JSONValue {
+        .array([.number(rect.minX), .number(rect.minY), .number(rect.width), .number(rect.height)])
+    }
+
+    private func screenState(_ screen: NSScreen?) -> JSONValue {
+        guard let screen else { return .null }
+        return .object([
+            "displayID": TestPresentation.displayID(screen).map { .number(Double($0)) } ?? .null,
+            "name": .string(screen.localizedName),
+            "builtin": .bool(TestPresentation.isBuiltin(screen)),
+            "frame": rect(screen.frame),
+            "visibleFrame": rect(screen.visibleFrame),
+            "maximumFramesPerSecond": .number(Double(screen.maximumFramesPerSecond)),
         ])
     }
 
@@ -412,6 +426,9 @@ final class DebugCommands: Sendable {
             "prefetchIdle": .bool(prefetchInFlightCount(controller) == 0),
             "prefetchInFlightCount": .number(Double(prefetchInFlightCount(controller))),
             "windowFront": .bool(windowIsFront(controller.window)),
+            "windowScreen": screenState(controller.window?.screen),
+            "windowFrame": controller.window.map { rect($0.frame) } ?? .null,
+            "appActive": .bool(NSApp.isActive),
             "hudVisible": .bool(!viewer.hud.isHiddenOrHasHiddenAncestor),
             "responsiveScrolling": .bool(CanvasView.isCompatibleWithResponsiveScrolling),
             "docksVisible": .bool(DockEdge.allCases.contains { controller.dock.dockLayout.isShowing($0) }),

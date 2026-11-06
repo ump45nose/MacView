@@ -33,7 +33,7 @@ final class SessionSelfTest {
     }
 
     private func run(_ phase: String) async {
-        NSApp.activate()
+        TestPresentation.activateIfAllowed()
         do {
             switch phase {
             case "write": try await write()
@@ -54,8 +54,10 @@ final class SessionSelfTest {
         guard let books, let first = app.controllers.first, let second = app.newWindow() else { throw Failure.setup }
         for book in Self.expected { try makeBook(book.name) }
         guard let tab = app.newTab(beside: first) else { throw Failure.setup }
-        tab.window?.setFrame(NSRect(x: 80, y: 120, width: 1000, height: 700), display: true)
-        second.window?.setFrame(NSRect(x: 240, y: 60, width: 900, height: 640), display: true)
+        // 相对测试屏摆放，不落到用户的主屏上。
+        let origin = TestPresentation.screen?.visibleFrame.origin ?? .zero
+        tab.window?.setFrame(NSRect(x: origin.x + 80, y: origin.y + 120, width: 1000, height: 700), display: true)
+        second.window?.setFrame(NSRect(x: origin.x + 240, y: origin.y + 60, width: 900, height: 640), display: true)
         let targets = zip([first, tab, second], Self.expected)
         for (controller, book) in targets {
             controller.open([books.appending(path: book.name)])
