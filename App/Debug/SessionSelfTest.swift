@@ -66,6 +66,8 @@ final class SessionSelfTest {
         }
         await until("翻到目标页") { targets.allSatisfy { $0.0.session.currentPage == $0.1.page } }
         second.window?.makeKeyAndOrderFront(nil)
+        // App 不在前台时 makeKeyAndOrderFront 压不过前面 orderFrontRegardless 抬起的标签。
+        TestPresentation.present(second.window)
         // 书记忆去抖 1 秒，会话去抖 500 ms。
         try await Task.sleep(for: .seconds(2.5))
         print("INFO 写入完成，kill -9")
