@@ -26,7 +26,7 @@ final class PanelSelfTest {
     }
 
     private func run() async {
-        NSApp.activate()
+        TestPresentation.activateIfAllowed()
         guard let services = app.services, let controller = app.controllers.first, let window = controller.window,
               let path = UserDefaults.standard.string(forKey: "MVSelfTestFixtures") else {
             log.check(false, "面板自检需要真实服务、窗口与 -MVSelfTestFixtures")
@@ -325,9 +325,9 @@ final class PanelSelfTest {
 
     /// 经 `NSApp.sendEvent` 点击一行。App 无法激活（屏幕锁定或别的 App 占着前台）时第一下点击只会激活窗口，改为直接触发行的动作。
     private func click(row: Int, in view: CollectionView, window: NSWindow) async {
-        NSApp.activate()
+        TestPresentation.activateIfAllowed()
         window.makeKeyAndOrderFront(nil)
-        await waitFor { NSApp.isActive && window.isKeyWindow }
+        if TestPresentation.activationAllowed { await waitFor { NSApp.isActive && window.isKeyWindow } }
         guard NSApp.isActive, window.isKeyWindow, let point = view.rowPointInWindow(row) else {
             print("INFO App 未激活，直接触发行的动作")
             view.onActivate?(row)

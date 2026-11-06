@@ -125,7 +125,7 @@ final class DockSelfTest {
         coordinator.beginDrag(DockPanels.pageList, from: dock)
         coordinator.endDrag(DockPanels.pageList, at: NSPoint(x: 400, y: 600), accepted: false, cancelled: true)
         log.check(coordinator.current.floating.isEmpty, "取消拖动不浮动")
-        let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let screen = TestPresentation.screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         coordinator.beginDrag(DockPanels.pageList, from: dock)
         coordinator.endDrag(DockPanels.pageList, at: NSPoint(x: screen.midX, y: screen.midY), accepted: false, cancelled: false)
         await settle()
@@ -436,6 +436,7 @@ final class DockSelfTest {
     /// 真实事件在前台窗口上才等同于用户操作。`NSApp.activate()` 是协作式的，别的 App 不让出时无效，所以经 LaunchServices。
     private func activateApp(_ window: NSWindow) async -> Bool {
         window.makeKeyAndOrderFront(nil)
+        guard TestPresentation.activationAllowed else { return NSApp.isActive }
         if !NSApp.isActive {
             let open = Process()
             open.executableURL = URL(fileURLWithPath: "/usr/bin/open")

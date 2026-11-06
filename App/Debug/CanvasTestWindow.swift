@@ -33,7 +33,8 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
         controller.window?.makeKeyAndOrderFront(nil)
         controller.startDisplayLink()
         if autorun {
-            NSApp.activate()
+            TestPresentation.activateIfAllowed()
+            controller.window?.orderFrontRegardless()
             // 等首屏缩略图到齐再开始。
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { controller.runScenario(terminateWhenDone: true) }
         }

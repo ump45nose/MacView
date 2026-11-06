@@ -29,7 +29,7 @@ final class ViewerSelfTest {
     }
 
     private func run() async {
-        NSApp.activate()
+        TestPresentation.activateIfAllowed()
         guard let services = app.services, let controller = app.controllers.first, let window = controller.window,
               let path = UserDefaults.standard.string(forKey: "MVSelfTestFixtures") else {
             log.check(false, "查看器自检需要真实服务、窗口与 -MVSelfTestFixtures")
@@ -360,6 +360,7 @@ final class ViewerSelfTest {
             try? await Task.sleep(for: .milliseconds(500))
             log.check(animated.framesShown == hidden, "\(name) 窗口隐藏后帧不再前进：\(hidden)")
             window.makeKeyAndOrderFront(nil)
+            TestPresentation.present(window)
             try? await Task.sleep(for: .milliseconds(500))
             log.check(animated.isPlaying, "\(name) 窗口恢复后继续")
         }
