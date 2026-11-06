@@ -367,11 +367,12 @@ public final class FileImagePipeline: ImagePipeline {
         let key = identity.cacheKey
         let work = try state.withLock { state in
             try lifetime.checkRunning()
-            if let work = state.content[key] { return work.1 }
+            if let work = state.content[key]?.1, work.join(consumer: context.id) { return work }
             let id = UUID()
             let work = ContentWork(identity: identity, sources: sources, caches: caches, lifetime: lifetime) { [weak self] in
                 self?.state.withLock { state in if state.content[key]?.0 == id { state.content[key] = nil } }
             }
+            _ = work.join(consumer: context.id)
             state.content[key] = (id, work)
             return work
         }
@@ -394,8 +395,9 @@ public final class FileImagePipeline: ImagePipeline {
             bounds.width = max(bounds.width, requestedBounds.width)
             bounds.height = max(bounds.height, requestedBounds.height)
             state.bundleBounds[key] = bounds
-            if let pair = state.bundles[key], pair.1.isAccepting { return pair }
+            if let pair = state.bundles[key], pair.1.join(consumer: context.id, priority: context.priority) { return pair }
             let pair = (UUID(), SharedWork<Bundle>(scheduler: scheduler, lifetime: lifetime))
+            _ = pair.1.join(consumer: context.id, priority: context.priority)
             state.bundles[key] = pair
             return pair
         }
@@ -481,8 +483,9 @@ public final class FileImagePipeline: ImagePipeline {
         if let image = cached(key, priority: context.priority, thumbnail: thumbnail) { return image }
         let pair = try state.withLock { state -> (UUID, SharedWork<RenderedImage>) in
             try lifetime.checkRunning()
-            if let pair = state.renders[key], pair.1.isAccepting { return pair }
+            if let pair = state.renders[key], pair.1.join(consumer: context.id, priority: context.priority) { return pair }
             let pair = (UUID(), SharedWork<RenderedImage>(scheduler: scheduler, lifetime: lifetime))
+            _ = pair.1.join(consumer: context.id, priority: context.priority)
             state.renders[key] = pair
             return pair
         }
