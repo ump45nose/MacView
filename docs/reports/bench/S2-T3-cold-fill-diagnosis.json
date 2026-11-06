@@ -1,0 +1,2367 @@
+{
+ "task": "S2-T3 冷填充缺页定位（stage-3 第十次交回的答复，只定位不修）",
+ "date": "2026-11-06",
+ "branch": "feat/s2-p0",
+ "conclusion": "缺页是一条确定的竞态，不是磁盘写入失败或淘汰。书刚枚举完（.appended，目录枚举顺序 0071、0065、0059、0058、0064、0070…）时 paged 分支给锚点后 5 页排了 .near 原始读取；.sorted 之后这 5 页不再是近邻，setPrefetchPlan 取消这些 .near 预取。同一页的 .book 预取（[.thumbnail, .metadata]）如果恰好在此之前从 state.content 里查到这条 ContentWork（锁内查到、锁外加入），而它的 value 作业排在取消作业之后到达 actor，就会看到 accepting=false，收到 CancellationError；它自己并没被取消（cancelled=false）。预取任务的 catch {} 吞掉错误，prefetchInFlight 照样归零，于是“预取完成”时这一页 L2、L3 都没有写入。缺页只会落在排序前的近邻集合 {0065, 0059, 0058, 0064, 0070} 里，与上一轮的 0058、0059、0064 一致。",
+ "branchConfirmed": {
+  "branch": "paged",
+  "evidence": "三次缺页的 trace 里 rsPrefetch 都是 branch=paged、pages=85、items=90（85 条 .book + 5 条 .near）；事件顺序 rsEvent appended(first=0071.jpg) → sorted(identityChanged=85)。没有走 gallery 分支。"
+ },
+ "rootCause": {
+  "lookupThenJoin": "Packages/MacViewKit/Sources/MVPipeline/FileImagePipeline.swift:367-380 content()：state.withLock 里取出已有 ContentWork，锁外才 await work.value(...)；bundle() 第 397 行、render() 第 484 行对 SharedWork 用 isAccepting 判断后锁外加入，模式相同。",
+  "rejectNonCancelled": "Packages/MacViewKit/Sources/MVPipeline/ContentWork.swift:48 value()：guard accepting else 抛 CancellationError，不区分调用方是否被取消；SharedWork.swift:130 同理。",
+  "asyncCancel": "ContentWork.swift:72 onCancel 用 Task { await self.cancel(consumer) } 异步取消；第 87-96 行在 waiters 为空时 accepting=false、取消读取、completed() 才从注册表移除。取消作业从主线程创建、优先级高于 .low 的 .book value 作业，先到 actor。",
+  "swallow": "FileImagePipeline.swift:528-530 setPrefetchPlan 的预取任务 catch {} 吞掉所有错误并照常递减 prefetchInFlight。"
+ },
+ "method": {
+  "instrumentation": "临时埋点（已撤）：MVFoundation 新增 DiagTrace（环境变量 MV_DIAG_TRACE 打开，缓冲写 JSON 行，调试命令时 flush）；记录每条预取任务（plan/planNew/planCancel/planReprio/pfStart/pfStep/pfEnd）、每个 ContentWork（cwGet/cwRun/cwCancel/cwReject/cwThrow）、bundle SharedWork（bwGet/bwOpStart/dvRun/bwOpFail/swStart/swFinish）、每次 setPrefetchPlan、L2/L3 DiskCache 的 store/evict、InFlightBudget、ReaderSession 的 prefetch 分支与事件。",
+  "build": "xcodebuild Debug + SWIFT_OPTIMIZATION_LEVEL=-O（同 run.py build_app），-derivedDataPath build/DerivedData-diag，-clonedSourcePackagesDirPath 指向复制自 build/DerivedData/SourcePackages 的副本，-skipPackageUpdates -disableAutomaticPackageResolution。",
+  "coldFill": "同 S2-T3-cold-fill.json：每次全新隔离的 -MVSupportDirectory/-MVCacheDirectory/-MVLayoutFile/-MVDebugSocket，open 本地 Fixtures/local/sample-set（85 页），轮询 state 直到 prefetchIdle，只读 L2/L3 索引与文件核对 85 页，quit，退出失败时只按自己启动的 PID 结束。没有发 scroll/resize。",
+  "launch": "open -n -g -a <diag app> --env MV_DIAG_TRACE=...；调试连接核对 peer PID。",
+  "builtinDisplayChange": "第 100 次起（用户 21:41 的要求）：临时改 AppDelegate 把首个窗口放到 maximumFramesPerSecond 最大的屏（内置屏，120Hz）visibleFrame 居中，去掉 DebugSocket.startIfRequested 和 orderFront 里的 NSApp.activate()；随埋点一起撤掉。",
+  "perRunRecorded": "每次记录启动前/空闲时/退出后的 1 分钟负载、主显示器配置、锁屏、输入空闲秒数、运行中有无输入；内置屏批次另记启动前/打开后/退出后的前台应用、窗口 bounds 与所在屏。"
+ },
+ "totals": {
+  "formalRuns": 90,
+  "primary": {
+   "runs": 43,
+   "pass": 42,
+   "miss": 1,
+   "error": 0
+  },
+  "builtin": {
+   "runs": 47,
+   "pass": 39,
+   "miss": 2,
+   "error": 6
+  },
+  "misses": [
+   {
+    "run": 39,
+    "display": "primary",
+    "page": "0064.jpg"
+   },
+   {
+    "run": 107,
+    "display": "builtin",
+    "page": "0058.jpg"
+   },
+   {
+    "run": 147,
+    "display": "builtin",
+    "page": "0065.jpg"
+   }
+  ],
+  "note": "第 1-43 次在主屏（Mi Monitor）上跑，窗口居中在主屏、调试套接字启动时会 NSApp.activate()，这一批没有记前台应用和窗口所在屏；第 100 次是改到内置屏后的单跑核对（不计入）；第 101-147 次在内置屏，不抢前台。第 147 次抓到第三次缺页后停止，未到 100 次上限。"
+ },
+ "builtinEffect": {
+  "missRate": "主屏 1/43；内置屏 2/47（去掉 6 次启动超时为 2/41）。样本太少，看不出可见影响；竞态窗口在打开书后约 25-60 ms，与窗口位置和前台无关。",
+  "focus": "内置屏批次 state 里 windowFront 全是 false；启动前、打开后、退出后的前台应用随用户操作在 Cursor、访达、Netcatty、通用控制、系统设置等之间变化，没有一次是 MacView。第 144 次启动前前台是 SecurityAgent（系统授权窗口），出现在本次启动之前，来源没有查明；该次冷填充正常通过。",
+  "startupTimeouts": "第 119、120、127、138、139、140 次启动时首个 state 调试命令 20 秒无响应（这几次前后负载 298-588），记为 error，均按自己的 PID 结束。主屏批次没有出现，原因可能是负载更高，也可能和后台启动有关，本轮没有区分。"
+ },
+ "checkRun100": {
+  "run": 100,
+  "display": "builtin",
+  "outcome": "pass",
+  "load1m": [
+   95.88,
+   104.38,
+   104.38
+  ],
+  "inputIdleBeforeS": 0.003,
+  "inputDuringRun": true,
+  "mainDisplay": "1920x1080@60.0Hz",
+  "openS": 2.134,
+  "waitIdleS": 1.997,
+  "L2": 86,
+  "L3": 86,
+  "missing": [],
+  "frontBefore": "Cursor",
+  "frontAfter": "Cursor",
+  "frontAtOpen": "Cursor",
+  "windowInsideBuiltin": true,
+  "windowBounds": [
+   373,
+   1108,
+   1200,
+   834
+  ]
+ },
+ "raceWindowStats": {
+  "traces": 13,
+  "nearCancelled": 68,
+  "abandonedWithoutWaiters": 48,
+  "bookJoinRejected": 3,
+  "note": "统计保留下来的 13 份 trace（缺页、出错和前两次通过）：每条被取消的 .near 读取是否在没有等待者时被放弃、是否有 .book 加入方被拒。被拒必然缺页；放弃但无人加入的不缺页。"
+ },
+ "missJourneys": [
+  {
+   "run": 39,
+   "display": "primary",
+   "page": "0064.jpg",
+   "bookRenditionOrder": "md+th",
+   "joinStep": "metadata（content(full:true, metadata:true) 加入 .near 原始读取 cw=96）",
+   "journey": [
+    "6.076 planNew        plan=4 pf=24 name=0064.jpg key=6c159736 rend=md+th prio=book c=DDBD591D",
+    "6.100 pfStart        pf=24 prio=book",
+    "6.104 pfStep         pf=24 step=md",
+    "6.282 planNew        plan=4 pf=29 name=0064.jpg key=6c159736 rend= prio=near c=412EF70E",
+    "6.322 pfStart        pf=29 prio=near",
+    "8.502 cwGet          cw=96 name=0064.jpg c=412EF70E new=true full=true md=false prio=near",
+    "8.584 cwRun          cw=96 name=0064.jpg c=412EF70E full=true md=false prio=near",
+    "25.186 cwGet          cw=96 name=0064.jpg c=DDBD591D new=false full=false md=true prio=book",
+    "25.319 planCancel     plan=135 pf=29 name=0064.jpg rend= prio=near",
+    "27.628 cwCancel       cw=96 name=0064.jpg c=412EF70E kind=waiter waiters=0 abandon=true",
+    "27.642 cwReject       cw=96 name=0064.jpg c=DDBD591D why=notAccepting full=false",
+    "27.652 cwThrow        cw=96 name=0064.jpg c=DDBD591D err=CancellationError|CancellationError() cancelled=false",
+    "27.660 pfFail         pf=24 step=md err=CancellationError|CancellationError() cancelled=false",
+    "27.665 pfEnd          pf=24 mode=error err=CancellationError|CancellationError() cancelled=false"
+   ]
+  },
+  {
+   "run": 107,
+   "display": "builtin",
+   "page": "0058.jpg",
+   "bookRenditionOrder": "md+th",
+   "joinStep": "metadata（加入 .near 原始读取）",
+   "journey": [
+    "44.223 planNew        plan=5 pf=16 name=0058.jpg key=f4f26388 rend=md+th prio=book c=9CCE9F57",
+    "44.299 pfStart        pf=16 prio=book",
+    "44.307 pfStep         pf=16 step=md",
+    "46.345 planNew        plan=5 pf=71 name=0058.jpg key=f4f26388 rend= prio=near c=6D440D6E",
+    "46.418 pfStart        pf=71 prio=near",
+    "47.367 cwGet          cw=97 name=0058.jpg c=6D440D6E new=true full=true md=false prio=near",
+    "47.379 cwRun          cw=97 name=0058.jpg c=6D440D6E full=true md=false prio=near",
+    "49.460 cwGet          cw=97 name=0058.jpg c=9CCE9F57 new=false full=false md=true prio=book",
+    "49.614 planCancel     plan=114 pf=71 name=0058.jpg rend= prio=near",
+    "49.632 cwCancel       cw=97 name=0058.jpg c=6D440D6E kind=waiter waiters=0 abandon=true",
+    "50.297 cwReject       cw=97 name=0058.jpg c=9CCE9F57 why=notAccepting full=false",
+    "50.299 cwThrow        cw=97 name=0058.jpg c=6D440D6E err=CancellationError|CancellationError() cancelled=true",
+    "50.306 cwThrow        cw=97 name=0058.jpg c=9CCE9F57 err=CancellationError|CancellationError() cancelled=false",
+    "50.309 pfFail         pf=71 step=raw err=CancellationError|CancellationError() cancelled=true",
+    "50.313 pfFail         pf=16 step=md err=CancellationError|CancellationError() cancelled=false",
+    "50.316 pfEnd          pf=71 mode=error err=CancellationError|CancellationError() cancelled=true",
+    "50.320 pfEnd          pf=16 mode=error err=CancellationError|CancellationError() cancelled=false"
+   ]
+  },
+  {
+   "run": 147,
+   "display": "builtin",
+   "page": "0065.jpg",
+   "bookRenditionOrder": "th+md",
+   "joinStep": "thumbnail 的 bundle 操作里 content()（bw=115 加入 .near 原始读取 cw=100），bundle 失败，预取停在 th.bundle",
+   "journey": [
+    "31.640 planNew        plan=5 pf=24 name=0065.jpg key=0a3167f5 rend=th+md prio=book c=5E2535EC",
+    "32.656 planNew        plan=5 pf=57 name=0065.jpg key=0a3167f5 rend= prio=near c=217A57C9",
+    "32.884 pfStart        pf=57 prio=near",
+    "34.426 cwGet          cw=100 name=0065.jpg c=217A57C9 new=true full=true md=false prio=near",
+    "34.683 cwRun          cw=100 name=0065.jpg c=217A57C9 full=true md=false prio=near",
+    "45.111 pfStart        pf=24 prio=book",
+    "45.113 pfStep         pf=24 step=th.contains",
+    "48.451 pfContains     pf=24 L2=false prio=book",
+    "48.553 bwGet          bw=115 name=0065.jpg key=0a3167f5 c=5E2535EC join=new wctx=81CD43CC prio=book target=nil",
+    "48.590 swStart        sw=115 c=5E2535EC prio=book",
+    "49.748 bwOpStart      bw=115 name=0065.jpg prio=book",
+    "52.141 cwGet          cw=100 name=0065.jpg c=81CD43CC new=false full=true md=true prio=book",
+    "56.980 planCancel     plan=140 pf=57 name=0065.jpg rend= prio=near",
+    "56.998 cwCancel       cw=100 name=0065.jpg c=217A57C9 kind=waiter waiters=0 abandon=true",
+    "57.717 cwReject       cw=100 name=0065.jpg c=81CD43CC why=notAccepting full=true",
+    "57.857 cwThrow        cw=100 name=0065.jpg c=81CD43CC err=CancellationError|CancellationError() cancelled=false",
+    "57.857 cwThrow        cw=100 name=0065.jpg c=217A57C9 err=CancellationError|CancellationError() cancelled=true",
+    "57.875 pfFail         pf=57 step=raw err=CancellationError|CancellationError() cancelled=true",
+    "57.881 pfEnd          pf=57 mode=error err=CancellationError|CancellationError() cancelled=true",
+    "57.896 bwOpFail       bw=115 name=0065.jpg step=content err=CancellationError|CancellationError() cancelled=false",
+    "57.922 swFinish       sw=115 ok=false err=CancellationError|CancellationError() waiters=1 accepting=true",
+    "58.087 cwRunFail      cw=100 name=0065.jpg err=CancellationError|CancellationError() waiters=0 cancelled=true",
+    "86.290 thReq          name=0065.jpg c=0661D398 px=80 prio=visible",
+    "86.311 thThrow        name=0065.jpg c=0661D398 err=CancellationError|CancellationError() cancelled=true",
+    "88.412 bwThrow        bw=115 name=0065.jpg c=5E2535EC err=CancellationError|CancellationError() cancelled=false",
+    "88.436 pfFail         pf=24 step=th.bundle err=CancellationError|CancellationError() cancelled=false",
+    "88.445 pfEnd          pf=24 mode=error err=CancellationError|CancellationError() cancelled=false"
+   ]
+  }
+ ],
+ "reproTest": {
+  "path": "Packages/MacViewKit/Tests/MVPipelineTests/PrefetchAbandonedReadTests.swift（留在工作区，未提交）",
+  "name": "bookPrefetchJoiningAbandonedReadStillWritesDerivatives",
+  "how": "provider(for:) 第一次调用在 actor 上用信号量挡住，让 .near 原始读取停在 run() 里；在 .high 优先级任务里换成同一页的 .book [.thumbnail, .metadata] 计划，取消 .near 并让 .book 加入同一个 ContentWork；放开后等 prefetchInFlight 归零，断言 L2、L3 都有这一页。",
+  "command": "swift test --package-path Packages/MacViewKit --disable-xctest --disable-automatic-resolution --skip-update --filter bookPrefetchJoiningAbandonedReadStillWritesDerivatives",
+  "result": "在原有代码上连跑 11 次全部失败（2 个 issue：预取已归零，L2 没有写入；预取已归零，L3 没有写入），每次约 0.55-0.63 秒；编译没有警告。"
+ },
+ "fixSuggestion": {
+  "primary": "加入方没被取消、却因为共享作业已不再接受（accepting=false）被拒时，不要给它 CancellationError，改成内部可重试的信号（例如 WorkRetired）；content()、bundle()、render() 收到后在锁内移除这条过期注册（id 相同才移除）并新建作业重试。SharedWork 同样处理。",
+  "alternative": "把查找与加入做成原子：锁内查到作业时先登记一个待加入的预约（pending joiner），cancel() 看到预约就不把 accepting 置 false。",
+  "defenseInDepth": "预取任务在自己没被取消（!Task.isCancelled）却收到 CancellationError 时重试一次，或者记为失败、不当作完成。",
+  "whyItHolds": "预取只会因为三种原因结束：写完 L2/L3、自己被取消（之后由新计划负责）、真实读取/解码错误。修复后，被别人放弃的共享作业不再能让未取消的预取以“取消”结束，所以 prefetchIdle 时还在计划里的页都已写入 L2、L3。",
+  "expected": "排序前近邻页（0058/0059/0064/0065/0070）不再缺页；冷填充每次 L2、L3 都是 85/85；复现单测转绿。"
+ },
+ "environment": {
+  "load": "全程负载很高：主屏批次 1 分钟负载 104-211，内置屏批次 114-588；用户在用电脑，没设负载和键鼠门槛。",
+  "displays": "主屏 Mi Monitor 1920x1080 逻辑（3840 像素）60Hz；内置屏 1496x967 逻辑（2992 像素）120Hz，全局 bounds [225,1080,1496,967]。上一轮内置屏是 1728x1080，缩放设置不同，本轮未改。",
+  "untouched": "没读网络卷、没挂 NFS、没碰 NAS；没动 caffeinate、SMB 挂载、显示器设置和用户应用。"
+ },
+ "runs": [
+  {
+   "run": 1,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    104.59,
+    112.22,
+    112.22
+   ],
+   "inputIdleBeforeS": 8.818,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.819,
+   "waitIdleS": 22.765,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 2,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    112.22,
+    125.32,
+    125.32
+   ],
+   "inputIdleBeforeS": 0.004,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.206,
+   "waitIdleS": 18.161,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 3,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    125.32,
+    167.96,
+    167.96
+   ],
+   "inputIdleBeforeS": 0.001,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.956,
+   "waitIdleS": 37.882,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 4,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    167.96,
+    180.04,
+    180.04
+   ],
+   "inputIdleBeforeS": 0.026,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.134,
+   "waitIdleS": 13.345,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 5,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    180.04,
+    176.68,
+    176.68
+   ],
+   "inputIdleBeforeS": 0.023,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.138,
+   "waitIdleS": 2.968,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 6,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    176.68,
+    179.57,
+    179.57
+   ],
+   "inputIdleBeforeS": 0.188,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.067,
+   "waitIdleS": 5.533,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 7,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    179.57,
+    178.23,
+    178.23
+   ],
+   "inputIdleBeforeS": 2.8,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.948,
+   "waitIdleS": 12.118,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 8,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    178.23,
+    176.29,
+    176.29
+   ],
+   "inputIdleBeforeS": 0.035,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.41,
+   "waitIdleS": 2.966,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 9,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    176.29,
+    173.46,
+    173.46
+   ],
+   "inputIdleBeforeS": 0.001,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.082,
+   "waitIdleS": 1.326,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 10,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    173.46,
+    170.22,
+    170.22
+   ],
+   "inputIdleBeforeS": 2.652,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.852,
+   "waitIdleS": 4.334,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 11,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    170.22,
+    170.52,
+    170.52
+   ],
+   "inputIdleBeforeS": 2.436,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.886,
+   "waitIdleS": 2.553,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 12,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    170.52,
+    170.84,
+    170.84
+   ],
+   "inputIdleBeforeS": 6.772,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.935,
+   "waitIdleS": 7.089,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 13,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    170.84,
+    177.52,
+    177.52
+   ],
+   "inputIdleBeforeS": 0.003,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.945,
+   "waitIdleS": 9.59,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 14,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    177.52,
+    179.72,
+    179.72
+   ],
+   "inputIdleBeforeS": 0.988,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.863,
+   "waitIdleS": 2.975,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 15,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    179.72,
+    177.58,
+    177.58
+   ],
+   "inputIdleBeforeS": 5.708,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.861,
+   "waitIdleS": 2.673,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 16,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    177.58,
+    180.9,
+    180.9
+   ],
+   "inputIdleBeforeS": 10.226,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.976,
+   "waitIdleS": 8.672,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 17,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    180.9,
+    178.67,
+    178.67
+   ],
+   "inputIdleBeforeS": 20.843,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.943,
+   "waitIdleS": 2.807,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 18,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    178.67,
+    182.25,
+    182.25
+   ],
+   "inputIdleBeforeS": 25.587,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.367,
+   "waitIdleS": 9.915,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 19,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    182.25,
+    182.25,
+    184.79
+   ],
+   "inputIdleBeforeS": 37.935,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.338,
+   "waitIdleS": 2.026,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 20,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    184.79,
+    184.79,
+    184.79
+   ],
+   "inputIdleBeforeS": 3.412,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.003,
+   "waitIdleS": 1.932,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 21,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    184.79,
+    182.98,
+    182.98
+   ],
+   "inputIdleBeforeS": 2.091,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.51,
+   "waitIdleS": 4.894,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 22,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    182.98,
+    188.6,
+    188.6
+   ],
+   "inputIdleBeforeS": 2.183,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.931,
+   "waitIdleS": 24.607,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 23,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    188.6,
+    185.82,
+    185.82
+   ],
+   "inputIdleBeforeS": 28.64,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.973,
+   "waitIdleS": 23.121,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 24,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    185.82,
+    183.75,
+    183.75
+   ],
+   "inputIdleBeforeS": 53.673,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.788,
+   "waitIdleS": 5.146,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 25,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    183.75,
+    178.87,
+    178.87
+   ],
+   "inputIdleBeforeS": 60.549,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.946,
+   "waitIdleS": 8.049,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 26,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    178.87,
+    171.97,
+    171.97
+   ],
+   "inputIdleBeforeS": 70.433,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.848,
+   "waitIdleS": 4.641,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 27,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    171.97,
+    167.81,
+    167.81
+   ],
+   "inputIdleBeforeS": 0.041,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.985,
+   "waitIdleS": 7.357,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 28,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    173.43,
+    175.15,
+    175.15
+   ],
+   "inputIdleBeforeS": 0.231,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.277,
+   "waitIdleS": 9.179,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 29,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    175.15,
+    171.27,
+    171.27
+   ],
+   "inputIdleBeforeS": 0.045,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 0.909,
+   "waitIdleS": 6.785,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 30,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    171.27,
+    172.72,
+    172.72
+   ],
+   "inputIdleBeforeS": 0.055,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.083,
+   "waitIdleS": 14.962,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 31,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    172.72,
+    175.62,
+    175.62
+   ],
+   "inputIdleBeforeS": 3.446,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.127,
+   "waitIdleS": 4.716,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 32,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    175.62,
+    183.25,
+    183.25
+   ],
+   "inputIdleBeforeS": 0.001,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 5.412,
+   "waitIdleS": 6.671,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 33,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    183.25,
+    195.4,
+    195.4
+   ],
+   "inputIdleBeforeS": 9.797,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.68,
+   "waitIdleS": 11.361,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 34,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    195.4,
+    204.27,
+    200.49
+   ],
+   "inputIdleBeforeS": 0.032,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.796,
+   "waitIdleS": 8.918,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 35,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    200.49,
+    204.69,
+    204.69
+   ],
+   "inputIdleBeforeS": 0.032,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.566,
+   "waitIdleS": 6.977,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 36,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    204.69,
+    210.64,
+    210.64
+   ],
+   "inputIdleBeforeS": 0.171,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.258,
+   "waitIdleS": 7.181,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 37,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    210.64,
+    205.71,
+    205.71
+   ],
+   "inputIdleBeforeS": 2.115,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.624,
+   "waitIdleS": 3.044,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 38,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    205.71,
+    207.48,
+    207.48
+   ],
+   "inputIdleBeforeS": 0.006,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 4.357,
+   "waitIdleS": 6.365,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 39,
+   "display": "primary",
+   "outcome": "miss",
+   "load1m": [
+    207.48,
+    207.6,
+    207.6
+   ],
+   "inputIdleBeforeS": 0.01,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.7,
+   "waitIdleS": 3.309,
+   "L2": 84,
+   "L3": 84,
+   "missing": [
+    "0064.jpg"
+   ]
+  },
+  {
+   "run": 40,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    207.6,
+    203.79,
+    203.79
+   ],
+   "inputIdleBeforeS": 0.021,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.087,
+   "waitIdleS": 2.585,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 41,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    203.79,
+    203.08,
+    203.08
+   ],
+   "inputIdleBeforeS": 0.001,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.276,
+   "waitIdleS": 1.599,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 42,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    203.08,
+    201.23,
+    201.23
+   ],
+   "inputIdleBeforeS": 0.018,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.241,
+   "waitIdleS": 2.389,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 43,
+   "display": "primary",
+   "outcome": "pass",
+   "load1m": [
+    201.23,
+    206.34,
+    206.34
+   ],
+   "inputIdleBeforeS": 0.106,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.417,
+   "waitIdleS": 5.005,
+   "L2": 85,
+   "L3": 85,
+   "missing": []
+  },
+  {
+   "run": 101,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    114.09,
+    124.09,
+    124.09
+   ],
+   "inputIdleBeforeS": 0.168,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.356,
+   "waitIdleS": 5.883,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 102,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    124.09,
+    131.05,
+    138.89
+   ],
+   "inputIdleBeforeS": 0.0,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.194,
+   "waitIdleS": 3.922,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 103,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    138.89,
+    138.89,
+    138.89
+   ],
+   "inputIdleBeforeS": 0.134,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.004,
+   "waitIdleS": 2.632,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 104,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    138.89,
+    196.75,
+    196.75
+   ],
+   "inputIdleBeforeS": 0.015,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.106,
+   "waitIdleS": 23.534,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "访达",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 105,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    196.75,
+    228.99,
+    228.99
+   ],
+   "inputIdleBeforeS": 0.002,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.702,
+   "waitIdleS": 23.217,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "访达",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "访达",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 106,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    228.99,
+    229.75,
+    229.75
+   ],
+   "inputIdleBeforeS": 0.0,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.317,
+   "waitIdleS": 6.21,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 107,
+   "display": "builtin",
+   "outcome": "miss",
+   "load1m": [
+    229.75,
+    235.95,
+    235.95
+   ],
+   "inputIdleBeforeS": 0.169,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 4.637,
+   "waitIdleS": 10.368,
+   "L2": 84,
+   "L3": 84,
+   "missing": [
+    "0058.jpg"
+   ],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 108,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    235.95,
+    244.05,
+    244.05
+   ],
+   "inputIdleBeforeS": 0.007,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.719,
+   "waitIdleS": 6.091,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 109,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    244.05,
+    250.37,
+    250.37
+   ],
+   "inputIdleBeforeS": 0.234,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 5.247,
+   "waitIdleS": 4.902,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 110,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    250.37,
+    267.86,
+    267.86
+   ],
+   "inputIdleBeforeS": 0.207,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 4.601,
+   "waitIdleS": 18.63,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 111,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    267.86,
+    258.74,
+    258.74
+   ],
+   "inputIdleBeforeS": 10.573,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.305,
+   "waitIdleS": 10.074,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "通用控制",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 112,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    258.74,
+    257.83,
+    257.83
+   ],
+   "inputIdleBeforeS": 23.313,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 3.286,
+   "waitIdleS": 8.723,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "通用控制",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 113,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    257.83,
+    256.66,
+    256.66
+   ],
+   "inputIdleBeforeS": 36.998,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.797,
+   "waitIdleS": 11.914,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "通用控制",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 114,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    256.66,
+    275.25,
+    275.25
+   ],
+   "inputIdleBeforeS": 52.268,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 5.134,
+   "waitIdleS": 23.858,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "通用控制",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 115,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    275.25,
+    354.05,
+    344.83
+   ],
+   "inputIdleBeforeS": 82.989,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 7.248,
+   "waitIdleS": 37.339,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 116,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    344.83,
+    332.43,
+    332.43
+   ],
+   "inputIdleBeforeS": 8.856,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 4.049,
+   "waitIdleS": 2.341,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 117,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    332.43,
+    305.21,
+    305.21
+   ],
+   "inputIdleBeforeS": 17.513,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.534,
+   "waitIdleS": 10.837,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 118,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    305.21,
+    421.5,
+    421.5
+   ],
+   "inputIdleBeforeS": 0.005,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 7.006,
+   "waitIdleS": 46.5,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "系统设置",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 119,
+   "display": "builtin",
+   "outcome": "error",
+   "load1m": [
+    421.5,
+    null,
+    513.85
+   ],
+   "inputIdleBeforeS": 9.82,
+   "inputDuringRun": null,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 11.721,
+   "waitIdleS": null,
+   "L2": null,
+   "L3": null,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "通用控制",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ],
+   "errors": [
+    "DebugTimeout: 调试响应超时：command=state phase=diag:startup pid=10357，等待20.002秒；sample=None"
+   ],
+   "stop": {
+    "quitSeconds": 3.003,
+    "quitExitedNormally": false,
+    "signals": [
+     15
+    ],
+    "exitCode": -15
+   }
+  },
+  {
+   "run": 120,
+   "display": "builtin",
+   "outcome": "error",
+   "load1m": [
+    513.85,
+    null,
+    464.08
+   ],
+   "inputIdleBeforeS": 2.394,
+   "inputDuringRun": null,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 10.644,
+   "waitIdleS": null,
+   "L2": null,
+   "L3": null,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ],
+   "errors": [
+    "DebugTimeout: 调试响应超时：command=state phase=diag:startup pid=24554，等待20.007秒；sample=None"
+   ],
+   "stop": {
+    "quitSeconds": 3.001,
+    "quitExitedNormally": false,
+    "signals": [
+     15
+    ],
+    "exitCode": -15
+   }
+  },
+  {
+   "run": 121,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    464.08,
+    454.5,
+    454.5
+   ],
+   "inputIdleBeforeS": 0.277,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 20.465,
+   "waitIdleS": 31.201,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 122,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    454.5,
+    425.26,
+    425.26
+   ],
+   "inputIdleBeforeS": 9.388,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.689,
+   "waitIdleS": 6.631,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "通用控制",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 123,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    425.26,
+    369.73,
+    369.73
+   ],
+   "inputIdleBeforeS": 0.379,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.104,
+   "waitIdleS": 20.577,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 124,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    369.73,
+    355.65,
+    355.65
+   ],
+   "inputIdleBeforeS": 0.271,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.356,
+   "waitIdleS": 3.41,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 125,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    355.65,
+    330.56,
+    330.56
+   ],
+   "inputIdleBeforeS": 1.434,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 3.328,
+   "waitIdleS": 4.011,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 126,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    330.56,
+    309.78,
+    297.62
+   ],
+   "inputIdleBeforeS": 0.005,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 5.012,
+   "waitIdleS": 36.453,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Netcatty",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 127,
+   "display": "builtin",
+   "outcome": "error",
+   "load1m": [
+    297.62,
+    null,
+    588.31
+   ],
+   "inputIdleBeforeS": 0.512,
+   "inputDuringRun": null,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 7.792,
+   "waitIdleS": null,
+   "L2": null,
+   "L3": null,
+   "missing": [],
+   "frontBefore": "Netcatty",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ],
+   "errors": [
+    "DebugTimeout: 调试响应超时：command=state phase=diag:startup pid=47226，等待20.001秒；sample=None"
+   ],
+   "stop": {
+    "quitSeconds": 3.002,
+    "quitExitedNormally": false,
+    "signals": [
+     15
+    ],
+    "exitCode": -15
+   }
+  },
+  {
+   "run": 128,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    588.31,
+    539.77,
+    539.77
+   ],
+   "inputIdleBeforeS": 25.128,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 43.087,
+   "waitIdleS": 58.369,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "Electron",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ]
+  },
+  {
+   "run": 129,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    539.77,
+    506.75,
+    488.99
+   ],
+   "inputIdleBeforeS": 35.281,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 5.326,
+   "waitIdleS": 6.784,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Electron",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    841
+   ]
+  },
+  {
+   "run": 130,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    488.99,
+    461.67,
+    461.67
+   ],
+   "inputIdleBeforeS": 48.862,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 4.123,
+   "waitIdleS": 5.939,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 131,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    461.67,
+    432.97,
+    432.97
+   ],
+   "inputIdleBeforeS": 60.095,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.078,
+   "waitIdleS": 6.346,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 132,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    432.97,
+    406.29,
+    406.29
+   ],
+   "inputIdleBeforeS": 7.489,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 3.999,
+   "waitIdleS": 5.192,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 133,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    406.29,
+    382.68,
+    382.68
+   ],
+   "inputIdleBeforeS": 18.019,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.76,
+   "waitIdleS": 7.868,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 134,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    382.68,
+    354.89,
+    354.89
+   ],
+   "inputIdleBeforeS": 28.958,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.926,
+   "waitIdleS": 4.293,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 135,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    354.89,
+    343.45,
+    343.45
+   ],
+   "inputIdleBeforeS": 37.416,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.775,
+   "waitIdleS": 5.53,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 136,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    343.45,
+    332.62,
+    332.62
+   ],
+   "inputIdleBeforeS": 45.82,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 4.408,
+   "waitIdleS": 8.657,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 137,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    332.62,
+    326.76,
+    326.76
+   ],
+   "inputIdleBeforeS": 60.033,
+   "inputDuringRun": false,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 1.112,
+   "waitIdleS": 4.374,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 138,
+   "display": "builtin",
+   "outcome": "error",
+   "load1m": [
+    326.76,
+    null,
+    473.72
+   ],
+   "inputIdleBeforeS": 66.742,
+   "inputDuringRun": null,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 18.114,
+   "waitIdleS": null,
+   "L2": null,
+   "L3": null,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ],
+   "errors": [
+    "DebugTimeout: 调试响应超时：command=state phase=diag:startup pid=66587，等待20.003秒；sample=None"
+   ],
+   "stop": {
+    "quitSeconds": 3.002,
+    "quitExitedNormally": false,
+    "signals": [
+     15
+    ],
+    "exitCode": -15
+   }
+  },
+  {
+   "run": 139,
+   "display": "builtin",
+   "outcome": "error",
+   "load1m": [
+    473.72,
+    null,
+    487.98
+   ],
+   "inputIdleBeforeS": 31.02,
+   "inputDuringRun": null,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 17.142,
+   "waitIdleS": null,
+   "L2": null,
+   "L3": null,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ],
+   "errors": [
+    "DebugTimeout: 调试响应超时：command=state phase=diag:startup pid=73561，等待20.002秒；sample=None"
+   ],
+   "stop": {
+    "quitSeconds": 3.015,
+    "quitExitedNormally": false,
+    "signals": [
+     15
+    ],
+    "exitCode": -15
+   }
+  },
+  {
+   "run": 140,
+   "display": "builtin",
+   "outcome": "error",
+   "load1m": [
+    487.98,
+    null,
+    399.33
+   ],
+   "inputIdleBeforeS": 0.115,
+   "inputDuringRun": null,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 23.823,
+   "waitIdleS": null,
+   "L2": null,
+   "L3": null,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    834
+   ],
+   "errors": [
+    "DebugTimeout: 调试响应超时：command=state phase=diag:startup pid=86815，等待20.002秒；sample=None"
+   ],
+   "stop": {
+    "quitSeconds": 3.002,
+    "quitExitedNormally": false,
+    "signals": [
+     15
+    ],
+    "exitCode": -15
+   }
+  },
+  {
+   "run": 141,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    399.33,
+    371.24,
+    371.24
+   ],
+   "inputIdleBeforeS": 19.641,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 5.579,
+   "waitIdleS": 36.483,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "通用控制",
+   "frontAfter": "访达",
+   "frontAtOpen": "通用控制",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 142,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    371.24,
+    360.9,
+    360.9
+   ],
+   "inputIdleBeforeS": 0.328,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 3.265,
+   "waitIdleS": 32.633,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "访达",
+   "frontAfter": "Netcatty",
+   "frontAtOpen": "访达",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 143,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    360.9,
+    351.94,
+    351.94
+   ],
+   "inputIdleBeforeS": 0.294,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 2.655,
+   "waitIdleS": 25.341,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Netcatty",
+   "frontAfter": "访达",
+   "frontAtOpen": "Netcatty",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 144,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    351.94,
+    490.56,
+    490.56
+   ],
+   "inputIdleBeforeS": 0.001,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 17.181,
+   "waitIdleS": 141.993,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "SecurityAgent",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "访达",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 145,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    490.56,
+    431.61,
+    431.61
+   ],
+   "inputIdleBeforeS": 0.182,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 6.112,
+   "waitIdleS": 26.351,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    841
+   ]
+  },
+  {
+   "run": 146,
+   "display": "builtin",
+   "outcome": "pass",
+   "load1m": [
+    431.61,
+    408.96,
+    408.96
+   ],
+   "inputIdleBeforeS": 0.122,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 3.379,
+   "waitIdleS": 4.424,
+   "L2": 85,
+   "L3": 85,
+   "missing": [],
+   "frontBefore": "Cursor",
+   "frontAfter": "Cursor",
+   "frontAtOpen": "Cursor",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    837
+   ]
+  },
+  {
+   "run": 147,
+   "display": "builtin",
+   "outcome": "miss",
+   "load1m": [
+    408.96,
+    397.03,
+    397.03
+   ],
+   "inputIdleBeforeS": 0.008,
+   "inputDuringRun": true,
+   "mainDisplay": "1920x1080@60.0Hz",
+   "openS": 4.238,
+   "waitIdleS": 1.543,
+   "L2": 84,
+   "L3": 84,
+   "missing": [
+    "0065.jpg"
+   ],
+   "frontBefore": "Cursor",
+   "frontAfter": "通用控制",
+   "frontAtOpen": "通用控制",
+   "windowInsideBuiltin": true,
+   "windowBounds": [
+    373,
+    1108,
+    1200,
+    841
+   ]
+  }
+ ]
+}
