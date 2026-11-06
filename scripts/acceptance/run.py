@@ -10,8 +10,9 @@
 --check-env 不启动 App、不测量，只采集一次环境，向标准输出写 JSON：
   {"ready": 全部满足, "env": 采集到的环境, "scenes": [{"scene": 场景, "ready": 是否满足, "problems": [缺什么]}]}
 有场景不满足时退出码为 3。检查项是 env_problem，加上滚动场景的 120 Hz、录制场景的可用空间和 NAS 场景的
-挂载点与 NFS 应答；窗口前台和网络卷授权要启动 App 才知道，仍在场景里判定。正式运行先做同样的检查，
-不满足的场景直接记 environment，不进入测量；通过的场景照旧在准备后准入。
+挂载点与 NFS 应答；窗口前台和网络卷授权要启动 App 才知道，仍在场景里判定。正式运行在构建之后也做
+一次同样的检查，逐场景打印结果，并写进各场景报告的 preflight 字段（ready、problems）；不跳过场景，
+不影响等待、准入和判定。
 --check-verdicts 不启动 App，只断言判定。滚动录制由 record-trackpad.sh 完成。
 """
 
@@ -658,7 +659,8 @@ def check_verdicts():
             raise SystemExit("check-verdicts 失败：外部常亮参数不可用")
         for external in (False, True):
             with patch.dict(os.environ, {"MV_ACCEPTANCE_EXTERNAL_CAFFEINATE": "0"}), patch.dict(globals(), {
-                    "run_scene": lambda *a: None, "sample_conditions": lambda: env120, "preflight_conditions": lambda: ready_env}), patch.object(subprocess, "Popen") as caffeine, patch.object(subprocess, "check_output", return_value="script-commit"):
+                    "run_scene": lambda *a: None, "sample_conditions": lambda: env120, "preflight_conditions": lambda: ready_env}), patch.object(subprocess, "Popen") as caffeine, patch.object(subprocess, "check_output", return_value="script-commit"), \
+                    patch("builtins.print"):
                 main(["nas-throughput"] + (["--external-caffeinate"] if external else []))
                 if caffeine.call_count != (0 if external else 1) or (external and os.environ["MV_ACCEPTANCE_EXTERNAL_CAFFEINATE"] != "1"):
                     raise SystemExit("check-verdicts 失败：外部常亮仍创建进程，或默认常亮行为改变")
@@ -675,18 +677,26 @@ def check_verdicts():
             if (returned, output["ready"], [(item["scene"], item["ready"], item["problems"]) for item in output["scenes"]], calls) != (
                     code, code == 0, expected, []):
                 raise SystemExit(f"check-verdicts 失败：--check-env 的输出或退出码错误 {returned} {output['scenes']} {calls}")
-        out = directory / "preflight"
-        for requested, expected in ((["nas-fault", "panel-restart"], ["build", "panel-restart"]), (["nas-fault"], [])):
+        blocked_check = {"ready": False, "problems": ["NAS 连不上"]}
+        expected = {"nas-fault": blocked_check, "panel-restart": {"ready": True, "problems": []}}
+        for requested in (["nas-fault", "panel-restart"], ["nas-fault"]):
             calls.clear()
+            passed = []
             with patch.dict(os.environ, {"MV_ACCEPTANCE_EXTERNAL_CAFFEINATE": "0"}), patch.dict(globals(), {
-                    **offline, "preflight_conditions": lambda: nas_down, "FROZEN_MANIFEST": manifest}), patch.object(subprocess, "Popen") as caffeine, \
-                    patch.object(subprocess, "check_output", return_value="script-commit"), patch.object(subprocess, "run", return_value=signed), \
-                    patch("builtins.print"):
-                main(requested + ["--out", str(out)])
-            report = json.loads((out / "S2-T2-nas-fault.json").read_text())
-            if (calls != expected or caffeine.called != bool(expected) or (out / "S2-T2-panel-restart.json").exists()
-                    or (report["verdict"], report["measured"]["problems"], report["env"]["nas"]) != ("environment", ["NAS 连不上"], nas_down["nas"])):
-                raise SystemExit(f"check-verdicts 失败：开跑前不满足的场景仍进入测量，或没有直接记 environment {calls}")
+                    **offline, "run_scene": lambda scene, out, commit, base, check: (calls.append(scene), passed.append((scene, check))),
+                    "preflight_conditions": lambda: nas_down}), patch.object(subprocess, "Popen") as caffeine, \
+                    patch.object(subprocess, "check_output", return_value="script-commit"), patch("builtins.print"):
+                main(requested)
+            if calls != ["build"] + requested or caffeine.call_count != 1 or passed != [(scene, expected[scene]) for scene in requested]:
+                raise SystemExit(f"check-verdicts 失败：预检不满足的场景被跳过，或没有带上预检结果 {calls} {passed}")
+        out = directory / "preflight"
+        with patch.dict(globals(), {"FROZEN_MANIFEST": manifest, "mvbench_env": lambda paths: {},
+                                    "scene_nas_throughput": lambda: {"throughputMBps": 1}, "judge": lambda *a: "unverified"}), \
+                patch.object(subprocess, "run", return_value=signed), patch("builtins.print"):
+            run_scene("nas-throughput", out, "script-commit", env120, blocked_check)
+        report = json.loads((out / "S2-T2-nas-throughput.json").read_text())
+        if (report["verdict"], report["measured"]["throughputMBps"], report.get("preflight")) != ("unverified", 1, blocked_check):
+            raise SystemExit(f"check-verdicts 失败：场景报告没有写入预检结果 {report.get('preflight')}")
     fault_state = {"windows": [{"book": "nfs://server/share/album"}], "volumes": [
         {"root": "/", "state": "healthy", "inFlight": 9, "stuck": False},
         {"root": "nfs://other/share", "state": "failed", "inFlight": 8, "stuck": True},
@@ -851,6 +861,15 @@ def preflight_conditions():
                              "requiredBytes": recording.MIN_FREE_BYTES}
     env["nas"] = nas_preflight()
     return env
+
+
+def preflight_checks(scenes):
+    env = preflight_conditions()
+    checks = {}
+    for scene in scenes:
+        problems = preflight_problems(scene, env)
+        checks[scene] = {"ready": not problems, "problems": problems}
+    return {"env": env, "scenes": checks}
 
 
 # 一轮里等满 20 分钟仍不满足时，后面的场景只再看一眼，不再各等 20 分钟。
@@ -3044,7 +3063,7 @@ def frozen_app_evidence():
     return evidence
 
 
-def write_report(out, scene, commit, env, measured, verdict):
+def write_report(out, scene, commit, env, measured, verdict, preflight=None):
     path = Path(out) / ("S2-T3-w37-occlusion.json" if scene == OCCLUSION else f"S2-T2-{scene}.json")
     path.parent.mkdir(parents=True, exist_ok=True)
     frozen = frozen_app_evidence()
@@ -3059,11 +3078,16 @@ def write_report(out, scene, commit, env, measured, verdict):
         "measured": measured,
         "verdict": verdict,
     }
+    if preflight is not None:
+        document["preflight"] = preflight
     path.write_text(format_report(document) + "\n")
     print(f"{scene}: {verdict} -> {path}", flush=True)
 
 
-def run_scene(scene, out, commit, base_env):
+def run_scene(scene, out, commit, base_env, preflight=None):
+    def report(env, measured, verdict):
+        write_report(out, scene, commit, env, measured, verdict, preflight)
+
     runner = {
         "first-image": scene_first_image,
         "preloaded-flip": scene_preloaded_flip,
@@ -3101,21 +3125,19 @@ def run_scene(scene, out, commit, base_env):
             for key in ("load", "displayMode", "refreshHz", "screen"):
                 env[key] = current[key]
             if not ready:
-                write_report(out, scene, commit, env,
-                             {"environment": True, "reason": "屏幕锁定或锁定状态未知，环境准入等待已耗尽"}, "environment")
+                report(env, {"environment": True, "reason": "屏幕锁定或锁定状态未知，环境准入等待已耗尽"}, "environment")
                 return
         try:
             mount, _ = ensure_nfs()
             album = find_samples(mount)[0] if mount else None
         except (OSError, subprocess.TimeoutExpired) as exc:
-            write_report(out, scene, commit, env, {"unavailable": True, "nfsError": str(exc)}, "unverified")
+            report(env, {"unavailable": True, "nfsError": str(exc)}, "unverified")
             return
         if album:
             authorization = preflight_nas_access(album)
             env["nasAuthorization"] = authorization
             if not authorization["ready"]:
-                write_report(out, scene, commit, env,
-                             {"environment": True, "reason": authorization["reason"]}, "environment")
+                report(env, {"environment": True, "reason": authorization["reason"]}, "environment")
                 return
     during = None
     mark = None
@@ -3125,7 +3147,7 @@ def run_scene(scene, out, commit, base_env):
             for key in ("load", "displayMode", "refreshHz", "screen"):
                 env[key] = current[key]
             if not ready:
-                write_report(out, scene, commit, env, {"reason": "环境在 20 分钟内没有满足"}, "environment")
+                report(env, {"reason": "环境在 20 分钟内没有满足"}, "environment")
                 return
             mark = input_mark(DURING_EVENTS)
     try:
@@ -3147,7 +3169,7 @@ def run_scene(scene, out, commit, base_env):
         env = merge_during(env, during)
         measured["unavailable"] = True
         verdict = judge(scene, measured, env)
-        write_report(out, scene, commit, env, measured, verdict)
+        report(env, measured, verdict)
         return
     # 滚动场景用录制期间的 during.json，里面的输入不含滚轮。其余前台场景在这里补一次。
     if during is None and scene in FOREGROUND:
@@ -3160,7 +3182,7 @@ def run_scene(scene, out, commit, base_env):
     env = merge_during(env, during)
     if isinstance(measured, dict) and measured.get("refreshHz") is None and env.get("refreshHz") is not None:
         measured["refreshHz"] = env["refreshHz"]
-    write_report(out, scene, commit, env, measured, judge(scene, measured, env))
+    report(env, measured, judge(scene, measured, env))
 
 
 def parse_args(argv):
@@ -3169,7 +3191,8 @@ def parse_args(argv):
     parser.add_argument("--out", default="docs/reports/bench")
     parser.add_argument("--check-verdicts", action="store_true")
     parser.add_argument("--check-env", action="store_true",
-                        help="只采集环境，不启动 App、不测量；逐场景输出 JSON（ready、problems），有场景不满足时退出码为 3")
+                        help="只采集环境，不启动 App、不测量；逐场景输出 JSON（ready、problems），有场景不满足时退出码为 3。"
+                             "正式运行也做这次预检，只写进报告的 preflight 字段，不跳过场景")
     parser.add_argument("--external-caffeinate", action="store_true",
                         help="沿用外部常亮；不创建 caffeinate，并传给嵌套录制脚本")
     parser.add_argument("--prepare-scroll", nargs=2, metavar=("SCENE", "SOCKET"))
@@ -3219,31 +3242,25 @@ def main(argv):
     # 保留显式请求的顺序；默认 NAS 在录制前，内存场景始终放在最后。
     scenes = ([scene for scene in requested if scene != "memory-30min"]
               + [scene for scene in requested if scene == "memory-30min"])
-    preflight = preflight_conditions()
-    problems = {scene: preflight_problems(scene, preflight) for scene in scenes}
     if args.check_env:
-        ready = not any(problems.values())
-        print(json.dumps({"ready": ready, "env": preflight, "scenes": [
-            {"scene": scene, "ready": not problems[scene], "problems": problems[scene]} for scene in scenes
+        preflight = preflight_checks(scenes)
+        ready = all(check["ready"] for check in preflight["scenes"].values())
+        print(json.dumps({"ready": ready, "env": preflight["env"], "scenes": [
+            {"scene": scene, **check} for scene, check in preflight["scenes"].items()
         ]}, ensure_ascii=False, indent=2))
         return 0 if ready else 3
-    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    # 开跑前不满足的场景不等待，直接记 environment；通过的场景照旧在各自准备后准入。
-    for scene in scenes:
-        if problems[scene]:
-            write_report(args.out, scene, commit, preflight,
-                         {"environment": True, "reason": "开跑前环境检查不满足，未进入测量", "problems": problems[scene]},
-                         "environment")
-    scenes = [scene for scene in scenes if not problems[scene]]
-    if not scenes:
-        return 0
     if os.environ.get("MV_ACCEPTANCE_EXTERNAL_CAFFEINATE") != "1":
         subprocess.Popen(["caffeinate", "-d", "-w", str(os.getpid())])
     if any(scene in FOREGROUND for scene in scenes):
         app_binary()  # 构建在环境准入之前完成，嵌套录制只复用已冻结的二进制。
+    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    # 预检只记录，不参与等待、准入和判定。
+    preflight = preflight_checks(scenes)
+    for scene, check in preflight["scenes"].items():
+        print(f"{scene}: 预检{'满足' if check['ready'] else '不满足：' + '；'.join(check['problems'])}", flush=True)
     base = sample_conditions()
     for scene in scenes:
-        run_scene(scene, args.out, commit, base)
+        run_scene(scene, args.out, commit, base, preflight["scenes"][scene])
     return 0
 
 
