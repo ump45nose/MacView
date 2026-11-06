@@ -4,8 +4,15 @@
 用法：
   python3 -I scripts/acceptance/run.py <场景…> [--out docs/reports/bench]
   python3 -I scripts/acceptance/run.py <场景…> --external-caffeinate
+  python3 -I scripts/acceptance/run.py --check-env [场景…]
   python3 -I scripts/acceptance/run.py --check-verdicts
 
+--check-env 不启动 App、不测量，只采集一次环境，向标准输出写 JSON：
+  {"ready": 全部满足, "env": 采集到的环境, "scenes": [{"scene": 场景, "ready": 是否满足, "problems": [缺什么]}]}
+有场景不满足时退出码为 3。检查项是 env_problem，加上滚动场景的 120 Hz、录制场景的可用空间和 NAS 场景的
+挂载点与 NFS 应答；窗口前台和网络卷授权要启动 App 才知道，仍在场景里判定。正式运行在构建之后也做
+一次同样的检查，逐场景打印结果，并写进各场景报告的 preflight 字段（ready、problems）；不跳过场景，
+不影响等待、准入和判定。
 --check-verdicts 不启动 App，只断言判定。滚动录制由 record-trackpad.sh 完成。
 """
 
@@ -21,11 +28,16 @@ import shutil
 import socket
 import sqlite3
 import statistics
+import struct
 import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # python3 -I 不把脚本目录放进 sys.path。
+sys.dont_write_bytecode = True  # 不在 scripts/acceptance 下留 __pycache__。
+import recording
 
 ROOT = Path(__file__).resolve().parents[2]
 os.environ["TMPDIR"] = str(ROOT / "build" / "acceptance" / "tmp") + "/"
@@ -60,6 +72,7 @@ SCENES = [
 OCCLUSION = "w37-occlusion"  # 定位实验显式请求；默认仍是原来的 13 个正式场景。
 NAS_SCENES = {"nas-throughput", "cached-first-screen", "nas-fault"}
 NAS_APP_SCENES = {"cached-first-screen", "nas-fault"}
+RECORDING_SCENES = {"scroll-cached", "scroll-cold", "settle", "main-thread"}  # main-thread 用冷滚动的录制。
 FOREGROUND = (set(SCENES) | {OCCLUSION}) - {"nas-throughput"}
 # 不看时序的场景只要求屏幕没锁。键鼠空闲、运行中输入、负载和外接显示器不参与判定。
 SCREEN_ONLY = {"main-thread", "memory-30min", "tiles-cancel", "panel-restart", OCCLUSION}
@@ -114,22 +127,39 @@ def p95(values):
 
 
 def env_problem(env, scene=None):
+    """不满足的环境条件；空列表表示满足。"""
     screen = env.get("screen") or {}
+    problems = []
     if screen.get("locked") is not False:
-        return True
+        problems.append("屏幕已锁定" if screen.get("locked") else "屏幕锁定状态未知")
     if scene in SCREEN_ONLY:
-        return False
+        return problems
     load = (env.get("load") or {}).get("oneMinute")
+    limit = (env.get("load") or {}).get("limit", LOAD_LIMIT)
     idle = screen.get("idleSeconds")
     if idle is None or idle < IDLE_SECONDS:
-        return True
+        problems.append("键鼠空闲时间未知" if idle is None else f"键鼠空闲 {idle:.1f} 秒，不足 {IDLE_SECONDS:g} 秒")
     if screen.get("inputDuringRun"):
-        return True
+        problems.append("运行中有键鼠输入")
     if screen.get("externalDisplay"):
-        return True
-    if load is None or load >= (env.get("load") or {}).get("limit", LOAD_LIMIT):
-        return True
-    return False
+        problems.append("接着外接显示器")
+    if load is None or load >= limit:
+        problems.append("1 分钟负载未知" if load is None else f"1 分钟负载 {load:.2f}，不低于 {limit}")
+    return problems
+
+
+def preflight_problems(scene, env):
+    """不启动 App 就能判定的前提；env 来自 preflight_conditions。"""
+    problems = env_problem(env, scene) if scene in FOREGROUND else []
+    if scene in ("scroll-cached", "scroll-cold") and not is_120(env.get("refreshHz")):
+        problems.append(f"刷新率 {env.get('refreshHz')} Hz，不是 120 Hz")
+    space = env.get("recordingSpace") or {}
+    if scene in RECORDING_SCENES and (space.get("freeBytes") is None or space["freeBytes"] < space["requiredBytes"]):
+        problems.append("录制可用空间未知" if space.get("freeBytes") is None else
+                        f"数据卷可用空间 {space['freeBytes'] / 1e9:.1f} GB，录制需要 {space['requiredBytes'] / 1e9:g} GB")
+    if scene in NAS_SCENES:
+        problems += (env.get("nas") or {}).get("problems", ["NAS 状态未知"])
+    return problems
 
 
 def is_120(hz):
@@ -482,6 +512,26 @@ def check_verdicts():
     for scene in SCREEN_ONLY - {OCCLUSION}:
         for changed in (_load(env, 10), _screen(env, inputDuringRun=True, idleSeconds=1, externalDisplay=True)):
             cases.append((f"{scene} 只检查锁屏", judge(scene, valid[scene], changed), "pass"))
+    ready_env = {**env120, "recordingSpace": {"freeBytes": recording.MIN_FREE_BYTES, "requiredBytes": recording.MIN_FREE_BYTES},
+                 "nas": {"problems": []}}
+    everything = SCENES + [OCCLUSION]
+
+    def blocked(changed):
+        return [scene for scene in everything if preflight_problems(scene, changed)]
+    cases += [
+        ("环境原因逐条列出", env_problem(_load(_screen(env, locked=None, idleSeconds=10, externalDisplay=True), LOAD_LIMIT), "first-image"),
+         ["屏幕锁定状态未知", "键鼠空闲 10.0 秒，不足 45 秒", "接着外接显示器", f"1 分钟负载 {LOAD_LIMIT:.2f}，不低于 {LOAD_LIMIT}"]),
+        ("只看锁屏的场景只列锁屏", env_problem(_screen(env, locked=True, idleSeconds=1, externalDisplay=True), "memory-30min"), ["屏幕已锁定"]),
+        ("预检全部满足", blocked(ready_env), []),
+        ("预检非120只拦帧时间场景", blocked({**ready_env, "refreshHz": 59.94}), ["scroll-cached", "scroll-cold"]),
+        ("预检录制空间不足", blocked({**ready_env, "recordingSpace": {**ready_env["recordingSpace"], "freeBytes": recording.MIN_FREE_BYTES - 1}}),
+         [scene for scene in everything if scene in RECORDING_SCENES]),
+        ("预检NAS不可用只拦NAS场景", blocked({**ready_env, "nas": {"problems": ["NAS 连不上"]}}), [scene for scene in everything if scene in NAS_SCENES]),
+        ("预检锁屏不拦吞吐", blocked(_screen(ready_env, locked=True)), [scene for scene in everything if scene in FOREGROUND]),
+        ("预检外接显示器不拦只看锁屏的场景", blocked(_screen(ready_env, externalDisplay=True)),
+         [scene for scene in everything if scene in FOREGROUND - SCREEN_ONLY]),
+        ("预检缺少采集项按不满足", blocked(env120), [scene for scene in everything if scene in RECORDING_SCENES | NAS_SCENES]),
+    ]
     merged = merge_during(env, {"load": {"oneMinute": 14.2}, "refreshHz": 120, "screen": {}})
     if merged["load"]["oneMinute"] != 1.0 or merged["load"].get("during") != 14.2 or merged["refreshHz"] != 59.94 or merged.get("refreshHzAfter") != 120:
         raise SystemExit(f"check-verdicts 失败：前后环境没有分别保留 {merged}")
@@ -504,6 +554,8 @@ def check_verdicts():
         ("首屏只记录L3计数", judge("cached-first-screen", {**valid["cached-first-screen"], "rootAdmissions": [{"path": "/local", "coldFill": filled}]}, env120), "pass"),
     ]
     # 使用工作区内的合成 SQLite 与假调试接口，检查准备/跳过/报告路径；不启动 App。
+    from contextlib import redirect_stdout
+    from io import StringIO
     from tempfile import TemporaryDirectory
     from unittest.mock import patch
     with TemporaryDirectory(prefix="check-verdicts-", dir=ROOT / "build" / "acceptance") as temporary:
@@ -607,10 +659,44 @@ def check_verdicts():
             raise SystemExit("check-verdicts 失败：外部常亮参数不可用")
         for external in (False, True):
             with patch.dict(os.environ, {"MV_ACCEPTANCE_EXTERNAL_CAFFEINATE": "0"}), patch.dict(globals(), {
-                    "run_scene": lambda *a: None, "sample_conditions": lambda: env120}), patch.object(subprocess, "Popen") as caffeine, patch.object(subprocess, "check_output", return_value="script-commit"):
+                    "run_scene": lambda *a: None, "sample_conditions": lambda: env120, "preflight_conditions": lambda: ready_env}), patch.object(subprocess, "Popen") as caffeine, patch.object(subprocess, "check_output", return_value="script-commit"), \
+                    patch("builtins.print"):
                 main(["nas-throughput"] + (["--external-caffeinate"] if external else []))
                 if caffeine.call_count != (0 if external else 1) or (external and os.environ["MV_ACCEPTANCE_EXTERNAL_CAFFEINATE"] != "1"):
                     raise SystemExit("check-verdicts 失败：外部常亮仍创建进程，或默认常亮行为改变")
+        nas_down = {**ready_env, "nas": {"problems": ["NAS 连不上"]}}
+        calls = []
+        offline = {"app_binary": lambda: calls.append("build"), "run_scene": lambda scene, *a: calls.append(scene),
+                   "sample_conditions": lambda: env120}
+        for preflight, code in ((nas_down, 3), (ready_env, 0)):
+            printed = StringIO()
+            with patch.dict(globals(), {**offline, "preflight_conditions": lambda: preflight}), redirect_stdout(printed):
+                returned = main(["--check-env", "nas-fault", "panel-restart"])
+            output = json.loads(printed.getvalue())
+            expected = [("nas-fault", code == 0, preflight["nas"]["problems"]), ("panel-restart", True, [])]
+            if (returned, output["ready"], [(item["scene"], item["ready"], item["problems"]) for item in output["scenes"]], calls) != (
+                    code, code == 0, expected, []):
+                raise SystemExit(f"check-verdicts 失败：--check-env 的输出或退出码错误 {returned} {output['scenes']} {calls}")
+        blocked_check = {"ready": False, "problems": ["NAS 连不上"]}
+        expected = {"nas-fault": blocked_check, "panel-restart": {"ready": True, "problems": []}}
+        for requested in (["nas-fault", "panel-restart"], ["nas-fault"]):
+            calls.clear()
+            passed = []
+            with patch.dict(os.environ, {"MV_ACCEPTANCE_EXTERNAL_CAFFEINATE": "0"}), patch.dict(globals(), {
+                    **offline, "run_scene": lambda scene, out, commit, base, check: (calls.append(scene), passed.append((scene, check))),
+                    "preflight_conditions": lambda: nas_down}), patch.object(subprocess, "Popen") as caffeine, \
+                    patch.object(subprocess, "check_output", return_value="script-commit"), patch("builtins.print"):
+                main(requested)
+            if calls != ["build"] + requested or caffeine.call_count != 1 or passed != [(scene, expected[scene]) for scene in requested]:
+                raise SystemExit(f"check-verdicts 失败：预检不满足的场景被跳过，或没有带上预检结果 {calls} {passed}")
+        out = directory / "preflight"
+        with patch.dict(globals(), {"FROZEN_MANIFEST": manifest, "mvbench_env": lambda paths: {},
+                                    "scene_nas_throughput": lambda: {"throughputMBps": 1}, "judge": lambda *a: "unverified"}), \
+                patch.object(subprocess, "run", return_value=signed), patch("builtins.print"):
+            run_scene("nas-throughput", out, "script-commit", env120, blocked_check)
+        report = json.loads((out / "S2-T2-nas-throughput.json").read_text())
+        if (report["verdict"], report["measured"]["throughputMBps"], report.get("preflight")) != ("unverified", 1, blocked_check):
+            raise SystemExit(f"check-verdicts 失败：场景报告没有写入预检结果 {report.get('preflight')}")
     fault_state = {"windows": [{"book": "nfs://server/share/album"}], "volumes": [
         {"root": "/", "state": "healthy", "inFlight": 9, "stuck": False},
         {"root": "nfs://other/share", "state": "failed", "inFlight": 8, "stuck": True},
@@ -766,6 +852,24 @@ def sample_conditions():
             "externalDisplay": bool(display.get("externalDisplay")),
         },
     }
+
+
+def preflight_conditions():
+    """开跑前检查用的一次采样：本机探针、录制可用空间、NAS 挂载点与 NFS 应答。不挂载、不启动 App。"""
+    env = sample_conditions()
+    env["recordingSpace"] = {"volume": str(recording.DATA_VOLUME), "freeBytes": shutil.disk_usage(recording.DATA_VOLUME).free,
+                             "requiredBytes": recording.MIN_FREE_BYTES}
+    env["nas"] = nas_preflight()
+    return env
+
+
+def preflight_checks(scenes):
+    env = preflight_conditions()
+    checks = {}
+    for scene in scenes:
+        problems = preflight_problems(scene, env)
+        checks[scene] = {"ready": not problems, "problems": problems}
+    return {"env": env, "scenes": checks}
 
 
 # 一轮里等满 20 分钟仍不满足时，后面的场景只再看一眼，不再各等 20 分钟。
@@ -1644,7 +1748,8 @@ def mount_fstype(path):
     return None
 
 
-def ensure_nfs():
+def ensure_nfs(mount=True):
+    """mount=False 只检查挂载点：已挂 NFS 返回挂载点，可以挂载时返回 (None, None)。"""
     fstype = mount_fstype(NFS_MOUNT)
     if fstype == "nfs":
         return NFS_MOUNT, None
@@ -1654,6 +1759,8 @@ def ensure_nfs():
         return None, f"{NFS_MOUNT} 非空且未挂载"
     if not NFS_MOUNT.is_dir():
         return None, f"授权挂载目录不存在，未在家目录新建：{NFS_MOUNT}"
+    if not mount:
+        return None, None
     result = subprocess.run(
         ["mount_nfs", "-o", "ro,vers=3,tcp,port=2049", f"{NFS_HOST}:{NFS_EXPORT}", str(NFS_MOUNT)],
         stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30,
@@ -1661,6 +1768,23 @@ def ensure_nfs():
     if result.returncode != 0:
         return None, (result.stderr or result.stdout or "mount_nfs 失败").strip()
     return NFS_MOUNT, None
+
+
+def nas_preflight():
+    """只看挂载点和 NFS v3 能否应答；代理会代接任意 TCP 连接，端口能连上不算数。挂载仍由场景里的 ensure_nfs 完成。"""
+    mounted, problem = ensure_nfs(mount=False)
+    problems = [problem] if problem else []
+    xid = os.getpid()
+    call = struct.pack(">10I", xid, 0, 2, 100003, 3, 0, 0, 0, 0, 0)  # RPC v2 调用 NFS v3 的 NULL，不带认证。
+    try:
+        with socket.create_connection((NFS_HOST, 2049), timeout=3) as sock:
+            sock.sendall(struct.pack(">I", 0x80000000 | len(call)) + call)
+            reply = sock.makefile("rb").read(28)
+        if reply[4:] != struct.pack(">6I", xid, 1, 0, 0, 0, 0):  # 同一 xid 的应答：已接受、空校验、成功。
+            problems.append(f"NAS {NFS_HOST}:2049 没有正常应答 NFS v3 调用")
+    except OSError as exc:
+        problems.append(f"NAS {NFS_HOST}:2049 的 NFS v3 不可用：{exc}")
+    return {"mount": str(NFS_MOUNT), "mounted": mounted is not None, "problems": problems}
 
 
 def find_samples(root):
@@ -2939,7 +3063,7 @@ def frozen_app_evidence():
     return evidence
 
 
-def write_report(out, scene, commit, env, measured, verdict):
+def write_report(out, scene, commit, env, measured, verdict, preflight=None):
     path = Path(out) / ("S2-T3-w37-occlusion.json" if scene == OCCLUSION else f"S2-T2-{scene}.json")
     path.parent.mkdir(parents=True, exist_ok=True)
     frozen = frozen_app_evidence()
@@ -2954,11 +3078,16 @@ def write_report(out, scene, commit, env, measured, verdict):
         "measured": measured,
         "verdict": verdict,
     }
+    if preflight is not None:
+        document["preflight"] = preflight
     path.write_text(format_report(document) + "\n")
     print(f"{scene}: {verdict} -> {path}", flush=True)
 
 
-def run_scene(scene, out, commit, base_env):
+def run_scene(scene, out, commit, base_env, preflight=None):
+    def report(env, measured, verdict):
+        write_report(out, scene, commit, env, measured, verdict, preflight)
+
     runner = {
         "first-image": scene_first_image,
         "preloaded-flip": scene_preloaded_flip,
@@ -2996,21 +3125,19 @@ def run_scene(scene, out, commit, base_env):
             for key in ("load", "displayMode", "refreshHz", "screen"):
                 env[key] = current[key]
             if not ready:
-                write_report(out, scene, commit, env,
-                             {"environment": True, "reason": "屏幕锁定或锁定状态未知，环境准入等待已耗尽"}, "environment")
+                report(env, {"environment": True, "reason": "屏幕锁定或锁定状态未知，环境准入等待已耗尽"}, "environment")
                 return
         try:
             mount, _ = ensure_nfs()
             album = find_samples(mount)[0] if mount else None
         except (OSError, subprocess.TimeoutExpired) as exc:
-            write_report(out, scene, commit, env, {"unavailable": True, "nfsError": str(exc)}, "unverified")
+            report(env, {"unavailable": True, "nfsError": str(exc)}, "unverified")
             return
         if album:
             authorization = preflight_nas_access(album)
             env["nasAuthorization"] = authorization
             if not authorization["ready"]:
-                write_report(out, scene, commit, env,
-                             {"environment": True, "reason": authorization["reason"]}, "environment")
+                report(env, {"environment": True, "reason": authorization["reason"]}, "environment")
                 return
     during = None
     mark = None
@@ -3020,7 +3147,7 @@ def run_scene(scene, out, commit, base_env):
             for key in ("load", "displayMode", "refreshHz", "screen"):
                 env[key] = current[key]
             if not ready:
-                write_report(out, scene, commit, env, {"reason": "环境在 20 分钟内没有满足"}, "environment")
+                report(env, {"reason": "环境在 20 分钟内没有满足"}, "environment")
                 return
             mark = input_mark(DURING_EVENTS)
     try:
@@ -3042,7 +3169,7 @@ def run_scene(scene, out, commit, base_env):
         env = merge_during(env, during)
         measured["unavailable"] = True
         verdict = judge(scene, measured, env)
-        write_report(out, scene, commit, env, measured, verdict)
+        report(env, measured, verdict)
         return
     # 滚动场景用录制期间的 during.json，里面的输入不含滚轮。其余前台场景在这里补一次。
     if during is None and scene in FOREGROUND:
@@ -3055,7 +3182,7 @@ def run_scene(scene, out, commit, base_env):
     env = merge_during(env, during)
     if isinstance(measured, dict) and measured.get("refreshHz") is None and env.get("refreshHz") is not None:
         measured["refreshHz"] = env["refreshHz"]
-    write_report(out, scene, commit, env, measured, judge(scene, measured, env))
+    report(env, measured, judge(scene, measured, env))
 
 
 def parse_args(argv):
@@ -3063,6 +3190,9 @@ def parse_args(argv):
     parser.add_argument("scenes", nargs="*", help="场景名；省略时跑全部场景")
     parser.add_argument("--out", default="docs/reports/bench")
     parser.add_argument("--check-verdicts", action="store_true")
+    parser.add_argument("--check-env", action="store_true",
+                        help="只采集环境，不启动 App、不测量；逐场景输出 JSON（ready、problems），有场景不满足时退出码为 3。"
+                             "正式运行也做这次预检，只写进报告的 preflight 字段，不跳过场景")
     parser.add_argument("--external-caffeinate", action="store_true",
                         help="沿用外部常亮；不创建 caffeinate，并传给嵌套录制脚本")
     parser.add_argument("--prepare-scroll", nargs=2, metavar=("SCENE", "SOCKET"))
@@ -3112,14 +3242,25 @@ def main(argv):
     # 保留显式请求的顺序；默认 NAS 在录制前，内存场景始终放在最后。
     scenes = ([scene for scene in requested if scene != "memory-30min"]
               + [scene for scene in requested if scene == "memory-30min"])
+    if args.check_env:
+        preflight = preflight_checks(scenes)
+        ready = all(check["ready"] for check in preflight["scenes"].values())
+        print(json.dumps({"ready": ready, "env": preflight["env"], "scenes": [
+            {"scene": scene, **check} for scene, check in preflight["scenes"].items()
+        ]}, ensure_ascii=False, indent=2))
+        return 0 if ready else 3
     if os.environ.get("MV_ACCEPTANCE_EXTERNAL_CAFFEINATE") != "1":
         subprocess.Popen(["caffeinate", "-d", "-w", str(os.getpid())])
     if any(scene in FOREGROUND for scene in scenes):
         app_binary()  # 构建在环境准入之前完成，嵌套录制只复用已冻结的二进制。
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    # 预检只记录，不参与等待、准入和判定。
+    preflight = preflight_checks(scenes)
+    for scene, check in preflight["scenes"].items():
+        print(f"{scene}: 预检{'满足' if check['ready'] else '不满足：' + '；'.join(check['problems'])}", flush=True)
     base = sample_conditions()
     for scene in scenes:
-        run_scene(scene, args.out, commit, base)
+        run_scene(scene, args.out, commit, base, preflight["scenes"][scene])
     return 0
 
 
