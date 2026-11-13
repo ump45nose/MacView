@@ -96,7 +96,7 @@ final class CanvasTestWindowController: NSWindowController, NSWindowDelegate {
             (items[$0].identity.location, IOError.notFound(items[$0].identity.location))
         })
         let kind = UserDefaults.standard.string(forKey: Self.layoutKey).flatMap(CollectionLayoutKind.init(rawValue:)) ?? .masonry
-        canvas = CanvasView(pipeline: MockImagePipeline(environment: MockEnvironment(MockOptions(tree: tree, timing: Timing.fast.mock, failures: failures))), kind: kind, imageSource: .thumbnail)
+        canvas = CanvasView(pipeline: MockImagePipeline(environment: MockEnvironment(MockOptions(tree: tree, timing: Timing.fast.mock, failures: failures))), settings: MockSettingsStore(), kind: kind, imageSource: .thumbnail)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],

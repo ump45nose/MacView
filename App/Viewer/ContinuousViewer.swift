@@ -38,10 +38,10 @@ final class ContinuousViewer: NSView {
     /// 单击瀑布流的页、条里的视频：进入分页。
     var onEnterPaged: ((Int) -> Void)?
 
-    init(session: ReaderSession, pipeline: any ImagePipeline, bookshelf: any Bookshelf) {
+    init(session: ReaderSession, pipeline: any ImagePipeline, settings: any SettingsStore, bookshelf: any Bookshelf) {
         self.session = session
         self.bookshelf = bookshelf
-        canvas = CanvasView(pipeline: pipeline, kind: .masonry, imageSource: .display)
+        canvas = CanvasView(pipeline: pipeline, settings: settings, kind: .masonry, imageSource: .display)
         super.init(frame: .zero)
         canvas.activatesOnSingleClick = true
         canvas.arrowKeysMoveSelection = false
@@ -66,6 +66,10 @@ final class ContinuousViewer: NSView {
         }
         footer.onNext = { [weak self] in
             Task { await self?.openNext() }
+        }
+        footer.onRetry = { [weak self] in
+            guard let self, let current = session.book else { return }
+            loadNeighbor(of: current.location)
         }
     }
 
@@ -198,15 +202,25 @@ final class ContinuousViewer: NSView {
         footer.showBook(name: current.location.name)
         if canvas.footerView == nil { canvas.footerView = footer }
         guard neighborFor != current.location else { return }
-        neighborFor = current.location
+        loadNeighbor(of: current.location)
+    }
+
+    /// 查书架上的下一本。读取失败时在末尾显示错误和重试，不当成没有下一本。
+    private func loadNeighbor(of location: Location) {
+        neighborFor = location
         neighborTask?.cancel()
+        footer.reset()
         let bookshelf = bookshelf
-        let location = current.location
         let sort = session.neighborSort
         neighborTask = Task { [weak self] in
-            let next = try? await bookshelf.neighbor(of: location, .forward, sort: sort)
-            guard !Task.isCancelled else { return }
-            self?.footer.showNext(name: next?.name)
+            do {
+                let next = try await bookshelf.neighbor(of: location, .forward, sort: sort)
+                guard !Task.isCancelled else { return }
+                self?.footer.showNext(name: next?.name)
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
+                self?.footer.showFailure(ErrorText.describe(error))
+            }
         }
     }
 
@@ -258,12 +272,15 @@ final class PillLabel: NSView {
     }
 }
 
-/// 条的末尾：书名 · 完，和下一本的按钮。
+/// 条的末尾：书名 · 完，和下一本的按钮；查下一本失败时是错误文字和重试按钮。
 @MainActor
 private final class StripFooterView: NSView {
     private let title = NSTextField(labelWithString: "")
+    private let failure = NSTextField(wrappingLabelWithString: "")
     private let button = FlatButton(font: .systemFont(ofSize: 13, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 8, height: 32, padding: 14)
+    private var isFailure = false
     var onNext: (() -> Void)?
+    var onRetry: (() -> Void)?
 
     init() {
         super.init(frame: .zero)
@@ -271,10 +288,14 @@ private final class StripFooterView: NSView {
         title.textColor = Theme.text
         title.alignment = .center
         title.lineBreakMode = .byTruncatingMiddle
+        failure.font = .systemFont(ofSize: 12)
+        failure.textColor = Theme.danger
+        failure.alignment = .center
+        failure.isHidden = true
         button.target = self
-        button.action = #selector(next)
+        button.action = #selector(buttonPressed)
         button.isHidden = true
-        let stack = NSStackView(views: [title, button])
+        let stack = NSStackView(views: [title, failure, button])
         stack.orientation = .vertical
         stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -292,6 +313,7 @@ private final class StripFooterView: NSView {
 
     func reset() {
         button.isHidden = true
+        failure.isHidden = true
     }
 
     func showBook(name: String) {
@@ -299,11 +321,21 @@ private final class StripFooterView: NSView {
     }
 
     func showNext(name: String?) {
+        isFailure = false
+        failure.isHidden = true
         button.isHidden = name == nil
         if let name { button.setText(String(localized: "下一本：\(name)")) }
     }
 
-    @objc private func next() {
-        onNext?()
+    func showFailure(_ message: String) {
+        isFailure = true
+        failure.stringValue = message
+        failure.isHidden = false
+        button.isHidden = false
+        button.setText(String(localized: "重试"))
+    }
+
+    @objc private func buttonPressed() {
+        isFailure ? onRetry?() : onNext?()
     }
 }

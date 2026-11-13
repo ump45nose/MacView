@@ -105,6 +105,30 @@ import Testing
     #expect(try Data(contentsOf: file) == data)
 }
 
+@Test(arguments: [0, -1])
+func nonPositiveCacheBudgetsAreConfigurationErrors(_ budget: Int) async throws {
+    let directory = try SettingsDirectory()
+    let file = directory.url.appending(path: "settings.json")
+    var settings = GlobalSettings.default
+    settings.cache.thumbnailMemoryBytes = Int64(budget)
+    try writeSettingsDocument(settings, to: file)
+    let store = try FileSettingsStore(directory: directory.url)
+    // 整份文件不采用，保留默认值；错误按文件报告，定位到出错的字段。
+    #expect(await store.global() == .default)
+    var iterator = store.changes().makeAsyncIterator()
+    let message = await iterator.next().flatMap { if case let .fileError(file, message) = $0, file == "settings.json" { message } else { nil } }
+    let line = try #require(String(decoding: Data(contentsOf: file), as: UTF8.self).split(separator: "\n", omittingEmptySubsequences: false)
+        .firstIndex { $0.contains("thumbnailMemoryBytes") }) + 1
+    #expect(message?.hasPrefix("第 \(line) 行") == true)
+    #expect(message?.hasSuffix("thumbnailMemoryBytes 必须大于 0，现在是 \(budget)") == true)
+    // 英文由 App 的 String Catalog 提供：按同一个键和参数格式化。
+    let catalog = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../../../App/Resources/Localizable.xcstrings")
+    let strings = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: catalog)) as? [String: Any])["strings"] as? [String: Any]
+    let english = try #require(((strings?["%@ 必须大于 0，现在是 %lld"] as? [String: Any])?["localizations"] as? [String: Any])
+        .flatMap { ($0["en"] as? [String: Any])?["stringUnit"] as? [String: Any] }?["value"] as? String)
+    #expect(String(format: english, "thumbnailMemoryBytes", Int64(budget)) == "thumbnailMemoryBytes must be greater than 0, got \(budget)")
+}
+
 @Test func globalRulesAndMemoryMergeByFieldAcrossArchiveLayers() async throws {
     let directory = try SettingsDirectory()
     let root = Location.Root.network(scheme: "smb", host: "nas", share: "Picture")

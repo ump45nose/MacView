@@ -89,6 +89,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func start() async {
+        #if DEBUG
+        // 自检和调试接口一律指向隔离目录，不碰用户的配置、缓存和停靠布局；少给一个就直接失败退出。
+        if TestPresentation.isTestInstance {
+            let missing = [Self.supportDirectoryKey, Self.cacheDirectoryKey, DockCoordinator.layoutFileKey].filter { UserDefaults.standard.string(forKey: $0) == nil }
+            if !missing.isEmpty {
+                print("FAIL 测试实例缺少隔离目录参数：\(missing.map { "-" + $0 }.joined(separator: " "))")
+                fflush(stdout)
+                exit(64)
+            }
+        }
+        #endif
         do {
             let services = try await makeServices()
             self.services = services
@@ -153,13 +164,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return controller
     }
 
-    /// Debug 自检可覆盖目录，避免触碰用户的配置与缓存。
+    #if DEBUG
+    static let supportDirectoryKey = "MVSupportDirectory"
+    static let cacheDirectoryKey = "MVCacheDirectory"
+    #endif
+
+    /// Debug 构建可覆盖目录；测试实例必须覆盖（见 `start`）。
     private func makeServices() async throws -> CoreServices {
-        if isMock { return CoreServices.makeMock() }
         #if DEBUG
-        if let path = UserDefaults.standard.string(forKey: "MVSupportDirectory") { supportDirectory = URL(fileURLWithPath: path) }
-        if let path = UserDefaults.standard.string(forKey: "MVCacheDirectory") { cacheDirectory = URL(fileURLWithPath: path) }
+        if let path = UserDefaults.standard.string(forKey: Self.supportDirectoryKey) { supportDirectory = URL(fileURLWithPath: path) }
+        if let path = UserDefaults.standard.string(forKey: Self.cacheDirectoryKey) { cacheDirectory = URL(fileURLWithPath: path) }
         #endif
+        if isMock { return CoreServices.makeMock() }
         let pixels = NSScreen.screens.map { $0.frame.size.applying(.init(scaleX: $0.backingScaleFactor, y: $0.backingScaleFactor)) }
         let bounds = PixelSize(width: Int(pixels.map(\.width).max() ?? 3840), height: Int(pixels.map(\.height).max() ?? 2160))
         return try await CoreServices.make(configuration: CoreConfiguration(

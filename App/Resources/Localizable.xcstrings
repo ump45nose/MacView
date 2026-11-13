@@ -41,6 +41,18 @@
         }
       }
     },
+    "%@ 必须大于 0，现在是 %lld": {
+      "comment": "MVSettings 的配置错误文字，键来自 MVSettings.swift（CacheBudgets）",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ must be greater than 0, got %2$lld"
+          }
+        }
+      }
+    },
     "%@ 无法解析，这次没有恢复窗口": {
       "localizations": {
         "en": {

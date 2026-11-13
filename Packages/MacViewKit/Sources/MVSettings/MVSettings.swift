@@ -154,7 +154,7 @@ public struct CacheBudgets: Codable, Sendable, Hashable {
     public var browseCacheEnabled: Bool
 
     public init(rawBytes: Int64, decodedBytes: Int64, thumbnailBytes: Int64, browseBytes: Int64, browseCacheEnabled: Bool,
-                thumbnailMemoryBytes: Int64 = 512 << 20, preloadBytes: Int64 = 512 << 20) {
+                thumbnailMemoryBytes: Int64, preloadBytes: Int64) {
         self.rawBytes = rawBytes
         self.decodedBytes = decodedBytes
         self.thumbnailMemoryBytes = thumbnailMemoryBytes
@@ -164,13 +164,34 @@ public struct CacheBudgets: Codable, Sendable, Hashable {
         self.browseCacheEnabled = browseCacheEnabled
     }
 
+    /// `settings.json` 是外部输入：容量预算必须为正，否则整份文件按配置错误处理、保留上次的值，缓存层不另设下限。
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        func positive(_ key: CodingKeys) throws -> Int64 {
+            let value = try container.decode(Int64.self, forKey: key)
+            guard value > 0 else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: key, in: container,
+                    debugDescription: String(localized: "\(key.stringValue) 必须大于 0，现在是 \(value)", bundle: .main)
+                )
+            }
+            return value
+        }
+        self.init(rawBytes: try positive(.rawBytes), decodedBytes: try positive(.decodedBytes),
+                  thumbnailBytes: try positive(.thumbnailBytes), browseBytes: try positive(.browseBytes),
+                  browseCacheEnabled: try container.decode(Bool.self, forKey: .browseCacheEnabled),
+                  thumbnailMemoryBytes: try positive(.thumbnailMemoryBytes), preloadBytes: try positive(.preloadBytes))
+    }
+
     /// 可见解码缓存取 1 GB 与物理内存 5% 中较小的一个。
     public static let `default` = CacheBudgets(
         rawBytes: 512 << 20,
         decodedBytes: min(1 << 30, Int64(ProcessInfo.processInfo.physicalMemory / 20)),
         thumbnailBytes: 10 << 30,
         browseBytes: 50 << 30,
-        browseCacheEnabled: true
+        browseCacheEnabled: true,
+        thumbnailMemoryBytes: 512 << 20,
+        preloadBytes: 512 << 20
     )
 }
 

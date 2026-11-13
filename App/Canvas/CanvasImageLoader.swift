@@ -63,12 +63,12 @@ final class CanvasImageLoader: NSObject {
     private var nextID: UInt64 = 0
     private let signposter = OSSignposter(category: .layout)
 
-    init(pipeline: any ImagePipeline, source: CanvasImageSource, view: NSView) {
+    init(pipeline: any ImagePipeline, settings: any SettingsStore, source: CanvasImageSource, view: NSView) {
         self.pipeline = pipeline
         self.source = source
         self.view = view
         super.init()
-        updateCacheBudget()
+        followThumbnailMemoryBudget(cache, settings: settings)
     }
 
     var inFlight: Int {
@@ -76,8 +76,7 @@ final class CanvasImageLoader: NSObject {
     }
 
     func cached(_ identity: ContentIdentity) -> CanvasImage? {
-        updateCacheBudget()
-        return cache.object(forKey: IdentityKey(identity))
+        cache.object(forKey: IdentityKey(identity))
     }
 
     func state(of identity: ContentIdentity) -> State {
@@ -147,7 +146,6 @@ final class CanvasImageLoader: NSObject {
     }
 
     private func receive(_ rendered: RenderedImage, for identity: ContentIdentity) {
-        updateCacheBudget()
         let image = CanvasImage(rendered)
         let key = IdentityKey(identity)
         // 渐进交付时只换成更精确或更清晰的图。
@@ -166,11 +164,6 @@ final class CanvasImageLoader: NSObject {
             self.link = link
         }
         link?.isPaused = false
-    }
-
-    private func updateCacheBudget() {
-        // 与管线持有相同的图像对象，只限制引用保留量，不另加一份预算。
-        cache.totalCostLimit = max(1, Int((pipeline as? FileImagePipeline)?.thumbnailMemoryBudget ?? CacheBudgets.default.thumbnailMemoryBytes))
     }
 
     private func finish(_ identity: ContentIdentity, id: UInt64, failed: Bool) {
@@ -198,6 +191,20 @@ final class CanvasImageLoader: NSObject {
         pending.removeFirst(consumed)
         if pending.isEmpty {
             link.isPaused = true
+        }
+    }
+}
+
+/// App 侧的缩略图缓存与管线持有相同的图像对象，只限制引用保留量，不另加一份预算：额度跟随设置里的缩略图内存预算。
+/// 先按当前设置设一次，之后每次全局设置变化时更新；缓存释放后，下一个设置事件到来时结束。
+@MainActor
+func followThumbnailMemoryBudget<Key, Value>(_ cache: NSCache<Key, Value>, settings: any SettingsStore) {
+    let changes = settings.changes()
+    Task { [weak cache] in
+        cache?.totalCostLimit = Int(await settings.global().cache.thumbnailMemoryBytes)
+        for await change in changes {
+            guard let cache else { return }
+            if change == .global { cache.totalCostLimit = Int(await settings.global().cache.thumbnailMemoryBytes) }
         }
     }
 }

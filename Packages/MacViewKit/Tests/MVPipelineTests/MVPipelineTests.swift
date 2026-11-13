@@ -741,7 +741,8 @@ private final class PipelineEnvironment: Sendable {
         index = try CacheIndex(databaseURL: root.appendingPathComponent("index.sqlite"))
         let thumbnails = try DiskCache(tier: .thumbnails, cacheDirectory: root, budget: 128 << 20, index: index)
         let browseCache = try browse ? DiskCache(tier: .browse, cacheDirectory: root, budget: 128 << 20, index: index) : nil
-        caches = PipelineCaches(raw: MemoryCache(budget: 64 << 20), decoded: MemoryCache(budget: 64 << 20), thumbnails: thumbnails, browse: browseCache, metadata: MetadataIndex(index: index))
+        caches = PipelineCaches(raw: MemoryCache(budget: 64 << 20), decoded: MemoryCache(budget: 64 << 20), thumbnails: thumbnails, browse: browseCache, metadata: MetadataIndex(index: index),
+                                thumbnailMemory: MemoryCache(budget: 512 << 20), preload: MemoryCache(budget: 512 << 20))
         pipeline = FileImagePipeline(sources: registry, decoder: decoder, caches: caches, configuration: PipelineConfiguration(thumbnailLongSide: thumbnailLongSide, browseBounds: browseBounds))
     }
     func identity(_ path: String) async throws -> ContentIdentity {

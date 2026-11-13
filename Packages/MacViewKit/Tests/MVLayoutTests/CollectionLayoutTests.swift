@@ -272,6 +272,67 @@ private let allKinds: [(CollectionLayoutKind, ReadingDirection)] = [
     #expect(strip.frame(of: anchor.index)!.maxX - origin.x == before)
 }
 
+// MARK: - 非覆盖式滚动条的临界尺寸（CanvasView.relayout）
+
+/// 画布的视口：非覆盖式滚动条在内容沿滚动方向超出视口时出现（固定显示时一直在），占去 `scroller` 点宽。
+private func clip(after layout: CollectionLayout, window: CGSize, scroller: Double, pinned: Bool) -> CGSize {
+    let shown = pinned || layout.contentSize.height > window.height
+    return CGSize(width: window.width - (shown ? scroller : 0), height: window.height)
+}
+
+/// 全宽时总长超出视口、减去滚动条（17 点，用户环境实测竖条 698→681）后不超出的尺寸：竖条按宽度缩放单项，砌体和网格的列宽随宽度变。
+private let criticalCases: [(kind: CollectionLayoutKind, ratios: [Double], window: CGSize, extent: Double)] = [
+    (.verticalStrip, [0.86], CGSize(width: 698, height: 800), .infinity),
+    (.masonry, Array(repeating: 1, count: 12), CGSize(width: 1000, height: 745), 220),
+    (.grid, Array(repeating: 1, count: 12), CGSize(width: 1000, height: 745), 220),
+]
+
+@Test func criticalSizesMakeAutohidingScrollersFlipForever() {
+    for item in criticalCases {
+        // 原来的循环：按当前视口排版，设内容尺寸后滚动条出现或隐藏，视口变了就再排。
+        var viewport = item.window
+        var widths: [Double] = []
+        for _ in 0..<6 {
+            let placed = layout(item.kind, item.ratios, viewport: viewport, extent: item.extent)
+            viewport = clip(after: placed, window: item.window, scroller: 17, pinned: false)
+            widths.append(viewport.width)
+        }
+        let full = Double(item.window.width), narrow = full - 17
+        #expect(widths == [narrow, full, narrow, full, narrow, full], "\(item.kind)")
+    }
+}
+
+@Test func relayoutSettlesWithinTwoRoundsThenPinsTheNarrowViewport() {
+    for item in criticalCases {
+        // 第一轮按全宽排，滚动条出现；第二轮按窄视口排，滚动条又隐藏：视口仍在变。
+        let first = layout(item.kind, item.ratios, viewport: item.window, extent: item.extent)
+        let afterFirst = clip(after: first, window: item.window, scroller: 17, pinned: false)
+        #expect(afterFirst != first.viewportSize)
+        let second = layout(item.kind, item.ratios, viewport: afterFirst, extent: item.extent)
+        #expect(clip(after: second, window: item.window, scroller: 17, pinned: false) != second.viewportSize)
+        // 固定显示滚动条后按窄视口排：视口不再变化，所有项都排上。
+        let pinned = clip(after: second, window: item.window, scroller: 17, pinned: true)
+        let third = layout(item.kind, item.ratios, viewport: pinned, extent: item.extent)
+        #expect(third.viewportSize == CGSize(width: item.window.width - 17, height: item.window.height), "\(item.kind)")
+        #expect(clip(after: third, window: item.window, scroller: 17, pinned: true) == third.viewportSize, "\(item.kind)")
+        #expect(third.count == item.ratios.count)
+    }
+    // 不在临界带里时两轮内稳定，不固定滚动条：总长远小于视口时一轮，远大于视口时两轮。
+    for (height, rounds) in [(2000.0, 1), (300.0, 2)] {
+        let window = CGSize(width: 698, height: height)
+        var viewport = window
+        var used = 0
+        for _ in 0..<2 {
+            used += 1
+            let placed = layout(.verticalStrip, [0.86], viewport: viewport, extent: .infinity)
+            let next = clip(after: placed, window: window, scroller: 17, pinned: false)
+            if next == placed.viewportSize { break }
+            viewport = next
+        }
+        #expect(used == rounds)
+    }
+}
+
 // MARK: - 键盘移动
 
 @Test func movesFollowTheGeometryOfEachLayout() {

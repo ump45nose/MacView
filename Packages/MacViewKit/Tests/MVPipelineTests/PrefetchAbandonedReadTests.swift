@@ -24,7 +24,7 @@ import Testing
     let caches = PipelineCaches(raw: MemoryCache(budget: 64 << 20), decoded: MemoryCache(budget: 64 << 20),
                                 thumbnails: try DiskCache(tier: .thumbnails, cacheDirectory: root, budget: 128 << 20, index: index),
                                 browse: try DiskCache(tier: .browse, cacheDirectory: root, budget: 128 << 20, index: index),
-                                metadata: MetadataIndex(index: index))
+                                metadata: MetadataIndex(index: index), thumbnailMemory: MemoryCache(budget: 512 << 20), preload: MemoryCache(budget: 512 << 20))
     let pipeline = FileImagePipeline(sources: registry, decoder: ImageDecoder(), caches: caches,
                                      configuration: PipelineConfiguration(thumbnailLongSide: 128, browseBounds: PixelSize(width: 320, height: 480)))
     let location = try await base.location(for: Fixtures.url("image/size/3600x5400.jpg"))

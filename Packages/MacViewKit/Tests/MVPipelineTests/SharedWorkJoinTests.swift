@@ -140,7 +140,7 @@ private final class ContentWorkFixture: Sendable {
         let index = try CacheIndex(databaseURL: root.appendingPathComponent("index.sqlite"))
         caches = PipelineCaches(raw: MemoryCache(budget: 64 << 20), decoded: MemoryCache(budget: 64 << 20),
                                 thumbnails: try DiskCache(tier: .thumbnails, cacheDirectory: root, budget: 16 << 20, index: index),
-                                browse: nil, metadata: MetadataIndex(index: index))
+                                browse: nil, metadata: MetadataIndex(index: index), thumbnailMemory: MemoryCache(budget: 512 << 20), preload: MemoryCache(budget: 512 << 20))
         let location = try await base.location(for: Fixtures.url("image/size/3600x5400.jpg"))
         identity = try await base.provider(for: location).entry(at: location).identity
     }

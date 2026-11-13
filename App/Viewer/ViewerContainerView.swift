@@ -32,7 +32,7 @@ final class ViewerContainerView: NSView, InputScoped {
     init(session: ReaderSession, services: ViewerServices) {
         self.session = session
         paged = PagedViewerView(session: session, pipeline: services.pipeline, sources: services.sources)
-        continuous = ContinuousViewer(session: session, pipeline: services.pipeline, bookshelf: services.bookshelf)
+        continuous = ContinuousViewer(session: session, pipeline: services.pipeline, settings: services.settings, bookshelf: services.bookshelf)
         hud = ViewerHUD(session: session, pipeline: services.pipeline)
         super.init(frame: .zero)
         wantsLayer = true
@@ -239,6 +239,7 @@ final class ViewerContainerView: NSView, InputScoped {
 struct ViewerServices {
     let pipeline: any ImagePipeline
     let sources: any SourceRegistry
+    let settings: any SettingsStore
     let bookshelf: any Bookshelf
 }
 
