@@ -161,7 +161,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 写入时先写临时文件再改名，最后更新索引。
   - 启动时不扫描缓存目录。
 - 元数据索引用定长列，按容器查询，不做泛型存储：泛型 Codable 逐条解码 JSON，1 万项约 28 ms，超出 20 ms 的预算。
-- 内存预算：`CacheBudgets.rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes` 分别控制以上四块内存。`visible` 命中预载时搬到解码缓存；低于 `near` 的基础图和显示图不进缓存。App 的缩略图 `NSCache` 按图像字节计成本，额度跟随 `thumbnailMemoryBytes`，与管线主要共享图像对象。
+- 内存预算：`CacheBudgets.rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes` 分别控制以上四块内存。`visible` 命中预载时搬到解码缓存；低于 `near` 的基础图和显示图不进缓存。App 的缩略图 `NSCache` 按图像字节计成本，与管线主要共享图像对象；额度在创建时从 `SettingsStore` 读 `thumbnailMemoryBytes` 设上，收到 `.global` 变更时重设（`followThumbnailMemoryBudget`），不另设下限或默认值。`settings.json` 里非正的容量预算在解析时拒绝（`CacheBudgets.init(from:)`），整份文件按配置错误显示并保留上次的值。
 - 内存压力：收到系统的内存压力事件时，把四块内存同时收缩到各自预算的 50% 或 25%。
 - 基础图从解码前到衍生件写完计入内部 512 MB 在途额度。低于 `near` 的请求等额度，允许最后一张跨过额度；等待可取消，前台加入时立即提升并准入。`visible`、`near` 不等额度，满额时先交付且不排衍生件，后续前台访问或同键预取补写。
 - 目录缓存：
@@ -294,6 +294,8 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     - 锚点分两种：尺寸、种类、方向变化时取前沿落在视口内的第一项；整体重排时取选中项，没有时取中心项。
     - 缩略图逐项调用 `thumbnail(for:)`，因为项滚出余量时要逐个取消，批量流只能整体取消。请求按项的实际像素尺寸，不封顶 1024。
     - 滚动停止 50 ms 后结算（一个推迟触发时间的计时器），补发请求，并通过闭包 `onVisibleRangeChange` 回报 `visible` 和 `margin` 两个范围，由调用方接到 `ReaderSession.visibleRangeChanged` 或面板的预取。
+  - 重排最多两轮（W3.9）：非覆盖式滚动条在临界尺寸上会让视口在宽窄之间来回变（排完出现滚动条，按窄视口排完又隐藏）。第二轮后视口仍在变时，临时关掉 `autohidesScrollers`，按含滚动条的窄视口排，下次重排前恢复。临界尺寸的往复和两轮上限由 `CollectionLayoutTests` 在命令行验证。
+  - 项本身失败（如书架封面取不到）时 `CanvasItem.isFailed` 为真，显示与缩略图失败相同的错误标记，不请求缩略图；书架重新列出或点击该项时重试。
 - 集合组件：列表和详情表格用 NSTableView，网格和瀑布流用画布引擎。
 - 查看器：
   - 分页渲染器负责页帧图层、缩放模式计算、设备像素 1:1、放大镜、翻页时保持缩放与位置，以及以光标为中心缩放。
@@ -301,9 +303,9 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 视频用 AVPlayerLayer，每个窗口只有一个活动的播放器。
   - 图层用点，`ViewerTransform` 和 `PageFrameFit` 用设备像素；`decodeSize` 是向管线请求的尺寸（半页时是整页），`pixelSize` 是在视口中占的尺寸。
   - 连续和瀑布模式包 `CanvasView`，分页和连续之间切换时保持当前页。瀑布流尺寸按窗口保存在 `session.json`。
-  - `CanvasView` 在 Debug 构建开了 `-MVViewerSelfTest` 或 `-MVDebugSocket` 时关掉响应式滚动，否则收不到合成事件；帧时间验收要看这一点。
+  - `CanvasView` 在 Debug 构建只在合成滚动进行期间（`SyntheticScroll.during`，调试接口的 `scroll` 命令和查看器自检）关掉响应式滚动，否则收不到合成事件；结束后恢复系统默认。开着调试接口时用户的真实滚动（`record-trackpad.sh` 录制）保持响应式滚动，`state` 的 `responsiveScrolling` 为真。
 - 调试接口（`App/Debug/DebugSocket.swift`，只在 Debug 构建编译，只在传 `-MVDebugSocket <路径>` 时开启，权限 0600）：
-  - Unix 域套接字，一行一个 JSON。请求 `{"id":1,"command":"state","args":{}}`，响应 `{"id":1,"ok":true,"result":{…}}` 或 `{"id":1,"ok":false,"error":"…"}`。一次一个连接，命令按顺序在主线程执行。验收以 `open -n -g` 启动独立实例（`record-trackpad.sh` 给用户录制，仍用 `open -n -a`），套接字使用不超过 103 字节的绝对路径；support、cache 和 layout 均指向隔离目录，按本次实例的 PID 管理，退出结果以进程实际退出为准。
+  - Unix 域套接字，一行一个 JSON。请求 `{"id":1,"command":"state","args":{}}`，响应 `{"id":1,"ok":true,"result":{…}}` 或 `{"id":1,"ok":false,"error":"…"}`。一次一个连接，命令按顺序在主线程执行。验收以 `open -n -g` 启动独立实例（`record-trackpad.sh` 给用户录制，仍用 `open -n -a`），套接字使用不超过 103 字节的绝对路径；support、cache 和 layout 均指向隔离目录，按本次实例的 PID 管理，退出结果以进程实际退出为准。测试实例（含 Mock）缺 `-MVSupportDirectory`、`-MVCacheDirectory`、`-MVLayoutFile` 任一项时，`AppDelegate` 的 `#if DEBUG` 分支打印 `FAIL` 后以 64 退出，不碰用户目录。
   - 不干扰用户：调试接口和自检不调用 `NSApp.activate()`。测试实例（传了调试接口或任一自检参数）的第一个窗口放在 `maximumFramesPerSecond` 最大的屏（本机是内置屏）可见区域中央，窗口出现时只用 `orderFrontRegardless` 抬到最上面，见 `App/Debug/TestPresentation.swift`，挂在 `AppDelegate` 的 `#if DEBUG` 分支里，Release 不变。
 
     | 命令 | 参数 | 结果 |
@@ -311,17 +313,19 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     | `perform` | `command`（CommandID）、`arguments?` | 经 `CommandRegistry` 在前台窗口执行；`panel.settings` 用 `panel`（`bookshelf` 或 `pageList`）、`style?`、`itemExtent?` 修改面板设置 |
     | `open` | `path`、`page?`（从 0 开始） | 打开完成后返回窗口状态；打不开时 `ok: false` |
     | `resize` | `width`、`height`（点，内容区） | 调整前台窗口，返回窗口状态 |
-    | `scroll` | `dx`、`dy`（点，负的 `dy` 向下）、`steps`、`intervalMs`；连续滚动另用 `durationMs` | 按 began、changed、ended 生成滚轮事件，经 `NSApp.sendEvent` 发到查看器中央；`durationMs > 0` 时持续滚动，到边界后反向。返回 `events`、`windowFront`、`responsiveScrolling`，连续滚动还返回 `scrollMovements` |
+    | `scroll` | `dx`、`dy`（点，负的 `dy` 向下）、`steps`、`intervalMs`；连续滚动另用 `durationMs` | 按 began、changed、ended 生成滚轮事件，经 `NSApp.sendEvent` 发到查看器中央；`durationMs > 0` 时持续滚动，到边界后反向。返回 `events`、`windowFront`、`responsiveScrolling`（滚动期间的值，应为假），连续滚动还返回 `scrollMovements` |
     | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes`、`memory`、`cacheBudgets` |
     | `quit` | — | 正常退出流程 |
 
   - `windows[]`：`book`、`page`、`frame`、`frameCount`、`browseMode`、`scaleMode`、`zoom`、`viewport`（点）、`visibleRange`（`[起, 止)`，分页模式是当前页帧）、`loadError`（整本书或当前分页的加载错误）、`lastDisplay`（`{page, quality, milliseconds}`，从翻页调用到目标质量图设到图层的用时，只有分页模式）。
   - `windowFront`：窗口可见、`occlusionState` 含 `.visible`、所在屏是内置屏（`CGDisplayIsBuiltin`），不要求 App 处于激活状态。另有三个只读字段：`windowScreen`（`displayID`、`name`、`builtin`、`frame`、`visibleFrame`、`maximumFramesPerSecond`）、`windowFrame`（`[x, y, 宽, 高]`，全局坐标，点）和 `appActive`。
-  - 验收用只读字段：`prefetchIdle`、`prefetchInFlightCount`、`windowFront`、`windowScreen`、`windowFrame`、`appActive`、`responsiveScrolling`、`docksVisible`、`hudVisible`、`firstScreenThumbnailMilliseconds`、`itemCount`；`pageSlots` 返回各页的 `page`、`hasImage` 和 `quality`，可确认初始页图层已就绪。`panels` 返回书架和页面列表的 `style`、`itemExtent`、`sort`，`tiles` 返回当前分块的 `requested`、`cancelled`、`inFlight` 计数。
+  - 验收用只读字段：`prefetchIdle`、`prefetchInFlightCount`、`windowFront`、`windowScreen`、`windowFrame`、`appActive`、`responsiveScrolling`、`docksVisible`、`hudVisible`、`firstScreenThumbnailMilliseconds`、`itemCount`；`volumes[]` 另有 `inFlight` 和 `bulkInFlight`（bulk 通道在途读取数，nas-fault 据此确认在途后注入）；`pageSlots` 返回各页的 `page`、`hasImage` 和 `quality`，可确认初始页图层已就绪。`panels` 返回书架和页面列表的 `style`、`itemExtent`、`sort`，`tiles` 返回当前分块的 `requested`、`cancelled`、`inFlight` 计数。
   - `memory` 返回 `rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes`、`inFlightBytes` 和 `waitingTasks`；`cacheBudgets` 返回对应四项内存预算以及 `thumbnailDiskBytes`、`browseDiskBytes` 两项磁盘预算。
   - 合成滚动和屏幕状态有关：屏幕锁定时事件不生效。
-- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。自检默认不激活 App，离不开键盘焦点的项走未激活的回退或记 `SKIP`；加 `-MVSelfTestActivate YES` 才激活，留给用户键鼠空闲时跑。
+  - 首屏计时的状态机和可见缩略图回报（`ReaderWindowController` 的 `beginFirstScreenThumbnails` 等、`CollectionView.onVisibleThumbnails`、`CanvasView.onImageApplied`）只在 Debug 编译，Release 二进制里没有这些符号。
+- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。自检默认不激活 App，离不开键盘焦点的项走未激活的回退或记 `SKIP`；加 `-MVSelfTestActivate YES` 才激活，留给用户键鼠空闲时跑。结果行是 `SELFTEST OK|FAILED n commit=… cdhash=…`。
 - 观测：用 os_signpost 标记帧时间和请求延迟，用 Instruments 的 Animation Hitches 验收。
+- 构建身份：构建阶段“记录源码提交”把 `git rev-parse HEAD`（工作树有改动时加 `-dirty`）写进 Info.plist 的 `MVSourceCommit`。验收证据和录制都记 App 的 commit 与 CDHash，`run.py --g2` 只认与被验收 App 一致的证据，见 [S2-T2 报告](reports/S2-T2.md)。
 
 ### 3.9 P1 扩展点（P0 只体现在接口形状上）
 
@@ -369,7 +373,7 @@ public protocol ContainerProvider: Sendable {
     func fileLease(for location: Location) async throws -> FileLease   // 压缩包内的条目解出到 extract/，持有者释放后才可以淘汰
 }
 public enum VolumeState: Sendable, Equatable { case healthy, degraded(String), unavailable }
-public struct VolumeHealth: Sendable { public var root: Location.Root; public var state: VolumeState; public var inFlight: Int; public var stuck: Int }
+public struct VolumeHealth: Sendable { public var root: Location.Root; public var state: VolumeState; public var inFlight: Int; public var bulkInFlight: Int; public var stuck: Int }   // inFlight 是两个通道执行中的调用数，bulkInFlight 是其中大块读取通道的
 public enum IOError: Error, Sendable { case timeout, cancelled, volumeUnavailable(Location.Root), volumeDegraded(Location.Root), notFound(Location), unsupported(Location), unsupportedFormat(Location, String), corrupted(Location, String), underlying(String) }   // volumeDegraded：卷连续超时，暂停访问；unsupportedFormat：位置和实际格式名（RAR、7z）
 public protocol SourceRegistry: Sendable {
     func provider(for location: Location) throws -> any ContainerProvider
@@ -478,8 +482,8 @@ public struct PipelineCaches: Sendable {
     public var thumbnailMemory: MemoryCache<String, RenderedImage>; public var preload: MemoryCache<String, RenderedImage>
     public var thumbnails: DiskCache; public var browse: DiskCache?; public var metadata: MetadataIndex
     public init(raw: MemoryCache<String, Data>, decoded: MemoryCache<String, RenderedImage>, thumbnails: DiskCache, browse: DiskCache?, metadata: MetadataIndex,
-                thumbnailMemory: MemoryCache<String, RenderedImage> = MemoryCache(budget: 512 << 20), preload: MemoryCache<String, RenderedImage> = MemoryCache(budget: 512 << 20))
-}   // 生命周期、预算与 flush 由组合根管理
+                thumbnailMemory: MemoryCache<String, RenderedImage>, preload: MemoryCache<String, RenderedImage>)
+}   // 生命周期、预算与 flush 由组合根管理；四块内存预算都由调用方显式给出
 public struct PipelineConfiguration: Sendable {
     public var thumbnailLongSide: Int; public var browseBounds: PixelSize; public var maxDecodeLongSide: Int
     public init(thumbnailLongSide: Int = 1024, browseBounds: PixelSize, maxDecodeLongSide: Int = 16384)
@@ -506,8 +510,8 @@ public struct CacheBudgets: Codable, Sendable, Hashable {
     public var rawBytes: Int64; public var decodedBytes: Int64; public var thumbnailMemoryBytes: Int64; public var preloadBytes: Int64
     public var thumbnailBytes: Int64; public var browseBytes: Int64; public var browseCacheEnabled: Bool
     public init(rawBytes: Int64, decodedBytes: Int64, thumbnailBytes: Int64, browseBytes: Int64, browseCacheEnabled: Bool,
-                thumbnailMemoryBytes: Int64 = 512 << 20, preloadBytes: Int64 = 512 << 20)
-}   // 默认值见 §3.4；设置文件缺字段时 FileSettingsStore 补默认值
+                thumbnailMemoryBytes: Int64, preloadBytes: Int64)
+}   // 默认值是 `CacheBudgets.default`，见 §3.4；设置文件缺字段时 FileSettingsStore 补默认值
 public enum BrowseMode: String, Codable, Sendable { case paged, waterfall, verticalStrip, horizontalStrip }
 public enum PageMode: String, Codable, Sendable { case single, double }
 public enum ReadingDirection: String, Codable, Sendable { case leftToRight, rightToLeft }
