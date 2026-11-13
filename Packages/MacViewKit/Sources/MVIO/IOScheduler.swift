@@ -192,6 +192,7 @@ public final class IOScheduler: Sendable {
                 root: volume.volume.root,
                 state: condition,
                 inFlight: volume.running.values.reduce(0, +),
+                bulkInFlight: volume.running[.bulk, default: 0],
                 stuck: volume.stuck
             )
         }

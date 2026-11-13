@@ -5,8 +5,11 @@
   python3 -I scripts/acceptance/run.py <场景…> [--out docs/reports/bench]
   python3 -I scripts/acceptance/run.py <场景…> --external-caffeinate
   python3 -I scripts/acceptance/run.py --check-verdicts
+  python3 -I scripts/acceptance/run.py --g2 build/DerivedData-profile/Build/Products/Debug/MacView.app
 
 --check-verdicts 不启动 App，只断言判定。滚动录制由 record-trackpad.sh 完成。
+每份证据记下实跑 App 的源码提交和 cdhash；--g2 对照被验收的 App 逐条汇总需求 §5，证据对不上的记 stale。
+scroll-cached、scroll-cold 自动场景只作诊断，120 Hz 帧时间只认 record-trackpad.sh 的用户录制。
 """
 
 import argparse
@@ -35,8 +38,8 @@ SAMPLE_TARGET = Path("/Users/yuwk/WorkSpace/Code/Github/MacView/Fixtures/local/s
 TREE = ROOT / "Fixtures" / "local" / "generated" / "tree" / "10000"
 HUGE_DIR = ROOT / "Fixtures" / "local" / "generated" / "image"
 DERIVED = ROOT / "build" / "DerivedData-profile"
-APP_BINARY = DERIVED / "Build" / "Products" / "Debug" / "MacView.app" / "Contents" / "MacOS" / "MacView"
-FROZEN_MANIFEST = ROOT / "outputs" / "stage3-frozen" / "manifest.json"
+APP_BUNDLE = DERIVED / "Build" / "Products" / "Debug" / "MacView.app"
+APP_BINARY = APP_BUNDLE / "Contents" / "MacOS" / "MacView"
 NFS_HOST = "192.168.31.201"
 NFS_EXPORT = "/fs/1000/nfs"
 NFS_MOUNT = Path.home() / "MacViewBench" / "nfs"
@@ -46,6 +49,10 @@ FRAME_MS = 8.33
 SCROLL_FRAME_MS = 8.333  # canvas-hitches.py 将 120 Hz 的一个刷新间隔保留三位小数。
 MIN_SCROLL_FRAMES = 3000
 REFRESH_120 = 119.0
+# nas-fault：不断翻到未读的下一页触发大块读取，等它出现在调度器快照里的总上限；等不到就不注入。
+IN_FLIGHT_WAIT_SECONDS = 30
+# 一页最多盯这么久；这页读完了（exact 上屏）或到时就翻下一页。
+IN_FLIGHT_ATTEMPT_SECONDS = 1
 LOAD_LIMIT = int(subprocess.check_output(["/usr/sbin/sysctl", "-n", "hw.physicalcpu"], text=True).strip())
 PHYSICAL_FOOTPRINT_SOURCE = "proc_pid_rusage(RUSAGE_INFO_V4).ri_phys_footprint"
 MEMORY_KEYS = ("rawBytes", "decodedBytes", "thumbnailMemoryBytes", "preloadBytes", "inFlightBytes", "waitingTasks")
@@ -59,6 +66,8 @@ SCENES = [
     "scroll-cached", "scroll-cold", "main-thread", "settle", "memory-30min",
 ]
 OCCLUSION = "w37-occlusion"  # 定位实验显式请求；默认仍是原来的 13 个正式场景。
+# 自动滚动是合成事件，滚动期间关掉了响应式滚动，帧时间只作诊断；120 Hz 帧时间只认 record-trackpad.sh 的用户录制（保持响应式滚动）。
+DIAGNOSTIC_SCENES = {"scroll-cached", "scroll-cold"}
 NAS_SCENES = {"nas-throughput", "cached-first-screen", "nas-fault"}
 NAS_APP_SCENES = {"cached-first-screen", "nas-fault"}
 FOREGROUND = (set(SCENES) | {OCCLUSION}) - {"nas-throughput"}
@@ -247,7 +256,8 @@ def judge_scroll(measured, env, limits):
     after = env.get("refreshHzAfter")
     if not is_120(before) or not is_120(after):
         return "environment"
-    if (measured.get("frames") or 0) < limits["minimumPresentedFrames"] or not measured.get("scrollMovements"):
+    # 合成滚动要有滚动位移；用户的触控板录制没有这个计数，以呈现帧数为准。
+    if (measured.get("frames") or 0) < limits["minimumPresentedFrames"] or (not measured.get("scrollMovements") and measured.get("driver") != "trackpad"):
         return "unverified"
     frame = measured.get("frameTimeP99")
     if frame is None:
@@ -644,15 +654,52 @@ def check_verdicts():
                 raise SystemExit(f"check-verdicts 失败：启动超时没有按 PID 结束并重试一次 {app.launches}")
             if (failures == 2) != (raised is not None) or (raised and judge("first-image", {**raised.measured, "unavailable": True}, env120) != "environment"):
                 raise SystemExit("check-verdicts 失败：两次启动超时没有记 environment")
-        manifest = directory / "manifest.json"
-        manifest.write_text(json.dumps({"sourceCommit": "frozen-source", "cdhash": "signed-app"}))
+        # 证据绑定构建：每份报告记下实跑 App 的源码提交（Info.plist）和 cdhash（codesign），与脚本提交分开。
+        bundle = directory / "MacView.app"
+        (bundle / "Contents").mkdir(parents=True)
+        with open(bundle / "Contents" / "Info.plist", "wb") as file:
+            plistlib.dump({"MVSourceCommit": "app-source"}, file)
         signed = subprocess.CompletedProcess([], 0, "", "CDHash=signed-app\n")
-        with patch.dict(globals(), {"FROZEN_MANIFEST": manifest}), patch.object(subprocess, "run", return_value=signed), patch("builtins.print"):
+        evidence = directory / "evidence"
+        with patch.dict(globals(), {"APP_BUNDLE": bundle}), patch.object(subprocess, "run", return_value=signed), patch("builtins.print"):
             for scene in SCENES:
-                write_report(directory, scene, "running-script", env120, {"numbers": [1, 2, 3]}, "pass")
-                report = json.loads((directory / f"S2-T2-{scene}.json").read_text())
-                if (report["commit"], report["sourceCommit"], report["cdhash"], report["frozenApp"]["matchesManifest"]) != ("running-script", "frozen-source", "signed-app", True):
-                    raise SystemExit("check-verdicts 失败：脚本提交、冻结源码或实跑签名没有分别记录")
+                write_report(evidence, scene, "running-script", env120, {"numbers": [1, 2, 3]}, "pass")
+                report = json.loads((evidence / f"S2-T2-{scene}.json").read_text())
+                if (report["scriptCommit"], report["app"]["commit"], report["app"]["cdhash"]) != ("running-script", "app-source", "signed-app"):
+                    raise SystemExit("check-verdicts 失败：脚本提交、App 源码提交或实跑签名没有分别记录")
+                if report["diagnostic"] != (scene in ("scroll-cached", "scroll-cold")):
+                    raise SystemExit("check-verdicts 失败：自动滚动场景没有标为诊断")
+        accepted = {"commit": "app-source", "cdhash": "signed-app"}
+        gate = {item["item"]: item for item in gate_g2(accepted, out=evidence, recordings=directory / "recordings")["items"]}
+        cases.append(("G2 证据与被验收构建一致时取场景结论", gate["first-image"]["verdict"], "pass"))
+        cases.append(("G2 scroll 场景为诊断：自动场景通过也不算，缺用户录制", gate["scroll-cached"]["verdict"], "missing"))
+        cases.append(("G2 冷滚动同样只认用户录制", gate["scroll-cold"]["verdict"], "missing"))
+        cases.append(("G2 目视项交用户确认", gate["placeholder"]["verdict"], "manual"))
+        rebuilt = gate_g2({"commit": "app-source", "cdhash": "rebuilt-app"}, out=evidence, recordings=directory / "recordings")
+        cases.append(("G2 过期证据：cdhash 不同", {item["verdict"] for item in rebuilt["items"] if "scene" in dict(G2_ITEMS_SOURCES)[item["item"]] and "recording" not in dict(G2_ITEMS_SOURCES)[item["item"]]}, {"stale"}))
+        cases.append(("G2 过期证据不能通过", rebuilt["pass"], False))
+        moved = gate_g2({"commit": "other-source", "cdhash": "signed-app"}, out=evidence, recordings=directory / "recordings")
+        cases.append(("G2 过期证据：源码提交不同", {item["item"]: item["verdict"] for item in moved["items"]}["nas-fault"], "stale"))
+        old = json.loads((evidence / "S2-T2-large-dir.json").read_text())
+        old.pop("app")
+        (evidence / "S2-T2-large-dir.json").write_text(json.dumps(old))
+        (evidence / "S2-T2-settle.json").unlink()
+        gate = {item["item"]: item for item in gate_g2(accepted, out=evidence, recordings=directory / "recordings")["items"]}
+        cases.append(("G2 过期证据：旧证据没有记构建", gate["large-dir"]["verdict"], "stale"))
+        cases.append(("G2 没有证据", gate["settle"]["verdict"], "missing"))
+        # 用户录制：build.json 由 record-trackpad.sh 写入；触控板没有合成滚动计数，按呈现帧数判定。
+        recording = directory / "recordings" / "user-scroll-cached"
+        recording.mkdir(parents=True)
+        (recording / "hitches.json").write_text(json.dumps({"phases": [{"frames": 3600, "frameTimeP99": 8.333, "updateP99": 2, "renderP99": 2}]}))
+        (recording / "during.json").write_text(json.dumps({**env120, "before": env120, "windowFront": True, "windowFrontBefore": True,
+                                                           "driver": "trackpad", "scrollMovements": None}))
+        cases.append(("G2 录制没有记构建", gate_g2(accepted, out=evidence, recordings=directory / "recordings")["items"][3]["verdict"], "stale"))
+        (recording / "build.json").write_text(json.dumps(accepted))
+        cases.append(("G2 用户录制按帧时间判定", gate_g2(accepted, out=evidence, recordings=directory / "recordings")["items"][3]["verdict"], "pass"))
+        (recording / "build.json").write_text(json.dumps({"commit": "app-source", "cdhash": "older-app"}))
+        cases.append(("G2 用户录制的构建过期", gate_g2(accepted, out=evidence, recordings=directory / "recordings")["items"][3]["verdict"], "stale"))
+        cases.append(("合成滚动仍要滚动位移", judge("scroll-cached", {**scroll, "scrollMovements": None}, env120), "unverified"))
+        cases.append(("G2 被验收 App 没有记提交时不能通过", gate_g2({"commit": None, "cdhash": "signed-app"}, out=evidence, recordings=directory / "recordings")["pass"], False))
         if not parse_args(["first-image", "--external-caffeinate"]).external_caffeinate:
             raise SystemExit("check-verdicts 失败：外部常亮参数不可用")
         for external in (False, True):
@@ -662,12 +709,43 @@ def check_verdicts():
                 if caffeine.call_count != (0 if external else 1) or (external and os.environ["MV_ACCEPTANCE_EXTERNAL_CAFFEINATE"] != "1"):
                     raise SystemExit("check-verdicts 失败：外部常亮仍创建进程，或默认常亮行为改变")
     fault_state = {"windows": [{"book": "nfs://server/share/album"}], "volumes": [
-        {"root": "/", "state": "healthy", "inFlight": 9, "stuck": False},
-        {"root": "nfs://other/share", "state": "failed", "inFlight": 8, "stuck": True},
-        {"root": "nfs://server/share", "state": "healthy", "inFlight": 1, "stuck": False},
+        {"root": "/", "state": "healthy", "inFlight": 9, "bulkInFlight": 9, "stuck": False},
+        {"root": "nfs://other/share", "state": "failed", "inFlight": 8, "bulkInFlight": 8, "stuck": True},
+        {"root": "nfs://server/share", "state": "healthy", "inFlight": 1, "bulkInFlight": 1, "stuck": False},
     ]}
-    if fault_volumes(fault_state) != [fault_state["volumes"][-1]] or not volume_in_flight(fault_state) or volume_failed(fault_state):
+    if fault_volumes(fault_state) != [fault_state["volumes"][-1]] or not volume_bulk_in_flight(fault_state) or volume_failed(fault_state):
         raise SystemExit("check-verdicts 失败：NAS 当前书匹配或卷状态字段错误")
+    metadata_only = json.loads(json.dumps(fault_state))
+    metadata_only["volumes"][-1]["bulkInFlight"] = 0
+    if volume_bulk_in_flight(metadata_only):
+        raise SystemExit("check-verdicts 失败：只有元数据通道在途时当成了大块读取在途")
+    # 在途注入：读调度器快照，大块读取通道有在途读取后才注入；等不到时不注入，场景记 unverified 并写明原因。
+    # 页面行为：done 是快照前就读完上屏，inFlight 是大块读取在途，slow 是既没读完也没看到在途。
+    class FaultClient:
+        def __init__(self, behavior, count=9):
+            self.frame, self.count, self.behavior, self.performed = 0, count, behavior, []
+        def request(self, command, args=None, timeout=30):
+            if command == "perform":
+                self.performed.append(args["command"])
+                self.frame += 1
+                return {}
+            kind = self.behavior(self.frame) if self.performed else "done"
+            window = {"book": "nfs://server/share/album", "frame": self.frame, "page": self.frame, "frameCount": self.count,
+                      "lastDisplay": {"page": self.frame, "quality": "exact"} if kind == "done" else None}
+            return {"windows": [window], "volumes": [{**fault_state["volumes"][-1], "inFlight": 1, "bulkInFlight": 1 if kind == "inFlight" else 0}]}
+    sent = []
+    with patch.dict(globals(), {"control_send": lambda port, command: sent.append(command)}):
+        caught = inject_in_flight(FaultClient(lambda frame: "inFlight" if frame == 3 else "done"), 1, "drop")
+        exhausted = inject_in_flight(FaultClient(lambda frame: "done"), 1, "pause")
+        with patch.dict(globals(), {"IN_FLIGHT_WAIT_SECONDS": 0.2, "IN_FLIGHT_ATTEMPT_SECONDS": 0.05}):
+            slow = inject_in_flight(FaultClient(lambda frame: "slow", count=10000), 1, "pause")
+    cases.append(("在途注入：读完的页换下一页，第 3 页抓到在途后注入", (caught["injectedAt"] is not None, caught["frame"], caught["attempts"], sent), (True, 3, 3, ["drop"])))
+    cases.append(("在途注入：页用完仍没抓到，不注入并写明尝试次数", (exhausted["injectedAt"], exhausted["attempts"], "翻了 8 页" in exhausted["reason"] and "没有注入" in exhausted["reason"]), (None, 8, True)))
+    cases.append(("在途注入：到总上限仍没抓到，不注入并写明尝试次数", (slow["injectedAt"], 2 <= slow["attempts"] <= 5, f"翻了 {slow['attempts']} 页" in slow["reason"]), (None, True, True)))
+    missed = slow
+    no_read = {**valid["nas-fault"], "injections": [{**item, "readInFlight": False} if item["seconds"] == 15 else item for item in valid["nas-fault"]["injections"]],
+               "reason": missed["reason"]}
+    cases.append(("无在途读取：等不到大块读取就不注入，记 unverified", judge("nas-fault", no_read, env), "unverified"))
     for name, got, expected in cases:
         if got != expected:
             raise SystemExit(f"check-verdicts 失败：{name} 得到 {got}，期望 {expected}")
@@ -1577,6 +1655,7 @@ def scroll_summary(out):
         "residentSampleCount": during.get("residentSampleCount"),
         "residentSamplingComplete": during.get("residentSamplingComplete"),
         "windowFrontBefore": during.get("windowFrontBefore"),
+        "driver": during.get("driver"),
         "submitPlusRenderP99": None if phase.get("updateP99") is None or phase.get("renderP99") is None else phase["updateP99"] + phase["renderP99"],
         "frameTimeExceeds120HzBudget": phase.get("frameTimeP99") is not None and exceeds(phase["frameTimeP99"], SCROLL_FRAME_MS),
     }
@@ -2149,23 +2228,24 @@ def control_send(port, command):
     return json.loads(data.decode().splitlines()[0])
 
 
-def fault_volumes(state):
-    book = window_of(state).get("book") or ""
-    return [{key: volume.get(key) for key in ("root", "state", "inFlight", "stuck")}
-            for volume in state.get("volumes") or []
-            if (root := volume.get("root")) and root != "/" and book.startswith(root)]
-
-
 def volume_failed(state):
     return bool(window_of(state).get("loadError")) or any(volume.get("state") != "healthy" for volume in fault_volumes(state))
 
 
-def volume_in_flight(state):
-    return any(int(volume.get("inFlight") or 0) > 0 for volume in fault_volumes(state))
+def fault_volumes(state):
+    book = window_of(state).get("book") or ""
+    return [{key: volume.get(key) for key in ("root", "state", "inFlight", "bulkInFlight", "stuck")}
+            for volume in state.get("volumes") or []
+            if (root := volume.get("root")) and root != "/" and book.startswith(root)]
+
+
+def volume_bulk_in_flight(state):
+    """调度器快照里，当前书所在卷的大块读取通道上有执行中的读取。"""
+    return any(int(volume.get("bulkInFlight") or 0) > 0 for volume in fault_volumes(state))
 
 
 def arm_fault_read(client):
-    """代理已停止转发后，再翻到未读过的下一页。关闭面板与预取，避免缩略图提前读完整页。"""
+    """翻到未读过的下一页，让 App 开始读整页。关闭面板与预取，避免缩略图提前读完整页。"""
     window = window_of(client.request("state", timeout=2))
     frame = int(window.get("frame") or 0)
     count = int(window.get("frameCount") or 0)
@@ -2173,6 +2253,36 @@ def arm_fault_read(client):
         raise RuntimeError("没有尚未访问的下一页，无法证明故障期间发生真实读取")
     client.request("perform", {"command": "frame.next"}, timeout=2)
     return frame + 1
+
+
+def inject_in_flight(client, port, mode):
+    """代理照常转发时不断翻到未读的下一页触发未缓存的整页读取，反复读调度器快照，确认大块读取通道上有在途读取后立即注入 `mode`。
+    一页读完（exact 上屏）还没抓到就翻下一页，最多约 IN_FLIGHT_WAIT_SECONDS 秒；仍抓不到或没有未读的页时不注入，
+    返回的 `injectedAt` 为 None 并写明尝试次数，由判定记 unverified。"""
+    deadline = time.monotonic() + IN_FLIGHT_WAIT_SECONDS
+    frame, attempts, polls = None, 0, 0
+    while time.monotonic() < deadline:
+        try:
+            frame = arm_fault_read(client)
+        except RuntimeError as exc:
+            reason = f"翻了 {attempts} 页、{polls} 次快照都没有看到大块读取通道上的在途读取，{exc}，没有注入"
+            break
+        attempts += 1
+        page_deadline = min(deadline, time.monotonic() + IN_FLIGHT_ATTEMPT_SECONDS)
+        while time.monotonic() < page_deadline:
+            state = client.request("state", timeout=1)
+            polls += 1
+            if volume_bulk_in_flight(state):
+                control_send(port, mode)
+                return {"frame": frame, "injectedAt": time.monotonic(), "inFlightVolumes": fault_volumes(state),
+                        "polls": polls, "attempts": attempts}
+            window = window_of(state)
+            display = window.get("lastDisplay") or {}
+            if window.get("frame") == frame and display.get("page") == window.get("page") and display.get("quality") == "exact":
+                break
+    else:
+        reason = f"{IN_FLIGHT_WAIT_SECONDS} 秒内翻了 {attempts} 页、{polls} 次快照都没有看到大块读取通道上的在途读取，没有注入"
+    return {"frame": frame, "injectedAt": None, "inFlightVolumes": None, "polls": polls, "attempts": attempts, "reason": reason}
 
 
 def recover_fault(client, frame, timeout=30):
@@ -2245,25 +2355,22 @@ def scene_nas_fault():
         retry = True
         for mode in ("pause", "drop"):
             for seconds in (5, 15, 60):
-                control_send(ready["controlPort"], mode)
-                started = time.monotonic()
-                frame = arm_fault_read(app.client)
+                armed = inject_in_flight(app.client, ready["controlPort"], mode)
+                injection = {"mode": mode, "seconds": seconds, "frame": armed["frame"], "readInFlight": armed["injectedAt"] is not None,
+                             "inFlightVolumes": armed["inFlightVolumes"], "inFlightPolls": armed["polls"],
+                             "inFlightAttempts": armed["attempts"]}
+                if armed["injectedAt"] is None:
+                    # 没有注入：读取已经完成，这一次不计时，判定为 unverified。
+                    injections.append({**injection, "reason": armed["reason"]})
+                    continue
+                started = armed["injectedAt"]
                 error_at = None
-                read_in_flight = False
-                initial_volumes = None
-                injection_volumes = None
                 final_volumes = []
                 while time.monotonic() - started < seconds:
                     sent = time.monotonic()
                     try:
                         state = app.client.request("state", timeout=1)
                         final_volumes = fault_volumes(state)
-                        if injection_volumes is None:
-                            injection_volumes = final_volumes
-                        if volume_in_flight(state):
-                            read_in_flight = True
-                            if initial_volumes is None:
-                                initial_volumes = fault_volumes(state)
                         if error_at is None and window_of(state).get("loadError"):
                             error_at = time.monotonic() - started
                     except TimeoutError:
@@ -2271,11 +2378,9 @@ def scene_nas_fault():
                     rtts.append((time.monotonic() - sent) * 1000)
                     time.sleep(max(0, 0.05 - (time.monotonic() - sent)))
                 control_send(ready["controlPort"], "forward")
-                recovered = recover_fault(app.client, frame)
+                recovered = recover_fault(app.client, armed["frame"])
                 retry = retry and recovered
-                injections.append({"mode": mode, "seconds": seconds, "frame": frame,
-                                   "readInFlight": read_in_flight, "inFlightVolumes": initial_volumes,
-                                   "injectionVolumes": injection_volumes, "faultEndVolumes": final_volumes,
+                injections.append({**injection, "faultEndVolumes": final_volumes,
                                    "errorSeconds": error_at, "retryExactSucceeded": recovered})
                 if not recovered:
                     return {"protocol": "nfs", "stateSamples": len(rtts), "injections": injections,
@@ -2283,21 +2388,10 @@ def scene_nas_fault():
                             "errorWithin10Seconds": False, "quitSeconds": None,
                             "admission": admission,
                             "error": "故障恢复后当前页未重新显示 exact，停止后续注入"}
-        # 独立验证退出：再次暂停代理，确认未读页存在在途I/O，保持暂停直到目标PID退出。
-        control_send(ready["controlPort"], "pause")
-        quit_frame = arm_fault_read(app.client)
-        quit_read = False
-        quit_volumes = None
-        quit_observed_volumes = []
-        deadline = time.monotonic() + 2
-        while time.monotonic() < deadline:
-            state = app.client.request("state", timeout=1)
-            quit_observed_volumes = fault_volumes(state)
-            if volume_in_flight(state):
-                quit_read = True
-                quit_volumes = fault_volumes(state)
-                break
-            time.sleep(0.02)
+        # 独立验证退出：大块读取在途时暂停代理，保持暂停直到目标 PID 退出。
+        quit_armed = inject_in_flight(app.client, ready["controlPort"], "pause")
+        if quit_armed["injectedAt"] is None and quit_armed["frame"] is not None:
+            control_send(ready["controlPort"], "pause")
         quit_seconds = app.stop()
         quit_normal = app.quit_exited_normally
         quit_code = app.exit_code
@@ -2305,18 +2399,21 @@ def scene_nas_fault():
         app = None
         control_send(ready["controlPort"], "forward")
         required = [item for item in injections if item["seconds"] in (15, 60)]
+        reasons = [f"{item['mode']} {item['seconds']} 秒：{item['reason']}" for item in injections if not item["readInFlight"]]
+        if quit_armed["injectedAt"] is None:
+            reasons.append(f"退出：{quit_armed['reason']}，改为直接暂停后退出")
         return {
             "protocol": "nfs", "stateSamples": len(rtts),
             "admission": admission,
             "maxRoundTripMilliseconds": max(rtts) if rtts else None,
-            "errorWithin10Seconds": len(required) == 4 and all(item["errorSeconds"] is not None and item["errorSeconds"] <= 10 for item in required),
+            "errorWithin10Seconds": len(required) == 4 and all(item.get("errorSeconds") is not None and item["errorSeconds"] <= 10 for item in required),
             "injections": injections, "retrySucceeded": retry,
-            "quitSeconds": quit_seconds, "quitReadInFlight": quit_read,
-            "quitFrame": quit_frame, "quitInFlightVolumes": quit_volumes,
-            "quitVolumes": quit_observed_volumes,
+            "quitSeconds": quit_seconds, "quitReadInFlight": quit_armed["injectedAt"] is not None,
+            "quitFrame": quit_armed["frame"], "quitInFlightVolumes": quit_armed["inFlightVolumes"],
             "quitExitedNormally": quit_normal,
             "quitExitCode": quit_code,
             "quitPID": quit_pid,
+            **({"reason": "；".join(reasons)} if reasons else {}),
         }
     except Exception as exc:
         if admission:
@@ -3010,18 +3107,16 @@ def format_report(document):
     return re.sub(arrays, lambda match: "[" + " ".join(match.group(1).split()) + "]", formatted)
 
 
-def frozen_app_evidence():
-    """提交属于运行脚本；冻结源码和实际签名分别取 manifest 与当前二进制。"""
-    evidence = {"manifest": str(FROZEN_MANIFEST), "binary": str(APP_BINARY),
-                "sourceCommit": None, "cdhash": None, "manifestCDHash": None}
+def app_build(bundle):
+    """被测 App 的构建：源码提交取构建阶段写进 Info.plist 的 MVSourceCommit，cdhash 取 codesign。不触发构建。"""
+    evidence = {"bundle": str(bundle), "commit": None, "cdhash": None}
     try:
-        manifest = json.loads(FROZEN_MANIFEST.read_text())
-        evidence.update(sourceCommit=manifest["sourceCommit"], manifestCDHash=manifest["cdhash"])
-    except (OSError, ValueError, KeyError, TypeError) as exc:
-        evidence["manifestError"] = str(exc)
-    # 报告入口不触发构建。签名来自正式场景实际使用的路径，而非冻结副本的路径。
+        with open(Path(bundle) / "Contents" / "Info.plist", "rb") as file:
+            evidence["commit"] = plistlib.load(file)["MVSourceCommit"]
+    except (OSError, ValueError, KeyError) as exc:
+        evidence["commitError"] = str(exc)
     try:
-        signed = subprocess.run(["/usr/bin/codesign", "-d", "--verbose=4", str(APP_BINARY.parents[2])],
+        signed = subprocess.run(["/usr/bin/codesign", "-d", "--verbose=4", str(bundle)],
                                 capture_output=True, text=True, timeout=15)
         match = re.search(r"^CDHash=(.+)$", signed.stderr, re.M)
         if signed.returncode or not match:
@@ -3029,21 +3124,18 @@ def frozen_app_evidence():
         evidence["cdhash"] = match[1]
     except (OSError, subprocess.TimeoutExpired, RuntimeError) as exc:
         evidence["signatureError"] = str(exc)
-    evidence["matchesManifest"] = (evidence["cdhash"] is not None and evidence["sourceCommit"] is not None
-                                   and evidence["cdhash"] == evidence["manifestCDHash"])
     return evidence
 
 
 def write_report(out, scene, commit, env, measured, verdict):
+    """证据绑定构建：`app` 是实跑 App 的源码提交和 cdhash，`scriptCommit` 是运行脚本的提交。"""
     path = Path(out) / ("S2-T3-w37-occlusion.json" if scene == OCCLUSION else f"S2-T2-{scene}.json")
     path.parent.mkdir(parents=True, exist_ok=True)
-    frozen = frozen_app_evidence()
     document = {
         "scene": scene,
-        "commit": commit,
-        "sourceCommit": frozen["sourceCommit"],
-        "cdhash": frozen["cdhash"],
-        "frozenApp": frozen,
+        "scriptCommit": commit,
+        "app": app_build(APP_BUNDLE),
+        "diagnostic": scene in DIAGNOSTIC_SCENES,
         "env": env,
         "budget": BUDGETS[scene],
         "measured": measured,
@@ -3051,6 +3143,82 @@ def write_report(out, scene, commit, env, measured, verdict):
     }
     path.write_text(format_report(document) + "\n")
     print(f"{scene}: {verdict} -> {path}", flush=True)
+
+
+# G2（architecture.md §5）对照需求 §5 逐条汇总：场景证据、用户的触控板录制，或不绑定构建、要另行确认的项。
+G2_ITEMS = [
+    ("first-image", "3600×5400 JPEG 未预载首次显示 ≤ 150 ms", {"scene": "first-image"}),
+    ("preloaded-flip", "翻到已预载的页 ≤ 1 帧", {"scene": "preloaded-flip"}),
+    ("main-thread", "瀑布流主线程不做 I/O 和解码", {"scene": "main-thread"}),
+    ("scroll-cached", "120 Hz 滚动帧时间 P99（已缓存）", {"recording": "user-scroll-cached", "scene": "scroll-cached"}),
+    ("scroll-cold", "120 Hz 滚动帧时间 P99（冷）", {"recording": "user-scroll-cold", "scene": "scroll-cold"}),
+    ("placeholder", "占位符按真实宽高比、加载不跳动", {"manual": "用户目视并做 C5.2 录制"}),
+    ("nas-throughput", "NAS 首访缩略图吞吐 ≥ 原始读取 90%", {"scene": "nas-throughput"}),
+    ("settle", "滚动停止后 100 ms 内可见项开始请求", {"scene": "settle"}),
+    ("cached-first-screen", "已缓存目录首屏 ≤ 100 ms", {"scene": "cached-first-screen"}),
+    ("large-dir", "1 万项目录不阻塞、渐进出现", {"scene": "large-dir"}),
+    ("nas-fault", "NAS 卡顿断线不冻结、10 秒内报错可重试、退出 ≤ 3 秒", {"scene": "nas-fault"}),
+    ("memory-budgets", "内存各有预算、可配置", {"manual": "单测 C3.8、C3.9（make test），不绑定 App 构建"}),
+    ("memory-30min", "连续浏览 30 分钟内存波动 ±10%、无泄漏", {"scene": "memory-30min"}),
+]
+RECORDINGS = ROOT / "build" / "acceptance"
+G2_ITEMS_SOURCES = [(key, source) for key, _, source in G2_ITEMS]
+
+
+def bound_to(app, accepted):
+    """证据里的 App 与被验收的 App 是同一个构建：源码提交和 cdhash 都有且一致。"""
+    app = app or {}
+    return bool(accepted.get("commit") and accepted.get("cdhash")) and \
+        (app.get("commit"), app.get("cdhash")) == (accepted["commit"], accepted["cdhash"])
+
+
+def recording_verdict(directory, scene):
+    """用户录制：帧时间来自 hitches.json，环境与窗口来自 during.json，判定规则与场景相同。"""
+    measured, during = scroll_summary(directory)
+    env = merge_during(during["before"], during)
+    return measured, env, judge(scene, measured, env)
+
+
+def gate_g2(accepted, out=Path("docs/reports/bench"), recordings=RECORDINGS):
+    """逐条给出 pass、fail、environment、unverified，证据不是被验收构建的记 stale，没有证据记 missing，要另行确认的记 manual。"""
+    items = []
+    for key, title, source in G2_ITEMS:
+        item = {"item": key, "title": title}
+        if "manual" in source:
+            item.update(verdict="manual", reason=source["manual"])
+        elif "recording" in source:
+            directory = Path(recordings) / source["recording"]
+            item["evidence"] = str(directory)
+            build = directory / "build.json"
+            if not directory.is_dir():
+                item.update(verdict="missing", reason="没有 record-trackpad.sh 的用户录制；自动滚动场景只作诊断")
+            elif not build.is_file():
+                item.update(verdict="stale", reason="录制没有记下 App 的构建")
+            else:
+                item["app"] = json.loads(build.read_text())
+                if not bound_to(item["app"], accepted):
+                    item.update(verdict="stale", reason="录制的 App 不是被验收的构建")
+                elif not (directory / "hitches.json").is_file() or not (directory / "during.json").is_file():
+                    item.update(verdict="unverified", reason="录制没有完成，缺少 hitches.json 或 during.json")
+                else:
+                    item["verdict"] = recording_verdict(directory, source["scene"])[2]
+        else:
+            path = Path(out) / f"S2-T2-{source['scene']}.json"
+            item["evidence"] = str(path)
+            try:
+                report = json.loads(path.read_text())
+            except FileNotFoundError:
+                item.update(verdict="missing", reason="没有场景证据")
+            else:
+                item["app"] = report.get("app")
+                if bound_to(report.get("app"), accepted):
+                    item["verdict"] = report["verdict"]
+                else:
+                    item.update(verdict="stale", reason="证据的 App 不是被验收的构建")
+        items.append(item)
+    automatic = [item for item in items if item["verdict"] != "manual"]
+    return {"gate": "G2", "app": accepted, "items": items,
+            "pass": bool(accepted.get("commit") and accepted.get("cdhash")) and all(item["verdict"] == "pass" for item in automatic)}
 
 
 def run_scene(scene, out, commit, base_env):
@@ -3168,6 +3336,8 @@ def parse_args(argv):
     parser.add_argument("--quit-app", metavar="SOCKET")
     parser.add_argument("--launch-app", nargs=5, metavar=("SOCKET", "SUPPORT", "CACHE", "LAYOUT", "LOG"))
     parser.add_argument("--main-thread-summary", nargs=2, metavar=("TRACE", "OUT"))
+    parser.add_argument("--app-build", metavar="APP", help="打印 App 的源码提交和 cdhash（JSON）")
+    parser.add_argument("--g2", metavar="APP", help="对照被验收的 App 汇总需求 §5 各条（读 --out 里的场景证据和 build/acceptance 里的用户录制）")
     return parser.parse_args(argv)
 
 
@@ -3189,6 +3359,13 @@ def main(argv):
     if args.quit_app:
         quit_app(args.quit_app)
         return 0
+    if args.app_build:
+        print(json.dumps(app_build(Path(args.app_build).resolve()), ensure_ascii=False))
+        return 0
+    if args.g2:
+        result = gate_g2(app_build(Path(args.g2).resolve()), out=Path(args.out))
+        print(format_report(result))
+        return 0 if result["pass"] else 1
     if args.prepare_scroll:
         return 0 if prepare_scroll(args.prepare_scroll[0], args.prepare_scroll[1], automatic=args.automatic) else 3
     if args.run_scroll:

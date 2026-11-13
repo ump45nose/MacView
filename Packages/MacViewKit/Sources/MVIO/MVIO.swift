@@ -57,13 +57,17 @@ public enum VolumeState: Sendable, Equatable {
 public struct VolumeHealth: Sendable, Equatable {
     public var root: Location.Root
     public var state: VolumeState
+    /// 两个通道上执行中的调用数（含已超时仍占着槽位的）。
     public var inFlight: Int
+    /// 其中大块读取通道上的。
+    public var bulkInFlight: Int
     public var stuck: Int
 
-    public init(root: Location.Root, state: VolumeState, inFlight: Int = 0, stuck: Int = 0) {
+    public init(root: Location.Root, state: VolumeState, inFlight: Int = 0, bulkInFlight: Int = 0, stuck: Int = 0) {
         self.root = root
         self.state = state
         self.inFlight = inFlight
+        self.bulkInFlight = bulkInFlight
         self.stuck = stuck
     }
 }

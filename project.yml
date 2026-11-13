@@ -53,4 +53,17 @@ targets:
         DEVELOPMENT_TEAM: ""
         ENABLE_APP_SANDBOX: NO
         ENABLE_HARDENED_RUNTIME: NO
+    # 验收证据按 App 绑定构建：把源码提交（工作区有改动时加 -dirty）写进 Info.plist 的 MVSourceCommit，签名在所有构建阶段之后。
+    postBuildScripts:
+      - name: 记录源码提交
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        script: |
+          set -eu
+          commit=$(git -C "$SRCROOT" rev-parse HEAD)
+          if [ -n "$(git -C "$SRCROOT" status --porcelain)" ]; then commit="$commit-dirty"; fi
+          plist="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Delete :MVSourceCommit" "$plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :MVSourceCommit string $commit" "$plist"
     scheme: {}

@@ -3,6 +3,7 @@
 # 用法：scripts/acceptance/record-trackpad.sh <场景> <输出目录> [--manual|--automatic|--smoke]
 # 场景为 scroll-cached、scroll-cold 或 settle。scroll-cold 同时录 Time Profiler。
 # 默认只录用户的真实触控板手势；自动验收显式使用 --automatic，--smoke 只空录1秒检查流程。
+# 已有 build/DerivedData-profile 时直接复用；要录当前代码，先删掉它由本脚本重建。构建的提交和 cdhash 写进 <输出目录>/build.json。
 # 外部已持有常亮时设置 MV_ACCEPTANCE_EXTERNAL_CAFFEINATE=1，本脚本不创建 caffeinate。
 # 只结束本脚本启动的 App PID。
 set -eu
@@ -72,6 +73,9 @@ if [ ! -x "$derived/Build/Products/Debug/MacView.app/Contents/MacOS/MacView" ]; 
 	xcodebuild -quiet -project "$PWD/MacView.xcodeproj" -scheme MacView -configuration Debug \
 		-destination "platform=macOS,arch=$(uname -m)" -derivedDataPath "$derived" SWIFT_OPTIMIZATION_LEVEL=-O build
 fi
+# 录制绑定构建：记下实际录制的 App 的源码提交和 cdhash，run.py --g2 据此判断录制是否过期。
+python3 -I "$PWD/scripts/acceptance/run.py" --app-build "$derived/Build/Products/Debug/MacView.app" >"$out/build.json"
+echo "录制的 App：$(cat "$out/build.json")" >&2
 
 if [ "${MV_ACCEPTANCE_EXTERNAL_CAFFEINATE:-0}" != "1" ]; then
 	caffeinate -d -w $$ &

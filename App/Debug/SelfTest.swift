@@ -6,11 +6,12 @@ import MVCommands
 import MVFoundation
 import MVMedia
 import MVReading
+import Security
 
 /// 外壳自检：Mock 验证菜单与输入；真实服务验证文件入口、取图与配置重载。
 ///
 /// 启动参数：`-MVSelfTest YES` 运行后退出（退出码为失败数）；`-MVSelfTestOutput <目录>` 写入菜单清单与窗口图像。
-/// 真实服务另传 `-MVSelfTestFixtures <Fixtures目录>`，并用 `-MVSupportDirectory/-MVCacheDirectory/-MVLayoutFile` 隔离数据。
+/// 真实服务另传 `-MVSelfTestFixtures <Fixtures目录>`。所有自检都必须用 `-MVSupportDirectory/-MVCacheDirectory/-MVLayoutFile` 指向隔离目录，少给一个时 App 直接失败退出。
 /// 预期启动失败的场景加 `-MVSelfTestStartupFailure YES`，自动检查错误窗口并退出。
 /// 按键经 `NSApp.sendEvent` 分派，走的是真实的菜单快捷键匹配和响应链；不需要辅助功能权限。
 @MainActor
@@ -509,11 +510,30 @@ final class SelfTestLog {
         try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: output.appendingPathComponent("\(name).png"))
     }
 
-    /// 打印汇总行，返回失败数（用作退出码）。
+    /// 打印汇总行，返回失败数（用作退出码）。汇总行带上被测构建的源码提交和 cdhash，结果和构建绑定。
     func summarize() -> Int32 {
-        print("SELFTEST \(failures == 0 ? "OK" : "FAILED \(failures)")")
+        print("SELFTEST \(failures == 0 ? "OK" : "FAILED \(failures)") commit=\(BuildIdentity.commit ?? "无") cdhash=\(BuildIdentity.cdhash ?? "无")")
         fflush(stdout)
         return Int32(failures)
+    }
+}
+
+/// 运行中的构建：源码提交由构建阶段写进 Info.plist 的 `MVSourceCommit`，cdhash 取自进程自己的代码签名，与 `codesign -d` 的 CDHash 相同。
+enum BuildIdentity {
+    static var commit: String? {
+        Bundle.main.object(forInfoDictionaryKey: "MVSourceCommit") as? String
+    }
+
+    static var cdhash: String? {
+        var code: SecCode?
+        var staticCode: SecStaticCode?
+        var information: CFDictionary?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code,
+              SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
+              SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &information) == errSecSuccess,
+              let unique = (information as? [String: Any])?[kSecCodeInfoUnique as String] as? Data
+        else { return nil }
+        return unique.map { String(format: "%02x", $0) }.joined()
     }
 }
 #endif

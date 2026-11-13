@@ -283,23 +283,28 @@ final class DebugCommands: Sendable {
                 orderFront(window)
                 try? await Task.sleep(for: .milliseconds(50))
             }
-            return try await continuousScroll(at: center, in: window, viewer: viewer, args: args, duration: duration)
+            return try await SyntheticScroll.during {
+                try await continuousScroll(at: center, in: window, viewer: viewer, args: args, duration: duration)
+            }
         }
         let events = SyntheticScroll.events(
             at: center, in: window, dx: double(args["dx"]) ?? 0, dy: double(args["dy"]) ?? 0, steps: int(args["steps"]) ?? 1
         )
         let interval = max(int(args["intervalMs"]) ?? 0, 0)
-        for event in events {
-            NSApp.sendEvent(event)
-            if interval > 0 { try? await Task.sleep(for: .milliseconds(interval)) }
+        let responsive = await SyntheticScroll.during {
+            for event in events {
+                NSApp.sendEvent(event)
+                if interval > 0 { try? await Task.sleep(for: .milliseconds(interval)) }
+            }
+            return CanvasView.isCompatibleWithResponsiveScrolling
         }
         return .object([
             "events": .number(Double(events.count)), "windowFront": .bool(windowIsFront(window)),
-            "responsiveScrolling": .bool(CanvasView.isCompatibleWithResponsiveScrolling),
+            "responsiveScrolling": .bool(responsive),
         ])
     }
 
-    /// 一段连续手势：began、约 8 ms 一次的 changed，到边界后反向，最后 ended。结束后留出 settled 的时间。
+    /// 一段连续手势：began、约 8 ms 一次的 changed，到边界后反向，最后 ended。结束后留出 settled 的时间。由调用方包在 `SyntheticScroll.during` 里。
     private func continuousScroll(at center: NSPoint, in window: NSWindow, viewer: ViewerContainerView, args: [String: JSONValue], duration: Int) async throws -> JSONValue {
         let interval = max(int(args["intervalMs"]) ?? 8, 1)
         var step = double(args["dy"]) ?? -12
@@ -511,6 +516,7 @@ final class DebugCommands: Sendable {
         }
         state["root"] = .string(Location(root: health.root).description)
         state["inFlight"] = .number(Double(health.inFlight))
+        state["bulkInFlight"] = .number(Double(health.bulkInFlight))
         state["stuck"] = .number(Double(health.stuck))
         return .object(state)
     }
