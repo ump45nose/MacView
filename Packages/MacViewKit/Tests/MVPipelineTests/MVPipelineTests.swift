@@ -73,7 +73,8 @@ private func browseAndDisplayChooseDecodeLevelsIndependently(_ sample: DecodeLev
     try await eventually { environment.pipeline.sourceDecodeCount == 1 && decoder.limiter.waitingCount == 1 }
     let target = PixelSize(width: 953, height: 1430)
     let display = Task { try await collect(environment.pipeline.image(for: identity, target: DisplayTarget(pixelSize: target), allowOriginal: false, priority: .book)) }
-    try await Task.sleep(for: .milliseconds(30))
+    // 显示请求加入同一个基础图作业后再放开解码，不靠固定睡眠排先后。
+    try await waitUntil { environment.pipeline.bundleMemberCount(identity) == 2 }
     gate.signal()
     try await occupied.value
     _ = try await thumbnail.value

@@ -109,6 +109,9 @@ final class SharedWork<Value: Sendable>: Sendable {
 
     var priority: IOPriority { state.withLock { $0.members.values.max() ?? .background } }
 
+    /// 已加入的成员数，测试用来确认后来的请求已经加入。
+    var memberCount: Int { state.withLock { $0.members.count } }
+
     /// 在登记表的锁内调用，不回调登记表。返回 false 表示作业已放弃，调用方应换一个新作业。
     func join(consumer: UUID, priority: IOPriority) -> Bool {
         state.withLock { state in

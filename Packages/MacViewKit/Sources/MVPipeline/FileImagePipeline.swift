@@ -478,6 +478,11 @@ public final class FileImagePipeline: ImagePipeline {
 
     var sourceDecodeCount: Int { state.withLock { $0.sourceDecodes } }
 
+    /// 内容的基础图作业当前的成员数；没有进行中的作业时为 0。
+    func bundleMemberCount(_ identity: ContentIdentity) -> Int {
+        state.withLock { $0.bundles[identity.cacheKey]?.1.memberCount ?? 0 }
+    }
+
     private func render(_ key: String, context: RequestContext, thumbnail: Bool = false, operation: @escaping @Sendable (RequestContext) async throws -> RenderedImage) async throws -> RenderedImage {
         try lifetime.checkRunning()
         if let image = cached(key, priority: context.priority, thumbnail: thumbnail) { return image }
