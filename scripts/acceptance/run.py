@@ -65,14 +65,13 @@ SCENES = [
     "nas-throughput", "cached-first-screen", "nas-fault",
     "scroll-cached", "scroll-cold", "main-thread", "settle", "memory-30min",
 ]
-OCCLUSION = "w37-occlusion"  # 定位实验显式请求；默认仍是原来的 13 个正式场景。
 # 自动滚动是合成事件，滚动期间关掉了响应式滚动，帧时间只作诊断；120 Hz 帧时间只认 record-trackpad.sh 的用户录制（保持响应式滚动）。
 DIAGNOSTIC_SCENES = {"scroll-cached", "scroll-cold"}
 NAS_SCENES = {"nas-throughput", "cached-first-screen", "nas-fault"}
 NAS_APP_SCENES = {"cached-first-screen", "nas-fault"}
-FOREGROUND = (set(SCENES) | {OCCLUSION}) - {"nas-throughput"}
+FOREGROUND = set(SCENES) - {"nas-throughput"}
 # 不看时序的场景只要求屏幕没锁。键鼠空闲、运行中输入、负载和外接显示器不参与判定。
-SCREEN_ONLY = {"main-thread", "memory-30min", "tiles-cancel", "panel-restart", OCCLUSION}
+SCREEN_ONLY = {"main-thread", "memory-30min", "tiles-cancel", "panel-restart"}
 # 这些场景在各自准备完成后准入；录制子进程把准入结果带回主进程。
 DEFERRED_ADMISSION = (FOREGROUND - SCREEN_ONLY) | {"main-thread"}
 # 开始前的空闲包含滚轮。录制过程中场景自己会发合成滚动，过程中的输入检查不含滚轮。
@@ -101,8 +100,6 @@ BUDGETS = {
     "large-dir": {"maxRoundTripMilliseconds": 250, "totalItems": 10000, "intermediateItemCount": True},
     "nas-fault": {"maxRoundTripMilliseconds": 250, "errorWithinSeconds": 10, "quitSeconds": 3},
     "memory-30min": {"deviation": 0.10, "leaks": 0, "ignoreFirstSeconds": 300, "maxRoundTripMilliseconds": 1000},
-    OCCLUSION: {"foregroundSeconds": 180, "occludedSeconds": 300, "restoredSeconds": 120,
-                "sleepDisabledOccludedSeconds": 180, "maxRoundTripMilliseconds": 1000},
     "tiles-cancel": {"cancelledGreaterThan": 0},
     "panel-restart": {"matchesQuit": True},
 }
@@ -170,8 +167,6 @@ def judge_measurement(scene, measured, env, budget=None):
         return "environment"
     if scene == "memory-30min":
         return judge_memory(measured, limits)
-    if scene == OCCLUSION:
-        return occlusion_result(measured)["verdict"]
     # 冷填充是采样前提；缺项导致的零样本不能掩盖已确认的失败。
     if scene == "cached-first-screen" and first_screen_cold_failures(measured):
         return "fail"
@@ -508,7 +503,7 @@ def check_verdicts():
             (f"{scene} 两个P99之和仅作证据", judge(scene, {**scroll, "renderP99": 6.34}, env120), "pass"),
             (f"{scene} 窗口不在前台", judge(scene, {**scroll, "windowFront": False}, env120), "environment"),
         ]
-    for scene in SCREEN_ONLY - {OCCLUSION}:
+    for scene in SCREEN_ONLY:
         for changed in (_load(env, 10), _screen(env, inputDuringRun=True, idleSeconds=1, externalDisplay=True)):
             cases.append((f"{scene} 只检查锁屏", judge(scene, valid[scene], changed), "pass"))
     merged = merge_during(env, {"load": {"oneMinute": 14.2}, "refreshHz": 120, "screen": {}})
@@ -961,12 +956,11 @@ def admit_measurement(scene):
 
 class MemoryStateMonitor:
     """500 ms 起并行诊断；停顿预算仍为 1 秒，响应超时仍为 120 秒。"""
-    def __init__(self, started, directory, observer=None, sample_times=None):
+    def __init__(self, started, directory):
         self.started = started
         self.directory = Path(str(directory) + f"-{time.time_ns()}")
         self.directory.mkdir(parents=True, exist_ok=False)
-        self.observer = observer
-        self.sample_times = sample_times if sample_times is not None else []
+        self.sample_times = []
         self.last_state = None
         self.state_snapshots = []
         self.requests = []
@@ -1023,8 +1017,6 @@ class MemoryStateMonitor:
             if now >= next_observation or ident in client.inbox:
                 observation = {"elapsedSeconds": now - self.started, "screenLocked": screen_locked(),
                                "loadOneMinute": os.getloadavg()[0]}
-                if self.observer is not None:
-                    observation.update(self.observer())
                 self.observations.append(observation)
                 checks.append(observation)
                 next_observation = time.monotonic() + 0.5
@@ -1210,7 +1202,7 @@ class DebugClient:
         return message.get("result")
 
 
-def launch_app(socket_path, support, cache, layout, log, app_sleep_disabled=False, background=True):
+def launch_app(socket_path, support, cache, layout, log, background=True):
     """场景和自检用 `open -n -g`，不抢前台；`record-trackpad.sh` 给用户录制，仍用 `open -n -a`。"""
     binary = app_binary()
     temporary = Path(support).resolve().parent / "tmp"
@@ -1218,8 +1210,7 @@ def launch_app(socket_path, support, cache, layout, log, app_sleep_disabled=Fals
     subprocess.run(["/usr/bin/open", "-n"] + (["-g"] if background else []) + ["-a", str(binary.parents[2]), "--stdout", str(log), "--stderr", str(log),
                     "--env", f"TMPDIR={temporary}/",
                     "--args", "-MVDebugSocket", str(socket_path), "-MVSupportDirectory", str(support),
-                    "-MVCacheDirectory", str(cache), "-MVLayoutFile", str(layout)] +
-                   (["-NSAppSleepDisabled", "YES"] if app_sleep_disabled else []), check=True)
+                    "-MVCacheDirectory", str(cache), "-MVLayoutFile", str(layout)], check=True)
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         lines = subprocess.check_output(["/bin/ps", "-axo", "pid=,command="], text=True).splitlines()
@@ -1236,12 +1227,11 @@ def launch_app(socket_path, support, cache, layout, log, app_sleep_disabled=Fals
 class App:
     live = []
 
-    def __init__(self, name, prefetch_zero=False, empty_cache=True, prefetch=None, app_sleep_disabled=False):
+    def __init__(self, name, prefetch_zero=False, empty_cache=True, prefetch=None):
         self.name = name
         self.prefetch_zero = prefetch_zero
         self.empty_cache = empty_cache
         self.prefetch = prefetch
-        self.app_sleep_disabled = app_sleep_disabled
         self.root = ROOT / "build" / "acceptance" / f"{name}-{os.getpid()}"
         self.support = self.root / "support"
         self.cache = self.root / "cache"
@@ -1296,8 +1286,7 @@ class App:
         if socket_path.exists():
             socket_path.unlink()
         self.exit_code = None
-        self.pid = launch_app(self.socket, self.support, self.cache, self.layout, self.root / "app.log",
-                              app_sleep_disabled=self.app_sleep_disabled)
+        self.pid = launch_app(self.socket, self.support, self.cache, self.layout, self.root / "app.log")
         App.live.append(self)
         self.exit_watch = select.kqueue()
         # SDK sys/event.h：NOTE_EXITSTATUS 对可发送信号的非子进程也有效，data 是 wait(2) 状态。
@@ -2454,10 +2443,9 @@ def memory_process_snapshot(pid):
 
 
 class MemoryActions:
-    """正式内存场景和定位实验复用同一翻页、滚动、切书循环。"""
-    def __init__(self, sample, other, scroll_enabled=True):
+    """内存场景的翻页、滚动、切书循环。"""
+    def __init__(self, sample, other):
         self.sample, self.other = sample, other
-        self.scroll_enabled = scroll_enabled
         self.index = 0
         self.direction = 1
         self.pending = None
@@ -2490,10 +2478,10 @@ class MemoryActions:
                     self.direction = -self.direction
                 command, args, kind = "perform", {"command": "frame.next" if self.direction > 0 else "frame.previous"}, "flip"
         elif action == 3:
-            client.phase = f"{phase}:{'scroll' if self.scroll_enabled else 'waterfall'}-{self.index}"
-            if window.get("browseMode") != "waterfall" or not self.scroll_enabled:
+            client.phase = f"{phase}:scroll-{self.index}"
+            if window.get("browseMode") != "waterfall":
                 command, args, kind = "perform", {"command": "view.waterfall"}, "mode-waterfall"
-                self.pending_mode = self.scroll_enabled
+                self.pending_mode = True
             else:
                 command, args, kind = "scroll", {"dy": -12, "durationMs": 500, "intervalMs": 8}, "scroll"
         else:
@@ -2505,14 +2493,14 @@ class MemoryActions:
             self.index += 1
 
 
-def memory_activity(app, duration_seconds, phase, actions, observer=None, sample_times=None):
+def memory_activity(app, duration_seconds, phase, actions):
     samples, physical, elapsed, memory, front, sampling_errors = [], [], [], [], [], []
     budgets = None
     started = time.monotonic()
     tick = started
     end = started + duration_seconds
     action_start = len(actions.log)
-    monitor = MemoryStateMonitor(started, ROOT / "build" / "w37" / f"{phase}-{app.pid}", observer, sample_times)
+    monitor = MemoryStateMonitor(started, ROOT / "build" / "memory-monitor" / f"{phase}-{app.pid}")
     app.client.memory_monitor = monitor
     failure = None
     try:
@@ -2579,229 +2567,6 @@ def scene_memory(duration_seconds=1800, name="memory-30min"):
             measured["componentVerdicts"] = memory_components(measured, BUDGETS["memory-30min"])
     finally:
         app.stop()
-    return measured
-
-
-def cg_window_list():
-    """仅取 CGWindowList 的只读属性，经 CoreFoundation 转成标准库 plist。"""
-    cf, cg = cf_library()
-    cg.CGWindowListCopyWindowInfo.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
-    cg.CGWindowListCopyWindowInfo.restype = ctypes.c_void_p
-    cf.CFPropertyListCreateData.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_long,
-                                           ctypes.c_ulong, ctypes.c_void_p]
-    cf.CFPropertyListCreateData.restype = ctypes.c_void_p
-    cf.CFDataGetLength.argtypes = [ctypes.c_void_p]
-    cf.CFDataGetLength.restype = ctypes.c_long
-    cf.CFDataGetBytePtr.argtypes = [ctypes.c_void_p]
-    cf.CFDataGetBytePtr.restype = ctypes.c_void_p
-    cf.CFRelease.argtypes = [ctypes.c_void_p]
-    windows = cg.CGWindowListCopyWindowInfo(1 | 16, 0)  # on-screen only、exclude desktop；顺序是由前到后。
-    data = None
-    try:
-        if not windows:
-            raise RuntimeError("CGWindowListCopyWindowInfo 没有返回窗口")
-        data = cf.CFPropertyListCreateData(None, windows, 100, 0, None)
-        if not data:
-            raise RuntimeError("CGWindowList 属性无法转换成 plist")
-        return plistlib.loads(ctypes.string_at(cf.CFDataGetBytePtr(data), cf.CFDataGetLength(data)))
-    finally:
-        if data:
-            cf.CFRelease(data)
-        if windows:
-            cf.CFRelease(windows)
-
-
-def occlusion_evidence(target_pid, cover_pid):
-    windows = [{"zIndex": index, "pid": row.get("kCGWindowOwnerPID"), "number": row.get("kCGWindowNumber"),
-                "layer": row.get("kCGWindowLayer"), "alpha": row.get("kCGWindowAlpha"),
-                "bounds": row.get("kCGWindowBounds"), "onScreen": row.get("kCGWindowIsOnscreen")}
-               for index, row in enumerate(cg_window_list()) if row.get("kCGWindowOwnerPID") in (target_pid, cover_pid)]
-    target = [row for row in windows if row["pid"] == target_pid and row["layer"] == 0]
-    cover = [row for row in windows if row["pid"] == cover_pid and row["layer"] == 0]
-    verified = False
-    if len(target) == len(cover) == 1:
-        t, c = target[0], cover[0]
-        tb, cb = t["bounds"] or {}, c["bounds"] or {}
-        if all(isinstance(bounds.get(key), (int, float)) for bounds in (tb, cb) for key in ("X", "Y", "Width", "Height")):
-            verified = (t["zIndex"] > c["zIndex"] and c["alpha"] == 1 and
-                        t["onScreen"] is True and c["onScreen"] is True and
-                        tb["Width"] > 0 and tb["Height"] > 0 and
-                        cb["X"] <= tb["X"] and cb["Y"] <= tb["Y"] and
-                        cb["X"] + cb["Width"] >= tb["X"] + tb["Width"] and
-                        cb["Y"] + cb["Height"] >= tb["Y"] + tb["Height"])
-    return {"verified": verified, "targetPID": target_pid, "coverPID": cover_pid, "windows": windows}
-
-
-def valid_occluded_stalls(stage):
-    return [stall for stall in stage.get("stalls", [])
-            if stall.get("durationSeconds", 0) > 1 and stall.get("environmentChecks") and
-            all(check.get("verified") is True and check.get("screenLocked") is False
-                for check in stall["environmentChecks"])]
-
-
-def continuous_occlusion(stage):
-    checks = stage.get("environmentObservations", [])
-    return (bool(checks) and all(check.get("verified") is True for check in checks) and
-            checks[0]["elapsedSeconds"] <= 1 and
-            checks[-1]["elapsedSeconds"] >= stage.get("durationSeconds", 0) - 1.1 and
-            all(after["elapsedSeconds"] - before["elapsedSeconds"] <= 1.1
-                for before, after in zip(checks, checks[1:])))
-
-
-def occlusion_result(measured):
-    if measured.get("error") or measured.get("cleanupErrors"):
-        return {"verdict": "unverified", "conclusion": "实验未完成，原因未定位"}
-    restoration = measured.get("restoration") or {}
-    if restoration.get("activationTimedOut"):
-        return {"verdict": "environment", "conclusion": "窗口未在10秒内回到前台，前台对照未成立"}
-    stages = {stage["phase"]: stage for stage in measured.get("stages", [])}
-    if not all(name in stages for name in ("foreground", "occluded", "restored")):
-        return {"verdict": "unverified", "conclusion": "实验未完成，原因未定位"}
-    covered = stages["occluded"]
-    continuous = continuous_occlusion(covered)
-    complete = all(stage.get("durationSeconds", 0) >= stage.get("plannedSeconds", math.inf) and
-                   stage.get("environmentObservations") and
-                   all(check.get("screenLocked") is False for check in stage["environmentObservations"])
-                   for stage in stages.values())
-    for name, stage in stages.items():
-        if name.endswith("occluded") and name != "occluded":
-            continuous = continuous and continuous_occlusion(stage)
-    valid_stalls = valid_occluded_stalls(covered)
-    front_ok = all(memory_foreground(stages[name]) is True and
-                   stages[name].get("maxRoundTripMilliseconds") is not None and
-                   not exceeds(stages[name]["maxRoundTripMilliseconds"], 1000) and
-                   not stages[name].get("stateTimedOut") for name in ("foreground", "restored"))
-    front_requests = [request for request in restoration.get("stateRequests", []) if request.get("windowFront") is True]
-    front_ok = (front_ok and state_window_front(restoration.get("afterActivation")) is True and
-                bool(front_requests) and not restoration.get("stateTimedOut") and
-                bool(restoration.get("environmentObservations")) and
-                all(check.get("screenLocked") is False for check in restoration["environmentObservations"]) and
-                all(not exceeds(request["durationSeconds"] * 1000, 1000) for request in front_requests))
-    if not continuous or not complete or not front_ok:
-        return {"verdict": "environment", "continuousOcclusionVerified": continuous,
-                "validOccludedStalls": len(valid_stalls), "conclusion": "有效遮挡或前台对照未完整成立，原因未定位"}
-    return {"verdict": "pass", "continuousOcclusionVerified": True, "validOccludedStalls": len(valid_stalls),
-            "conclusion": "复现且回前台恢复：系统对被盖住窗口的节流" if valid_stalls else "未复现，原因未定位"}
-
-
-def scene_w37_occlusion():
-    sample = str(ensure_sample())
-    managed, stages, instances = [], [], []
-    sample_times = []
-    measured = {"stages": stages, "instances": instances, "scrollEnabled": False,
-                "actionSequence": "翻页、切换瀑布流（不滚动）、切书；四段一致",
-                "untestedFactor": "用户操作带来的负载未在本实验验证"}
-
-    def start(name, disabled=False):
-        app = App(name, empty_cache=False, app_sleep_disabled=disabled)
-        managed.append(app)  # 启动中途失败也清理这个唯一的隔离路径。
-        app.start()
-        instances.append({"name": name, "pid": app.pid, "socket": app.socket,
-                          "root": str(app.root), "appSleepDisabled": disabled})
-        return app
-
-    def phase(app, actions, name, seconds, cover=None):
-        environment, ready = wait_ready(OCCLUSION)  # 各阶段只以解锁为门槛。
-        if not ready:
-            raise MeasurementError("屏幕锁定或状态未知，阶段准入未满足", measured)
-        observer = (lambda: occlusion_evidence(app.pid, cover.pid)) if cover is not None else None
-        try:
-            result = memory_activity(app, seconds, f"w37-{name}", actions, observer, sample_times)
-        except MeasurementError as exc:
-            result = exc.measured
-            result.update(phase=name, plannedSeconds=seconds, environmentBefore=environment)
-            stages.append(result)
-            raise MeasurementError(str(exc), measured) from exc
-        result.update(phase=name, plannedSeconds=seconds, environmentBefore=environment)
-        if cover is not None:
-            checks = result["environmentObservations"]
-            result["verifiedOcclusionSeconds"] = sum(
-                after["elapsedSeconds"] - before["elapsedSeconds"] for before, after in zip(checks, checks[1:])
-                if before.get("verified") is True and after.get("verified") is True and
-                after["elapsedSeconds"] - before["elapsedSeconds"] <= 1.1)
-            result["invalidOcclusionChecks"] = sum(check.get("verified") is not True for check in checks)
-            result["validOccludedStalls"] = len(valid_occluded_stalls(result))
-        stages.append(result)
-        return result
-
-    def cover_for(app, name):
-        cover = start(name)
-        mode = display_probe()
-        resized = cover.client.request("resize", {"width": mode["width"], "height": mode["height"]})
-        instances[-1].update(resizeResult=resized, initialOcclusion=occlusion_evidence(app.pid, cover.pid))
-        return cover
-
-    try:
-        target = start("w37-target")
-        target.client.request("open", {"path": sample}, timeout=120)
-        actions = MemoryActions(sample, str(HUGE_DIR), scroll_enabled=False)
-        phase(target, actions, "foreground", 180)
-        cover = cover_for(target, "w37-cover")
-        covered = phase(target, actions, "occluded", 300, cover)
-        cover.stop()
-        restored = measured["restoration"] = {}
-        restoration_monitor = MemoryStateMonitor(time.monotonic(), ROOT / "build" / "w37" / f"restoration-{target.pid}",
-                                                  sample_times=sample_times)
-        target.client.memory_monitor = restoration_monitor
-        try:
-            target.client.phase = "w37-restoration:before-activation"
-            restored["beforeActivation"] = target.client.request("state", timeout=120)
-            if state_window_front(restored["beforeActivation"]) is not True:
-                command = ["/usr/bin/open", "-a", str(app_binary().parents[2])]
-                subprocess.run(command, check=True, timeout=30)
-                restored["activationCommand"] = command
-            target.client.phase = "w37-restoration:after-activation"
-            poll_started = time.monotonic()
-            poll_deadline = poll_started + 10
-            restored["afterActivation"] = None
-            while True:
-                remaining = poll_deadline - time.monotonic()
-                if remaining <= 0:
-                    break
-                try:
-                    restored["afterActivation"] = target.client.request("state", timeout=remaining)
-                except DebugTimeout as exc:
-                    restored["pollDiagnostic"] = exc.detail
-                    break
-                if state_window_front(restored["afterActivation"]) is True:
-                    break
-                time.sleep(min(0.1, max(0, poll_deadline - time.monotonic())))
-            restored["activationWaitSeconds"] = time.monotonic() - poll_started
-            restored["activationTimedOut"] = state_window_front(restored["afterActivation"]) is not True
-        finally:
-            target.client.memory_monitor = None
-            restored.update(restoration_monitor.evidence())
-        if not restored["activationTimedOut"]:
-            phase(target, actions, "restored", 120)
-        # 只以已经证实盖住时的停顿触发额外实例；未盖住的慢响应不能触发因果对照。
-        if valid_occluded_stalls(covered):
-            target.stop()
-            disabled = start("w37-sleep-disabled-target", disabled=True)
-            disabled.client.request("open", {"path": sample}, timeout=120)
-            disabled_cover = cover_for(disabled, "w37-sleep-disabled-cover")
-            phase(disabled, MemoryActions(sample, str(HUGE_DIR), scroll_enabled=False), "sleep-disabled-occluded", 180, disabled_cover)
-        measured.update(occlusion_result(measured))
-    except Exception as exc:
-        measured.update(error=str(exc), verdict="unverified", conclusion="实验未完成，原因未定位")
-        if isinstance(exc, DebugTimeout):
-            measured["diagnostic"] = exc.detail
-    finally:
-        for app in reversed(managed):
-            try:
-                app.stop()
-            except (OSError, RuntimeError, TimeoutError) as exc:
-                measured.setdefault("cleanupErrors", []).append({"pid": app.pid, "error": str(exc)})
-            try:
-                if app.pid is None or not app.wait_exit(0):
-                    measured.setdefault("cleanupErrors", []).append({"pid": app.pid, "root": str(app.root),
-                                                                    "error": "未确认隔离实例退出，保留其支持目录"})
-                    continue
-                if app.root.exists():
-                    shutil.rmtree(app.root)
-                Path(app.socket).unlink(missing_ok=True)
-            except OSError as exc:
-                measured.setdefault("cleanupErrors", []).append({"root": str(app.root), "error": str(exc)})
-    measured.update(occlusion_result(measured))
     return measured
 
 
@@ -3129,7 +2894,7 @@ def app_build(bundle):
 
 def write_report(out, scene, commit, env, measured, verdict):
     """证据绑定构建：`app` 是实跑 App 的源码提交和 cdhash，`scriptCommit` 是运行脚本的提交。"""
-    path = Path(out) / ("S2-T3-w37-occlusion.json" if scene == OCCLUSION else f"S2-T2-{scene}.json")
+    path = Path(out) / f"S2-T2-{scene}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     document = {
         "scene": scene,
@@ -3234,12 +2999,11 @@ def run_scene(scene, out, commit, base_env):
         "large-dir": scene_large_dir,
         "nas-fault": scene_nas_fault,
         "memory-30min": scene_memory,
-        OCCLUSION: scene_w37_occlusion,
         "tiles-cancel": scene_tiles_cancel,
         "panel-restart": scene_panel_restart,
     }[scene]
     paths = []
-    if scene in ("first-image", "preloaded-flip", "scroll-cached", "scroll-cold", "main-thread", "settle", "cached-first-screen", "memory-30min", OCCLUSION):
+    if scene in ("first-image", "preloaded-flip", "scroll-cached", "scroll-cold", "main-thread", "settle", "cached-first-screen", "memory-30min"):
         try:
             paths.append(str(ensure_sample()))
         except FileNotFoundError:
@@ -3378,7 +3142,7 @@ def main(argv):
         run_scroll(*args.smoke_scroll, automatic=False, seconds=1)
         return 0
     requested = args.scenes or list(SCENES)
-    unknown = [scene for scene in args.scenes if scene not in SCENES + [OCCLUSION]]
+    unknown = [scene for scene in args.scenes if scene not in SCENES]
     if unknown:
         raise SystemExit(f"未知场景：{', '.join(unknown)}")
     # 保留显式请求的顺序；默认 NAS 在录制前，内存场景始终放在最后。
