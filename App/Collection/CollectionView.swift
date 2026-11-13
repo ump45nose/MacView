@@ -40,6 +40,8 @@ struct CollectionItem: Equatable {
     /// 表格第二列与第三列。
     var column: String
     var size: String
+    /// 项本身读取失败（例如书架封面）时的错误文字：列表和表格显示文字，网格和瀑布流显示错误标记。
+    var failure: String?
 }
 
 /// 统一的集合组件：列表和详情表格用 NSTableView，网格和瀑布流用画布。
@@ -68,8 +70,10 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     var onDoubleClick: ((Int) -> Void)?
     /// 可见项加余量变化。
     var onVisibleRangeChange: ((Range<Int>) -> Void)?
-    /// 当前可见项都有缩略图时调用。布局和图片到达都会再检查。
+    #if DEBUG
+    /// 当前可见项都有缩略图时调用，只给首屏计时用。布局和图片到达都会再检查。
     var onVisibleThumbnails: (() -> Void)?
+    #endif
     /// 捏合改了尺寸。
     var onItemExtentChange: ((Double) -> Void)?
 
@@ -82,16 +86,18 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private let rowImages: CollectionRowImages
     /// 列表和表格里加载失败的项，显示错误文字；点击时重试。
     private var failures: [ContentIdentity: String] = [:]
+    #if DEBUG
     /// 可见区还是空的时候通知被跳过，等视图出现或下一次绘制再试。
     private var visibleThumbnailsPending = false
+    #endif
 
-    init(pipeline: any ImagePipeline, style: CollectionStyle, itemExtent: Double, secondColumn: String, thumbSize: CGSize) {
+    init(pipeline: any ImagePipeline, settings: any SettingsStore, style: CollectionStyle, itemExtent: Double, secondColumn: String, thumbSize: CGSize) {
         self.pipeline = pipeline
         self.style = style
         self.itemExtent = itemExtent
         self.thumbSize = thumbSize
-        canvas = CanvasView(pipeline: pipeline, kind: style == .grid ? .grid : .masonry, imageSource: .thumbnail, itemExtent: itemExtent)
-        rowImages = CollectionRowImages(pipeline: pipeline)
+        canvas = CanvasView(pipeline: pipeline, settings: settings, kind: style == .grid ? .grid : .masonry, imageSource: .thumbnail, itemExtent: itemExtent)
+        rowImages = CollectionRowImages(pipeline: pipeline, settings: settings)
         super.init(frame: .zero)
         canvas.itemExtentRange = PanelExtent.range
         canvas.spacing = 6
@@ -103,7 +109,9 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             self?.itemExtent = extent
             self?.onItemExtentChange?(extent)
         }
+        #if DEBUG
         canvas.onImageApplied = { [weak self] in self?.notifyVisibleThumbnails() }
+        #endif
         canvas.autoresizingMask = [.width, .height]
 
         tableScroll.documentView = table
@@ -164,9 +172,12 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     override func layout() {
         super.layout()
         messageLabel.frame = bounds.insetBy(dx: 16, dy: 16).divided(atDistance: 60, from: .minYEdge).slice
+        #if DEBUG
         notifyVisibleThumbnails()
+        #endif
     }
 
+    #if DEBUG
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         guard window != nil else { return }
@@ -178,6 +189,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         super.viewWillDraw()
         if visibleThumbnailsPending { notifyVisibleThumbnails() }
     }
+    #endif
 
     private func styleChanged() {
         canvas.removeFromSuperview()
@@ -218,6 +230,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         items.map { item in
             var canvas = item.canvas
             if style == .grid { canvas.label = "\u{00A0}" + item.name }
+            canvas.isFailed = item.failure != nil
             return canvas
         }
     }
@@ -241,7 +254,9 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             table.reloadData()
             reportTableRange()
         }
+        #if DEBUG
         notifyVisibleThumbnails()
+        #endif
     }
 
     func setCurrent(_ index: Int?, reveal: Bool) {
@@ -292,7 +307,9 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     @objc private func tableScrolled(_ notification: Notification) {
         reportTableRange()
+        #if DEBUG
         notifyVisibleThumbnails()
+        #endif
     }
 
     /// 重新请求失败的项。
@@ -318,7 +335,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard items.indices.contains(row), let column = tableColumn?.identifier else { return nil }
         let item = items[row]
-        let failure = failures[item.canvas.identity]
+        let failure = item.failure ?? failures[item.canvas.identity]
         let isCurrent = row == current
         switch (style, column) {
         case (.list, _):
@@ -359,7 +376,9 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         let identity = item.canvas.identity
         if let image = rowImages.cached(identity) {
             cell.setImage(image)
+            #if DEBUG
             notifyVisibleThumbnails()
+            #endif
             return
         }
         cell.setImage(nil)
@@ -371,7 +390,9 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
                 let image = try await rowImages.load(identity, maxPixel: maxPixel)
                 guard !Task.isCancelled else { return }
                 cell?.setImage(image)
+                #if DEBUG
                 self?.notifyVisibleThumbnails()
+                #endif
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError), let self else { return }
                 failures[identity] = ErrorText.describe(error)
@@ -382,6 +403,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         }
     }
 
+    #if DEBUG
     /// 列表看可见行的封面；网格和瀑布流看画布上的图层内容。
     private func visibleItemsHaveThumbnails() -> Bool {
         if style.usesCanvas { return canvas.visibleItemsHaveContents() }
@@ -405,6 +427,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         visibleThumbnailsPending = false
         onVisibleThumbnails?()
     }
+    #endif
 
     @objc private func rowClicked(_ sender: Any?) {
         let row = table.clickedRow
@@ -549,7 +572,9 @@ private final class CollectionListCell: NSView, CollectionCell {
         thumb.contents = image
     }
 
+    #if DEBUG
     var hasThumbnail: Bool { thumb.contents != nil }
+    #endif
 
     var texts: [String] { [name.stringValue, detail.stringValue] }
 }
@@ -604,24 +629,18 @@ private final class CollectionRowImages {
         init(_ image: CGImage) { self.image = image }
     }
 
-    init(pipeline: any ImagePipeline) {
+    init(pipeline: any ImagePipeline, settings: any SettingsStore) {
         self.pipeline = pipeline
-        updateCacheBudget()
+        followThumbnailMemoryBudget(cache, settings: settings)
     }
 
     func cached(_ identity: ContentIdentity) -> CGImage? {
-        updateCacheBudget()
-        return cache.object(forKey: identity.cacheKey as NSString)?.image
+        cache.object(forKey: identity.cacheKey as NSString)?.image
     }
 
     func load(_ identity: ContentIdentity, maxPixel: Int) async throws -> CGImage {
         let image = try await pipeline.thumbnail(for: identity, maxPixel: maxPixel, priority: .visible).image
-        updateCacheBudget()
         cache.setObject(CGImageBox(image), forKey: identity.cacheKey as NSString, cost: image.bytesPerRow * image.height)
         return image
-    }
-
-    private func updateCacheBudget() {
-        cache.totalCostLimit = max(1, Int((pipeline as? FileImagePipeline)?.thumbnailMemoryBudget ?? CacheBudgets.default.thumbnailMemoryBytes))
     }
 }

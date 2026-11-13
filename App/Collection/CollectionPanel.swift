@@ -63,7 +63,7 @@ class CollectionPanel: DockPanel {
         owner = window
         if let window, collection == nil {
             let collection = CollectionView(
-                pipeline: window.services.pipeline, style: settings.style, itemExtent: settings.itemExtent,
+                pipeline: window.services.pipeline, settings: window.services.settings, style: settings.style, itemExtent: settings.itemExtent,
                 secondColumn: secondColumnTitle, thumbSize: thumbSize
             )
             collection.onActivate = { [weak self] in self?.activate($0) }
@@ -78,12 +78,16 @@ class CollectionPanel: DockPanel {
             self.collection = collection
             host.setCollection(collection)
         }
+        #if DEBUG
         collection?.onVisibleThumbnails = { [weak self] in self?.visibleThumbnailsArrived() }
+        #endif
         windowChanged()
     }
 
-    /// 可见项都有缩略图。子类用来记首屏用时。
+    #if DEBUG
+    /// 可见项都有缩略图。子类用来给调试接口记首屏用时。
     func visibleThumbnailsArrived() {}
+    #endif
 
     /// 改变样式；样式控件、⋯ 菜单和自检共用。
     func setStyle(_ style: CollectionStyle) {

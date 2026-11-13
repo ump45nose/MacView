@@ -20,7 +20,8 @@ struct DisplayPrefetchTests {
         let thumbnails = try DiskCache(tier: .thumbnails, cacheDirectory: cacheDirectory, budget: 32 << 20, index: index)
         let caches = PipelineCaches(
             raw: MemoryCache(budget: 32 << 20), decoded: MemoryCache(budget: 256 << 20),
-            thumbnails: thumbnails, browse: nil, metadata: MetadataIndex(index: index)
+            thumbnails: thumbnails, browse: nil, metadata: MetadataIndex(index: index),
+            thumbnailMemory: MemoryCache(budget: 512 << 20), preload: MemoryCache(budget: 512 << 20)
         )
         let pipeline = FileImagePipeline(
             sources: registry, decoder: ImageDecoder(), caches: caches,

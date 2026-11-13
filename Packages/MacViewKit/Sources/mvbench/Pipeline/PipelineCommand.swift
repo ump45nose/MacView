@@ -117,7 +117,8 @@ struct PipelineCommand: AsyncParsableCommand {
         var screen: [Double] = []
         for _ in 0..<repetitions {
             // 每轮新的 L0/L1；L2 文件可以在操作系统页缓存里。
-            let caches = PipelineCaches(raw: MemoryCache(budget: 0), decoded: MemoryCache(budget: 0), thumbnails: disk, browse: nil, metadata: MetadataIndex(index: index))
+            let caches = PipelineCaches(raw: MemoryCache(budget: 0), decoded: MemoryCache(budget: 0), thumbnails: disk, browse: nil, metadata: MetadataIndex(index: index),
+                                        thumbnailMemory: MemoryCache(budget: 512 << 20), preload: MemoryCache(budget: 512 << 20))
             let pipe = FileImagePipeline(sources: registry, decoder: decoder, caches: caches, configuration: PipelineConfiguration(browseBounds: PixelSize(width: 2560, height: 1600)))
             let clock = ContinuousClock()
             let begin = clock.now
@@ -168,7 +169,8 @@ struct PipelineCommand: AsyncParsableCommand {
         let index = try CacheIndex(databaseURL: root.appendingPathComponent("index.sqlite"))
         let thumbnails = try DiskCache(tier: .thumbnails, cacheDirectory: root, budget: 4 << 30, index: index)
         let browseCache = try browse ? DiskCache(tier: .browse, cacheDirectory: root, budget: 4 << 30, index: index) : nil
-        let caches = PipelineCaches(raw: MemoryCache(budget: 256 << 20), decoded: MemoryCache(budget: 256 << 20), thumbnails: thumbnails, browse: browseCache, metadata: MetadataIndex(index: index))
+        let caches = PipelineCaches(raw: MemoryCache(budget: 256 << 20), decoded: MemoryCache(budget: 256 << 20), thumbnails: thumbnails, browse: browseCache, metadata: MetadataIndex(index: index),
+                                    thumbnailMemory: MemoryCache(budget: 512 << 20), preload: MemoryCache(budget: 512 << 20))
         return FileImagePipeline(sources: registry, decoder: decoder, caches: caches, configuration: PipelineConfiguration(browseBounds: PixelSize(width: 2560, height: 1600)))
     }
 

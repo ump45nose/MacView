@@ -17,6 +17,8 @@ struct CanvasItem: Equatable {
     var label: String?
     /// 图还不能请求，例如书架上还没解析封面的书。换成真正的身份时项的位置不变。
     var isPending = false
+    /// 项本身读取失败（例如书架封面）：显示错误标记，不请求图。
+    var isFailed = false
 }
 
 /// 回报给预取计划的范围：可见项，以及可见区加余量内的项。砌体中可见项不一定连续，范围取最小到最大的序号。
@@ -98,8 +100,10 @@ final class CanvasView: NSScrollView {
 
     /// 滚动停止或可见项变化后（去抖）回报，交给 `ReaderSession.visibleRangeChanged` 或面板的预取计划。
     var onVisibleRangeChange: ((CanvasVisibleRange) -> Void)?
-    /// 有图层内容被设上（缓存命中或异步到达）。
+    #if DEBUG
+    /// 有图层内容被设上（缓存命中或异步到达）。只给首屏计时用。
     var onImageApplied: (() -> Void)?
+    #endif
     var onSelectionChange: ((Set<Int>) -> Void)?
     /// 双击或回车。
     var onActivate: ((Int) -> Void)?
@@ -133,23 +137,24 @@ final class CanvasView: NSScrollView {
     private var settleTimer: Timer?
     private var counts = CanvasCounters()
     private let signposter = OSSignposter(category: .layout)
-    private lazy var errorImage = Self.makeErrorImage()
     private static let settleDelay = 0.05
 
-    init(pipeline: any ImagePipeline, kind: CollectionLayoutKind, imageSource: CanvasImageSource, itemExtent: Double = 220, direction: ReadingDirection = .leftToRight) {
+    init(pipeline: any ImagePipeline, settings: any SettingsStore, kind: CollectionLayoutKind, imageSource: CanvasImageSource, itemExtent: Double = 220, direction: ReadingDirection = .leftToRight) {
         self.kind = kind
         self.direction = direction
         self.itemExtent = itemExtent
         layout = CollectionLayout(kind: kind, viewportSize: .zero, itemExtent: itemExtent, spacing: 8, direction: direction)
         let content = CanvasDocumentView()
         self.content = content
-        loader = CanvasImageLoader(pipeline: pipeline, source: imageSource, view: content)
+        loader = CanvasImageLoader(pipeline: pipeline, settings: settings, source: imageSource, view: content)
         super.init(frame: .zero)
         loader.onReady = { [unowned self] identity, image in
             guard let index = tileIndex[identity], let tile = tiles[index] else { return false }
             tile.layer.contentsGravity = contentGravity
             tile.layer.contents = image.contents
+            #if DEBUG
             onImageApplied?()
+            #endif
             return true
         }
         loader.onFailure = { [unowned self] identity in
@@ -193,8 +198,10 @@ final class CanvasView: NSScrollView {
         var anchor: LayoutAnchor?
         if appended {
             anchor = stickyAnchor ?? layout.leadingAnchor(in: viewport)
-            // 已分配的项：身份变了的重新分配，其余只更新角标和标题。
-            recycle(tiles.compactMap { index, tile in newItems[index].identity == tile.identity ? nil : index })
+            // 已分配的项：身份或失败状态变了的重新分配，其余只更新角标和标题。
+            recycle(tiles.compactMap { index, tile in
+                newItems[index].identity == tile.identity && newItems[index].isFailed == items[index].isFailed ? nil : index
+            })
             for (index, tile) in tiles where newItems[index] != items[index] {
                 setOverlays(newItems[index], on: tile.layer)
             }
@@ -322,15 +329,18 @@ final class CanvasView: NSScrollView {
         let start = ContinuousClock.now
         let state = signposter.beginInterval("relayout")
         isRelayingOut = true
-        // 内容尺寸可能让非覆盖式滚动条出现或隐藏，期间的 clip 通知由本次重排接管。
-        // 先按最终视口完成布局，再以同一锚点定位和更新图层。
-        repeat {
-            if geometry || layout.viewportSize != contentView.bounds.size {
-                layout = CollectionLayout(kind: kind, viewportSize: contentView.bounds.size, itemExtent: itemExtent, spacing: spacing, direction: direction)
+        // 内容尺寸可能让非覆盖式滚动条出现或隐藏，期间的 clip 通知由本次重排接管。先按最终视口完成布局，再以同一锚点定位和更新图层。
+        // 项尺寸随视口宽度变化，总长落在“全宽时超出、减去滚动条后不超出”的临界带里时，滚动条会一直来回切换。
+        // 所以最多排两轮：第二轮视口仍在变时固定显示滚动条，按含滚动条的窄视口再排一次。每次重排都先放开上次的固定，重新判断。
+        if !autohidesScrollers { autohidesScrollers = true }
+        placeItems(rebuild: geometry || layout.viewportSize != contentView.bounds.size)
+        if layout.viewportSize != contentView.bounds.size {
+            placeItems(rebuild: true)
+            if layout.viewportSize != contentView.bounds.size {
+                autohidesScrollers = false
+                placeItems(rebuild: true)
             }
-            layout.setAspectRatios(ratios + footerRatio)
-            content.setFrameSize(layout.contentSize)
-        } while layout.viewportSize != contentView.bounds.size
+        }
         footerView?.isHidden = layout.count <= items.count
         if let footerView, let frame = layout.frame(of: items.count) { footerView.frame = frame }
         // 没有可见项可作锚点时（初次排版），停在第 0 项；右开的横向条因此从右端开始。
@@ -362,6 +372,15 @@ final class CanvasView: NSScrollView {
             if !frame.intersects(contentView.bounds) { counts.anchorMisses += 1 }
         }
         updateVisible(scrolled: false)
+    }
+
+    /// 按当前视口排一轮并设内容尺寸；设内容尺寸可能让非覆盖式滚动条出现或隐藏，从而改变视口。
+    private func placeItems(rebuild: Bool) {
+        if rebuild {
+            layout = CollectionLayout(kind: kind, viewportSize: contentView.bounds.size, itemExtent: itemExtent, spacing: spacing, direction: direction)
+        }
+        layout.setAspectRatios(ratios + footerRatio)
+        content.setFrameSize(layout.contentSize)
     }
 
     @objc private func clipChanged(_ notification: Notification) {
@@ -423,13 +442,15 @@ final class CanvasView: NSScrollView {
         layer.frame = frame
         layer.isHidden = false
         layer.borderWidth = selection.contains(index) ? 3 : 0
-        switch loader.state(of: identity) {
+        switch items[index].isFailed ? .failed : loader.state(of: identity) {
         case .failed:
             showError(on: layer)
         case .idle, .loading, .loaded:
             layer.contentsGravity = contentGravity
             layer.contents = loader.cached(identity)?.contents
+            #if DEBUG
             if layer.contents != nil { onImageApplied?() }
+            #endif
         }
         setOverlays(items[index], on: layer)
         tiles[index] = Tile(layer: layer, identity: identity)
@@ -514,20 +535,22 @@ final class CanvasView: NSScrollView {
 
     private func showError(on layer: CALayer) {
         layer.contentsGravity = .center
-        layer.contents = errorImage
+        layer.contents = Self.errorImage
     }
 
-    /// 当前视口里的项是否都已经有图层内容。
+    #if DEBUG
+    /// 当前视口里的项是否都已经有图层内容。只给首屏计时用。
     func visibleItemsHaveContents() -> Bool {
         let shown = tiles.filter { $0.value.layer.frame.intersects(viewport) }
         guard !shown.isEmpty else { return false }
         return shown.allSatisfy { $0.value.layer.contents != nil }
     }
+    #endif
 
     /// 按项在屏幕上的像素尺寸请求。显示图要宽高比才能定目标尺寸；网格的单元是正方形，按宽高比放进单元。
     @discardableResult
     private func request(_ index: Int, frame: CGRect, priority: IOPriority) -> Bool {
-        guard !items[index].isPending else { return false }
+        guard !items[index].isPending, !items[index].isFailed else { return false }
         let scale = window?.backingScaleFactor ?? 2
         let size = PixelSize(width: Int((frame.width * scale).rounded(.up)), height: Int((frame.height * scale).rounded(.up)))
         let longSide = max(size.width, size.height)
@@ -685,6 +708,9 @@ final class CanvasView: NSScrollView {
         itemExtent = extent
         onItemExtentChange?(extent)
     }
+
+    /// 加载失败的标记，画布和 HUD 共用。
+    static let errorImage = makeErrorImage()
 
     private static func makeErrorImage() -> CGImage? {
         let configuration = NSImage.SymbolConfiguration(pointSize: 24, weight: .regular).applying(.init(paletteColors: [.secondaryLabelColor]))

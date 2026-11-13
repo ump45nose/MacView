@@ -14,8 +14,7 @@ public struct PipelineCaches: Sendable {
     public var metadata: MetadataIndex
 
     public init(raw: MemoryCache<String, Data>, decoded: MemoryCache<String, RenderedImage>, thumbnails: DiskCache, browse: DiskCache?, metadata: MetadataIndex,
-                thumbnailMemory: MemoryCache<String, RenderedImage> = MemoryCache(budget: 512 << 20),
-                preload: MemoryCache<String, RenderedImage> = MemoryCache(budget: 512 << 20)) {
+                thumbnailMemory: MemoryCache<String, RenderedImage>, preload: MemoryCache<String, RenderedImage>) {
         self.raw = raw
         self.decoded = decoded
         self.thumbnailMemory = thumbnailMemory

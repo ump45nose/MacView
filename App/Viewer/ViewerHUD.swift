@@ -266,14 +266,25 @@ private final class FrameCell: NSView {
                 item.contents = contents
             } else {
                 let pipeline = pipeline
+                // 失败时显示错误标记，不缓存；下次显示这个页帧时重试。
                 tasks.append(Task { [weak self, weak item] in
-                    guard let image = try? await pipeline.thumbnail(for: identity, maxPixel: 128, priority: .near), !Task.isCancelled else { return }
-                    let contents: Any = image.surface ?? image.image
-                    CATransaction.begin()
-                    CATransaction.setDisableActions(true)
-                    item?.contents = contents
-                    CATransaction.commit()
-                    self?.onThumbnail?(identity, contents)
+                    do {
+                        let image = try await pipeline.thumbnail(for: identity, maxPixel: 128, priority: .near)
+                        guard !Task.isCancelled else { return }
+                        let contents: Any = image.surface ?? image.image
+                        CATransaction.begin()
+                        CATransaction.setDisableActions(true)
+                        item?.contents = contents
+                        CATransaction.commit()
+                        self?.onThumbnail?(identity, contents)
+                    } catch {
+                        guard !Task.isCancelled, !(error is CancellationError) else { return }
+                        CATransaction.begin()
+                        CATransaction.setDisableActions(true)
+                        item?.contentsGravity = .resizeAspect
+                        item?.contents = CanvasView.errorImage
+                        CATransaction.commit()
+                    }
                 })
             }
         }

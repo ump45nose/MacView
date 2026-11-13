@@ -9,11 +9,12 @@ import Observation
 /// 书架：当前书所在目录下的书。默认跟随打开的书；可以进入上一层或双击进入子文件夹。
 @MainActor
 final class BookshelfPanel: CollectionPanel {
-    /// 封面的解析结果；排序变化后不用重新解析。
+    /// 封面的解析结果；排序变化后不用重新解析。读取失败时 `failure` 是错误文字，点击这一项或重新列出目录时重试。
     private struct Cover {
         var identity: ContentIdentity?
         var aspectRatio: Double
         var readTo: Int?
+        var failure: String?
     }
 
     private nonisolated static let unknownRatio = 2.0 / 3
@@ -95,18 +96,23 @@ final class BookshelfPanel: CollectionPanel {
         startListing()
     }
 
+    #if DEBUG
     override func visibleThumbnailsArrived() {
         guard owner?.session.book == nil else { return }
         owner?.finishFirstScreenThumbnails(fromPageList: false)
     }
+    #endif
 
     /// 列出目录。目录缓存命中时立即有结果。
     private func startListing() {
+        #if DEBUG
         owner?.beginShelfThumbnails()
+        #endif
         listTask?.cancel()
         queue = []
         entries = []
         loadError = nil
+        covers = covers.filter { $0.value.failure == nil }
         guard let directory, let bookshelf = owner?.services.bookshelf else {
             isListing = false
             refresh()
@@ -177,12 +183,18 @@ final class BookshelfPanel: CollectionPanel {
         }
         if let read = cover?.readTo { parts.append(String(localized: "读到 \(read)")) }
         let size = if case .archive = entry.kind { CollectionFormat.bytes(entry.identity.size) } else { "" }
-        return CollectionItem(canvas: canvas, name: entry.name, detail: parts.joined(separator: " · "), column: kind, size: size)
+        return CollectionItem(canvas: canvas, name: entry.name, detail: parts.joined(separator: " · "), column: kind, size: size, failure: cover?.failure)
     }
 
+    /// 点击打开这本书；封面读取失败过的同时重新解析封面。
     override func activate(_ index: Int) {
         guard entries.indices.contains(index) else { return }
-        owner?.openBook(entries[index].location)
+        let book = entries[index].location
+        if covers[book]?.failure != nil {
+            covers[book] = nil
+            refresh()
+        }
+        owner?.openBook(book)
     }
 
     /// 双击文件夹：进入这一层。压缩包是书，单击已经打开了。
@@ -239,15 +251,18 @@ final class BookshelfPanel: CollectionPanel {
         }
     }
 
-    /// 封面的身份和宽高比。没有封面（空目录）或元数据失败时按 2:3，否则瀑布流的前缀会卡住。
+    /// 封面的身份和宽高比。目录里没有图片时没有封面；没有封面或读取失败时按 2:3 占位，否则瀑布流的前缀会卡住。
     private nonisolated static func resolve(_ book: Location, services: CoverServices) async -> Cover {
         let readTo = await services.settings.bookMemory(for: book)?.lastPageIndex.map { $0 + 1 }
-        guard let location = try? await services.bookshelf.cover(of: book, priority: .near),
-              let entry = try? await services.sources.provider(for: location).entry(at: location) else {
-            return Cover(identity: nil, aspectRatio: unknownRatio, readTo: readTo)
+        do {
+            guard let location = try await services.bookshelf.cover(of: book, priority: .near) else {
+                return Cover(identity: nil, aspectRatio: unknownRatio, readTo: readTo)
+            }
+            let entry = try await services.sources.provider(for: location).entry(at: location)
+            let size = try await services.pipeline.metadata(for: entry.identity, priority: .near).pixelSize
+            return Cover(identity: entry.identity, aspectRatio: size.height > 0 ? Double(size.width) / Double(size.height) : unknownRatio, readTo: readTo)
+        } catch {
+            return Cover(identity: nil, aspectRatio: unknownRatio, readTo: readTo, failure: ErrorText.describe(error))
         }
-        let metadata = try? await services.pipeline.metadata(for: entry.identity, priority: .near)
-        let ratio = metadata.flatMap { $0.pixelSize.height > 0 ? Double($0.pixelSize.width) / Double($0.pixelSize.height) : nil }
-        return Cover(identity: entry.identity, aspectRatio: ratio ?? unknownRatio, readTo: readTo)
     }
 }

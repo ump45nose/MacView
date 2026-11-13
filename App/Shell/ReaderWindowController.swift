@@ -81,20 +81,22 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private(set) var normalFrame = NSRect.zero
     private var healthTask: Task<Void, Never>?
     private var volumes: [VolumeHealth] = []
-    /// 这次打开的起点。调试接口在 `open` 之前记下；没有经过调试接口时，由页面列表在书出现时记下。
+    #if DEBUG
+    /// 首屏计时只给调试接口读，Release 不编译。这次打开的起点：调试接口在 `open` 之前记下；没有经过调试接口时，由页面列表在书出现时记下。
     private var firstScreenStart: ContinuousClock.Instant?
     private var firstScreenBook: Location?
     /// 调试接口的这次打开要等页面列表，书架封面不能抢先记成首屏。
     private var firstScreenExpectsBook = false
     /// 从这次打开到首屏可见项都有缩略图的毫秒。还没到是 nil。
     private(set) var firstScreenThumbnailMilliseconds: Double?
+    #endif
 
     init(services: CoreServices, catalog: CommandCatalog, dispatcher: CommandDispatcher, dock dockCoordinator: DockCoordinator, isMock: Bool) {
         self.services = services
         self.dispatcher = dispatcher
         self.isMock = isMock
         session = services.makeSession()
-        viewer = ViewerContainerView(session: session, services: ViewerServices(pipeline: services.pipeline, sources: services.sources, bookshelf: services.bookshelf))
+        viewer = ViewerContainerView(session: session, services: ViewerServices(pipeline: services.pipeline, sources: services.sources, settings: services.settings, bookshelf: services.bookshelf))
         let statusBar = StatusBarView(
             serviceBadge: isMock ? String(localized: "Mock 服务") : "",
             badgeToolTip: isMock ? String(localized: "尚未接入真实服务，书和图片来自内存中的模拟目录（/Volumes/Mock）。") : ""
@@ -210,6 +212,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         onSessionChange?()
     }
 
+    #if DEBUG
     /// 调试接口在打开之前调用，把起点放在 `open` 之前。
     func beginFirstScreenThumbnails() {
         firstScreenStart = .now
@@ -247,6 +250,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         firstScreenExpectsBook = false
         firstScreenThumbnailMilliseconds = (ContinuousClock.now - start).milliseconds
     }
+    #endif
 
     // MARK: 卷状态
 
