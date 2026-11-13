@@ -4,10 +4,15 @@ import AppKit
 /// 合成带相位的触控板滚动：began、changed、ended。自检和调试接口共用。
 @MainActor
 enum SyntheticScroll {
-    /// 响应式滚动在 began 之后直接从窗口服务器取事件，收不到 `sendEvent` 发来的 changed。自检和调试接口运行时画布要关掉它。
-    /// 每次读取启动参数，避免类型第一次被用到时还没写上 `MVDebugSocket` 就把开关冻住。
-    nonisolated static var isInUse: Bool {
-        UserDefaults.standard.bool(forKey: "MVViewerSelfTest") || UserDefaults.standard.string(forKey: "MVDebugSocket") != nil
+    /// 响应式滚动在 began 之后直接从窗口服务器取事件，收不到 `sendEvent` 发来的 changed。
+    /// 只在合成滚动进行期间关掉它，结束后恢复系统默认；开着调试接口时用户的真实滚动（如 `record-trackpad.sh` 录制）不受影响。
+    private(set) static var isInUse = false
+
+    /// 在 `body` 期间关掉画布的响应式滚动。命令和自检按顺序执行，不嵌套。
+    static func during<T>(_ body: () async throws -> T) async rethrows -> T {
+        isInUse = true
+        defer { isInUse = false }
+        return try await body()
     }
 
     /// `point` 是窗口坐标；`dx`、`dy` 是总位移（点），负的 `dy` 向下滚。

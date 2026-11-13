@@ -471,9 +471,11 @@ final class ViewerSelfTest {
 
     private func sendScroll(in view: NSView, window: NSWindow, deltaY: Double, steps: Int) async {
         let point = view.convert(NSPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
-        for event in SyntheticScroll.events(at: point, in: window, dx: 0, dy: deltaY, steps: steps) {
-            NSApp.sendEvent(event)
-            try? await Task.sleep(for: .milliseconds(8))
+        await SyntheticScroll.during {
+            for event in SyntheticScroll.events(at: point, in: window, dx: 0, dy: deltaY, steps: steps) {
+                NSApp.sendEvent(event)
+                try? await Task.sleep(for: .milliseconds(8))
+            }
         }
     }
 }

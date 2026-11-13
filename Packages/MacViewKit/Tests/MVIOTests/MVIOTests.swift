@@ -161,7 +161,8 @@ import Testing
 
     let reading = Task { try await source.read(0..<source.identity.size, priority: .visible, group: nil) }
     await backend.gate.waitForStarted(1)
-    let running = [VolumeHealth(root: .local, state: .healthy, inFlight: 1)]
+    // 3 MB 超过小读取上限，走大块读取通道。
+    let running = [VolumeHealth(root: .local, state: .healthy, inFlight: 1, bulkInFlight: 1)]
     #expect(scheduler.currentVolumeHealth() == running)
     #expect(registry.currentVolumeHealth() == running)
 
