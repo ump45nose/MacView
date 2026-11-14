@@ -330,6 +330,7 @@ public protocol SettingsStore: Sendable {
     func resolve(for book: Location) async -> ResolvedBookSettings
     func bookMemory(for book: Location) async -> BookMemory?
     func saveBookMemory(_ memory: BookMemory) async
+    func relocateBookMemory(from source: Location, to target: Location) async
     func global() async -> GlobalSettings
     func updateGlobal(_ change: @Sendable (inout GlobalSettings) -> Void) async throws
     func pathRules() async -> [PathRule]

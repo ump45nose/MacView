@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 import MVCommands
 import MVFoundation
+import MVFileOps
 import MVMedia
 import MVPipeline
 import MVReading
@@ -260,10 +261,63 @@ import Testing
         try await pending.value
     }
 
+    @Test("文件操作传播到两个会话、目录缓存和书记忆")
+    func propagatesFileChanges() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let operations = try #require(services.fileOperations)
+        let old = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        let parent = try #require(old.parent)
+        let directories = DirectoryCache(index: try #require(services.runtime?.index))
+        for try await _ in services.bookshelf.items(in: parent, sort: SortSpec(key: .name)) {}
+        let first = services.makeSession(), second = services.makeSession()
+        await first.open(old, at: nil); await second.open(old, at: nil)
+        first.go(.index(3)); second.go(.index(3))
+        let deleted = try #require(first.book?.pages[3].id)
+        let result = await operations.perform(.deletePermanently([deleted]))
+        #expect(result.failures.isEmpty)
+        try await waitUntil { first.book?.pages.count == 11 && second.book?.pages.count == 11 }
+        #expect(first.book?.pages[first.currentPage].entry.name == "5.jpg")
+        #expect(try await directories.cachedChildren(of: old)?.entries.contains(where: { $0.location == deleted }) == false)
+        let renamed = parent.appending("renamed-pages")
+        let move = await operations.perform(.rename(old, to: "renamed-pages"))
+        #expect(move.failures.isEmpty)
+        try await waitUntil { first.book?.location == renamed && second.book?.location == renamed && first.book?.pages.count == 11 && second.book?.pages.count == 11 }
+        #expect(first.book?.pages[first.currentPage].entry.name == "5.jpg")
+        let memory = await services.settings.bookMemory(for: renamed)
+        #expect(memory?.lastPage == renamed.appending("5.jpg"))
+        #expect(await services.settings.bookMemory(for: old) == nil)
+        let parentEntries = try #require(try await directories.cachedChildren(of: parent)?.entries)
+        #expect(parentEntries.contains { $0.location == renamed } && !parentEntries.contains { $0.location == old })
+        await fixture.shutdown(services)
+    }
+
+    @Test("启动时恢复未完成的传输")
+    func recoversTransfersAtStartup() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let sourceURL = fixture.root.appending(path: "recover.dat")
+        let targetURL = fixture.root.appending(path: "recovered.dat")
+        try Data([7, 8, 9]).write(to: sourceURL)
+        let registry = FileSourceRegistry(scheduler: IOScheduler(configuration: IOConfiguration(helperExecutable: nil)))
+        let source = try await registry.location(for: sourceURL)
+        let target = try await registry.location(for: targetURL)
+        let temporary = try await registry.location(for: fixture.root.appending(path: ".recovered.dat.macview-part"))
+        func encoded(_ location: Location) throws -> Any { try JSONSerialization.jsonObject(with: JSONEncoder().encode(location)) }
+        let json: [String: Any] = ["version": 1, "transfers": [["id": UUID().uuidString, "source": try encoded(source), "target": try encoded(target), "temporary": try encoded(temporary)]]]
+        try FileManager.default.createDirectory(at: fixture.configuration.supportDirectory, withIntermediateDirectories: true)
+        try JSONSerialization.data(withJSONObject: json).write(to: fixture.configuration.supportDirectory.appending(path: "transfers.json"))
+        let services = try await fixture.make()
+        try await waitUntil { !FileManager.default.fileExists(atPath: sourceURL.path) && FileManager.default.fileExists(atPath: targetURL.path) }
+        #expect(try Data(contentsOf: targetURL) == Data([7, 8, 9]))
+        await fixture.shutdown(services)
+    }
+
     @Test("Mock 保留原构造入口，没有 keybindings 存储，组合根只弱持有会话")
     func mockAndWeakSessions() async throws {
         let services = CoreServices.makeMock(MockOptions(timing: .instant))
-        #expect(services.keyBindings == nil)
+        #expect(services.keyBindings == nil && services.fileOperations == nil)
         var session: ReaderSession? = services.makeSession()
         weak let weakSession = session
         session = nil

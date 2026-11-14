@@ -218,3 +218,27 @@ struct FileReadingTests {
     }
     #expect(books.map(\.name) == ["book"])
 }
+
+@Test @MainActor func removedDottedDirectoryUsesOriginalBookKindForNameOrder() async throws {
+    let fixture = try ReadingFixture()
+    let rootURL = fixture.directory.appending(path: "shelf")
+    let archiveNamed = rootURL.appending(path: "A.zip")
+    let nextDirectory = rootURL.appending(path: "B")
+    try FileManager.default.createDirectory(at: archiveNamed, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: nextDirectory, withIntermediateDirectories: true)
+    try FileManager.default.linkItem(at: Fixtures.url("image/size/64x64.png"), to: archiveNamed.appending(path: "1.png"))
+    try FileManager.default.linkItem(at: Fixtures.url("image/size/64x64.png"), to: nextDirectory.appending(path: "1.png"))
+    let root = try await fixture.location(rootURL), old = root.appending("A.zip")
+    let pipeline = MockImagePipeline(environment: MockEnvironment(MockOptions(timing: .instant)))
+    let shelf = FileBookshelf(sources: fixture.registry, directories: fixture.directories)
+    let session = ReaderSession(loader: fixture.loader(pipeline), settings: MockSettingsStore(), bookshelf: shelf, pipeline: pipeline)
+    await session.open(old, at: nil)
+    try FileManager.default.removeItem(at: archiveNamed)
+    try await fixture.directories.apply([.removed(old)])
+    session.applyFileChanges([.removed(old)])
+    for _ in 0..<500 {
+        if session.book?.location == root.appending("B") { break }
+        try await Task.sleep(for: .milliseconds(2))
+    }
+    #expect(session.book?.location == root.appending("B"))
+}
