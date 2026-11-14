@@ -48,18 +48,20 @@ struct ReadRequest: Sendable, Equatable {
 /// 阻塞的文件操作。只在专用线程或辅助进程中调用，不能在协作线程池上调用。
 enum FileOperations {
     /// 所有写入都在一个后端请求中完成，不对失败的写调用重试。
-    static func execute(_ request: HelperRequest) throws(FileOperationError) -> String? {
+    static func execute(_ request: HelperRequest, configureNoCache: (Int32) -> Int32 = { fd in
+        fcntl(fd, F_NOCACHE, 1) == -1 ? errno : 0
+    }) throws(FileOperationError) -> String? {
         switch request {
         case let .create(path):
             let fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, mode_t(0o644))
             guard fd >= 0 else { throw .system(call: "open", code: errno) }
-            _ = fcntl(fd, F_NOCACHE, 1)
-            close(fd)
+            defer { close(fd) }
+            try requireNoCache(fd, configure: configureNoCache)
         case let .write(path, offset, data):
             let fd = open(path, O_WRONLY | O_CLOEXEC)
             guard fd >= 0 else { throw .system(call: "open", code: errno) }
             defer { close(fd) }
-            _ = fcntl(fd, F_NOCACHE, 1)
+            try requireNoCache(fd, configure: configureNoCache)
             try data.withUnsafeBytes { (buffer) throws(FileOperationError) in
                 var written = 0
                 while written < buffer.count {
@@ -76,7 +78,7 @@ enum FileOperations {
             let fd = open(path, O_WRONLY | O_CLOEXEC)
             guard fd >= 0 else { throw .system(call: "open", code: errno) }
             defer { close(fd) }
-            _ = fcntl(fd, F_NOCACHE, 1)
+            try requireNoCache(fd, configure: configureNoCache)
             guard fsync(fd) == 0 else { throw .system(call: "fsync", code: errno) }
             if let modification {
                 let seconds = modification / 1_000_000_000
@@ -118,6 +120,11 @@ enum FileOperations {
             throw .system(call: "invalid write request", code: EINVAL)
         }
         return nil
+    }
+
+    private static func requireNoCache(_ fd: Int32, configure: (Int32) -> Int32) throws(FileOperationError) {
+        let error = configure(fd)
+        guard error == 0 else { throw .system(call: "fcntl(F_NOCACHE)", code: error) }
     }
 
     static func stat(_ path: String, followLinks: Bool = true) throws(FileOperationError) -> FileAttributes {
