@@ -1,6 +1,6 @@
 # MacView 架构
 
-状态：2026-10-31 定稿；2026-11-01 并入关口 G0 的决定。
+状态：2026-10-31 定稿；2026-11-01 并入关口 G0 的决定。2026-11-14 同步 S3-T2 阶段 1 已实现接口；该阶段尚未完成或验收。
 
 相关文档：
 - 需求：[requirements.md](plans/requirements.md)
@@ -35,7 +35,8 @@
 | 模块 | 职责 | 依赖 |
 |---|---|---|
 | MVFoundation | Location、ContentIdentity、Entry、PixelSize、JSONValue、错误类型、日志与 signpost、名称比较器 | — |
-| MVIO | IOScheduler、卷通道与健康状态、FileSystemProvider、SourceRegistry、ByteSource，以及 URL 与 Location 的互转 | MVFoundation |
+| MVIO | IOScheduler、卷通道与健康状态、FileSystemProvider 读写原语、SourceRegistry、ByteSource，以及 URL 与 Location 的互转 | MVFoundation |
+| MVFileOps | 文件操作、反向操作、跨卷复制校验和传输记录；已接入组合根，网络验收待执行 | MVFoundation、MVIO |
 | MVArchive | zip/cbz、tar、tar.gz/gz，嵌套，ArchiveProvider，临时解出目录 | MVIO |
 | MVMedia | 探测、显示尺寸解码与重采样、原图与分块、动图帧、视频封面与元数据、渲染件编码 | MVFoundation |
 | MVCache | 泛型内存缓存 L0/L1、字节磁盘缓存 L2/L3、按容器查询的图像元数据索引、目录缓存 | MVFoundation、GRDB.swift |
@@ -45,12 +46,12 @@
 | MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVCache、MVPipeline、MVSettings |
 | MVServices | 组合根：创建并连接各服务，负责启动、退出和内存压力处理 | 以上全部 |
 | MVTestSupport | Mock 与夹具清单（`Fixtures/manifest.json`）的读取。App 的 Debug 构建可以用启动参数 `-MVMockServices YES` 切换到 Mock | 契约 |
-| mvbench | 基准测试与夹具生成的命令行工具 | 全部 |
+| mvbench | 基准测试与夹具生成的命令行工具；`fileops` 覆盖文件操作网络验收 | 现有 Core 模块及 MVFileOps |
 | MVLayout | App 侧的纯计算：画布的四种布局与锚点、停靠布局及其变换。App 没有测试目标，放进包里才能用 `make test` 测 | MVFoundation、MVSettings |
 | App（`MacView` target） | 窗口与标签页、停靠面板、集合视图、查看器、输入、菜单、设置界面、本地化 | MVServices 等 |
 
 - 任务 ID 中，T 表示 Core 任务，F 表示 App 任务。
-- P1 的新模块到对应阶段再建：MVLibraryData（书签、播放列表、历史）、MVFileOps、MVSearch、MVMetadata（评分与标签）、MVEffects、MVScripting、MVPlugins。
+- P1 的新模块到对应阶段再建：MVLibraryData（书签、播放列表、历史）、MVSearch、MVMetadata（评分与标签）、MVEffects、MVScripting、MVPlugins。
 - 依赖选型：SQLite 统一用 GRDB.swift（MIT 许可），由第一个用到它的任务引入，MVCache 与 MVSettings 共用。其余依赖由各任务按需选用。
 - 已引入的依赖（版本以 `Packages/MacViewKit/Package.resolved` 为准）：
 
@@ -116,6 +117,10 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 视频也要隔离：用 AVAssetResourceLoader 从辅助进程按范围取数据，不让 AVFoundation 在进程内读网络卷。
   - 辅助进程由 posix_spawn 起宿主自己的可执行文件（环境变量 `MVIO_HELPER=1`），经 socketpair 收发二进制帧，读到 EOF 即退出（S1-T1）。不用 launchd 托管的 XPC 服务：同一 App 域内只有一个实例，卡住的实例活着时无法换新的。
   - 卡住的辅助进程被弃用时发 SIGKILL 并关闭 socket，下一个请求起新的辅助进程。
+- 文件写入与移动（S3-T2 阶段 1，尚未验收）：创建、写入、完成、改名、建目录、删除和本机废纸篓经调度器及现有期限；网络卷由辅助进程执行。排他改名在 NFS 返回 ENOTSUP/EINVAL 时回退普通改名，存在检查与改名之间的竞态。
+- 跨卷移动先原子写入本机传输记录，复制到临时项并逐文件读回 SHA-256，排他发布后删除源；组合根启动时调用恢复。恢复时会核对仍存在源文件与目标的内容和修改时间，再删除源。
+- 文件操作用不跟随链接的类型查询；未知扩展名的普通文件可操作，链接同卷改名、移动和删除操作链接本身，复制和跨卷移动拒绝链接。校验读回每次重新打开描述符并设置 F_NOCACHE，读完关闭；创建、写入和完成文件时检查 F_NOCACHE 的设置结果，失败则关闭描述符并返回错误。若排他创建已成功而后续设置失败，新建的空文件可能保留。只保留文件修改时间，不保留目录自身修改时间。
+- 传输记录尚无明确发布阶段：恢复时目标可能由其他进程创建，当前以内容和修改时间核对；记录先于排他创建临时项写入，若既有同名临时项且恰在创建前崩溃，恢复可能误删该项。该边界尚待处理，不能把现有测试视为证明无竞态。
 - 健康探测在挂载点下查找一个随机的、不存在的名字，得到 ENOENT 即恢复。新名字不在缓存里，查找必须问服务器。不用 stat 挂载点或 statfs：服务器不可达时，前者由属性缓存回答，后者约 10 秒后返回缓存的值，都报成功，卷会在 healthy 与 degraded 之间反复切换（S1-T1 实测）。
 
 ### 3.3 媒体与渲染件
@@ -355,6 +360,9 @@ public enum EntryKind: Hashable, Sendable, Codable { case directory, archive(Arc
 public struct Entry: Hashable, Sendable, Codable { public var identity: ContentIdentity; public var name: String; public var kind: EntryKind; public var created: Date? }   // location、size、modified 由 identity 计算
 public struct SessionID: Hashable, Sendable { public let raw: UUID }
 public enum JSONValue: Hashable, Sendable, Codable { case null, bool(Bool), number(Double), string(String), array([JSONValue]), object([String: JSONValue]) }
+public enum FileChange: Sendable, Hashable { case added(Entry), removed(Location), moved(from: Location, to: Entry) }
+public enum ConflictPolicy: String, Sendable, Codable { case appendNumber, skip }
+public enum TransferMode: String, Sendable, Codable { case move, copy }
 public enum ResampleFilter: String, Sendable, Codable { case lanczos, nearest }   // MVSettings 也要用，所以放在这里
 public enum NameOrder { public static func compare(_ lhs: String, _ rhs: String) -> ComparisonResult }   // 数字感知与中文拼音排序
 
@@ -375,7 +383,7 @@ public protocol ContainerProvider: Sendable {
 }
 public enum VolumeState: Sendable, Equatable { case healthy, degraded(String), unavailable }
 public struct VolumeHealth: Sendable { public var root: Location.Root; public var state: VolumeState; public var inFlight: Int; public var bulkInFlight: Int; public var stuck: Int }   // inFlight 是两个通道执行中的调用数，bulkInFlight 是其中大块读取通道的
-public enum IOError: Error, Sendable { case timeout, cancelled, volumeUnavailable(Location.Root), volumeDegraded(Location.Root), notFound(Location), unsupported(Location), unsupportedFormat(Location, String), corrupted(Location, String), underlying(String) }   // volumeDegraded：卷连续超时，暂停访问；unsupportedFormat：位置和实际格式名（RAR、7z）
+public enum IOError: Error, Sendable { case timeout, cancelled, volumeUnavailable(Location.Root), volumeDegraded(Location.Root), notFound(Location), alreadyExists(Location), crossVolume, unsupported(Location), unsupportedFormat(Location, String), corrupted(Location, String), underlying(String) }   // volumeDegraded：卷连续超时，暂停访问；unsupportedFormat：位置和实际格式名（RAR、7z）
 public protocol SourceRegistry: Sendable {
     func provider(for location: Location) throws -> any ContainerProvider
     func location(for fileURL: URL) async throws -> Location   // 打开面板与拖放的入口；要查询卷信息，所以是异步的
@@ -391,10 +399,46 @@ public final class IOScheduler: Sendable {
     public func volumeHealth() -> AsyncStream<[VolumeHealth]>
     public func shutdown()                                            // 杀掉辅助进程，不等卡住的调用
 }
-public final class FileSystemProvider: ContainerProvider { public init(scheduler: IOScheduler) }   // 一层的 Location：本机与系统挂载
+public enum FileSystemItemType: Sendable, Equatable { case regular, directory, symbolicLink, other }
+public final class FileSystemProvider: ContainerProvider {
+    public init(scheduler: IOScheduler)
+    public func itemWithoutFollowingLinks(at location: Location) async throws -> (entry: Entry, type: FileSystemItemType) // lstat，返回链接自身
+    public func readUncached(_ location: Location, range: Range<Int64>, priority: IOPriority) async throws -> Data // 每次新开、F_NOCACHE、读后关闭
+    public func createFile(at location: Location) async throws
+    public func write(_ data: Data, at offset: Int64, to location: Location, priority: IOPriority) async throws
+    public func finishFile(at location: Location, modificationNanos: Int64?) async throws
+    public func rename(_ source: Location, to target: Location, exclusive: Bool) async throws
+    public func makeDirectory(at location: Location) async throws
+    public func remove(_ location: Location) async throws
+    public func moveToTrash(_ location: Location) async throws -> Location
+    public func isNetworkVolume(_ location: Location) throws -> Bool
+    public func volumeRoot(of location: Location) throws -> Location
+    public func mountedNetworkRoots() -> [Location]
+}   // 只接受一层 Location；写入经调度器；网络卷不支持系统废纸篓
 public final class FileSourceRegistry: SourceRegistry { public init(scheduler: IOScheduler); public let scheduler: IOScheduler; public let fileSystem: FileSystemProvider; public func register(_ provider: any ContainerProvider); public func currentVolumeHealth() -> [VolumeHealth] }   // provider(for:) 先问登记的 provider，再交给 fileSystem；压缩包 provider 由组合根登记；健康快照直接读取调度器
 public enum IOHelper { public static func runIfRequested() }   // 宿主 main 开头调用：作为辅助进程启动时进入请求循环，不返回
 public final class ByteSourceAsset: Sendable { public let asset: AVURLAsset; public init(source: any ByteSource, priority: IOPriority = .visible) }   // 网络卷视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
+
+// MVFileOps：已接入 CoreServices，真实网络验收未完成
+public struct Relocation: Sendable, Hashable { public var source: Location; public var target: Location }
+public indirect enum FileOperation: Sendable, Hashable {
+    case delete([Location]), deletePermanently([Location]), rename(Location, to: String)
+    case transfer([Location], into: Location, mode: TransferMode, conflict: ConflictPolicy)
+    case relocate([Relocation]), makeDirectory(in: Location, name: String), removeEmptyDirectory(Location), sequence([FileOperation])
+}
+public enum FileOpsError: Error, Sendable, Equatable { case readOnly, invalidName(String), recycleUnavailable(String), verificationFailed, intoItself }
+public struct FileFailure: Sendable { public var location: Location; public var error: any Error }
+public struct FileProgress: Sendable, Hashable { public var completedItems, totalItems: Int; public var completedBytes, totalBytes: Int64 }
+public struct FileOperationResult: Sendable { public var changes: [FileChange]; public var inverse: FileOperation?; public var skipped: [Location]; public var failures: [FileFailure] }
+public struct RecycleBin: Sendable, Hashable { public var location: Location; public var batchCount: Int }
+public struct ResumeReport: Sendable, Hashable { public var completed, pending, failed: Int }
+public final class FileOperationService: Sendable {
+    public init(fileSystem: FileSystemProvider, journalURL: URL) throws
+    public func perform(_ operation: FileOperation, progress: (@Sendable (FileProgress) -> Void)? = nil) async -> FileOperationResult
+    public func changes() -> AsyncStream<[FileChange]>
+    public func resumeInterruptedTransfers() async -> ResumeReport
+    public func recycleBins() async -> [RecycleBin]
+}
 
 // MVArchive
 public final class ArchiveProvider: ContainerProvider {
@@ -434,6 +478,7 @@ public final class DirectoryCache: Sendable {
     public init(index: CacheIndex)
     public func cachedChildren(of container: Location) async throws -> DirectoryListing?
     public func update(_ container: Location, listing: DirectoryListing) async throws -> ListingDiff
+    public func apply(_ changes: [FileChange]) async throws           // 只更新已有缓存
 }
 
 // MVMedia
@@ -528,7 +573,9 @@ public struct BookSettings: Codable, Sendable, Hashable {   // 每层只写自�
     public var resample: ResampleFilter?; public var sharpen: Float?
 }   // “仅缩小不放大” = 适合类缩放模式 + allowUpscale=false
 public struct ResolvedBookSettings: Codable, Sendable, Hashable { /* 与 BookSettings 字段相同，全部非可选 */ }
-public struct GlobalSettings: Codable, Sendable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int }   // CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
+public struct ClassifyTarget: Codable, Sendable, Hashable { public var location: Location; public var listsSubfolders: Bool }
+public struct FileOperationSettings: Codable, Sendable, Hashable { public var nameConflict: ConflictPolicy; public var classifyMode: TransferMode; public var classifyTargets: [ClassifyTarget] }   // 默认 appendNumber、move、空列表
+public struct GlobalSettings: Codable, Sendable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int; public var fileOperations: FileOperationSettings }   // CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
 extension PathRule { public static func matching(_ rules: [PathRule], for book: Location) -> [PathRule] }   // 越具体越靠后，相同时按原顺序；解析和设置窗口共用
 public struct PathRule: Codable, Sendable { public var id: UUID; public var name: String; public var prefix: Location; public var settings: BookSettings }
 public struct BookMemory: Codable, Sendable { public var book: Location; public var settings: BookSettings; public var lastPage: Location?; public var lastPageIndex: Int?; public var openedAt: Date }
@@ -537,6 +584,7 @@ public protocol SettingsStore: Sendable {
     func resolve(for book: Location) async -> ResolvedBookSettings
     func bookMemory(for book: Location) async -> BookMemory?
     func saveBookMemory(_ memory: BookMemory) async
+    func relocateBookMemory(from source: Location, to target: Location) async
     func global() async -> GlobalSettings
     func updateGlobal(_ change: @Sendable (inout GlobalSettings) -> Void) async throws
     func pathRules() async -> [PathRule]
@@ -550,17 +598,18 @@ public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
     public func update(_ change: @Sendable (inout Value) -> Void) async throws
     public func changes() -> AsyncStream<DocumentChange>
 }   // 顶层 {"version": Int, "value": Value}；原子写入并监听外部修改，未来版本报 fileError；缺文件时首次 update 才写出
-public final class FileSettingsStore: SettingsStore { public init(directory: URL) throws; public func flush() async throws }   // settings.json、path-rules.json 与 state.sqlite（书记忆），shutdown 调用 flush
+public final class FileSettingsStore: SettingsStore { public init(directory: URL) throws; public func flush() async throws; public func relocateBookMemory(from: Location, to: Location) async }   // settings.json、path-rules.json 与 state.sqlite（书记忆），shutdown 调用 flush
+// relocateBookMemory 迁移单条记忆及其所属页面位置，覆盖目标已有值；Mock 也提供。
 // keybindings.json 由 MVServices 用 JSONDocumentStore<KeyBindingsFile> 管理；App 可用同一存储管理 layout.json
 
 // MVCommands
 public struct CommandID: RawRepresentable, Hashable, Codable, Sendable { public var rawValue: String; public init(_ rawValue: String) }   // 例如 "page.next"，JSON 中为字符串
-public enum InputScope: String, Codable, Sendable { case global, viewer, list, textInput }
+public enum InputScope: String, Codable, Sendable { case global, viewer, list, textInput, classify }
 public struct KeyModifiers: OptionSet, Hashable, Codable, Sendable { public let rawValue: UInt8 /* command, option, control, shift, function */ }
 public struct KeyChord: Hashable, Codable, Sendable { public var key: String; public var modifiers: KeyModifiers }   // key 为逻辑键名，如 "Right"、"a"
 public struct KeyBinding: Codable, Sendable, Hashable { public var sequence: [KeyChord]; public var command: CommandID; public var arguments: [String: JSONValue]?; public var scope: InputScope }
 public enum ResolveResult: Sendable, Equatable { case command(CommandID, [String: JSONValue]?), pending([KeyChord]), unmatched }
-public struct BindingResolver: Sendable { public init(bindings: [KeyBinding], sequenceTimeout: Duration = .seconds(1)); public mutating func feed(_ chord: KeyChord, scope: InputScope, at time: ContinuousClock.Instant) -> ResolveResult; public static func conflicts(in bindings: [KeyBinding]) -> [BindingConflict] }   // 同作用域的相同序列或前缀冲突；textInput 不回退全局
+public struct BindingResolver: Sendable { public init(bindings: [KeyBinding], sequenceTimeout: Duration = .seconds(1)); public mutating func feed(_ chord: KeyChord, scope: InputScope, overlay: InputScope? = nil, at time: ContinuousClock.Instant) -> ResolveResult; public static func conflicts(in bindings: [KeyBinding]) -> [BindingConflict] }   // 同作用域的相同序列或前缀冲突；textInput 不回退全局
 public struct KeyBindingsFile: Codable, Sendable, Hashable { public var bindings: [KeyBinding]; public init(bindings: [KeyBinding] = []) }
 public struct BindingConflict: Sendable, Hashable { public var scope: InputScope; public var first: KeyBinding; public var second: KeyBinding; public init(scope: InputScope, first: KeyBinding, second: KeyBinding) }
 extension KeyBinding { public static func effective(defaults: [CommandDescriptor], user: [KeyBinding]) -> [KeyBinding] }   // 用户按命令覆盖全部默认绑定；空序列可取消默认绑定
@@ -580,6 +629,8 @@ public enum CoreCommands { public static let all: [CommandDescriptor]; public st
 extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources/MVCommands/CoreCommands.swift
     public static let frameNext, framePrevious, pageNext, pagePrevious, pageFirst, pageLast, pageJump: CommandID
     public static let bookNext, bookPrevious, fileOpen, bookReveal: CommandID
+    public static let fileDelete, fileRename, fileCopy, fileCopyPath, fileReveal, fileOpenWith, recycleEmpty: CommandID
+    public static let classifyTarget, classifyModeToggle, classifyNewTarget, classifyPanelToggle, editUndo, editRedo: CommandID
     public static let browsePaged, browseWaterfall, browseVerticalStrip, browseHorizontalStrip: CommandID
     public static let pageModeToggle, readingDirectionToggle, firstPageSingleToggle, widePageAsIs, widePageSingle, widePageSplit: CommandID
     public static let zoomOriginal, zoomFitWindow, zoomFitWidth, zoomFitHeight, zoomFill, zoomFixed, zoomDevicePixel, zoomIn, zoomOut: CommandID
@@ -603,6 +654,7 @@ public enum NavigationDirection: Sendable { case forward, backward }
 public protocol Bookshelf: Sendable {
     func items(in directory: Location, sort: SortSpec) -> AsyncThrowingStream<ShelfEvent, any Error>   // 书：子文件夹与压缩包
     func cover(of book: Location, priority: IOPriority) async throws -> Location?
+    func rememberBook(_ book: Location) async   // 存在时记住排序所需信息，协议扩展默认空实现
     func neighbor(of book: Location, _ direction: NavigationDirection, sort: SortSpec) async throws -> Location?
     func passThrough(_ location: Location) async throws -> Location
 }
@@ -632,6 +684,7 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public private(set) var settings: ResolvedBookSettings; public private(set) var loadError: (any Error)?
     public func open(_ location: Location, at page: Location?) async
     public func go(_ move: PageMove)
+    public func applyFileChanges(_ changes: [FileChange])   // 组合根转发；递归新增页按平铺顺序插入
     public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async   // sort 是书架面板当前的排序，与书内页面的排序无关
     public func update(_ change: (inout BookSettings) -> Void)   // 写入书层，去抖后持久化
     public func visibleRangeChanged(_ pages: Range<Int>)        // 连续和瀑布模式由前端回报
@@ -645,6 +698,7 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
 }
 // 分页模式在视口回报后，对当前帧前后各 viewerDecodeFrames 个页帧（不含当前帧）按 PageFrameFit.displayTargets 预解码；连续模式仍按可见范围。相邻书与封面在排序回报后以 .adjacent 合进同一份计划。
 
+public struct ReadingListing: Sendable { public static func isVisible(_ entry: Entry) -> Bool }   // 以 . 开头的名字不显示
 public enum ReadingOrder { public static func sorted(_ entries: [Entry], by sort: SortSpec) -> [Entry] }   // 书架和页面列表面板自己的排序用它
 
 // MVServices
@@ -658,9 +712,11 @@ public struct CoreConfiguration: Sendable {
     public convenience init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader)   // Mock 等消费方的构造入口
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
     public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?   // Mock 为 nil
+    public let fileOperations: FileOperationService?   // Mock 为 nil
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
     public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
+// 组合根订阅文件变更，依次更新已有目录缓存、迁移书或压缩包记忆并通知活跃会话；启动时异步恢复中断传输。
 // make 创建空 CommandRegistry，命令处理器由 App 登记。组合根统一订阅内存压力和全局设置变化：
 // warning/critical 将四块内存缓存收缩至预算的 50%/25% 并取消 background 预取；设置变化更新全部缓存预算，L3 开关下次启动生效。
 // MVTestSupport：extension CoreServices { static func makeMock(_ options: MockOptions = MockOptions()) -> CoreServices }
