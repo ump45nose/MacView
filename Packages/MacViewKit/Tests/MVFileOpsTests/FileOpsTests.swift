@@ -112,7 +112,7 @@ private final class Fixture: Sendable {
     let root: Location
     let fs: FileSystemProvider
     let service: FileOperationService
-    init(network: Bool = false) async throws {
+    init(network: Bool = false, forceCrossVolume: Bool = false, corruptCopy: Bool = false, badJournal: Bool = false) async throws {
         let work = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let directory = work.appending(path: ".mvfileops-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
@@ -122,7 +122,13 @@ private final class Fixture: Sendable {
         root = try await registry.location(for: directory)
         let root = self.root
         let fs = self.fs
-        service = try FileOperationService(fileSystem: fs, journalURL: directory.appending(path: "transfers.json"), isNetwork: { location in network && location.hasPrefix(root) }, volumeRoot: { _ in root }, networkRoots: { network ? [root] : [] }, trash: { source in
+        if badJournal {
+            let blocked = directory.appending(path: "readonly")
+            try FileManager.default.createDirectory(at: blocked, withIntermediateDirectories: false)
+            try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: blocked.path)
+        }
+        let journalURL = directory.appending(path: badJournal ? "readonly/transfers.json" : "transfers.json")
+        service = try FileOperationService(fileSystem: fs, journalURL: journalURL, forceCrossVolume: forceCrossVolume, corruptCopy: corruptCopy, isNetwork: { location in network && location.hasPrefix(root) }, volumeRoot: { _ in root }, networkRoots: { network ? [root] : [] }, trash: { source in
             let trash = root.appending("trash")
             do { try await fs.makeDirectory(at: trash) } catch IOError.alreadyExists {}
             let target = trash.appending(UUID().uuidString + "-" + source.name)
@@ -131,7 +137,10 @@ private final class Fixture: Sendable {
         })
     }
     func exists(_ path: String) -> Bool { FileManager.default.fileExists(atPath: directory.appending(path: path).path) }
-    deinit { try? FileManager.default.removeItem(at: directory) }
+    deinit {
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.appending(path: "readonly").path)
+        try? FileManager.default.removeItem(at: directory)
+    }
 }
 
 @Test func directoryCopyConflictAndFailures() async throws {
@@ -173,4 +182,142 @@ private final class Fixture: Sendable {
     #expect(direct.failures.count == 1 && f.exists("outside/keep.jpg"))
     let recursive = await f.service.perform(.deletePermanently([f.root.appending("container")]))
     #expect(recursive.failures.count == 1 && f.exists("outside/keep.jpg") && f.exists("container"))
+}
+
+@Test func crossVolumeMoveCopiesVerifiesAndClearsJournal() async throws {
+    let f = try await Fixture(forceCrossVolume: true)
+    let source = f.root.appending("source.jpg"), folder = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: folder)
+    try await f.fs.createFile(at: source)
+    let data = Data((0..<1_500_000).map { UInt8($0 % 251) })
+    try await f.fs.write(data, at: 0, to: source, priority: .background)
+    let stamp: Int64 = 1_700_000_000_123_456_789
+    try await f.fs.finishFile(at: source, modificationNanos: stamp)
+    let result = await f.service.perform(.transfer([source], into: folder, mode: .move, conflict: .skip))
+    #expect(result.failures.isEmpty && !f.exists("source.jpg") && f.exists("dest/source.jpg"))
+    #expect(try Data(contentsOf: f.directory.appending(path: "dest/source.jpg")) == data)
+    #expect(try await f.fs.entry(at: folder.appending("source.jpg")).identity.modificationNanos == stamp)
+    let journal = try JSONDecoder().decode(TransferJournal.self, from: Data(contentsOf: f.directory.appending(path: "transfers.json")))
+    #expect(journal.transfers.isEmpty)
+    #expect(!f.exists("dest/.source.jpg.macview-part"))
+}
+
+@Test func verificationFailureKeepsSourceAndCleansTemporary() async throws {
+    let f = try await Fixture(forceCrossVolume: true, corruptCopy: true)
+    let source = f.root.appending("source.jpg"), folder = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: folder)
+    try await f.fs.createFile(at: source)
+    try await f.fs.write(Data([1, 2, 3]), at: 0, to: source, priority: .background)
+    let result = await f.service.perform(.transfer([source], into: folder, mode: .move, conflict: .skip))
+    #expect((result.failures.first?.error as? FileOpsError) == .verificationFailed)
+    #expect(f.exists("source.jpg") && !f.exists("dest/source.jpg") && !f.exists("dest/.source.jpg.macview-part"))
+    let journal = try JSONDecoder().decode(TransferJournal.self, from: Data(contentsOf: f.directory.appending(path: "transfers.json")))
+    #expect(journal.transfers.isEmpty)
+}
+
+@Test func journalFailurePreventsMove() async throws {
+    let f = try await Fixture(forceCrossVolume: true, badJournal: true)
+    let source = f.root.appending("source.jpg"), folder = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: folder)
+    try await f.fs.createFile(at: source)
+    let result = await f.service.perform(.transfer([source], into: folder, mode: .move, conflict: .skip))
+    #expect(result.failures.count == 1 && f.exists("source.jpg") && !f.exists("dest/source.jpg") && !f.exists("dest/.source.jpg.macview-part"))
+}
+
+@Test func resumeAllRecoveryRulesAndUnavailableVolume() async throws {
+    let f = try await Fixture(forceCrossVolume: true)
+    let dest = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: dest)
+    let a = f.root.appending("a.jpg"), b = f.root.appending("b.jpg"), c = f.root.appending("c.jpg"), d = f.root.appending("d.jpg")
+    for item in [a, b, c] { try await f.fs.createFile(at: item); try await f.fs.write(Data([7, 8]), at: 0, to: item, priority: .background) }
+    try await f.fs.createFile(at: dest.appending(".a.jpg.macview-part"))
+    try await f.fs.createFile(at: dest.appending("b.jpg"))
+    try await f.fs.write(Data([7, 8]), at: 0, to: dest.appending("b.jpg"), priority: .background)
+    let bTime = try await f.fs.entry(at: b).identity.modificationNanos
+    try await f.fs.finishFile(at: dest.appending("b.jpg"), modificationNanos: bTime)
+    let unavailable = Location(root: .network(scheme: "nfs", host: "missing.invalid", share: "missing"), layers: [["x.jpg"]])
+    let records = [
+        TransferRecord(id: UUID(), source: a, target: dest.appending("a.jpg"), temporary: dest.appending(".a.jpg.macview-part")),
+        TransferRecord(id: UUID(), source: b, target: dest.appending("b.jpg"), temporary: dest.appending(".b.jpg.macview-part")),
+        TransferRecord(id: UUID(), source: c, target: dest.appending("c.jpg"), temporary: dest.appending(".c.jpg.macview-part")),
+        TransferRecord(id: UUID(), source: d, target: dest.appending("d.jpg"), temporary: dest.appending(".d.jpg.macview-part")),
+        TransferRecord(id: UUID(), source: unavailable, target: dest.appending("x.jpg"), temporary: dest.appending(".x.jpg.macview-part"))
+    ]
+    try JSONEncoder().encode(TransferJournal(version: 1, transfers: records)).write(to: f.directory.appending(path: "transfers.json"))
+    let report = await f.service.resumeInterruptedTransfers()
+    #expect(report == ResumeReport(completed: 3, pending: 1, failed: 1))
+    #expect(!f.exists("a.jpg") && !f.exists("b.jpg") && !f.exists("c.jpg"))
+    #expect(f.exists("dest/a.jpg") && f.exists("dest/b.jpg") && f.exists("dest/c.jpg") && !f.exists("dest/.a.jpg.macview-part"))
+    let journal = try JSONDecoder().decode(TransferJournal.self, from: Data(contentsOf: f.directory.appending(path: "transfers.json")))
+    #expect(journal.transfers == [records.last!])
+}
+
+@Test func crossVolumeConflictAndDirectoryCopy() async throws {
+    let f = try await Fixture(forceCrossVolume: true)
+    let source = f.root.appending("source"), dest = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: source)
+    try await f.fs.makeDirectory(at: dest)
+    try await f.fs.makeDirectory(at: dest.appending("source"))
+    let child = source.appending("a.jpg")
+    try await f.fs.createFile(at: child)
+    try await f.fs.write(Data([1, 2, 3]), at: 0, to: child, priority: .background)
+    let result = await f.service.perform(.transfer([source], into: dest, mode: .move, conflict: .appendNumber))
+    #expect(result.failures.isEmpty && !f.exists("source") && f.exists("dest/source (2)/a.jpg"))
+    #expect(try Data(contentsOf: f.directory.appending(path: "dest/source (2)/a.jpg")) == Data([1, 2, 3]))
+    #expect((await f.service.perform(try #require(result.inverse))).failures.isEmpty && f.exists("source/a.jpg"))
+}
+
+@Test func cancellingCrossVolumeCopyCleansTemporaryAndJournal() async throws {
+    let f = try await Fixture(forceCrossVolume: true)
+    let source = f.root.appending("big.jpg"), dest = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: dest)
+    try await f.fs.createFile(at: source)
+    try await f.fs.write(Data(repeating: 7, count: 12 << 20), at: 0, to: source, priority: .background)
+    let taskBox = Mutex<Task<FileOperationResult, Never>?>(nil)
+    let task = Task {
+        await f.service.perform(.transfer([source], into: dest, mode: .move, conflict: .skip)) { progress in
+            if progress.completedBytes > 0 && progress.completedItems == 0 { taskBox.withLock { $0?.cancel() } }
+        }
+    }
+    taskBox.withLock { $0 = task }
+    let result = await task.value
+    #expect(result.changes.isEmpty && f.exists("big.jpg") && !f.exists("dest/big.jpg") && !f.exists("dest/.big.jpg.macview-part"))
+    let journal = try JSONDecoder().decode(TransferJournal.self, from: Data(contentsOf: f.directory.appending(path: "transfers.json")))
+    #expect(journal.transfers.isEmpty)
+}
+
+@Test func failedRecoveryKeepsRecordForAnotherAttempt() async throws {
+    let f = try await Fixture(corruptCopy: true)
+    let source = f.root.appending("source.jpg"), dest = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: dest)
+    try await f.fs.createFile(at: source)
+    try await f.fs.write(Data([1, 2, 3]), at: 0, to: source, priority: .background)
+    let record = TransferRecord(id: UUID(), source: source, target: dest.appending("source.jpg"), temporary: dest.appending(".source.jpg.macview-part"))
+    let journalURL = f.directory.appending(path: "transfers.json")
+    try JSONEncoder().encode(TransferJournal(version: 1, transfers: [record])).write(to: journalURL)
+    #expect(await f.service.resumeInterruptedTransfers() == ResumeReport(completed: 0, pending: 0, failed: 1))
+    #expect(f.exists("source.jpg") && !f.exists("dest/.source.jpg.macview-part"))
+    #expect(try JSONDecoder().decode(TransferJournal.self, from: Data(contentsOf: journalURL)).transfers == [record])
+    let retry = try FileOperationService(fileSystem: f.fs, journalURL: journalURL)
+    #expect(await retry.resumeInterruptedTransfers() == ResumeReport(completed: 1, pending: 0, failed: 0))
+    #expect(!f.exists("source.jpg") && f.exists("dest/source.jpg"))
+}
+
+@Test func recoveryNeverDeletesSourceForAnUnrelatedTarget() async throws {
+    let f = try await Fixture()
+    let source = f.root.appending("source.jpg"), dest = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: dest)
+    try await f.fs.createFile(at: source)
+    try await f.fs.write(Data([1, 2, 3]), at: 0, to: source, priority: .background)
+    let target = dest.appending("source.jpg")
+    try await f.fs.createFile(at: target)
+    try await f.fs.write(Data([9, 9, 9]), at: 0, to: target, priority: .background)
+    let time = try await f.fs.entry(at: source).identity.modificationNanos
+    try await f.fs.finishFile(at: target, modificationNanos: time)
+    let record = TransferRecord(id: UUID(), source: source, target: target, temporary: dest.appending(".source.jpg.macview-part"))
+    let journalURL = f.directory.appending(path: "transfers.json")
+    try JSONEncoder().encode(TransferJournal(version: 1, transfers: [record])).write(to: journalURL)
+    #expect(await f.service.resumeInterruptedTransfers() == ResumeReport(completed: 0, pending: 0, failed: 1))
+    #expect(f.exists("source.jpg") && f.exists("dest/source.jpg"))
+    #expect(try JSONDecoder().decode(TransferJournal.self, from: Data(contentsOf: journalURL)).transfers == [record])
 }
