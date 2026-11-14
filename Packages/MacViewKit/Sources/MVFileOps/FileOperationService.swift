@@ -26,16 +26,20 @@ public final class FileOperationService: Sendable {
     private let networkRoots: @Sendable () -> [Location]
     private let trash: @Sendable (Location) async throws -> Location
     private let gate = OperationGate()
-    // 描述符缓存跨服务实例存活；进程内不重复临时路径，避免读回时拿到已删除的旧 inode。
-    private static let usedTemporaryPaths = Mutex<Set<Location>>([])
+    private let transferID: @Sendable () -> UUID
+    private let createTemporary: @Sendable (Location) async throws -> Void
+    private let removeTemporary: @Sendable (Location) async throws -> Void
     private let observers = Mutex<[UUID: AsyncStream<[FileChange]>.Continuation]>([:])
 
     public convenience init(fileSystem: FileSystemProvider, journalURL: URL) throws {
         try self.init(fileSystem: fileSystem, journalURL: journalURL, isNetwork: { try fileSystem.isNetworkVolume($0) }, volumeRoot: { try fileSystem.volumeRoot(of: $0) }, networkRoots: { fileSystem.mountedNetworkRoots() }, trash: { try await fileSystem.moveToTrash($0) })
     }
-    init(fileSystem: FileSystemProvider, journalURL: URL, forceCrossVolume: Bool = false, corruptCopy: Bool = false, isNetwork: @escaping @Sendable (Location) throws -> Bool, volumeRoot: @escaping @Sendable (Location) throws -> Location, networkRoots: @escaping @Sendable () -> [Location], trash: @escaping @Sendable (Location) async throws -> Location) throws {
+    init(fileSystem: FileSystemProvider, journalURL: URL, forceCrossVolume: Bool = false, corruptCopy: Bool = false, transferID: @escaping @Sendable () -> UUID = { UUID() }, createTemporary: (@Sendable (Location) async throws -> Void)? = nil, removeTemporary: (@Sendable (Location) async throws -> Void)? = nil, isNetwork: @escaping @Sendable (Location) throws -> Bool, volumeRoot: @escaping @Sendable (Location) throws -> Location, networkRoots: @escaping @Sendable () -> [Location], trash: @escaping @Sendable (Location) async throws -> Location) throws {
         self.fileSystem = fileSystem; self.journalURL = journalURL; self.isNetwork = isNetwork
         self.forceCrossVolume = forceCrossVolume; self.corruptCopy = corruptCopy
+        self.transferID = transferID
+        self.createTemporary = createTemporary ?? { try await fileSystem.createFile(at: $0) }
+        self.removeTemporary = removeTemporary ?? { try await fileSystem.remove($0) }
         self.volumeRoot = volumeRoot; self.networkRoots = networkRoots; self.trash = trash
     }
     public func changes() -> AsyncStream<[FileChange]> {
@@ -215,6 +219,7 @@ public final class FileOperationService: Sendable {
         }
     }
     private struct Skipped: Error {}
+    private struct TemporaryCollision: Error { let error: IOError }
     private func batch(_ locations: [Location], progress: (@Sendable (FileProgress) -> Void)?, body: (Entry, FileSystemItemType, BatchContext) async throws -> (FileChange, FileOperation?)) async -> FileOperationResult {
         var outcome = Outcome()
         var entries: [(Location, Result<(Entry, FileSystemItemType, Int64), any Error>)] = []
@@ -242,6 +247,7 @@ public final class FileOperationService: Sendable {
                 if let inverse { outcome.inverses.append(inverse) } else { outcome.irreversible = true }
                 context.complete(size)
             } catch is Skipped { context.discard(); outcome.skipped.append(location) }
+            catch let collision as TemporaryCollision { context.discard(); outcome.failures.append(FileFailure(location: location, error: collision.error)) }
             catch { context.discard(); outcome.failures.append(FileFailure(location: location, error: error)) }
         }
         return outcome.result
@@ -289,14 +295,15 @@ public final class FileOperationService: Sendable {
             for child in try await children(entry.location) { try await validateCopyTree(child) }
         }
     }
-    private func removeTree(_ location: Location) async throws {
+    private func removeTree(_ location: Location, temporaryRoot: Bool = false) async throws {
         if Task.isCancelled { throw IOError.cancelled }
         let type = try await fileSystem.itemWithoutFollowingLinks(at: location).type
         guard type != .other else { throw IOError.unsupported(location) }
         if type == .directory {
             for child in try await children(location) { try await removeTree(child.location) }
         }
-        try await fileSystem.remove(location)
+        if temporaryRoot { try await removeTemporary(location) }
+        else { try await fileSystem.remove(location) }
     }
     private func createRecycleBatch(_ root: Location) async throws -> Location {
         let trash = root.appending(".macview-trash")
@@ -311,63 +318,59 @@ public final class FileOperationService: Sendable {
             do { try await fileSystem.makeDirectory(at: batch); return batch } catch IOError.alreadyExists { continue }
         }
     }
-    private static func reserveTemporary(preferred: Location, parent: Location, name: String) -> Location {
-        usedTemporaryPaths.withLock { paths in
-            var candidate = preferred
-            var attempts = 0
-            while paths.contains(candidate) {
-                let random = UUID().uuidString.lowercased()
-                let suffix = attempts < 128 ? String(random.prefix(4)) : random
-                candidate = parent.appending(".\(name).macview-part-\(suffix)")
-                attempts += 1
-            }
-            paths.insert(candidate)
-            return candidate
-        }
-    }
     /// 目标先写入独立临时项，逐文件读回校验，再原子改名。跨卷移动先持久化记录。
     private func copy(_ entry: Entry, to target: Location, moving: Bool = false, existingRecord: TransferRecord? = nil, conflict: ConflictPolicy? = nil, number startingNumber: Int = 1, progress: ((Int64) -> Void)? = nil) async throws -> Location {
         try await validateCopyTree(entry)
         let type = try await fileSystem.itemWithoutFollowingLinks(at: entry.location).type
         guard let parent = target.parent else { throw FileOpsError.readOnly }
+        let policy = existingRecord?.conflict ?? conflict
         var selectedTarget = target
         var selectedNumber = startingNumber
-        // 记录建立前先避开已有目标，否则崩溃恢复可能把无关的已有文件当成已完成的目标。
+        if existingRecord != nil && policy == .appendNumber {
+            let extensionStart = type == .directory ? nil : entry.name.lastIndex(of: ".")
+            let validExtension = extensionStart.flatMap { $0 == entry.name.startIndex ? nil : $0 }
+            let stem = validExtension.map { String(entry.name[..<$0]) } ?? entry.name
+            let suffix = validExtension.map { String(entry.name[$0...]) } ?? ""
+            let prefix = stem + " ("
+            let ending = ")" + suffix
+            if target.name.hasPrefix(prefix), target.name.hasSuffix(ending), target.name.count >= prefix.count + ending.count {
+                let digits = target.name.dropFirst(prefix.count).dropLast(ending.count)
+                if let number = Int(digits), number >= 2 { selectedNumber = number }
+            }
+        }
         if moving {
             while try await exists(selectedTarget) != nil {
-                guard existingRecord == nil, conflict == .appendNumber else { throw IOError.alreadyExists(selectedTarget) }
+                guard policy == .appendNumber else { throw IOError.alreadyExists(selectedTarget) }
                 selectedNumber += 1
                 selectedTarget = parent.appending(Self.numberedName(entry.name, number: selectedNumber, directory: type == .directory))
             }
         }
-        let preferred = existingRecord?.temporary ?? parent.appending(".\(selectedTarget.name).macview-part")
-        var temp = Self.reserveTemporary(preferred: preferred, parent: parent, name: selectedTarget.name)
-        var record = existingRecord ?? TransferRecord(id: UUID(), source: entry.location, target: selectedTarget, temporary: temp)
+        let id = existingRecord?.id ?? transferID()
+        let temp = existingRecord?.temporary ?? parent.appending(".\(entry.name).\(id.uuidString.prefix(8).lowercased()).macview-part")
+        var record = existingRecord ?? TransferRecord(id: id, source: entry.location, target: selectedTarget, temporary: temp, conflict: conflict)
         if moving {
             if existingRecord == nil { try JournalStore.update(journalURL) { $0.append(record) } }
-            else if temp != record.temporary {
-                record.temporary = temp
+            else if record.target != selectedTarget {
+                record.target = selectedTarget
                 try JournalStore.update(journalURL) { records in
                     if let i = records.firstIndex(where: { $0.id == record.id }) { records[i] = record }
                 }
             }
         }
-        var temporaryCreated = false
+        var temporaryMayExist = false
         var published = false
         do {
-            while true {
-                do {
-                    if type == .directory { try await fileSystem.makeDirectory(at: temp) }
-                    else { try await fileSystem.createFile(at: temp) }
-                    temporaryCreated = true
-                    break
-                } catch IOError.alreadyExists {
-                    temp = Self.reserveTemporary(preferred: temp, parent: parent, name: selectedTarget.name)
-                    record.temporary = temp
-                    if moving { try JournalStore.update(journalURL) { records in
-                        if let i = records.firstIndex(where: { $0.id == record.id }) { records[i] = record }
-                    } }
+            // 只有 EEXIST 能证明该名字属于他人；其他错误可能发生在创建之后。
+            temporaryMayExist = true
+            do {
+                if type == .directory { try await fileSystem.makeDirectory(at: temp) }
+                else { try await createTemporary(temp) }
+            } catch let error as IOError {
+                if case .alreadyExists = error {
+                    temporaryMayExist = false
+                    throw TemporaryCollision(error: error)
                 }
+                throw error
             }
             try await copyContents(entry, type: type, to: temp, progress: progress)
             if Task.isCancelled { throw IOError.cancelled }
@@ -376,7 +379,7 @@ public final class FileOperationService: Sendable {
             while true {
                 do { try await fileSystem.rename(temp, to: destination, exclusive: true); break }
                 catch IOError.alreadyExists {
-                    guard conflict == .appendNumber else { throw IOError.alreadyExists(destination) }
+                    guard policy == .appendNumber else { throw IOError.alreadyExists(destination) }
                     number += 1
                     destination = parent.appending(Self.numberedName(entry.name, number: number, directory: type == .directory))
                     if moving {
@@ -397,15 +400,15 @@ public final class FileOperationService: Sendable {
         } catch {
             if !published {
                 var cleaned = true
-                if temporaryCreated {
+                if temporaryMayExist {
                     let temporary = temp
                     cleaned = await Task.detached {
-                        do { try await self.removeTree(temporary); return true }
+                        do { try await self.removeTree(temporary, temporaryRoot: true); return true }
                         catch IOError.notFound { return true }
                         catch { return false }
                     }.value
                 }
-                if moving && cleaned && existingRecord == nil { try? JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } } }
+                if moving && cleaned { try? JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } } }
             }
             throw error
         }
@@ -470,7 +473,7 @@ public final class FileOperationService: Sendable {
                 try await verifyRecoverySource(child, in: counterpart)
             }
         } else {
-            guard source.size == target.size, source.identity.modificationNanos == target.identity.modificationNanos else { throw FileOpsError.verificationFailed }
+            guard source.size == target.size else { throw FileOpsError.verificationFailed }
             let input = try await fileSystem.open(source.location)
             var sourceHash = SHA256(), targetHash = SHA256()
             var offset: Int64 = 0
@@ -502,26 +505,25 @@ public final class FileOperationService: Sendable {
                 let target = try await exists(record.target)
                 let source = try await exists(record.source)
                 if temporary != nil {
-                    try await removeTree(record.temporary)
-                    if let source {
-                        _ = try await copy(source, to: record.target, moving: true, existingRecord: record)
-                        changes.append(.moved(from: record.source, to: Self.relocated(source, to: record.target)))
-                        report.completed += 1
-                    } else {
-                        try JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } }
-                        report.failed += 1
-                    }
-                } else if let target {
-                    if let source {
-                        try await verifyRecoverySource(source, in: target)
+                    try await removeTree(record.temporary, temporaryRoot: true)
+                }
+                if temporary == nil, let target, let source {
+                    let matches: Bool
+                    do { try await verifyRecoverySource(source, in: target); matches = true }
+                    catch IOError.cancelled { throw IOError.cancelled }
+                    catch { matches = false }
+                    if matches {
                         try await removeTree(record.source)
+                        try JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } }
+                        changes.append(.moved(from: record.source, to: target))
+                        report.completed += 1
+                        continue
                     }
-                    try JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } }
-                    changes.append(.moved(from: record.source, to: target))
-                    report.completed += 1
-                } else if let source {
-                    _ = try await copy(source, to: record.target, moving: true, existingRecord: record)
-                    changes.append(.moved(from: record.source, to: Self.relocated(source, to: record.target)))
+                }
+                if let source {
+                    let destination = try await copy(source, to: record.target, moving: true, existingRecord: record)
+                    let type = try await fileSystem.itemWithoutFollowingLinks(at: destination).type
+                    changes.append(.moved(from: record.source, to: Self.relocated(source, to: destination, type: type)))
                     report.completed += 1
                 } else {
                     try JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } }
