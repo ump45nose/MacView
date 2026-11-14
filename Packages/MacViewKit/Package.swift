@@ -5,6 +5,7 @@ import PackageDescription
 let modules: [(name: String, dependencies: [String])] = [
     ("MVFoundation", []),
     ("MVIO", ["MVFoundation"]),
+    ("MVFileOps", ["MVFoundation", "MVIO"]),
     ("MVArchive", ["MVFoundation", "MVIO"]),
     ("MVMedia", ["MVFoundation"]),
     ("MVCache", ["MVFoundation", "GRDB"]),
