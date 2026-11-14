@@ -11,7 +11,7 @@ public struct ReadingListing: Sendable {
 
     public static func isVisible(_ entry: Entry) -> Bool {
         let name = entry.name.lowercased()
-        return !name.hasPrefix(".") && ![".ds_store", "thumbs.db", "desktop.ini", "__macosx"].contains(name)
+        return !name.hasPrefix(".") && !["thumbs.db", "desktop.ini", "__macosx"].contains(name)
             && !name.hasSuffix(".url") && !entry.location.layers.joined().contains { $0.lowercased() == "__macosx" }
     }
 

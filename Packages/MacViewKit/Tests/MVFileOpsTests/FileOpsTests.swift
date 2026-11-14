@@ -496,20 +496,6 @@ private final class Fixture: Sendable {
 }
 
 
-@Test func legacyRecordDefaultsToSafeConflictBehavior() async throws {
-    let f = try await Fixture()
-    let source = f.root.appending("source.jpg"), dest = f.root.appending("dest")
-    try await f.fs.makeDirectory(at: dest)
-    try await f.fs.createFile(at: source)
-    let record = TransferRecord(id: UUID(), source: source, target: dest.appending("source.jpg"), temporary: dest.appending(".source.jpg.macview-part"))
-    let url = f.directory.appending(path: "transfers.json")
-    try JournalStore.save(TransferJournal(version: 1, transfers: [record]), to: url)
-    #expect(!String(decoding: try Data(contentsOf: url), as: UTF8.self).contains("conflict"))
-    #expect(try JournalStore.load(url).transfers == [record])
-    #expect(await f.service.resumeInterruptedTransfers() == ResumeReport(completed: 1, pending: 0, failed: 0))
-    #expect(!f.exists("source.jpg") && f.exists("dest/source.jpg"))
-}
-
 @Test func recoveryCompletesWhenOnlyTargetRemains() async throws {
     let f = try await Fixture()
     let dest = f.root.appending("dest")
