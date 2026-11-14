@@ -22,9 +22,9 @@ import sys
 import xml.etree.ElementTree as ET
 
 
-def export(trace, schema):
-    """导出一张表，解析 id/ref 去重，返回行的列表；每格是 (显示文本, 原值)。"""
-    xpath = f'/trace-toc/run[@number="1"]/data/table[@schema="{schema}"]'
+def export(trace, schema, condition=''):
+    """导出一张表，解析 id/ref 去重，返回行的列表；每格是 (显示文本, 原值)。condition 是附加的 XPath 条件，用来在同名表里选一张。"""
+    xpath = f'/trace-toc/run[@number="1"]/data/table[@schema="{schema}"{condition}]'
     data = subprocess.run(['xcrun', 'xctrace', 'export', '--input', trace, '--xpath', xpath], check=True, capture_output=True).stdout
     node = ET.fromstring(data).find('node')
     if node is None or node.find('schema') is None:
@@ -78,7 +78,8 @@ def main():
     displays = export(trace, 'device-display-info')
     signposts = [
         (number(row['time']), row['event-type'][0], row['name'][0], row['message'][0] or '')
-        for row in export(trace, 'os-signpost')
+        # 录制里还有一张按类别过滤的系统 os-signpost 表（ConditionInducer），两张表的先后不固定；只取不带类别过滤的那张。
+        for row in export(trace, 'os-signpost', ' and not(@category)')
         if row['subsystem'][0] == 'io.github.ump45nose.MacView' and row['category'][0] == 'layout'
     ]
     signposts.sort()

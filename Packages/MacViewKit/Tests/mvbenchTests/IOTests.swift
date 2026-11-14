@@ -154,6 +154,19 @@ struct FaultProxyTests {
         #expect(proxy.status.accepted == 2)
     }
 
+    @Test func reservedSourcePortBindsBelow1024() throws {
+        let server = try EchoServer()
+        defer { server.stop() }
+        let fd = try #require(FaultProxy.connect(to: .init(host: "127.0.0.1", port: server.port, reservedSourcePort: true)))
+        defer { close(fd) }
+        var local = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        _ = withUnsafeMutablePointer(to: &local) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &length) }
+        }
+        #expect(UInt16(bigEndian: local.sin_port) < 1024)
+    }
+
     @Test func controlLinesRoundTrip() throws {
         var fds: [Int32] = [0, 0]
         #expect(socketpair(AF_UNIX, SOCK_STREAM, 0, &fds) == 0)
