@@ -141,7 +141,7 @@ public enum CoreCommands {
                 commandMany(.fileCopy, .init("复制", bundle: .main), "file", key: KeyChord("c", modifiers: .command), scopes: [.viewer, .list]),
                 commandMany(.fileCopyPath, .init("复制路径", bundle: .main), "file", key: KeyChord("c", modifiers: [.command, .option]), scopes: [.viewer, .list]),
                 // viewer 的 ⇧⌘R 已被递归切换占用，保留旧绑定，待设计侧决议。
-                commandMany(.fileReveal, .init("在 Finder 中显示", bundle: .main), "file", key: KeyChord("r", modifiers: [.command, .shift]), scopes: [.list]),
+                commandMany(.fileReveal, .init("在 Finder 中显示", bundle: .main), "file", key: KeyChord("r", modifiers: [.command, .option]), scopes: [.viewer, .list]),
                 command(.fileOpenWith, .init("用指定应用打开", bundle: .main), "file"),
                 command(.recycleEmpty, .init("清空回收目录…", bundle: .main), "file"),
             ]),

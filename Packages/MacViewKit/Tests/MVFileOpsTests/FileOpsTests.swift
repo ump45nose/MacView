@@ -28,22 +28,22 @@ import Testing
     #expect(mkdir.failures.isEmpty && fixture.exists("folder"))
     let remove = await service.perform(try #require(mkdir.inverse))
     #expect(remove.failures.isEmpty && !fixture.exists("folder"))
-    #expect((await service.perform(try #require(remove.inverse))).failures.isEmpty)
+    #expect((await service.perform(try #require(remove.inverse))).failures.isEmpty && fixture.exists("folder"))
     let move = await service.perform(.transfer([renamed], into: folder, mode: .move, conflict: .appendNumber))
     #expect(move.failures.isEmpty && fixture.exists("folder/renamed.png"))
     let back = await service.perform(try #require(move.inverse))
     #expect(back.failures.isEmpty && fixture.exists("renamed.png"))
-    #expect((await service.perform(try #require(back.inverse))).failures.isEmpty)
+    #expect((await service.perform(try #require(back.inverse))).failures.isEmpty && fixture.exists("folder/renamed.png") && !fixture.exists("renamed.png"))
     let copied = await service.perform(.transfer([folder.appending("renamed.png")], into: root, mode: .copy, conflict: .appendNumber))
     #expect(copied.failures.isEmpty && fixture.exists("renamed.png"))
     let undoCopy = await service.perform(try #require(copied.inverse))
     #expect(undoCopy.failures.isEmpty && !fixture.exists("renamed.png"))
-    #expect((await service.perform(try #require(undoCopy.inverse))).failures.isEmpty)
+    #expect((await service.perform(try #require(undoCopy.inverse))).failures.isEmpty && fixture.exists("renamed.png") && fixture.exists("folder/renamed.png"))
     let deleted = await service.perform(.delete([renamed]))
     #expect(deleted.failures.isEmpty && !fixture.exists("renamed.png"))
     let restore = await service.perform(try #require(deleted.inverse))
     #expect(restore.failures.isEmpty && fixture.exists("renamed.png"))
-    #expect((await service.perform(try #require(restore.inverse))).failures.isEmpty)
+    #expect((await service.perform(try #require(restore.inverse))).failures.isEmpty && !fixture.exists("renamed.png"))
     let permanent = await service.perform(.deletePermanently([folder]))
     #expect(permanent.failures.isEmpty && permanent.inverse == nil && !fixture.exists("folder"))
 }
@@ -83,7 +83,10 @@ import Testing
     #expect(result.failures.isEmpty && !f.exists("a.jpg"))
     #expect(await received.value == result.changes)
     #expect((await f.service.recycleBins()).first?.batchCount == 1)
-    #expect((await f.service.perform(try #require(result.inverse))).failures.isEmpty && f.exists("a.jpg"))
+    let restored = await f.service.perform(try #require(result.inverse))
+    #expect(restored.failures.isEmpty && f.exists("a.jpg"))
+    let redone = await f.service.perform(try #require(restored.inverse))
+    #expect(redone.failures.isEmpty && !f.exists("a.jpg"))
 }
 
 @Test func cancellationPreservesCompletedMoves() async throws {
@@ -91,20 +94,53 @@ import Testing
     let dest = f.root.appending("dest")
     try await f.fs.makeDirectory(at: dest)
     var items: [Location] = []
-    for i in 0..<50 { let item = f.root.appending("\(i).jpg"); try await f.fs.createFile(at: item); items.append(item) }
+    for i in 0..<50 {
+        let item = f.root.appending("\(i).jpg")
+        try await f.fs.createFile(at: item)
+        try await f.fs.write(Data([UInt8(i)]), at: 0, to: item, priority: .background)
+        items.append(item)
+    }
     let allItems = items
     let taskBox = Mutex<Task<FileOperationResult, Never>?>(nil)
+    let (start, resume) = AsyncStream<Void>.makeStream()
     let task = Task {
-        await f.service.perform(.transfer(allItems, into: dest, mode: .move, conflict: .skip)) { progress in
+        for await _ in start { break }
+        return await f.service.perform(.transfer(allItems, into: dest, mode: .move, conflict: .skip)) { progress in
             if progress.completedItems >= 5 { taskBox.withLock { $0?.cancel() } }
         }
     }
     taskBox.withLock { $0 = task }
+    resume.yield(())
+    resume.finish()
     let result = await task.value
     #expect(result.changes.count >= 5 && result.changes.count < 50)
-    #expect(result.inverse != nil)
+    #expect(result.inverse != nil && result.failures.isEmpty && result.skipped.isEmpty)
+    let completed = Set(result.changes.compactMap { change -> Location? in
+        if case let .moved(from, to) = change {
+            #expect(to.location == dest.appending(from.name))
+            return from
+        }
+        Issue.record("完成项必须报告移动")
+        return nil
+    })
+    #expect(completed.count == result.changes.count)
+    for (index, item) in allItems.enumerated() {
+        let sourceURL = f.directory.appending(path: item.name)
+        let targetURL = f.directory.appending(path: "dest/\(item.name)")
+        if completed.contains(item) {
+            #expect(!f.exists(item.name) && f.exists("dest/\(item.name)"))
+            #expect(try Data(contentsOf: targetURL) == Data([UInt8(index)]))
+        } else {
+            #expect(f.exists(item.name) && !f.exists("dest/\(item.name)"))
+            #expect(try Data(contentsOf: sourceURL) == Data([UInt8(index)]))
+        }
+    }
     let reversed = await f.service.perform(try #require(result.inverse))
-    #expect(reversed.failures.isEmpty && allItems.allSatisfy { f.exists($0.name) })
+    #expect(reversed.failures.isEmpty && reversed.changes.count == completed.count)
+    for (index, item) in allItems.enumerated() {
+        #expect(f.exists(item.name) && !f.exists("dest/\(item.name)"))
+        #expect(try Data(contentsOf: f.directory.appending(path: item.name)) == Data([UInt8(index)]))
+    }
 }
 
 private final class Fixture: Sendable {
@@ -472,4 +508,56 @@ private final class Fixture: Sendable {
     #expect(await f.service.resumeInterruptedTransfers() == ResumeReport(completed: 0, pending: 0, failed: 1))
     #expect(f.exists("dest/source.jpg"))
     #expect(try JournalStore.load(url).transfers.isEmpty)
+}
+
+
+@Test func transferModesAndConflictPoliciesUndoAndRedo() async throws {
+    for mode in [TransferMode.move, .copy] {
+        for policy in [ConflictPolicy.skip, .appendNumber] {
+            let f = try await Fixture()
+            let source = f.root.appending("a.jpg"), dest = f.root.appending("dest")
+            try await f.fs.makeDirectory(at: dest)
+            try await f.fs.createFile(at: source)
+            let data = Data([1, 5, 9])
+            try await f.fs.write(data, at: 0, to: source, priority: .background)
+            if policy == .appendNumber {
+                try await f.fs.createFile(at: dest.appending("a.jpg"))
+                try await f.fs.write(Data([8]), at: 0, to: dest.appending("a.jpg"), priority: .background)
+            }
+            let target = policy == .appendNumber ? "dest/a (2).jpg" : "dest/a.jpg"
+            let result = await f.service.perform(.transfer([source], into: dest, mode: mode, conflict: policy))
+            #expect(result.failures.isEmpty && result.changes.count == 1 && f.exists(target))
+            #expect(f.exists("a.jpg") == (mode == .copy))
+            #expect(try Data(contentsOf: f.directory.appending(path: target)) == data)
+            let undo = await f.service.perform(try #require(result.inverse))
+            #expect(undo.failures.isEmpty && f.exists("a.jpg") && !f.exists(target))
+            #expect(try Data(contentsOf: f.directory.appending(path: "a.jpg")) == data)
+            let redo = await f.service.perform(try #require(undo.inverse))
+            #expect(redo.failures.isEmpty && f.exists(target) && f.exists("a.jpg") == (mode == .copy))
+            #expect(try Data(contentsOf: f.directory.appending(path: target)) == data)
+            if policy == .appendNumber { #expect(try Data(contentsOf: f.directory.appending(path: "dest/a.jpg")) == Data([8])) }
+        }
+    }
+}
+
+@Test func relocateAndRemoveEmptyDirectoryUndoAndRedo() async throws {
+    let f = try await Fixture()
+    let source = f.root.appending("a.jpg"), target = f.root.appending("b.jpg")
+    try await f.fs.createFile(at: source)
+    try await f.fs.write(Data([1, 2]), at: 0, to: source, priority: .background)
+    let moved = await f.service.perform(.relocate([Relocation(source: source, target: target)]))
+    #expect(moved.failures.isEmpty && !f.exists("a.jpg") && f.exists("b.jpg"))
+    let undoMove = await f.service.perform(try #require(moved.inverse))
+    #expect(undoMove.failures.isEmpty && f.exists("a.jpg") && !f.exists("b.jpg"))
+    let redoMove = await f.service.perform(try #require(undoMove.inverse))
+    #expect(redoMove.failures.isEmpty && !f.exists("a.jpg") && f.exists("b.jpg"))
+    #expect(try Data(contentsOf: f.directory.appending(path: "b.jpg")) == Data([1, 2]))
+    let folder = f.root.appending("empty")
+    try await f.fs.makeDirectory(at: folder)
+    let removed = await f.service.perform(.removeEmptyDirectory(folder))
+    #expect(removed.failures.isEmpty && !f.exists("empty"))
+    let undoRemove = await f.service.perform(try #require(removed.inverse))
+    #expect(undoRemove.failures.isEmpty && f.exists("empty"))
+    let redoRemove = await f.service.perform(try #require(undoRemove.inverse))
+    #expect(redoRemove.failures.isEmpty && !f.exists("empty"))
 }
