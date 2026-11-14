@@ -1,0 +1,49 @@
+{
+  "cleanupErrors" : [
+
+  ],
+  "environment" : {
+    "collectedAt" : "2026-11-14T08:07:47Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 720,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "system" : {
+      "build" : "26B123",
+      "version" : "27.2.0"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "apfs",
+        "mountPoint" : "/System/Volumes/Data",
+        "path" : "/Users/yuwk/MacViewBench/fileops-a",
+        "source" : "/dev/disk3s5"
+      },
+      {
+        "fileSystem" : "apfs",
+        "mountPoint" : "/System/Volumes/Data",
+        "path" : "/Users/yuwk/MacViewBench/fileops-b",
+        "source" : "/dev/disk3s5"
+      }
+    ]
+  },
+  "error" : "/Users/yuwk/MacViewBench/fileops-a 不是已挂载的可写 NFS 测试卷",
+  "faultTest" : "C1.25 留给整体验收",
+  "transfers" : [
+
+  ]
+}
