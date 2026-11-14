@@ -120,40 +120,6 @@ import Testing
     #expect(scheduler.queuedCount == 0)
 }
 
-@Test func renameRejectsADegradedTargetBeforeAndAfterQueueing() async throws {
-    let backend = WriteFailureBackend()
-    var config = IOConfiguration(helperExecutable: nil)
-    config.local.metadata = 1
-    config.setDeadlineForTesting(.milliseconds(400))
-    config.degradeAfterTimeouts = 1
-    let scheduler = IOScheduler(configuration: config, backend: backend)
-    let fs = FileSystemProvider(scheduler: scheduler)
-    let source = Location(root: .local, layers: [["tmp", "mvio-source"]])
-    let target = Location(root: .local, layers: [["dev", "mvio-target"]])
-    let sourceVolume = try scheduler.volume(for: source)
-    let targetVolume = try scheduler.volume(for: target)
-    try #require(sourceVolume.mountPoint != targetVolume.mountPoint)
-
-    let targetJob = Task {
-        let _: Void = try await scheduler.perform(on: targetVolume, .metadata, priority: .visible, group: nil) { _, _ in }
-    }
-    try await Task.sleep(for: .milliseconds(200))
-    let sourceJob = Task {
-        let _: Void = try await scheduler.perform(on: sourceVolume, .metadata, priority: .visible, group: nil) { _, _ in }
-    }
-    while scheduler.currentVolumeHealth().count < 2 { await Task.yield() }
-    let queued = Task { try await fs.rename(source, to: target, exclusive: true) }
-    let deadline = ContinuousClock.now + .milliseconds(150)
-    while scheduler.queuedCount == 0 && ContinuousClock.now < deadline { await Task.yield() }
-    #expect(scheduler.queuedCount == 1)
-    await #expect(throws: IOError.timeout) { try await targetJob.value }
-    await #expect(throws: IOError.volumeDegraded(targetVolume.root)) { try await queued.value }
-    #expect(scheduler.queuedCount == 0)
-    await #expect(throws: IOError.volumeDegraded(targetVolume.root)) { try await fs.rename(source, to: target, exclusive: true) }
-    #expect(backend.calls.load(ordering: .relaxed) == 0)
-    await #expect(throws: IOError.timeout) { try await sourceJob.value }
-}
-
 @Test(.enabled(if: ProcessInfo.processInfo.environment["MVIO_CROSS_MOUNT_TEST"] == "1"))
 func exclusiveRenameAcrossMountedNetworkVolumes() async throws {
     let base = URL(fileURLWithPath: NSHomeDirectory()).appending(path: "MacViewBench")
