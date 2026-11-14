@@ -81,6 +81,7 @@ public final class IOScheduler: Sendable {
         var channel: Channel
         var priority: IOPriority
         var group: IORequestGroup?
+        var requiredVolumes: [Volume]
         var phase = Phase.queued
         /// 期限计时的代数；`touch` 时加一，旧的计时器到期后不再生效。
         var generation = 0
@@ -232,6 +233,7 @@ public final class IOScheduler: Sendable {
         _ channel: Channel,
         priority: IOPriority,
         group: IORequestGroup?,
+        requiring requiredVolumes: [Volume] = [],
         _ body: @escaping @Sendable (_ finish: @escaping @Sendable (Result<T, IOError>) -> Void, _ touch: @escaping @Sendable () -> Void) -> Void
     ) async throws(IOError) -> T {
         let id = state.withLock { state -> UInt64 in
@@ -250,7 +252,7 @@ public final class IOScheduler: Sendable {
                 let start: @Sendable (UInt64) -> Void = { id in
                     body({ result in self.finish(id, result: result, resume: resume) }, { self.touch(id) })
                 }
-                enqueue(id, volume: volume, channel: channel, priority: priority, group: group, start: start, fail: { resume(.failure($0)) })
+                enqueue(id, volume: volume, channel: channel, priority: priority, group: group, requiredVolumes: requiredVolumes, start: start, fail: { resume(.failure($0)) })
             }
         } onCancel: {
             dequeue(id)
@@ -264,6 +266,7 @@ public final class IOScheduler: Sendable {
         channel: Channel,
         priority: IOPriority,
         group: IORequestGroup?,
+        requiredVolumes: [Volume],
         start: @escaping @Sendable (UInt64) -> Void,
         fail: @escaping @Sendable (IOError) -> Void
     ) {
@@ -278,9 +281,11 @@ public final class IOScheduler: Sendable {
                 state.volumes[volume.mountPoint]?.volume = volume
                 publish(state)
             }
-            if state.volumes[volume.mountPoint]?.degradedReason != nil { return .volumeDegraded(volume.root) }
+            for required in [volume] + requiredVolumes {
+                if state.volumes[required.mountPoint]?.degradedReason != nil { return .volumeDegraded(required.root) }
+            }
             let effective = group.flatMap { state.groupPriorities[$0] } ?? priority
-            state.jobs[id] = Job(volume: volume.mountPoint, channel: channel, priority: effective, group: group, start: start, fail: fail)
+            state.jobs[id] = Job(volume: volume.mountPoint, channel: channel, priority: effective, group: group, requiredVolumes: requiredVolumes, start: start, fail: fail)
             state.volumes[volume.mountPoint]?.queues[channel]?.append(id)
             return nil
         }
@@ -369,7 +374,7 @@ public final class IOScheduler: Sendable {
     }
 
     private func expire(_ id: UInt64, generation: Int) {
-        let expired = state.withLock { state -> (Job, degraded: Volume?)? in
+        let expired = state.withLock { state -> (Job, degraded: Volume?, queued: [Job])? in
             guard let job = state.jobs[id], job.phase == .running, job.generation == generation,
                   var volume = state.volumes[job.volume]
             else { return nil }
@@ -382,25 +387,28 @@ public final class IOScheduler: Sendable {
                 degraded = volume.volume
             }
             state.volumes[job.volume] = volume
+            var queued: [Job] = []
+            if let degraded {
+                let ids = state.jobs.compactMap { id, pending in
+                    pending.phase == .queued && (pending.volume == degraded.mountPoint || pending.requiredVolumes.contains { $0.mountPoint == degraded.mountPoint }) ? id : nil
+                }
+                for id in ids {
+                    guard let pending = state.jobs.removeValue(forKey: id) else { continue }
+                    state.volumes[pending.volume]?.queues[pending.channel]?.removeAll { $0 == id }
+                    queued.append(pending)
+                }
+            }
             publish(state)
-            return (job, degraded)
+            return (job, degraded, queued)
         }
-        guard let (job, degraded) = expired else { return }
+        guard let (job, degraded, queued) = expired else { return }
         job.fail(.timeout)
-        if let degraded { degrade(degraded) }
-    }
-
-    /// 卷变为 degraded：排队中的请求立即失败；网络卷弃用卡住的辅助进程；开始健康探测。
-    private func degrade(_ volume: Volume) {
-        let queued = state.withLock { state -> [Job] in
-            let ids = state.volumes[volume.mountPoint]?.queues.values.flatMap { $0 } ?? []
-            state.volumes[volume.mountPoint]?.queues = [.metadata: [], .bulk: []]
-            return ids.compactMap { state.jobs.removeValue(forKey: $0) }
+        if let degraded {
+            queued.forEach { $0.fail(.volumeDegraded(degraded.root)) }
+            // 弃用后，卡住的调用以 helperLost 结束，释放槽位。
+            backend(for: degraded).abandon()
+            probe(degraded)
         }
-        queued.forEach { $0.fail(.volumeDegraded(volume.root)) }
-        // 弃用后，卡住的调用以 helperLost 结束，释放槽位。
-        backend(for: volume).abandon()
-        probe(volume)
     }
 
     /// 健康探测：见 `FileOperations.probe`，不设期限。硬挂载上它会一直阻塞到网络恢复，返回本身就是恢复的信号，

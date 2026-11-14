@@ -79,6 +79,8 @@ public enum IOError: Error, Sendable, Equatable {
     /// 卷连续超时，暂停访问；健康探测成功后恢复。
     case volumeDegraded(Location.Root)
     case notFound(Location)
+    case alreadyExists(Location)
+    case crossVolume
     case unsupported(Location)
     /// 认得出文件头、但不读取的格式。第二个值是实际格式名，例如 RAR、7z。
     case unsupportedFormat(Location, String)
