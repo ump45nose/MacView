@@ -1,4 +1,5 @@
 import Foundation
+import MVFoundation
 
 extension CommandID {
     public static let frameNext = CommandID("frame.next")
@@ -11,6 +12,19 @@ extension CommandID {
     public static let bookNext = CommandID("book.next")
     public static let bookPrevious = CommandID("book.previous")
     public static let fileOpen = CommandID("file.open")
+    public static let fileDelete = CommandID("file.delete")
+    public static let fileRename = CommandID("file.rename")
+    public static let fileCopy = CommandID("file.copy")
+    public static let fileCopyPath = CommandID("file.copyPath")
+    public static let fileReveal = CommandID("file.reveal")
+    public static let fileOpenWith = CommandID("file.openWith")
+    public static let recycleEmpty = CommandID("file.recycle.empty")
+    public static let classifyTarget = CommandID("classify.target")
+    public static let classifyModeToggle = CommandID("classify.mode.toggle")
+    public static let classifyNewTarget = CommandID("classify.newTarget")
+    public static let classifyPanelToggle = CommandID("panel.classify.toggle")
+    public static let editUndo = CommandID("edit.undo")
+    public static let editRedo = CommandID("edit.redo")
     public static let bookReveal = CommandID("book.reveal")
     public static let browsePaged = CommandID("view.paged")
     public static let browseWaterfall = CommandID("view.waterfall")
@@ -103,11 +117,37 @@ public enum CoreCommands {
         )
     }
 
+    private static func commandMany(_ id: CommandID, _ title: LocalizedStringResource, _ category: String, key: KeyChord, scopes: [InputScope]) -> CommandDescriptor {
+        CommandDescriptor(id: id, title: title, category: category, defaultBindings: scopes.map { KeyBinding(sequence: [key], command: id, scope: $0) })
+    }
+
+    private static let classifyTargetCommand = CommandDescriptor(
+        id: .classifyTarget, title: .init("分类到目标", bundle: .main), category: "file",
+        defaultBindings: (1...10).map { index in
+            KeyBinding(sequence: [KeyChord(index == 10 ? "0" : String(index))], command: .classifyTarget,
+                       arguments: ["index": .number(Double(index))], scope: .classify)
+        }
+    )
+
     private static let groups: [Group] = [
         Group(title: "文件", sections: [
             Section([
                 command(.fileOpen, .init("打开文件夹或压缩包…", bundle: .main), "book", scope: .global,
                         keys: [KeyChord("o", modifiers: .command)]),
+            ]),
+            Section([
+                commandMany(.fileDelete, .init("删除", bundle: .main), "file", key: KeyChord("Delete", modifiers: .command), scopes: [.viewer, .list]),
+                command(.fileRename, .init("重命名", bundle: .main), "file"),
+                commandMany(.fileCopy, .init("复制", bundle: .main), "file", key: KeyChord("c", modifiers: .command), scopes: [.viewer, .list]),
+                commandMany(.fileCopyPath, .init("复制路径", bundle: .main), "file", key: KeyChord("c", modifiers: [.command, .option]), scopes: [.viewer, .list]),
+                // viewer 的 ⇧⌘R 已被递归切换占用，保留旧绑定，待设计侧决议。
+                commandMany(.fileReveal, .init("在 Finder 中显示", bundle: .main), "file", key: KeyChord("r", modifiers: [.command, .shift]), scopes: [.list]),
+                command(.fileOpenWith, .init("用指定应用打开", bundle: .main), "file"),
+                command(.recycleEmpty, .init("清空回收目录…", bundle: .main), "file"),
+            ]),
+            Section([
+                command(.editUndo, .init("撤销", bundle: .main), "edit", scope: .global, keys: [KeyChord("z", modifiers: .command)]),
+                command(.editRedo, .init("重做", bundle: .main), "edit", scope: .global, keys: [KeyChord("z", modifiers: [.command, .shift])]),
             ]),
             Section([
                 command(.windowNew, .init("新建窗口", bundle: .main), "window", scope: .global,
@@ -195,6 +235,11 @@ public enum CoreCommands {
                 command(.sortDescending, .init("降序", bundle: .main), "sort"),
                 command(.sortFoldersFirstToggle, .init("文件夹在前", bundle: .main), "sort"),
             ]),
+            Section("分类", [
+                classifyTargetCommand,
+                command(.classifyModeToggle, .init("切换移动或复制", bundle: .main), "file"),
+                command(.classifyNewTarget, .init("新建目标并移入", bundle: .main), "file"),
+            ]),
             Section([
                 command(.recursionToggle, .init("递归展开子文件夹", bundle: .main), "sort",
                         keys: [KeyChord("r", modifiers: [.command, .shift])]),
@@ -210,6 +255,8 @@ public enum CoreCommands {
                         keys: [KeyChord("1", modifiers: [.command, .option])]),
                 command(.pageListToggle, .init("显示或隐藏页面列表", bundle: .main), "window", scope: .global,
                         keys: [KeyChord("2", modifiers: [.command, .option])]),
+                command(.classifyPanelToggle, .init("显示或隐藏分类面板", bundle: .main), "window", scope: .global,
+                        keys: [KeyChord("3", modifiers: [.command, .option])]),
                 command(.docksToggle, .init("显示或隐藏停靠区", bundle: .main), "window", keys: [KeyChord("Tab")]),
             ]),
         ]),

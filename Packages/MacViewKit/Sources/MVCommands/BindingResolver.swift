@@ -39,6 +39,7 @@ public struct BindingResolver: Sendable {
     private var sequence: [KeyChord] = []
     private var inputScope: InputScope?
     private var bindingScope: InputScope?
+    private var inputOverlay: InputScope?
     private var lastInputTime: ContinuousClock.Instant?
 
     public init(bindings: [KeyBinding], sequenceTimeout: Duration = .seconds(1)) {
@@ -46,9 +47,10 @@ public struct BindingResolver: Sendable {
         self.sequenceTimeout = sequenceTimeout
     }
 
-    public mutating func feed(_ chord: KeyChord, scope: InputScope, at time: ContinuousClock.Instant) -> ResolveResult {
+    public mutating func feed(_ chord: KeyChord, scope: InputScope, overlay: InputScope? = nil, at time: ContinuousClock.Instant) -> ResolveResult {
+        let overlay = scope == .textInput ? nil : overlay
         if let lastInputTime,
-           scope != inputScope || time < lastInputTime || lastInputTime.duration(to: time) >= sequenceTimeout {
+           scope != inputScope || overlay != inputOverlay || time < lastInputTime || lastInputTime.duration(to: time) >= sequenceTimeout {
             reset()
         }
 
@@ -56,18 +58,21 @@ public struct BindingResolver: Sendable {
             let next = sequence + [chord]
             let candidates = bindings.filter { $0.scope == bindingScope && $0.sequence.starts(with: next) }
             if !candidates.isEmpty {
-                return resolve(next, candidates: candidates, scope: scope, at: time)
+                return resolve(next, candidates: candidates, scope: scope, overlay: overlay, at: time)
             }
             reset()
         }
 
         let first = [chord]
-        let local = bindings.filter { $0.scope == scope && $0.sequence.starts(with: first) }
-        let candidates = !local.isEmpty || scope == .textInput || scope == .global
-            ? local
-            : bindings.filter { $0.scope == .global && $0.sequence.starts(with: first) }
-        guard !candidates.isEmpty else { return .unmatched }
-        return resolve(first, candidates: candidates, scope: scope, at: time)
+        var scopes: [InputScope] = []
+        if let overlay { scopes.append(overlay) }
+        if !scopes.contains(scope) { scopes.append(scope) }
+        if scope != .textInput && !scopes.contains(.global) { scopes.append(.global) }
+        for bindingScope in scopes {
+            let candidates = bindings.filter { $0.scope == bindingScope && $0.sequence.starts(with: first) }
+            if !candidates.isEmpty { return resolve(first, candidates: candidates, scope: scope, overlay: overlay, at: time) }
+        }
+        return .unmatched
     }
 
     /// 同一作用域内序列相同，或一条序列是另一条的前缀时，每对返回一次，顺序与输入一致。
@@ -84,7 +89,7 @@ public struct BindingResolver: Sendable {
     }
 
     private mutating func resolve(
-        _ next: [KeyChord], candidates: [KeyBinding], scope: InputScope, at time: ContinuousClock.Instant
+        _ next: [KeyChord], candidates: [KeyBinding], scope: InputScope, overlay: InputScope?, at time: ContinuousClock.Instant
     ) -> ResolveResult {
         if let complete = candidates.first(where: { $0.sequence.count == next.count }) {
             reset()
@@ -92,6 +97,7 @@ public struct BindingResolver: Sendable {
         }
         sequence = next
         inputScope = scope
+        inputOverlay = overlay
         bindingScope = candidates[0].scope
         lastInputTime = time
         return .pending(next)
@@ -100,6 +106,7 @@ public struct BindingResolver: Sendable {
     private mutating func reset() {
         sequence = []
         inputScope = nil
+        inputOverlay = nil
         bindingScope = nil
         lastInputTime = nil
     }

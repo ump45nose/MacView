@@ -64,3 +64,27 @@ private func menuCommands(_ nodes: [MenuNode]) -> [CommandID] {
         }
     }
 }
+
+@Test func fileOperationCommandsHaveExpectedIDsAndBindings() {
+    let expected: [(CommandID, String)] = [(.fileDelete, "file.delete"), (.fileRename, "file.rename"),
+        (.fileCopy, "file.copy"), (.fileCopyPath, "file.copyPath"), (.fileReveal, "file.reveal"),
+        (.fileOpenWith, "file.openWith"), (.recycleEmpty, "file.recycle.empty"), (.classifyTarget, "classify.target"),
+        (.classifyModeToggle, "classify.mode.toggle"), (.classifyNewTarget, "classify.newTarget"),
+        (.classifyPanelToggle, "panel.classify.toggle"), (.editUndo, "edit.undo"), (.editRedo, "edit.redo")]
+    for (id, raw) in expected {
+        #expect(id.rawValue == raw)
+        #expect(CoreCommands.all.contains { $0.id == id })
+    }
+    var resolver = BindingResolver(bindings: CoreCommands.all.flatMap(\.defaultBindings))
+    let now = ContinuousClock.now
+    for scope in [InputScope.viewer, .list] {
+        #expect(resolver.feed(KeyChord("Delete", modifiers: .command), scope: scope, at: now) == .command(.fileDelete, nil))
+        #expect(resolver.feed(KeyChord("c", modifiers: .command), scope: scope, at: now) == .command(.fileCopy, nil))
+        #expect(resolver.feed(KeyChord("c", modifiers: [.command, .option]), scope: scope, at: now) == .command(.fileCopyPath, nil))
+        #expect(resolver.feed(KeyChord("z", modifiers: .command), scope: scope, at: now) == .command(.editUndo, nil))
+        #expect(resolver.feed(KeyChord("z", modifiers: [.command, .shift]), scope: scope, at: now) == .command(.editRedo, nil))
+    }
+    #expect(resolver.feed(KeyChord("r", modifiers: [.command, .shift]), scope: .list, at: now) == .command(.fileReveal, nil))
+    // 此键与现有递归切换冲突：viewer 暂保留原绑定，等待设计侧决议。
+    #expect(resolver.feed(KeyChord("r", modifiers: [.command, .shift]), scope: .viewer, at: now) == .command(.recursionToggle, nil))
+}

@@ -84,3 +84,30 @@ import Testing
     var resolver = BindingResolver(bindings: effective)
     #expect(resolver.feed(KeyChord(",", modifiers: .command), scope: .viewer, at: ContinuousClock.now) == .unmatched)
 }
+
+@Test func classifyOverlayTakesPriorityAndTextInputIgnoresIt() {
+    let bindings = CoreCommands.all.flatMap(\.defaultBindings)
+    #expect(BindingResolver.conflicts(in: bindings).isEmpty)
+    var resolver = BindingResolver(bindings: bindings)
+    let now = ContinuousClock.now
+    for index in 1...10 {
+        let key = KeyChord(index == 10 ? "0" : String(index))
+        #expect(resolver.feed(key, scope: .viewer, overlay: .classify, at: now) == .command(.classifyTarget, ["index": .number(Double(index))]))
+    }
+    #expect(resolver.feed(KeyChord("1"), scope: .viewer, at: now) == .command(.zoomOriginal, nil))
+    #expect(resolver.feed(KeyChord("1"), scope: .textInput, overlay: .classify, at: now) == .unmatched)
+    #expect(resolver.feed(KeyChord("c", modifiers: .command), scope: .list, at: now) == .command(.fileCopy, nil))
+    #expect(resolver.feed(KeyChord("3", modifiers: [.command, .option]), scope: .viewer, at: now) == .command(.classifyPanelToggle, nil))
+}
+
+@Test func changingOverlayCancelsPendingSequences() {
+    let chord = KeyChord("x")
+    let bindings = [
+        KeyBinding(sequence: [chord, chord], command: .pageNext, scope: .viewer),
+        KeyBinding(sequence: [chord], command: .classifyModeToggle, scope: .classify),
+    ]
+    var resolver = BindingResolver(bindings: bindings)
+    let now = ContinuousClock.now
+    #expect(resolver.feed(chord, scope: .viewer, at: now) == .pending([chord]))
+    #expect(resolver.feed(chord, scope: .viewer, overlay: .classify, at: now) == .command(.classifyModeToggle, nil))
+}
