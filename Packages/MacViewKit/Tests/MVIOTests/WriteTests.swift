@@ -77,6 +77,31 @@ import Testing
     await #expect(throws: IOError.notFound(a)) { _ = try await fs.moveToTrash(a) }
 }
 
+@Test func writeFailsAndClosesDescriptorWhenNoCacheFails() throws {
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    let directory = root.appending(path: ".mvio-nocache-test-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let existing = directory.appending(path: "existing"), created = directory.appending(path: "created")
+    try Data([1, 2, 3]).write(to: existing)
+    let before = try FileOperations.stat(existing.path).modificationNanos
+    for request: HelperRequest in [.create(path: created.path), .write(path: existing.path, offset: 0, data: Data([9])), .finish(path: existing.path, modificationNanos: 1_700_000_000_000_000_000)] {
+        var descriptor: Int32 = -1
+        var opened = Darwin.stat()
+        #expect(throws: FileOperationError.system(call: "fcntl(F_NOCACHE)", code: ENOTSUP)) {
+            _ = try FileOperations.execute(request) { fd in descriptor = fd; _ = fstat(fd, &opened); return ENOTSUP }
+        }
+        #expect(descriptor >= 0)
+        // 其他并行测试可能复用已关闭的描述符；只要它不再指向本测试文件即可。
+        var after = Darwin.stat()
+        let stillOpen = fstat(descriptor, &after) == 0 && after.st_dev == opened.st_dev && after.st_ino == opened.st_ino
+        #expect(!stillOpen)
+    }
+    #expect(try Data(contentsOf: existing) == Data([1, 2, 3]))
+    #expect(try FileOperations.stat(existing.path).modificationNanos == before)
+    #expect(try Data(contentsOf: created).isEmpty)
+}
+
 @Test func crossVolumeAndDegradedWritesFail() async throws {
     let backend = WriteFailureBackend()
     var config = IOConfiguration(helperExecutable: nil)
