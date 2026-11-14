@@ -118,9 +118,10 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 辅助进程由 posix_spawn 起宿主自己的可执行文件（环境变量 `MVIO_HELPER=1`），经 socketpair 收发二进制帧，读到 EOF 即退出（S1-T1）。不用 launchd 托管的 XPC 服务：同一 App 域内只有一个实例，卡住的实例活着时无法换新的。
   - 卡住的辅助进程被弃用时发 SIGKILL 并关闭 socket，下一个请求起新的辅助进程。
 - 文件写入与移动（S3-T2 阶段 1，尚未验收）：创建、写入、完成、改名、建目录、删除和本机废纸篓经调度器及现有期限；网络卷由辅助进程执行。排他改名在 NFS 返回 ENOTSUP/EINVAL 时回退普通改名，存在检查与改名之间的竞态。
-- 跨卷移动先原子写入本机传输记录，复制到临时项并逐文件读回 SHA-256，排他发布后删除源；组合根启动时调用恢复。恢复时会核对仍存在源文件与目标的内容和修改时间，再删除源。
-- 文件操作用不跟随链接的类型查询；未知扩展名的普通文件可操作，链接同卷改名、移动和删除操作链接本身，复制和跨卷移动拒绝链接。校验读回每次重新打开描述符并设置 F_NOCACHE，读完关闭；创建、写入和完成文件时检查 F_NOCACHE 的设置结果，失败则关闭描述符并返回错误。若排他创建已成功而后续设置失败，新建的空文件可能保留。只保留文件修改时间，不保留目录自身修改时间。
-- 传输记录尚无明确发布阶段：恢复时目标可能由其他进程创建，当前以内容和修改时间核对；记录先于排他创建临时项写入，若既有同名临时项且恰在创建前崩溃，恢复可能误删该项。该边界尚待处理，不能把现有测试视为证明无竞态。
+- 跨卷移动先原子写入本机传输记录，记录源、目标、临时位置和冲突策略；临时名为 `.<原名>.<传输 ID 前 8 位>.macview-part`，排他创建遇到重名直接失败。复制逐文件读回 SHA-256，排他发布后删除源；复制操作也使用带 ID 的临时名，但不写移动记录。创建后的失败和取消会清理临时项，清理失败时保留移动记录供恢复。
+- 组合根启动时恢复中断的移动：带本次传输 ID 的临时项存在时删除后重做；没有临时项且目标存在时，对仍存在的源逐项比较类型、大小和 SHA-256，匹配才删除源；不匹配或无法读取则保留源，按记录中的冲突策略重做。旧记录缺少冲突策略时不覆盖目标；旧式临时项存在时无法判断归属，计入 pending，保留源、目标、临时项和记录。旧式临时项不存在且需要重做时，先将带 ID 的新临时位置写入记录，再排他创建。源和临时项均不存在时，删除记录并计入失败；即使目标存在，也无法再与源核对，因此同样计入失败。
+- 文件操作用不跟随链接的类型查询；未知扩展名的普通文件可操作，链接同卷改名、移动和删除操作链接本身，复制和跨卷移动拒绝链接。校验读回每次重新打开描述符并设置 F_NOCACHE，读完关闭；创建、写入和完成文件时检查 F_NOCACHE 的设置结果，失败则关闭描述符并返回错误。临时文件创建成功后设置失败时，文件操作层尝试删除空文件，删除失败保留移动记录。只保留文件修改时间，不保留目录自身修改时间。
+- 传输记录没有发布阶段。新记录虽使用 ID，仍可能发生临时名碰撞：记录写入后、排他创建报 EEXIST 并删除记录前若崩溃，恢复会把同名项当作临时项删除。同样，碰撞时删除记录失败也留下此风险。正式目标不判断归属，只在与现存源的内容一致时删源。上述临时项归属边界未由测试消除。
 - 健康探测在挂载点下查找一个随机的、不存在的名字，得到 ENOENT 即恢复。新名字不在缓存里，查找必须问服务器。不用 stat 挂载点或 statfs：服务器不可达时，前者由属性缓存回答，后者约 10 秒后返回缓存的值，都报成功，卷会在 healthy 与 degraded 之间反复切换（S1-T1 实测）。
 
 ### 3.3 媒体与渲染件
@@ -604,6 +605,7 @@ public final class FileSettingsStore: SettingsStore { public init(directory: URL
 
 // MVCommands
 public struct CommandID: RawRepresentable, Hashable, Codable, Sendable { public var rawValue: String; public init(_ rawValue: String) }   // 例如 "page.next"，JSON 中为字符串
+// file.reveal 默认 ⌥⌘R（viewer、list）；viewer 的 ⇧⌘R 仍用于递归。
 public enum InputScope: String, Codable, Sendable { case global, viewer, list, textInput, classify }
 public struct KeyModifiers: OptionSet, Hashable, Codable, Sendable { public let rawValue: UInt8 /* command, option, control, shift, function */ }
 public struct KeyChord: Hashable, Codable, Sendable { public var key: String; public var modifiers: KeyModifiers }   // key 为逻辑键名，如 "Right"、"a"
