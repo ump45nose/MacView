@@ -395,3 +395,28 @@ private final class SettingsDirectory: Sendable {
     #expect(await reopened.bookMemory(for: old) == nil)
     #expect(await reopened.bookMemory(for: target) == relocated)
 }
+
+@Test func legacyGlobalSettingsUseFileOperationDefaultsAndPersistThem() async throws {
+    let directory = try SettingsDirectory()
+    let file = directory.url.appending(path: "settings.json")
+    let original = try JSONSerialization.jsonObject(with: JSONEncoder().encode(GlobalSettings.default)) as! [String: Any]
+    var old = original
+    old.removeValue(forKey: "fileOperations")
+    let oldData = try JSONSerialization.data(withJSONObject: old)
+    #expect(try JSONDecoder().decode(GlobalSettings.self, from: oldData).fileOperations == .default)
+    let envelope: [String: Any] = ["version": 1, "value": old]
+    try JSONSerialization.data(withJSONObject: envelope).write(to: file)
+    let store = try FileSettingsStore(directory: directory.url)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+    #expect(await store.global().fileOperations == FileOperationSettings(nameConflict: .appendNumber, classifyMode: .move, classifyTargets: []))
+    try await store.updateGlobal { $0.fileOperations.classifyMode = .copy }
+    try await settingsWait { events.values.contains(.global) }
+    #expect(!events.values.contains { if case .fileError = $0 { true } else { false } })
+    let saved = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+    let value = try #require(saved["value"] as? [String: Any])
+    let operationSettings = try #require(value["fileOperations"] as? [String: Any])
+    #expect(operationSettings["classifyMode"] as? String == "copy")
+    #expect(operationSettings["nameConflict"] as? String == "appendNumber")
+    #expect((operationSettings["classifyTargets"] as? [Any])?.isEmpty == true)
+}

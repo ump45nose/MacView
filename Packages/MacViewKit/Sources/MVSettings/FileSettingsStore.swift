@@ -226,7 +226,7 @@ public final class FileSettingsStore: SettingsStore {
         for (key, value) in defaults {
             let field = path.isEmpty ? key : path + "." + key
             if let present = object[key] { object[key] = filling(present, defaults: value, path: field, missing: &missing) }
-            else { object[key] = value; missing.append(field) }
+            else { object[key] = value; if field != "fileOperations" { missing.append(field) } }
         }
         return object
     }

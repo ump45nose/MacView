@@ -1,4 +1,5 @@
 import Foundation
+import MVFoundation
 import Testing
 @testable import MVSettings
 
@@ -28,4 +29,12 @@ import Testing
     #expect(global.cache.thumbnailMemoryBytes == 512 << 20)
     #expect(global.cache.preloadBytes == 512 << 20)
     #expect(global.prefetch.neighborBooks == 2)
+}
+
+@Test func fileOperationSettingsRoundTripTargets() throws {
+    let location = Location(root: .network(scheme: "nfs", host: "server", share: "images"), layers: [["分类"]])
+    var global = GlobalSettings.default
+    global.fileOperations = FileOperationSettings(nameConflict: .skip, classifyMode: .copy, classifyTargets: [ClassifyTarget(location: location, listsSubfolders: true)])
+    #expect(try JSONDecoder().decode(GlobalSettings.self, from: JSONEncoder().encode(global)) == global)
+    #expect(try JSONDecoder().decode(FileOperationSettings.self, from: Data("{}".utf8)) == .default)
 }

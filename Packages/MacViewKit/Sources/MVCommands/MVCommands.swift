@@ -16,7 +16,7 @@ public struct CommandID: RawRepresentable, Hashable, Codable, Sendable {
 }
 
 public enum InputScope: String, Codable, Sendable {
-    case global, viewer, list, textInput
+    case global, viewer, list, textInput, classify
 }
 
 public struct KeyModifiers: OptionSet, Hashable, Codable, Sendable {

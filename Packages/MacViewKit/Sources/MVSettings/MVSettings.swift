@@ -225,18 +225,51 @@ public struct PrefetchRanges: Codable, Sendable, Hashable {
     )
 }
 
+public struct ClassifyTarget: Codable, Sendable, Hashable {
+    public var location: Location
+    public var listsSubfolders: Bool
+    public init(location: Location, listsSubfolders: Bool = false) { self.location = location; self.listsSubfolders = listsSubfolders }
+}
+
+public struct FileOperationSettings: Codable, Sendable, Hashable {
+    public var nameConflict: ConflictPolicy
+    public var classifyMode: TransferMode
+    public var classifyTargets: [ClassifyTarget]
+    public init(nameConflict: ConflictPolicy = .appendNumber, classifyMode: TransferMode = .move, classifyTargets: [ClassifyTarget] = []) {
+        self.nameConflict = nameConflict; self.classifyMode = classifyMode; self.classifyTargets = classifyTargets
+    }
+    public static let `default` = FileOperationSettings()
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(nameConflict: try values.decodeIfPresent(ConflictPolicy.self, forKey: .nameConflict) ?? .appendNumber,
+                  classifyMode: try values.decodeIfPresent(TransferMode.self, forKey: .classifyMode) ?? .move,
+                  classifyTargets: try values.decodeIfPresent([ClassifyTarget].self, forKey: .classifyTargets) ?? [])
+    }
+}
+
 public struct GlobalSettings: Codable, Sendable, Hashable {
     public var defaultBook: ResolvedBookSettings
     public var cache: CacheBudgets
     public var prefetch: PrefetchRanges
     /// 显示尺寸解码的长边上限；放大超过它时解码原图或分块。
     public var maxDecodeLongSide: Int
+    public var fileOperations: FileOperationSettings
 
-    public init(defaultBook: ResolvedBookSettings, cache: CacheBudgets, prefetch: PrefetchRanges, maxDecodeLongSide: Int) {
+    public init(defaultBook: ResolvedBookSettings, cache: CacheBudgets, prefetch: PrefetchRanges, maxDecodeLongSide: Int, fileOperations: FileOperationSettings = .default) {
         self.defaultBook = defaultBook
         self.cache = cache
         self.prefetch = prefetch
         self.maxDecodeLongSide = maxDecodeLongSide
+        self.fileOperations = fileOperations
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(defaultBook: try values.decode(ResolvedBookSettings.self, forKey: .defaultBook),
+                  cache: try values.decode(CacheBudgets.self, forKey: .cache),
+                  prefetch: try values.decode(PrefetchRanges.self, forKey: .prefetch),
+                  maxDecodeLongSide: try values.decode(Int.self, forKey: .maxDecodeLongSide),
+                  fileOperations: try values.decodeIfPresent(FileOperationSettings.self, forKey: .fileOperations) ?? .default)
     }
 
     public static let `default` = GlobalSettings(defaultBook: .default, cache: .default, prefetch: .default, maxDecodeLongSide: 8192)
