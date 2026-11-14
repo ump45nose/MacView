@@ -3,6 +3,10 @@ import Foundation
 import MVFoundation
 import Synchronization
 
+public enum FileSystemItemType: Sendable, Equatable {
+    case regular, directory, symbolicLink, other
+}
+
 /// 本机目录与系统挂载的网络共享。处理只有一层的 Location，全部调用经 `IOScheduler`。
 public final class FileSystemProvider: ContainerProvider {
     let scheduler: IOScheduler
@@ -54,6 +58,36 @@ public final class FileSystemProvider: ContainerProvider {
         return entry
     }
 
+    /// 查询条目自身，不跟随符号链接。
+    public func itemWithoutFollowingLinks(at location: Location) async throws -> (entry: Entry, type: FileSystemItemType) {
+        let (volume, path) = try resolve(location)
+        let backend = scheduler.backend(for: volume)
+        let attributes: FileAttributes = try await scheduler.perform(on: volume, .metadata, priority: .visible, group: nil) { finish, _ in
+            backend.lstat(path) { result in finish(result.mapError { Self.ioError($0, at: location, volume: volume) }) }
+        }
+        var entry = Self.entry(in: location.parent ?? location, attributes)
+        entry.identity.location = location
+        entry.name = location.name
+        let type: FileSystemItemType = switch attributes.type {
+        case .regular: .regular
+        case .directory: .directory
+        case .symbolicLink: .symbolicLink
+        case .other: .other
+        }
+        return (entry, type)
+    }
+
+    /// 每次打开新的描述符，始终设置 F_NOCACHE，并在读取完成后关闭。
+    public func readUncached(_ location: Location, range: Range<Int64>, priority: IOPriority) async throws -> Data {
+        guard range.lowerBound >= 0, range.upperBound >= range.lowerBound, range.count <= Int.max else { throw IOError.unsupported(location) }
+        let (volume, path) = try resolve(location)
+        let request = ReadRequest(path: path, offset: range.lowerBound, length: Int(range.count), expectedSize: nil, expectedModificationNanos: nil, noCache: true, retryByReopening: false, freshDescriptor: true)
+        let backend = scheduler.backend(for: volume)
+        return try await scheduler.perform(on: volume, .bulk, priority: priority, group: nil) { finish, _ in
+            backend.read(request) { result in finish(result.mapError { Self.ioError($0, at: location, volume: volume) }) }
+        }
+    }
+
     public func open(_ location: Location) async throws -> any ByteSource {
         let entry = try await entry(at: location)
         guard entry.kind != .directory else { throw IOError.unsupported(location) }
@@ -85,7 +119,7 @@ public final class FileSystemProvider: ContainerProvider {
         let (targetVolume, targetPath) = try resolve(target)
         // 任一端是网络卷时，阻塞的系统调用必须放到辅助进程中。
         let executionVolume = sourceVolume.isLocal && !targetVolume.isLocal ? targetVolume : sourceVolume
-        _ = try await execute(.rename(source: sourcePath, target: targetPath, exclusive: exclusive), at: source, conflict: target, volume: executionVolume, requiredVolumes: [sourceVolume, targetVolume])
+        _ = try await execute(.rename(source: sourcePath, target: targetPath, exclusive: exclusive), at: source, conflict: target, volume: executionVolume)
     }
 
     public func makeDirectory(at location: Location) async throws {

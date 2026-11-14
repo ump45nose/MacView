@@ -34,6 +34,10 @@ public enum IOHelper {
             }
             Thread.detachNewThread {
                 switch request {
+                case let .lstat(path):
+                    do throws(FileOperationError) {
+                        reply(id, .attributes(try FileOperations.stat(path, followLinks: false)))
+                    } catch { reply(id, .failure(error)) }
                 case let .stat(path):
                     do throws(FileOperationError) {
                         reply(id, .attributes(try FileOperations.stat(path)))

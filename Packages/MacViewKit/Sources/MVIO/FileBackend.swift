@@ -7,6 +7,7 @@ import Synchronization
 protocol FileBackend: Sendable {
     func execute(_ request: HelperRequest, completion: @escaping @Sendable (Result<String?, FileOperationError>) -> Void)
     func stat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void)
+    func lstat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void)
     /// 卷的健康探测，见 `FileOperations.probe`。
     func probe(_ mountPoint: String, completion: @escaping @Sendable (Result<Void, FileOperationError>) -> Void)
     func read(_ request: ReadRequest, completion: @escaping @Sendable (Result<Data, FileOperationError>) -> Void)
@@ -31,6 +32,10 @@ final class DirectBackend: FileBackend {
 
     func stat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void) {
         queue.async { completion(Result { () throws(FileOperationError) in try FileOperations.stat(path) }) }
+    }
+
+    func lstat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void) {
+        queue.async { completion(Result { () throws(FileOperationError) in try FileOperations.stat(path, followLinks: false) }) }
     }
 
     func probe(_ mountPoint: String, completion: @escaping @Sendable (Result<Void, FileOperationError>) -> Void) {
@@ -81,6 +86,17 @@ final class HelperBackend: FileBackend {
             case let .failure(error): completion(.failure(error)); return true
             default: completion(.failure(.helperLost)); return true
             }
+        }
+    }
+
+    func lstat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void) {
+        send(.lstat(path: path)) { response in
+            switch response {
+            case let .attributes(attributes): completion(.success(attributes))
+            case let .failure(error): completion(.failure(error))
+            default: completion(.failure(.helperLost))
+            }
+            return true
         }
     }
 
@@ -278,6 +294,9 @@ private func withCStrings<R>(_ strings: [String], _ body: (UnsafePointer<UnsafeM
 }
 
 extension FileBackend {
+    func lstat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void) {
+        completion(.failure(.helperLost))
+    }
     func execute(_ request: HelperRequest, completion: @escaping @Sendable (Result<String?, FileOperationError>) -> Void) {
         completion(.failure(.helperLost))
     }

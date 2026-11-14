@@ -11,6 +11,7 @@ enum HelperRequest: Sendable, Equatable {
     case remove(path: String)
     case trash(path: String)
     case stat(path: String)
+    case lstat(path: String)
     case read(ReadRequest)
     case list(path: String)
     /// 卷的健康探测，成功时回复 `done`。
@@ -47,6 +48,8 @@ enum HelperCodec {
             writer.add(UInt8(11)); writer.add(path)
         case let .trash(path):
             writer.add(UInt8(12)); writer.add(path)
+        case let .lstat(path):
+            writer.add(UInt8(13)); writer.add(path)
         case let .stat(path):
             writer.add(UInt8(1))
             writer.add(path)
@@ -59,6 +62,7 @@ enum HelperCodec {
             writer.add(read.expectedModificationNanos)
             writer.add(read.noCache)
             writer.add(read.retryByReopening)
+            writer.add(read.freshDescriptor)
         case let .list(path):
             writer.add(UInt8(3))
             writer.add(path)
@@ -119,7 +123,8 @@ enum HelperCodec {
                 expectedSize: try reader.optionalInt64(),
                 expectedModificationNanos: try reader.optionalInt64(),
                 noCache: try reader.bool(),
-                retryByReopening: try reader.bool()
+                retryByReopening: try reader.bool(),
+                freshDescriptor: try reader.bool()
             )
             return (id, .read(request))
         case 3:
@@ -135,6 +140,7 @@ enum HelperCodec {
         case 10: return (id, .makeDirectory(path: try reader.string()))
         case 11: return (id, .remove(path: try reader.string()))
         case 12: return (id, .trash(path: try reader.string()))
+        case 13: return (id, .lstat(path: try reader.string()))
         case let kind:
             throw HelperProtocolError("未知的请求类型 \(kind)")
         }
