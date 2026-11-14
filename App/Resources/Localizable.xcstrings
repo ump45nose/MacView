@@ -271,6 +271,26 @@
         }
       }
     },
+    "“%@”已经存在": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” already exists"
+          }
+        }
+      }
+    },
+    "无法跨卷操作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t operate across volumes"
+          }
+        }
+      }
+    },
     "。已改动，下次启动时生效": {
       "localizations": {
         "en": {

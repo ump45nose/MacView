@@ -24,6 +24,8 @@ enum ErrorText {
         case .volumeUnavailable: return String(localized: "所在的卷不可用")
         case .volumeDegraded: return String(localized: "所在的卷响应缓慢，已暂停访问")
         case let .notFound(location): return String(localized: "找不到“\(location.description)”")
+        case let .alreadyExists(location): return String(localized: "“\(location.description)”已经存在")
+        case .crossVolume: return String(localized: "无法跨卷操作")
         case let .unsupported(location): return String(localized: "不支持打开“\(location.description)”")
         case let .unsupportedFormat(location, format): return String(localized: "不支持 \(format) 格式：“\(location.description)”")
         case let .corrupted(location, reason): return String(localized: "“\(location.description)”已损坏：\(reason)")
