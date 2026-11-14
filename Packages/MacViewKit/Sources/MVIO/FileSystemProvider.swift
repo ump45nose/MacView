@@ -154,11 +154,11 @@ public final class FileSystemProvider: ContainerProvider {
         scheduler.table.volumes.filter { !$0.isLocal && $0.root != .local }.map { Location(root: $0.root, layers: [[]]) }
     }
 
-    private func execute(_ request: HelperRequest, at location: Location, conflict: Location? = nil, volume executionVolume: Volume? = nil, requiredVolumes: [Volume] = [], channel: IOScheduler.Channel = .metadata, priority: IOPriority = .visible) async throws(IOError) -> String? {
+    private func execute(_ request: HelperRequest, at location: Location, conflict: Location? = nil, volume executionVolume: Volume? = nil, channel: IOScheduler.Channel = .metadata, priority: IOPriority = .visible) async throws(IOError) -> String? {
         let (resolvedVolume, _) = try resolve(location)
         let volume = executionVolume ?? resolvedVolume
         let backend = scheduler.backend(for: volume)
-        return try await scheduler.perform(on: volume, channel, priority: priority, group: nil, requiring: requiredVolumes) { finish, _ in
+        return try await scheduler.perform(on: volume, channel, priority: priority, group: nil) { finish, _ in
             backend.execute(request) { result in
                 finish(result.mapError { error in
                     if case .system(_, EEXIST) = error { return .alreadyExists(conflict ?? location) }

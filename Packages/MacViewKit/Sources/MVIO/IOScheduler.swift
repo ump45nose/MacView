@@ -81,7 +81,6 @@ public final class IOScheduler: Sendable {
         var channel: Channel
         var priority: IOPriority
         var group: IORequestGroup?
-        var requiredVolumes: [Volume]
         var phase = Phase.queued
         /// 期限计时的代数；`touch` 时加一，旧的计时器到期后不再生效。
         var generation = 0
@@ -233,7 +232,6 @@ public final class IOScheduler: Sendable {
         _ channel: Channel,
         priority: IOPriority,
         group: IORequestGroup?,
-        requiring requiredVolumes: [Volume] = [],
         _ body: @escaping @Sendable (_ finish: @escaping @Sendable (Result<T, IOError>) -> Void, _ touch: @escaping @Sendable () -> Void) -> Void
     ) async throws(IOError) -> T {
         let id = state.withLock { state -> UInt64 in
@@ -252,7 +250,7 @@ public final class IOScheduler: Sendable {
                 let start: @Sendable (UInt64) -> Void = { id in
                     body({ result in self.finish(id, result: result, resume: resume) }, { self.touch(id) })
                 }
-                enqueue(id, volume: volume, channel: channel, priority: priority, group: group, requiredVolumes: requiredVolumes, start: start, fail: { resume(.failure($0)) })
+                enqueue(id, volume: volume, channel: channel, priority: priority, group: group, start: start, fail: { resume(.failure($0)) })
             }
         } onCancel: {
             dequeue(id)
@@ -266,7 +264,6 @@ public final class IOScheduler: Sendable {
         channel: Channel,
         priority: IOPriority,
         group: IORequestGroup?,
-        requiredVolumes: [Volume],
         start: @escaping @Sendable (UInt64) -> Void,
         fail: @escaping @Sendable (IOError) -> Void
     ) {
@@ -281,11 +278,9 @@ public final class IOScheduler: Sendable {
                 state.volumes[volume.mountPoint]?.volume = volume
                 publish(state)
             }
-            for required in [volume] + requiredVolumes {
-                if state.volumes[required.mountPoint]?.degradedReason != nil { return .volumeDegraded(required.root) }
-            }
+            if state.volumes[volume.mountPoint]?.degradedReason != nil { return .volumeDegraded(volume.root) }
             let effective = group.flatMap { state.groupPriorities[$0] } ?? priority
-            state.jobs[id] = Job(volume: volume.mountPoint, channel: channel, priority: effective, group: group, requiredVolumes: requiredVolumes, start: start, fail: fail)
+            state.jobs[id] = Job(volume: volume.mountPoint, channel: channel, priority: effective, group: group, start: start, fail: fail)
             state.volumes[volume.mountPoint]?.queues[channel]?.append(id)
             return nil
         }
@@ -389,14 +384,9 @@ public final class IOScheduler: Sendable {
             state.volumes[job.volume] = volume
             var queued: [Job] = []
             if let degraded {
-                let ids = state.jobs.compactMap { id, pending in
-                    pending.phase == .queued && (pending.volume == degraded.mountPoint || pending.requiredVolumes.contains { $0.mountPoint == degraded.mountPoint }) ? id : nil
-                }
-                for id in ids {
-                    guard let pending = state.jobs.removeValue(forKey: id) else { continue }
-                    state.volumes[pending.volume]?.queues[pending.channel]?.removeAll { $0 == id }
-                    queued.append(pending)
-                }
+                let ids = state.volumes[degraded.mountPoint]?.queues.values.flatMap { $0 } ?? []
+                state.volumes[degraded.mountPoint]?.queues = [.metadata: [], .bulk: []]
+                queued = ids.compactMap { state.jobs.removeValue(forKey: $0) }
             }
             publish(state)
             return (job, degraded, queued)

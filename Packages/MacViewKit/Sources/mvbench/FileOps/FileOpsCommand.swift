@@ -219,7 +219,7 @@ private func recoverAfterKill(from: URL, to: URL, local: URL, registry: FileSour
     }
     let remaining = try FileManager.default.contentsOfDirectory(atPath: targetFolder.path)
     return RecoveryEvidence(killedAtBytes: bytes, expectedSHA256: expected, actualSHA256: try hashFile(target),
-                            sourceRemoved: !exists(source), temporaryRemoved: !remaining.contains { $0.hasPrefix(".recover.bin.macview-part") },
+                            sourceRemoved: !exists(source), temporaryRemoved: !remaining.contains { $0.hasPrefix(".recover.bin.") && $0.hasSuffix(".macview-part") },
                             journalEmpty: try emptyJournal(journal), recovered: result.completed)
 }
 

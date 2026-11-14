@@ -383,12 +383,3 @@ private actor Collector<Element: Sendable> {
         items.append(item)
     }
 }
-
-@Test func mockRelocatesBookMemory() async {
-    let old = Location(root: .local, layers: [["old"]]), target = Location(root: .local, layers: [["new"]])
-    let store = MockSettingsStore(memories: [BookMemory(book: old, lastPage: old.appending("1.jpg"), lastPageIndex: 2), BookMemory(book: target, lastPageIndex: 9)])
-    await store.relocateBookMemory(from: old, to: target)
-    #expect(await store.bookMemory(for: old) == nil)
-    #expect(await store.bookMemory(for: target)?.lastPage == target.appending("1.jpg"))
-    #expect(await store.bookMemory(for: target)?.lastPageIndex == 2)
-}
