@@ -274,14 +274,16 @@ private final class Fixture: Sendable {
     try await f.fs.makeDirectory(at: dest)
     let a = f.root.appending("a.jpg"), b = f.root.appending("b.jpg"), c = f.root.appending("c.jpg"), d = f.root.appending("d.jpg")
     for item in [a, b, c] { try await f.fs.createFile(at: item); try await f.fs.write(Data([7, 8]), at: 0, to: item, priority: .background) }
-    try await f.fs.createFile(at: dest.appending(".a.jpg.macview-part"))
+    let aID = UUID()
+    let aTemporary = dest.appending(".a.jpg.\(aID.uuidString.prefix(8).lowercased()).macview-part")
+    try await f.fs.createFile(at: aTemporary)
     try await f.fs.createFile(at: dest.appending("b.jpg"))
     try await f.fs.write(Data([7, 8]), at: 0, to: dest.appending("b.jpg"), priority: .background)
     let bTime = try await f.fs.entry(at: b).identity.modificationNanos
     try await f.fs.finishFile(at: dest.appending("b.jpg"), modificationNanos: bTime)
     let unavailable = Location(root: .network(scheme: "nfs", host: "missing.invalid", share: "missing"), layers: [["x.jpg"]])
     let records = [
-        TransferRecord(id: UUID(), source: a, target: dest.appending("a.jpg"), temporary: dest.appending(".a.jpg.macview-part")),
+        TransferRecord(id: aID, source: a, target: dest.appending("a.jpg"), temporary: aTemporary),
         TransferRecord(id: UUID(), source: b, target: dest.appending("b.jpg"), temporary: dest.appending(".b.jpg.macview-part")),
         TransferRecord(id: UUID(), source: c, target: dest.appending("c.jpg"), temporary: dest.appending(".c.jpg.macview-part")),
         TransferRecord(id: UUID(), source: d, target: dest.appending("d.jpg"), temporary: dest.appending(".d.jpg.macview-part")),
@@ -291,7 +293,7 @@ private final class Fixture: Sendable {
     let report = await f.service.resumeInterruptedTransfers()
     #expect(report == ResumeReport(completed: 3, pending: 1, failed: 1))
     #expect(!f.exists("a.jpg") && !f.exists("b.jpg") && !f.exists("c.jpg"))
-    #expect(f.exists("dest/a.jpg") && f.exists("dest/b.jpg") && f.exists("dest/c.jpg") && !f.exists("dest/.a.jpg.macview-part"))
+    #expect(f.exists("dest/a.jpg") && f.exists("dest/b.jpg") && f.exists("dest/c.jpg") && !f.exists("dest/\(aTemporary.name)"))
     let journal = try JSONDecoder().decode(TransferJournal.self, from: Data(contentsOf: f.directory.appending(path: "transfers.json")))
     #expect(journal.transfers == [records.last!])
 }
@@ -560,4 +562,44 @@ private final class Fixture: Sendable {
     #expect(undoRemove.failures.isEmpty && f.exists("empty"))
     let redoRemove = await f.service.perform(try #require(undoRemove.inverse))
     #expect(redoRemove.failures.isEmpty && !f.exists("empty"))
+}
+
+
+@Test func legacyAmbiguousTemporaryIsLeftUntouched() async throws {
+    let f = try await Fixture()
+    let dest = f.root.appending("dest"), source = f.root.appending("source.jpg")
+    try await f.fs.makeDirectory(at: dest)
+    let target = dest.appending("source.jpg"), temporary = dest.appending(".source.jpg.macview-part")
+    for (location, bytes) in [(source, Data([1])), (target, Data([2])), (temporary, Data([3]))] {
+        try await f.fs.createFile(at: location)
+        try await f.fs.write(bytes, at: 0, to: location, priority: .background)
+    }
+    let record = TransferRecord(id: UUID(), source: source, target: target, temporary: temporary)
+    let url = f.directory.appending(path: "transfers.json")
+    try JournalStore.save(TransferJournal(version: 1, transfers: [record]), to: url)
+    let originalJournal = try Data(contentsOf: url)
+    #expect(await f.service.resumeInterruptedTransfers() == ResumeReport(completed: 0, pending: 1, failed: 0))
+    #expect(try Data(contentsOf: f.directory.appending(path: "source.jpg")) == Data([1]))
+    #expect(try Data(contentsOf: f.directory.appending(path: "dest/source.jpg")) == Data([2]))
+    #expect(try Data(contentsOf: f.directory.appending(path: "dest/.source.jpg.macview-part")) == Data([3]))
+    #expect(try Data(contentsOf: url) == originalJournal)
+}
+
+@Test func legacyRestartUsesIDTemporaryBeforeCreatingIt() async throws {
+    let f = try await Fixture(failAfterCreate: true, failCleanup: true)
+    let dest = f.root.appending("dest"), source = f.root.appending("source.jpg")
+    try await f.fs.makeDirectory(at: dest)
+    try await f.fs.createFile(at: source)
+    let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
+    let record = TransferRecord(id: id, source: source, target: dest.appending("source.jpg"), temporary: dest.appending(".source.jpg.macview-part"))
+    let url = f.directory.appending(path: "transfers.json")
+    try JournalStore.save(TransferJournal(version: 1, transfers: [record]), to: url)
+    #expect(await f.service.resumeInterruptedTransfers() == ResumeReport(completed: 0, pending: 0, failed: 1))
+    let updated = try #require(JournalStore.load(url).transfers.first)
+    #expect(updated.temporary == dest.appending(".source.jpg.12345678.macview-part"))
+    #expect(f.exists("source.jpg") && f.exists("dest/.source.jpg.12345678.macview-part"))
+    #expect(!f.exists("dest/.source.jpg.macview-part"))
+    let retry = try FileOperationService(fileSystem: f.fs, journalURL: url)
+    #expect(await retry.resumeInterruptedTransfers() == ResumeReport(completed: 1, pending: 0, failed: 0))
+    #expect(!f.exists("source.jpg") && f.exists("dest/source.jpg"))
 }

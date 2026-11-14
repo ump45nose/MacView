@@ -318,6 +318,10 @@ public final class FileOperationService: Sendable {
             do { try await fileSystem.makeDirectory(at: batch); return batch } catch IOError.alreadyExists { continue }
         }
     }
+    private static func temporaryLocation(source: Location, targetParent: Location, id: UUID) -> Location {
+        targetParent.appending(".\(source.name).\(id.uuidString.prefix(8).lowercased()).macview-part")
+    }
+
     /// 目标先写入独立临时项，逐文件读回校验，再原子改名。跨卷移动先持久化记录。
     private func copy(_ entry: Entry, to target: Location, moving: Bool = false, existingRecord: TransferRecord? = nil, conflict: ConflictPolicy? = nil, number startingNumber: Int = 1, progress: ((Int64) -> Void)? = nil) async throws -> Location {
         try await validateCopyTree(entry)
@@ -346,12 +350,14 @@ public final class FileOperationService: Sendable {
             }
         }
         let id = existingRecord?.id ?? transferID()
-        let temp = existingRecord?.temporary ?? parent.appending(".\(entry.name).\(id.uuidString.prefix(8).lowercased()).macview-part")
+        // 旧记录的临时名没有 ID；重做前先持久化新的位置。
+        let temp = Self.temporaryLocation(source: entry.location, targetParent: parent, id: id)
         var record = existingRecord ?? TransferRecord(id: id, source: entry.location, target: selectedTarget, temporary: temp, conflict: conflict)
         if moving {
             if existingRecord == nil { try JournalStore.update(journalURL) { $0.append(record) } }
-            else if record.target != selectedTarget {
+            else if record.target != selectedTarget || record.temporary != temp {
                 record.target = selectedTarget
+                record.temporary = temp
                 try JournalStore.update(journalURL) { records in
                     if let i = records.firstIndex(where: { $0.id == record.id }) { records[i] = record }
                 }
@@ -502,6 +508,15 @@ public final class FileOperationService: Sendable {
                 try Self.validateLocation(record.target)
                 try Self.validateLocation(record.temporary)
                 let temporary = try await exists(record.temporary)
+                if temporary != nil {
+                    guard let parent = record.target.parent,
+                          record.temporary == Self.temporaryLocation(source: record.source, targetParent: parent, id: record.id)
+                    else {
+                        // 旧记录无法证明临时项归属，保留记录和所有文件。
+                        report.pending += 1
+                        continue
+                    }
+                }
                 let target = try await exists(record.target)
                 let source = try await exists(record.source)
                 if temporary != nil {
