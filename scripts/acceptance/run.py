@@ -34,14 +34,16 @@ ROOT = Path(__file__).resolve().parents[2]
 os.environ["TMPDIR"] = str(ROOT / "build" / "acceptance" / "tmp") + "/"
 Path(os.environ["TMPDIR"]).mkdir(parents=True, exist_ok=True)
 SAMPLE_LINK = ROOT / "Fixtures" / "local" / "sample-set"
-SAMPLE_TARGET = Path("/Users/yuwk/WorkSpace/Code/Github/MacView/Fixtures/local/sample-set")
+# 样本只放在主工作区（不入库）；worktree 里的链接指向它。
+SAMPLE_TARGET = Path(subprocess.check_output(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT, text=True).strip()).parent / "Fixtures" / "local" / "sample-set"
 TREE = ROOT / "Fixtures" / "local" / "generated" / "tree" / "10000"
 HUGE_DIR = ROOT / "Fixtures" / "local" / "generated" / "image"
 DERIVED = ROOT / "build" / "DerivedData-profile"
 APP_BUNDLE = DERIVED / "Build" / "Products" / "Debug" / "MacView.app"
 APP_BINARY = APP_BUNDLE / "Contents" / "MacOS" / "MacView"
 NFS_HOST = "nas.example"
-NFS_EXPORT = "/export"
+# NAS 只开 NFS v4，导出没有 insecure，挂载要 resvport（root），由用户执行 sudo mount_nfs；脚本只复用已有挂载。
+NFS_EXPORT = "/export/Photos"
 NFS_MOUNT = Path.home() / "MacViewBench" / "nfs"
 NFS_FAULT = ROOT / "build" / "acceptance" / "nfs-fault-mount"
 SMB_ROOT = Path("/Volumes/Picture")
@@ -1816,7 +1818,7 @@ def ensure_nfs():
     if not NFS_MOUNT.is_dir():
         return None, f"授权挂载目录不存在，未在家目录新建：{NFS_MOUNT}"
     result = subprocess.run(
-        ["mount_nfs", "-o", "ro,vers=3,tcp,port=2049", f"{NFS_HOST}:{NFS_EXPORT}", str(NFS_MOUNT)],
+        ["mount_nfs", "-o", "ro,resvport,vers=4", f"{NFS_HOST}:{NFS_EXPORT}", str(NFS_MOUNT)],
         stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30,
     )
     if result.returncode != 0:
@@ -1828,7 +1830,7 @@ def find_samples(root):
     album = archive = None
     started = time.monotonic()
     seen = 0
-    bases = [root / "Picture" / "YY" / "Set-A", root / "Picture", root]
+    bases = [root / "Set-A", root]
     for base in bases:
         if not base.is_dir():
             continue
@@ -2483,7 +2485,9 @@ class MemoryActions:
                 command, args, kind = "perform", {"command": "view.waterfall"}, "mode-waterfall"
                 self.pending_mode = True
             else:
-                command, args, kind = "scroll", {"dy": -12, "durationMs": 500, "intervalMs": 8}, "scroll"
+                # 固定总位移（约等于原来 500 ms 连续手势的距离）。连续手势按墙钟发事件、停住就反向，主线程一慢落点就变，
+                # 偶尔滚到循环以外的图，缓存在预算内多收一批，占用出现一次台阶（第十三轮约 1538 秒）。
+                command, args, kind = "scroll", {"dy": -744, "steps": 31, "intervalMs": 16}, "scroll"
         else:
             client.phase = f"{phase}:switch-book-{self.index}"
             command, args, kind = "open", {"path": self.other if self.index % 12 == 4 else self.sample}, "switch-book"

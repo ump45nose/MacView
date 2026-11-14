@@ -14,6 +14,8 @@ final class FaultProxy: Sendable {
     struct Target: Codable, Sendable {
         var host: String
         var port: UInt16
+        /// 上游连接从 1024 以下的本机端口发出。NFS 导出默认（没有 insecure）只接受这样的客户端端口；macOS 不需要 root 也能绑定。
+        var reservedSourcePort = false
     }
 
     struct Status: Codable, Sendable {
@@ -210,6 +212,10 @@ final class FaultProxy: Sendable {
         guard var address = address(target.host, port: target.port) else { return nil }
         let fd = socket(AF_INET, SOCK_STREAM, 0)
         guard fd >= 0 else { return nil }
+        if target.reservedSourcePort, !bindReservedPort(fd) {
+            close(fd)
+            return nil
+        }
         let connected = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
         }
@@ -218,6 +224,19 @@ final class FaultProxy: Sendable {
             return nil
         }
         return fd
+    }
+
+    /// 从 1023 往下找一个空闲端口绑定。
+    private static func bindReservedPort(_ fd: Int32) -> Bool {
+        for port in stride(from: UInt16(1023), through: 600, by: -1) {
+            var local = address("0.0.0.0", port: port)!
+            let bound = withUnsafePointer(to: &local) {
+                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
+            }
+            if bound == 0 { return true }
+            guard errno == EADDRINUSE else { return false }
+        }
+        return false
     }
 
     /// IPv4 地址；host 必须是点分十进制。

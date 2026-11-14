@@ -49,9 +49,21 @@ struct ProxyCommand: ParsableCommand {
             guard let export = NFSExport.parse(source: mount.source) else {
                 throw ValidationFailure("无法解析 NFS 挂载来源 \(mount.source)")
             }
-            let mountd = try Self.mountdPort(of: export.server)
-            proxy = try FaultProxy(targets: [.init(host: export.server, port: 2049), .init(host: export.server, port: mountd)])
-            var options = ["vers=3", "tcp", "port=\(proxy.ports[0])", "mountport=\(proxy.ports[1])", "nolocks"]
+            // 测试挂载沿用源挂载的版本：v4 只有 2049 一个端口；v3 另需 mountd。
+            var options: [String]
+            switch try Self.nfsMajorVersion(of: mount.mountPoint) {
+            case 4:
+                proxy = try FaultProxy(targets: [.init(host: export.server, port: 2049, reservedSourcePort: true)])
+                // 不要服务器回调：回调绕过代理直连本机，故障注入就覆盖不到委托的读。
+                options = ["vers=4", "tcp", "port=\(proxy.ports[0])", "nocallback"]
+            case 3:
+                let mountd = try Self.mountdPort(of: export.server)
+                proxy = try FaultProxy(targets: [.init(host: export.server, port: 2049, reservedSourcePort: true),
+                                                 .init(host: export.server, port: mountd, reservedSourcePort: true)])
+                options = ["vers=3", "tcp", "port=\(proxy.ports[0])", "mountport=\(proxy.ports[1])", "nolocks"]
+            case let version:
+                throw ValidationFailure("\(source) 的 NFS 挂载是 v\(version)，只支持 v3 和 v4")
+            }
             if soft { options += ["soft", "intr"] }
             if let nfsOptions { options.append(nfsOptions) }
             try runTool("/sbin/mount_nfs", ["-o", options.joined(separator: ","), "127.0.0.1:" + export.path, mountPoint])
@@ -106,6 +118,24 @@ struct ProxyCommand: ParsableCommand {
             let reason = status > 0 ? String(cString: strerror(status)) : "NetFS 错误 \(status)"
             throw ValidationFailure("挂载 \(url.absoluteString) 失败：\(reason)")
         }
+    }
+
+    /// 源挂载当前使用的 NFS 主版本，取自 `nfsstat -m` 的 Current mount parameters。
+    private static func nfsMajorVersion(of mountPoint: String) throws -> Int {
+        var inMount = false
+        var current = false
+        for line in try runTool("/usr/bin/nfsstat", ["-m"]).split(separator: "\n") {
+            if !line.hasPrefix(" ") {
+                inMount = line.hasPrefix(mountPoint + " from ")
+                current = false
+            } else if inMount, line.contains("Current mount parameters") {
+                current = true
+            } else if inMount, current, let range = line.range(of: "NFS parameters: vers="),
+                      let major = Int(line[range.upperBound...].prefix(while: \.isNumber)) {
+                return major
+            }
+        }
+        throw ValidationFailure("nfsstat -m 里没有 \(mountPoint) 的 NFS 版本")
     }
 
     /// 从 rpcinfo 的输出里找 mountd v3 的 TCP 端口。
