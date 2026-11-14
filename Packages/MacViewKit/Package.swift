@@ -55,6 +55,7 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 "MVFoundation",
                 "MVIO",
+                "MVFileOps",
                 "MVMedia",
                 "MVCache",
                 "MVPipeline",
