@@ -55,6 +55,8 @@ public protocol Bookshelf: Sendable {
     /// 目录下的书：子文件夹与压缩包。
     func items(in directory: Location, sort: SortSpec) -> AsyncThrowingStream<ShelfEvent, any Error>
     func cover(of book: Location, priority: IOPriority) async throws -> Location?
+    /// 在位置仍存在时记住排序所需的书信息。
+    func rememberBook(_ book: Location) async
     /// 书架顺序中的相邻书；到头时为 nil。
     func neighbor(of book: Location, _ direction: NavigationDirection, sort: SortSpec) async throws -> Location?
     /// 只含一个子文件夹且没有媒体的目录，自动进入下一层。
@@ -102,4 +104,8 @@ public enum PageMove: Sendable, Equatable {
     case nextFrame, previousFrame, nextPage, previousPage, first, last
     /// 跳到包含该页序号的页帧。
     case index(Int)
+}
+
+public extension Bookshelf {
+    func rememberBook(_ book: Location) async {}
 }

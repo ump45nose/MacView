@@ -46,6 +46,21 @@ public final class MockSettingsStore: SettingsStore {
         state.withLock { $0.memories[memory.book] = memory }
     }
 
+    public func relocateBookMemory(from source: Location, to target: Location) async {
+        guard source != target, !target.layers.isEmpty else { return }
+        state.withLock { current in
+            guard var memory = current.memories.removeValue(forKey: source) else { return }
+            memory.book = target
+            if let page = memory.lastPage, page.hasPrefix(source), let index = source.layers.indices.last {
+                var layers = target.layers
+                layers[layers.count - 1] += page.layers[index].dropFirst(source.layers[index].count)
+                layers += page.layers.dropFirst(index + 1)
+                memory.lastPage = Location(root: target.root, layers: layers)
+            }
+            current.memories[target] = memory
+        }
+    }
+
     public func global() async -> GlobalSettings {
         state.withLock { $0.global }
     }

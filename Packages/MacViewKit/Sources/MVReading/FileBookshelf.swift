@@ -2,9 +2,11 @@ import MVCache
 import MVFoundation
 import MVIO
 import MVSettings
+import Synchronization
 
 public final class FileBookshelf: Bookshelf {
     private let listing: ReadingListing
+    private let remembered = Mutex<[Location: Entry]>([:])
 
     public init(sources: any SourceRegistry, directories: DirectoryCache) {
         listing = ReadingListing(sources: sources, directories: directories)
@@ -39,15 +41,44 @@ public final class FileBookshelf: Bookshelf {
         return nil
     }
 
+    public func rememberBook(_ book: Location) async {
+        guard let provider = try? listing.sources.provider(for: book),
+              let entry = try? await provider.entry(at: book) else { return }
+        remembered.withLock { entries in
+            if entries.count >= 256 { entries.removeAll() }
+            entries[book] = entry
+            var parent = book.parent
+            while let location = parent, location.parent != nil {
+                if entries[location] == nil {
+                    let candidate = EntryKind(fileName: location.name)
+                    let kind: EntryKind
+                    if location.layers.count < book.layers.count, case .archive = candidate { kind = candidate }
+                    else { kind = .directory }
+                    entries[location] = Entry(identity: ContentIdentity(location: location, size: 0, modificationNanos: 0), name: location.name, kind: kind)
+                }
+                parent = location.parent
+            }
+        }
+    }
+
     public func neighbor(of book: Location, _ direction: NavigationDirection, sort: SortSpec) async throws -> Location? {
         guard let parent = book.parent else { return nil }
         var books: [Entry] = []
         for try await event in items(in: parent, sort: sort) {
             switch event { case let .appended(entries): books.append(contentsOf: entries); case let .sorted(entries): books = entries }
         }
-        guard let index = books.firstIndex(where: { $0.location == book }) else { throw IOError.notFound(book) }
-        let next = direction == .forward ? index + 1 : index - 1
-        return books.indices.contains(next) ? books[next].location : nil
+        if let index = books.firstIndex(where: { $0.location == book }) {
+            let next = direction == .forward ? index + 1 : index - 1
+            return books.indices.contains(next) ? books[next].location : nil
+        }
+        let candidate = EntryKind(fileName: book.name)
+        let fallback: EntryKind
+        if case .archive = candidate { fallback = candidate } else { fallback = .directory }
+        let reference = remembered.withLock { $0[book] } ?? Entry(
+            identity: ContentIdentity(location: book, size: 0, modificationNanos: 0), name: book.name, kind: fallback)
+        let insertion = books.firstIndex { ReadingOrder.compare(reference, $0, by: sort) == .orderedAscending } ?? books.endIndex
+        let index = direction == .forward ? insertion : insertion - 1
+        return books.indices.contains(index) ? books[index].location : nil
     }
 
     public func passThrough(_ location: Location) async throws -> Location {

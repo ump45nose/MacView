@@ -4,6 +4,7 @@ import MVArchive
 import MVCache
 import MVCommands
 import MVFoundation
+import MVFileOps
 import MVIO
 import MVMedia
 import MVPipeline
@@ -32,12 +33,15 @@ public struct CoreConfiguration: Sendable {
     public let settings: any SettingsStore
     public let commands: CommandRegistry
     public let bookshelf: any Bookshelf
+    public let fileOperations: FileOperationService?
     public let keyBindings: JSONDocumentStore<KeyBindingsFile>?
     private let loader: any BookLoader
     let runtime: Runtime?
     private var sessions: [WeakSession] = []
     private var pressureSource: (any DispatchSourceMemoryPressure)?
     private var settingsTask: Task<Void, Never>?
+    private var fileChangesTask: Task<Void, Never>?
+    private var recoveryTask: Task<Void, Never>?
     private var shutdownTask: Task<Void, Never>?
     private static let log = Logger(category: "services")
 
@@ -56,13 +60,13 @@ public struct CoreConfiguration: Sendable {
         commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader
     ) {
         self.init(sources: sources, pipeline: pipeline, settings: settings, commands: commands,
-                  bookshelf: bookshelf, loader: loader, keyBindings: nil, runtime: nil)
+                  bookshelf: bookshelf, loader: loader, keyBindings: nil, fileOperations: nil, runtime: nil)
     }
 
     private init(
         sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore,
         commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader,
-        keyBindings: JSONDocumentStore<KeyBindingsFile>?, runtime: Runtime?
+        keyBindings: JSONDocumentStore<KeyBindingsFile>?, fileOperations: FileOperationService?, runtime: Runtime?
     ) {
         self.sources = sources
         self.pipeline = pipeline
@@ -71,6 +75,7 @@ public struct CoreConfiguration: Sendable {
         self.bookshelf = bookshelf
         self.loader = loader
         self.keyBindings = keyBindings
+        self.fileOperations = fileOperations
         self.runtime = runtime
     }
 
@@ -96,17 +101,21 @@ public struct CoreConfiguration: Sendable {
                                          configuration: PipelineConfiguration(browseBounds: configuration.browseBounds, maxDecodeLongSide: global.maxDecodeLongSide))
         let keyBindings = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "keybindings.json"),
                                                version: 1, defaultValue: KeyBindingsFile())
+        let fileOperations = try FileOperationService(fileSystem: sources.fileSystem, journalURL: configuration.supportDirectory.appending(path: "transfers.json"))
         let services = CoreServices(sources: sources, pipeline: pipeline, settings: settings, commands: CommandRegistry(),
                                     bookshelf: FileBookshelf(sources: sources, directories: directories),
                                     loader: FileBookLoader(sources: sources, directories: directories, metadata: caches.metadata, pipeline: pipeline),
-                                    keyBindings: keyBindings, runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches))
-        services.subscribe()
+                                    keyBindings: keyBindings, fileOperations: fileOperations, runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches))
+        services.subscribe(directories: directories)
+        services.recoveryTask = Task { _ = await fileOperations.resumeInterruptedTransfers() }
         return services
     }
 
     deinit {
         pressureSource?.cancel()
         settingsTask?.cancel()
+        fileChangesTask?.cancel()
+        recoveryTask?.cancel()
     }
 
     public func makeSession() -> ReaderSession {
@@ -116,7 +125,33 @@ public struct CoreConfiguration: Sendable {
         return session
     }
 
-    private func subscribe() {
+    private func subscribe(directories: DirectoryCache) {
+        if let fileOperations {
+            let changes = fileOperations.changes()
+            fileChangesTask = Task { [weak self] in
+                for await batch in changes {
+                    guard !Task.isCancelled, let self else { return }
+                    do { try await directories.apply(batch) }
+                    catch { Self.log.error("更新目录缓存失败：\(error.localizedDescription)") }
+                    let active = self.sessions.compactMap(\.value)
+                    // 把会话中的最新页先写入旧位置，再迁移书记忆。
+                    for session in active where batch.contains(where: { change in
+                        if case let .moved(from, _) = change { return session.book?.location == from }
+                        return false
+                    }) { await session.flush() }
+                    for change in batch {
+                        if case let .moved(from, to) = change {
+                            switch to.kind {
+                            case .directory, .archive: await self.settings.relocateBookMemory(from: from, to: to.location)
+                            default: break
+                            }
+                        }
+                    }
+                    self.sessions.removeAll { $0.value == nil }
+                    for session in active { session.applyFileChanges(batch) }
+                }
+            }
+        }
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         source.setEventHandler { [weak self, weak source] in
             let event = source?.data ?? []
@@ -165,6 +200,8 @@ public struct CoreConfiguration: Sendable {
         if let shutdownTask { await shutdownTask.value; return }
         pressureSource?.cancel()
         settingsTask?.cancel()
+        fileChangesTask?.cancel()
+        recoveryTask?.cancel()
         let sessions = sessions.compactMap(\.value)
         let runtime = runtime
         let pipeline = pipeline

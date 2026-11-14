@@ -93,6 +93,7 @@ public final class ReaderSession {
         cancelAdjacent()
         pipeline.cancelAll(session: id)
         if let memory { await store.saveBookMemory(memory) }
+        await bookshelf.rememberBook(location)
         let remembered = await store.bookMemory(for: location)
         let resolved = await store.resolve(for: location)
         let global = await store.global()
@@ -140,7 +141,10 @@ public final class ReaderSession {
                         guard let self, self.generation == current else { return }
                         await self.open(newBook, at: page)
                     }
-                } else { openAfterRemoval(book: currentBook.location, removed: from) }
+                } else {
+                    if currentBook.location == from { saveTask?.cancel(); memory = nil }
+                    openAfterRemoval(book: currentBook.location, removed: from)
+                }
                 return
             default: break
             }
@@ -233,18 +237,7 @@ public final class ReaderSession {
         let current = generation
         let sort = neighborSort
         Task { [weak self, bookshelf] in
-            var next = try? await bookshelf.neighbor(of: removed, .forward, sort: sort)
-            if next == nil, let parent = removed.parent {
-                let kind: EntryKind = EntryKind(fileName: removed.name)
-                let reference = Entry(identity: ContentIdentity(location: removed, size: 0, modificationNanos: 0), name: removed.name, kind: kind == .other ? .directory : kind)
-                var entries: [Entry] = []
-                do {
-                    for try await event in bookshelf.items(in: parent, sort: sort) {
-                        switch event { case let .appended(batch): entries += batch; case let .sorted(batch): entries = batch }
-                    }
-                    next = entries.first { ReadingOrder.compare(reference, $0, by: sort) == .orderedAscending }?.location
-                } catch {}
-            }
+            let next = try? await bookshelf.neighbor(of: removed, .forward, sort: sort)
             guard let self, self.generation == current else { return }
             if let next { await self.open(next, at: nil) }
             else { self.loadError = IOError.notFound(location) }

@@ -739,6 +739,21 @@ struct FailingBookLoader: BookLoader {
         await waitForChange { other.loadError != nil }
         #expect((other.loadError as? IOError) == .notFound(tree.location("C")))
     }
+    @Test func recursiveAddedPageUsesFlatSortAndKeepsCurrentPage() async throws {
+        let environment = MockEnvironment(MockOptions(tree: tree, timing: .instant))
+        var global = GlobalSettings.default
+        global.defaultBook.recursion = RecursionSpec(enabled: true, maxDepth: 2)
+        let session = ReaderSession(loader: MockBookLoader(environment: environment), settings: MockSettingsStore(global: global), bookshelf: MockBookshelf(environment: environment), pipeline: MockImagePipeline(environment: environment))
+        let book = tree.location("A")
+        await session.open(book, at: nil)
+        session.go(.index(1))
+        let previous = try #require(session.book?.pages[session.currentPage].id)
+        let path = book.appending("sub").appending("000.jpg")
+        let entry = Entry(identity: ContentIdentity(location: path, size: 1, modificationNanos: 1), name: "000.jpg", kind: .image)
+        session.applyFileChanges([.added(entry)])
+        #expect(session.book?.pages.first?.id == path)
+        #expect(session.book?.pages[session.currentPage].id == previous)
+    }
     @Test func hiddenItemsAreInvisible() {
         let book = tree.location("A")
         for name in [".hidden.jpg", ".folder", "._a.jpg"] {
