@@ -676,3 +676,74 @@ struct FailingBookLoader: BookLoader {
         return base.load(location, settings: settings, startingAt: page)
     }
 }
+
+@MainActor struct FileChangeSessionTests {
+    let tree = MockTree(nodes: [.book("A", pages: 4), .book("B", pages: 4), .book("C", pages: 4)])
+    func waitForChange(_ predicate: () -> Bool) async {
+        for _ in 0..<500 {
+            if predicate() { return }
+            try? await Task.sleep(for: .milliseconds(2))
+        }
+    }
+    func makeSession() -> ReaderSession {
+        let environment = MockEnvironment(MockOptions(tree: tree, timing: .instant))
+        return ReaderSession(loader: MockBookLoader(environment: environment), settings: MockSettingsStore(), bookshelf: MockBookshelf(environment: environment), pipeline: MockImagePipeline(environment: environment))
+    }
+    @Test func pageChangesPreserveAnchorAndMetadata() async throws {
+        let session = makeSession()
+        await session.open(tree.location("A"), at: nil)
+        session.go(.index(1))
+        let removed = try #require(session.book?.pages[1])
+        let metadata = try #require(removed.metadata)
+        session.applyFileChanges([.removed(removed.id)])
+        #expect(session.currentPage == 1 && session.book?.pages[1].entry.name == "003.jpg")
+        session.applyFileChanges([.added(removed.entry)])
+        #expect(session.book?.pages[1].metadata == metadata && session.book?.pages[session.currentPage].entry.name == "003.jpg")
+        let current = try #require(session.book?.pages[session.currentPage])
+        var renamed = current.entry
+        renamed.identity.location = tree.location("A/000.jpg"); renamed.name = "000.jpg"
+        session.applyFileChanges([.moved(from: current.id, to: renamed)])
+        #expect(session.currentPage == 0 && session.book?.pages[0].id == renamed.location)
+        session.go(.last)
+        let last = try #require(session.book?.pages.last)
+        session.applyFileChanges([.removed(last.id)])
+        #expect(session.currentPage == 2 && session.book?.pages.last?.id == session.book?.pages[session.currentPage].id)
+    }
+    @Test func bookDeletionAndRenameFollowCurrentPage() async throws {
+        let session = makeSession()
+        await session.open(tree.location("A"), at: nil)
+        session.go(.index(2))
+        let renamed = Entry(identity: ContentIdentity(location: tree.location("C"), size: 0, modificationNanos: 1), name: "C", kind: .directory)
+        session.applyFileChanges([.moved(from: tree.location("A"), to: renamed)])
+        await waitForChange { session.book?.location == tree.location("C") && session.book?.pages.count == 4 }
+        #expect(session.currentPage == 2)
+        await session.open(tree.location("A"), at: nil)
+        session.applyFileChanges([.removed(tree.location("A"))])
+        await waitForChange { session.book?.location == tree.location("B") && session.book?.pages.count == 4 }
+        #expect(session.book?.location == tree.location("B"))
+    }
+    @Test func addedPageLoadsMetadataAndNoNeighborReportsNotFound() async throws {
+        let environment = MockEnvironment(MockOptions(tree: tree, timing: .instant))
+        let original = pages(in: tree.location("A"), count: 2)
+        let pair = AsyncThrowingStream<BookLoadEvent, any Error>.makeStream()
+        let session = ReaderSession(loader: EventLoader(stream: pair.stream), settings: MockSettingsStore(), bookshelf: MockBookshelf(environment: environment), pipeline: MockImagePipeline(environment: environment))
+        let open = Task { await session.open(tree.location("A"), at: nil) }
+        pair.continuation.yield(.sorted([original[0]])); pair.continuation.finish()
+        await open.value
+        session.applyFileChanges([.added(original[1].entry)])
+        await waitForChange { session.book?.pages.last?.metadata != nil }
+        #expect(session.book?.pages.last?.id == original[1].id && session.book?.pages.last?.metadata != nil)
+        let other = makeSession()
+        await other.open(tree.location("C"), at: nil)
+        other.applyFileChanges([.removed(tree.location("C"))])
+        await waitForChange { other.loadError != nil }
+        #expect((other.loadError as? IOError) == .notFound(tree.location("C")))
+    }
+    @Test func hiddenItemsAreInvisible() {
+        let book = tree.location("A")
+        for name in [".hidden.jpg", ".folder", "._a.jpg"] {
+            let entry = Entry(identity: ContentIdentity(location: book.appending(name), size: 1, modificationNanos: 1), name: name, kind: .image)
+            #expect(!ReadingListing.isVisible(entry))
+        }
+    }
+}

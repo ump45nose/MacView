@@ -458,3 +458,34 @@ private struct CacheTestDirectory {
 }
 
 private final class CacheBundleMarker: NSObject {}
+
+@Test func fileChangesUpdateOnlyCachedDirectories() async throws {
+    let directory = try CacheTestDirectory()
+    defer { directory.remove() }
+    let cache = DirectoryCache(index: try CacheIndex(databaseURL: directory.database))
+    let root = Location(root: .local, layers: [["books"]]), other = root.appending("other"), uncached = root.appending("uncached")
+    let a = testEntry("a.jpg", in: root), b = testEntry("b.jpg", in: root), c = testEntry("c.jpg", in: other)
+    _ = try await cache.update(root, listing: DirectoryListing(entries: [a, b], directoryModificationNanos: 4))
+    _ = try await cache.update(other, listing: DirectoryListing(entries: [c]))
+    let moved = testEntry("moved.jpg", in: other), added = testEntry("added.jpg", in: root)
+    try await cache.apply([.moved(from: a.location, to: moved), .removed(b.location), .added(added), .added(testEntry("ignored.jpg", in: uncached))])
+    #expect(try await cache.cachedChildren(of: root)?.entries == [added])
+    #expect(try await cache.cachedChildren(of: root)?.directoryModificationNanos == 4)
+    #expect(try await cache.cachedChildren(of: other)?.entries == [c, moved])
+    #expect(try await cache.cachedChildren(of: uncached) == nil)
+}
+
+@Test func fileChangesMatchActualDirectoryContents() async throws {
+    let directory = try CacheTestDirectory()
+    defer { directory.remove() }
+    let cache = DirectoryCache(index: try CacheIndex(databaseURL: directory.database))
+    let root = Location(root: .local, layers: [directory.url.path.split(separator: "/").map(String.init)])
+    let old = testEntry("old.jpg", in: root), kept = testEntry("kept.jpg", in: root), added = testEntry("new.jpg", in: root)
+    try Data([1]).write(to: directory.url.appending(path: "old.jpg"))
+    try Data([2]).write(to: directory.url.appending(path: "kept.jpg"))
+    _ = try await cache.update(root, listing: DirectoryListing(entries: [old, kept]))
+    try FileManager.default.moveItem(at: directory.url.appending(path: "old.jpg"), to: directory.url.appending(path: "new.jpg"))
+    try await cache.apply([.moved(from: old.location, to: added)])
+    let actual = try FileManager.default.contentsOfDirectory(atPath: directory.url.path).filter { $0.hasSuffix(".jpg") }.sorted()
+    #expect(try await cache.cachedChildren(of: root)?.entries.map(\.name).sorted() == actual)
+}

@@ -5,19 +5,19 @@ import MVIO
 import MVSettings
 
 /// BookLoader 与 Bookshelf 共用真实来源、目录缓存和过滤规则。
-struct ReadingListing: Sendable {
+public struct ReadingListing: Sendable {
     let sources: any SourceRegistry
     let directories: DirectoryCache
 
-    static func visible(_ entry: Entry) -> Bool {
+    public static func isVisible(_ entry: Entry) -> Bool {
         let name = entry.name.lowercased()
-        return !name.hasPrefix("._") && ![".ds_store", "thumbs.db", "desktop.ini", "__macosx"].contains(name)
+        return !name.hasPrefix(".") && ![".ds_store", "thumbs.db", "desktop.ini", "__macosx"].contains(name)
             && !name.hasSuffix(".url") && !entry.location.layers.joined().contains { $0.lowercased() == "__macosx" }
     }
 
-    static func media(_ entry: Entry) -> Bool { visible(entry) && (entry.kind == .image || entry.kind == .video) }
+    static func media(_ entry: Entry) -> Bool { isVisible(entry) && (entry.kind == .image || entry.kind == .video) }
     static func book(_ entry: Entry) -> Bool {
-        guard visible(entry) else { return false }
+        guard isVisible(entry) else { return false }
         switch entry.kind { case .directory, .archive: return true; default: return false }
     }
 

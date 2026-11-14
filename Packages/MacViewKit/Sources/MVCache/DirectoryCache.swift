@@ -53,6 +53,39 @@ public final class DirectoryCache: Sendable {
         }
     }
 
+    /// 只更新已有的目录缓存；同一个目录的变更在一次数据库事务中顺序应用。
+    public func apply(_ changes: [FileChange]) async throws {
+        enum Mutation: Sendable { case remove(Location), add(Entry) }
+        var groups: [Location: [Mutation]] = [:]
+        for change in changes {
+            switch change {
+            case let .added(entry):
+                if let parent = entry.location.parent { groups[parent, default: []].append(.add(entry)) }
+            case let .removed(location):
+                if let parent = location.parent { groups[parent, default: []].append(.remove(location)) }
+            case let .moved(from, to):
+                if let parent = from.parent { groups[parent, default: []].append(.remove(from)) }
+                if let parent = to.location.parent { groups[parent, default: []].append(.add(to)) }
+            }
+        }
+        let items = try groups.map { (try locationKey($0.key), $0.value) }
+        try await index.pool.write { database in
+            for (key, mutations) in items {
+                guard let data = try Data.fetchOne(database, sql: "SELECT value FROM directory_listings WHERE location = ?", arguments: [key]) else { continue }
+                var listing = try DirectoryListingStorage.decode(data)
+                for mutation in mutations {
+                    switch mutation {
+                    case let .remove(location): listing.entries.removeAll { $0.location == location }
+                    case let .add(entry):
+                        listing.entries.removeAll { $0.location == entry.location }
+                        listing.entries.append(entry)
+                    }
+                }
+                try database.execute(sql: "UPDATE directory_listings SET value = ? WHERE location = ?", arguments: [try DirectoryListingStorage.encode(listing), key])
+            }
+        }
+    }
+
     private func locationKey(_ location: Location) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
