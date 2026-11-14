@@ -5,6 +5,7 @@ import Synchronization
 /// 执行阻塞文件操作的地方：本机卷在进程内的专用线程上，网络卷在辅助进程中。
 /// 结果经回调在任意线程上返回；调用不能取消，只有列目录能在批与批之间停下。
 protocol FileBackend: Sendable {
+    func execute(_ request: HelperRequest, completion: @escaping @Sendable (Result<String?, FileOperationError>) -> Void)
     func stat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void)
     /// 卷的健康探测，见 `FileOperations.probe`。
     func probe(_ mountPoint: String, completion: @escaping @Sendable (Result<Void, FileOperationError>) -> Void)
@@ -23,6 +24,10 @@ protocol FileBackend: Sendable {
 final class DirectBackend: FileBackend {
     private let queue = DispatchQueue(label: "io.github.ump45nose.MacView.io", qos: .userInitiated, attributes: .concurrent)
     private let reader = FileReader()
+
+    func execute(_ request: HelperRequest, completion: @escaping @Sendable (Result<String?, FileOperationError>) -> Void) {
+        queue.async { completion(Result { () throws(FileOperationError) in try FileOperations.execute(request) }) }
+    }
 
     func stat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void) {
         queue.async { completion(Result { () throws(FileOperationError) in try FileOperations.stat(path) }) }
@@ -55,6 +60,18 @@ final class HelperBackend: FileBackend {
 
     init(executable: URL) {
         self.executable = executable
+    }
+
+    func execute(_ request: HelperRequest, completion: @escaping @Sendable (Result<String?, FileOperationError>) -> Void) {
+        send(request) { response in
+            switch response {
+            case .done: completion(.success(nil))
+            case let .path(path): completion(.success(path))
+            case let .failure(error): completion(.failure(error))
+            default: completion(.failure(.helperLost))
+            }
+            return true
+        }
     }
 
     func stat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void) {
@@ -258,4 +275,10 @@ private func withCStrings<R>(_ strings: [String], _ body: (UnsafePointer<UnsafeM
     let pointers = strings.map { strdup($0) } + [nil]
     defer { pointers.forEach { free($0) } }
     return pointers.withUnsafeBufferPointer { body($0.baseAddress!) }
+}
+
+extension FileBackend {
+    func execute(_ request: HelperRequest, completion: @escaping @Sendable (Result<String?, FileOperationError>) -> Void) {
+        completion(.failure(.helperLost))
+    }
 }

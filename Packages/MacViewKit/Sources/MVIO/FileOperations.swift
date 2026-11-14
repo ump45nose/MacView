@@ -46,6 +46,79 @@ struct ReadRequest: Sendable, Equatable {
 
 /// 阻塞的文件操作。只在专用线程或辅助进程中调用，不能在协作线程池上调用。
 enum FileOperations {
+    /// 所有写入都在一个后端请求中完成，不对失败的写调用重试。
+    static func execute(_ request: HelperRequest) throws(FileOperationError) -> String? {
+        switch request {
+        case let .create(path):
+            let fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, mode_t(0o644))
+            guard fd >= 0 else { throw .system(call: "open", code: errno) }
+            _ = fcntl(fd, F_NOCACHE, 1)
+            close(fd)
+        case let .write(path, offset, data):
+            let fd = open(path, O_WRONLY | O_CLOEXEC)
+            guard fd >= 0 else { throw .system(call: "open", code: errno) }
+            defer { close(fd) }
+            _ = fcntl(fd, F_NOCACHE, 1)
+            try data.withUnsafeBytes { (buffer) throws(FileOperationError) in
+                var written = 0
+                while written < buffer.count {
+                    let count = pwrite(fd, buffer.baseAddress! + written, buffer.count - written, off_t(offset) + off_t(written))
+                    if count < 0 {
+                        if errno == EINTR { continue }
+                        throw .system(call: "pwrite", code: errno)
+                    }
+                    guard count > 0 else { throw .system(call: "pwrite", code: EIO) }
+                    written += count
+                }
+            }
+        case let .finish(path, modification):
+            let fd = open(path, O_WRONLY | O_CLOEXEC)
+            guard fd >= 0 else { throw .system(call: "open", code: errno) }
+            defer { close(fd) }
+            _ = fcntl(fd, F_NOCACHE, 1)
+            guard fsync(fd) == 0 else { throw .system(call: "fsync", code: errno) }
+            if let modification {
+                let seconds = modification / 1_000_000_000
+                let remainder = modification % 1_000_000_000
+                var times = [timespec(tv_sec: 0, tv_nsec: Int(UTIME_OMIT)), timespec(tv_sec: Int(seconds - (remainder < 0 ? 1 : 0)), tv_nsec: Int(remainder < 0 ? remainder + 1_000_000_000 : remainder))]
+                guard futimens(fd, &times) == 0 else { throw .system(call: "futimens", code: errno) }
+            }
+        case let .rename(source, target, exclusive):
+            let status = renamex_np(source, target, exclusive ? UInt32(RENAME_EXCL) : 0)
+            if status != 0 {
+                let code = errno
+                // NFS 不支持排他改名时，内核已先检查目标不存在；普通改名与检查之间的竞态可接受。
+                if exclusive && (code == ENOTSUP || code == EINVAL) {
+                    guard Darwin.rename(source, target) == 0 else { throw .system(call: "rename", code: errno) }
+                } else { throw .system(call: "rename", code: code) }
+            }
+        case let .makeDirectory(path):
+            guard mkdir(path, mode_t(0o755)) == 0 else { throw .system(call: "mkdir", code: errno) }
+        case let .remove(path):
+            var info = Darwin.stat()
+            guard lstat(path, &info) == 0 else { throw .system(call: "lstat", code: errno) }
+            let isDirectory = info.st_mode & S_IFMT == S_IFDIR
+            guard (isDirectory ? rmdir(path) : unlink(path)) == 0 else { throw .system(call: isDirectory ? "rmdir" : "unlink", code: errno) }
+        case let .trash(path):
+            var result: NSURL?
+            do {
+                try FileManager.default.trashItem(at: URL(fileURLWithPath: path), resultingItemURL: &result)
+            } catch {
+                let nsError = error as NSError
+                let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError
+                let posix = nsError.domain == NSPOSIXErrorDomain ? nsError : underlying
+                if let posix, posix.domain == NSPOSIXErrorDomain { throw .system(call: "trash", code: Int32(posix.code)) }
+                if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileNoSuchFileError { throw .system(call: "trash", code: ENOENT) }
+                throw .system(call: "trash", code: EIO)
+            }
+            guard let result else { throw .system(call: "trash", code: EIO) }
+            return result.path
+        default:
+            throw .system(call: "invalid write request", code: EINVAL)
+        }
+        return nil
+    }
+
     static func stat(_ path: String) throws(FileOperationError) -> FileAttributes {
         var info = Darwin.stat()
         guard fstatat(AT_FDCWD, path, &info, 0) == 0 else { throw .system(call: "stat", code: errno) }

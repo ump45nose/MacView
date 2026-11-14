@@ -3,6 +3,13 @@ import Foundation
 
 /// 主进程与 I/O 辅助进程之间的消息。每帧是 4 字节小端长度加正文，正文以请求编号开头。
 enum HelperRequest: Sendable, Equatable {
+    case create(path: String)
+    case write(path: String, offset: Int64, data: Data)
+    case finish(path: String, modificationNanos: Int64?)
+    case rename(source: String, target: String, exclusive: Bool)
+    case makeDirectory(path: String)
+    case remove(path: String)
+    case trash(path: String)
     case stat(path: String)
     case read(ReadRequest)
     case list(path: String)
@@ -13,6 +20,7 @@ enum HelperRequest: Sendable, Equatable {
 }
 
 enum HelperResponse: Sendable, Equatable {
+    case path(String)
     case attributes(FileAttributes)
     case data(Data)
     /// 列目录的一批；之后是更多的批，或者 `done`、`failure`。
@@ -25,6 +33,20 @@ enum HelperCodec {
     static func encode(id: UInt64, _ request: HelperRequest) -> Data {
         var writer = FrameWriter(id: id)
         switch request {
+        case let .create(path):
+            writer.add(UInt8(6)); writer.add(path)
+        case let .write(path, offset, data):
+            writer.add(UInt8(7)); writer.add(path); writer.add(offset); writer.add(data)
+        case let .finish(path, modification):
+            writer.add(UInt8(8)); writer.add(path); writer.add(modification)
+        case let .rename(source, target, exclusive):
+            writer.add(UInt8(9)); writer.add(source); writer.add(target); writer.add(exclusive)
+        case let .makeDirectory(path):
+            writer.add(UInt8(10)); writer.add(path)
+        case let .remove(path):
+            writer.add(UInt8(11)); writer.add(path)
+        case let .trash(path):
+            writer.add(UInt8(12)); writer.add(path)
         case let .stat(path):
             writer.add(UInt8(1))
             writer.add(path)
@@ -53,6 +75,8 @@ enum HelperCodec {
     static func encode(id: UInt64, _ response: HelperResponse) -> Data {
         var writer = FrameWriter(id: id)
         switch response {
+        case let .path(path):
+            writer.add(UInt8(6)); writer.add(path)
         case let .attributes(attributes):
             writer.add(UInt8(1))
             writer.add(attributes)
@@ -104,6 +128,13 @@ enum HelperCodec {
             return (id, .cancel(id: try reader.uint64()))
         case 5:
             return (id, .probe(mountPoint: try reader.string()))
+        case 6: return (id, .create(path: try reader.string()))
+        case 7: return (id, .write(path: try reader.string(), offset: try reader.int64(), data: try reader.blob()))
+        case 8: return (id, .finish(path: try reader.string(), modificationNanos: try reader.optionalInt64()))
+        case 9: return (id, .rename(source: try reader.string(), target: try reader.string(), exclusive: try reader.bool()))
+        case 10: return (id, .makeDirectory(path: try reader.string()))
+        case 11: return (id, .remove(path: try reader.string()))
+        case 12: return (id, .trash(path: try reader.string()))
         case let kind:
             throw HelperProtocolError("未知的请求类型 \(kind)")
         }
@@ -131,6 +162,7 @@ enum HelperCodec {
             case 1: return (id, .failure(.changed))
             default: return (id, .failure(.helperLost))
             }
+        case 6: return (id, .path(try reader.string()))
         case let kind:
             throw HelperProtocolError("未知的回复类型 \(kind)")
         }

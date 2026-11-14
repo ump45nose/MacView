@@ -65,6 +65,75 @@ public final class FileSystemProvider: ContainerProvider {
         FileLease(url: URL(filePath: try resolve(location).path, directoryHint: .inferFromPath))
     }
 
+    public func createFile(at location: Location) async throws {
+        let (_, path) = try resolve(location)
+        _ = try await execute(.create(path: path), at: location)
+    }
+
+    public func write(_ data: Data, at offset: Int64, to location: Location, priority: IOPriority) async throws {
+        let (_, path) = try resolve(location)
+        _ = try await execute(.write(path: path, offset: offset, data: data), at: location, channel: .bulk, priority: priority)
+    }
+
+    public func finishFile(at location: Location, modificationNanos: Int64?) async throws {
+        let (_, path) = try resolve(location)
+        _ = try await execute(.finish(path: path, modificationNanos: modificationNanos), at: location)
+    }
+
+    public func rename(_ source: Location, to target: Location, exclusive: Bool) async throws {
+        let (sourceVolume, sourcePath) = try resolve(source)
+        let (targetVolume, targetPath) = try resolve(target)
+        // 任一端是网络卷时，阻塞的系统调用必须放到辅助进程中。
+        let executionVolume = sourceVolume.isLocal && !targetVolume.isLocal ? targetVolume : sourceVolume
+        _ = try await execute(.rename(source: sourcePath, target: targetPath, exclusive: exclusive), at: source, conflict: target, volume: executionVolume, requiredVolumes: [sourceVolume, targetVolume])
+    }
+
+    public func makeDirectory(at location: Location) async throws {
+        let (_, path) = try resolve(location)
+        _ = try await execute(.makeDirectory(path: path), at: location)
+    }
+
+    public func remove(_ location: Location) async throws {
+        let (_, path) = try resolve(location)
+        _ = try await execute(.remove(path: path), at: location)
+    }
+
+    public func moveToTrash(_ location: Location) async throws -> Location {
+        let (volume, path) = try resolve(location)
+        guard volume.isLocal else { throw IOError.unsupported(location) }
+        guard let result = try await execute(.trash(path: path), at: location), let targetVolume = scheduler.table.volume(containing: result) else {
+            throw IOError.underlying("无法确定废纸篓的位置")
+        }
+        return Location(root: targetVolume.root, layers: [targetVolume.components(ofPath: result)])
+    }
+
+    public func isNetworkVolume(_ location: Location) throws -> Bool {
+        try !resolve(location).volume.isLocal
+    }
+
+    public func volumeRoot(of location: Location) throws -> Location {
+        let volume = try resolve(location).volume
+        return Location(root: volume.root, layers: [volume.components(ofPath: volume.mountPoint)])
+    }
+
+    public func mountedNetworkRoots() -> [Location] {
+        scheduler.table.volumes.filter { !$0.isLocal && $0.root != .local }.map { Location(root: $0.root, layers: [[]]) }
+    }
+
+    private func execute(_ request: HelperRequest, at location: Location, conflict: Location? = nil, volume executionVolume: Volume? = nil, requiredVolumes: [Volume] = [], channel: IOScheduler.Channel = .metadata, priority: IOPriority = .visible) async throws(IOError) -> String? {
+        let (resolvedVolume, _) = try resolve(location)
+        let volume = executionVolume ?? resolvedVolume
+        let backend = scheduler.backend(for: volume)
+        return try await scheduler.perform(on: volume, channel, priority: priority, group: nil, requiring: requiredVolumes) { finish, _ in
+            backend.execute(request) { result in
+                finish(result.mapError { error in
+                    if case .system(_, EEXIST) = error { return .alreadyExists(conflict ?? location) }
+                    return Self.ioError(error, at: location, volume: volume)
+                })
+            }
+        }
+    }
+
     private func resolve(_ location: Location) throws(IOError) -> (volume: Volume, path: String) {
         guard canHandle(location) else { throw .unsupported(location) }
         let volume = try scheduler.volume(for: location)
@@ -89,6 +158,8 @@ public final class FileSystemProvider: ContainerProvider {
         switch error {
         case let .system(_, code) where code == ENOENT || code == ENOTDIR:
             .notFound(location)
+        case let .system(_, code) where code == EXDEV:
+            .crossVolume
         case let .system(_, code) where code == ETIMEDOUT:
             .timeout
         case let .system(call, code):

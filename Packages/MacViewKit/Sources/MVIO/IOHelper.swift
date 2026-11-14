@@ -65,6 +65,13 @@ public enum IOHelper {
                     } catch {
                         reply(id, .failure(error))
                     }
+                case .create, .write, .finish, .rename, .makeDirectory, .remove, .trash:
+                    do throws(FileOperationError) {
+                        if let path = try FileOperations.execute(request) { reply(id, .path(path)) }
+                        else { reply(id, .done) }
+                    } catch {
+                        reply(id, .failure(error))
+                    }
                 case .cancel:
                     break
                 }
