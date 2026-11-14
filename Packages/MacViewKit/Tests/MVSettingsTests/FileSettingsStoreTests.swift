@@ -378,3 +378,20 @@ private final class SettingsDirectory: Sendable {
     }
     deinit { try? FileManager.default.removeItem(at: url) }
 }
+
+@Test func relocateBookMemoryReplacesDestinationAndPersists() async throws {
+    let directory = try SettingsDirectory()
+    let old = Location(root: .local, layers: [["book"]]), target = Location(root: .local, layers: [["renamed"]])
+    let store = try FileSettingsStore(directory: directory.url)
+    let memory = BookMemory(book: old, settings: BookSettings(pageMode: .double), lastPage: old.appending("3.jpg"), lastPageIndex: 2)
+    await store.saveBookMemory(memory)
+    await store.saveBookMemory(BookMemory(book: target, lastPageIndex: 99))
+    await store.relocateBookMemory(from: old, to: target)
+    #expect(await store.bookMemory(for: old) == nil)
+    let relocated = await store.bookMemory(for: target)
+    #expect(relocated?.book == target && relocated?.lastPage == target.appending("3.jpg") && relocated?.lastPageIndex == 2 && relocated?.settings.pageMode == .double)
+    try await store.flush()
+    let reopened = try FileSettingsStore(directory: directory.url)
+    #expect(await reopened.bookMemory(for: old) == nil)
+    #expect(await reopened.bookMemory(for: target) == relocated)
+}

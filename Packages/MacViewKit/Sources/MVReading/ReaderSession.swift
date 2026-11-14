@@ -1,5 +1,6 @@
 import Foundation
 import MVFoundation
+import MVIO
 import MVMedia
 import MVPipeline
 import MVSettings
@@ -38,6 +39,7 @@ public final class ReaderSession {
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var openedAt = Date()
     @ObservationIgnored private var memory: BookMemory?
+    @ObservationIgnored private var removedMetadata: [Location: ImageMetadata] = [:]
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var settingsTask: Task<Void, Never>?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
@@ -102,6 +104,7 @@ public final class ReaderSession {
         seedRandomOrder()
         openedAt = Date()
         book = Book(location: location)
+        removedMetadata.removeAll()
         frames = []
         currentFrame = 0
         anchor = page ?? remembered?.lastPage
@@ -116,6 +119,136 @@ public final class ReaderSession {
         loadTask = task
         await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         if current == generation { loadTask = nil }
+    }
+
+    /// 将文件操作的一批变更反映到当前页和当前书。
+    public func applyFileChanges(_ changes: [FileChange]) {
+        guard let currentBook = book else { return }
+        for change in changes {
+            switch change {
+            case let .removed(location) where currentBook.location.hasPrefix(location):
+                openAfterRemoval(book: currentBook.location, removed: location)
+                return
+            case let .moved(from, to) where currentBook.location.hasPrefix(from):
+                if from.parent == to.location.parent,
+                   let newBook = Self.rebased(currentBook.location, from: from, to: to.location) {
+                    let page = anchor.flatMap { Self.rebased($0, from: from, to: to.location) }
+                    // 组合根已迁移记忆，避免 open 把旧位置再写回。
+                    saveTask?.cancel(); memory = nil
+                    let current = generation
+                    Task { [weak self] in
+                        guard let self, self.generation == current else { return }
+                        await self.open(newBook, at: page)
+                    }
+                } else { openAfterRemoval(book: currentBook.location, removed: from) }
+                return
+            default: break
+            }
+        }
+        var pages = currentBook.pages
+        let oldIndex = anchorIndex
+        var desiredAnchor = anchor
+        var pending: [Entry] = []
+        var changed = false
+        func remove(_ location: Location) {
+            for page in pages where page.id.hasPrefix(location) {
+                changed = true
+                if let metadata = page.metadata {
+                    if removedMetadata.count >= 256, let oldest = removedMetadata.keys.first { removedMetadata.removeValue(forKey: oldest) }
+                    removedMetadata[page.id] = metadata
+                }
+            }
+            if let current = desiredAnchor, current.hasPrefix(location) { desiredAnchor = nil }
+            pages.removeAll { $0.id.hasPrefix(location) }
+        }
+        func add(_ entry: Entry) {
+            guard ReadingListing.isVisible(entry), entry.kind == .image || entry.kind == .video,
+                  belongsToBook(entry.location, book: currentBook.location, pages: pages) else { return }
+            guard !pages.contains(where: { $0.id == entry.location }) else { return }
+            let metadata = removedMetadata.removeValue(forKey: entry.location)
+            changed = true
+            pages.append(Page(entry: entry, metadata: metadata))
+            if metadata == nil { pending.append(entry) }
+        }
+        for change in changes {
+            switch change {
+            case let .added(entry): add(entry)
+            case let .removed(location): remove(location)
+            case let .moved(from, to):
+                let matching = pages.filter { $0.id.hasPrefix(from) }
+                if matching.isEmpty { add(to); continue }
+                let previousAnchor = desiredAnchor
+                remove(from)
+                for page in matching {
+                    guard let destination = Self.rebased(page.id, from: from, to: to.location) else { continue }
+                    var entry = page.entry
+                    entry.identity.location = destination
+                    if page.id == from { entry = to }
+                    guard ReadingListing.isVisible(entry), entry.kind == .image || entry.kind == .video,
+                          belongsToBook(destination, book: currentBook.location, pages: pages) else { continue }
+                    pages.append(Page(entry: entry, metadata: page.metadata))
+                    removedMetadata.removeValue(forKey: page.id)
+                    if previousAnchor == page.id { desiredAnchor = destination }
+                }
+            }
+        }
+        guard changed else { return }
+        pages.sort { ReadingOrder.compare($0.entry, $1.entry, by: settings.sort) == .orderedAscending }
+        book?.pages = pages
+        anchor = desiredAnchor
+        anchorIndex = oldIndex
+        if pages.isEmpty { anchorIndex = 0; anchor = nil }
+        layoutFrames(); remember(); prefetch()
+        let current = generation
+        for entry in pending {
+            Task { [weak self, pipeline] in
+                guard let metadata = try? await pipeline.metadata(for: entry.identity, priority: .book),
+                      let self, self.generation == current,
+                      self.book?.pages.contains(where: { $0.entry.identity == entry.identity }) == true else { return }
+                self.apply(.metadata([entry.location: metadata]))
+            }
+        }
+    }
+
+    private func belongsToBook(_ location: Location, book: Location, pages: [Page]) -> Bool {
+        guard location.hasPrefix(book), let parent = location.parent, let index = book.layers.indices.last else { return false }
+        let relative = Array(location.layers[index].dropFirst(book.layers[index].count)) + location.layers.dropFirst(index + 1).flatMap { $0 }
+        guard !relative.contains(where: { $0.hasPrefix(".") }) else { return false }
+        if parent == book { return true }
+        guard settings.recursion.enabled else { return pages.contains { $0.id.parent == parent } }
+        let base = book.layers.reduce(0) { $0 + $1.count }
+        let depth = parent.layers.reduce(0) { $0 + $1.count } - base
+        return depth >= 0 && depth <= settings.recursion.maxDepth
+    }
+
+    private static func rebased(_ location: Location, from source: Location, to target: Location) -> Location? {
+        guard location.hasPrefix(source), let index = source.layers.indices.last, !target.layers.isEmpty else { return nil }
+        var layers = target.layers
+        layers[layers.count - 1] += location.layers[index].dropFirst(source.layers[index].count)
+        layers += location.layers.dropFirst(index + 1)
+        return Location(root: target.root, layers: layers)
+    }
+
+    private func openAfterRemoval(book location: Location, removed: Location) {
+        let current = generation
+        let sort = neighborSort
+        Task { [weak self, bookshelf] in
+            var next = try? await bookshelf.neighbor(of: removed, .forward, sort: sort)
+            if next == nil, let parent = removed.parent {
+                let kind: EntryKind = EntryKind(fileName: removed.name)
+                let reference = Entry(identity: ContentIdentity(location: removed, size: 0, modificationNanos: 0), name: removed.name, kind: kind == .other ? .directory : kind)
+                var entries: [Entry] = []
+                do {
+                    for try await event in bookshelf.items(in: parent, sort: sort) {
+                        switch event { case let .appended(batch): entries += batch; case let .sorted(batch): entries = batch }
+                    }
+                    next = entries.first { ReadingOrder.compare(reference, $0, by: sort) == .orderedAscending }?.location
+                } catch {}
+            }
+            guard let self, self.generation == current else { return }
+            if let next { await self.open(next, at: nil) }
+            else { self.loadError = IOError.notFound(location) }
+        }
     }
 
     public func go(_ move: PageMove) {

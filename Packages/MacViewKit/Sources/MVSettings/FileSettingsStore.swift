@@ -93,6 +93,43 @@ public final class FileSettingsStore: SettingsStore {
         }
     }
 
+    /// 迁移单条记忆，连同其中属于该书的页面位置；目标已有值会被覆盖。
+    public func relocateBookMemory(from source: Location, to target: Location) async {
+        guard source != target, !target.layers.isEmpty else { return }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            queue.async { [self] in
+                defer { continuation.resume() }
+                do {
+                    try writePending()
+                    try state.withLock { current in
+                        guard var memory = current.memories[source] else { return }
+                        memory.book = target
+                        if let page = memory.lastPage, page.hasPrefix(source), let index = source.layers.indices.last {
+                            let tail = Array(page.layers[index].dropFirst(source.layers[index].count))
+                            var layers = target.layers
+                            layers[layers.count - 1] += tail
+                            layers += page.layers.dropFirst(index + 1)
+                            memory.lastPage = Location(root: target.root, layers: layers)
+                        }
+                        let encoder = JSONEncoder()
+                        encoder.outputFormatting = .sortedKeys
+                        let oldKey = String(decoding: try encoder.encode(source), as: UTF8.self)
+                        let newKey = String(decoding: try encoder.encode(target), as: UTF8.self)
+                        let encoded = try encoder.encode(memory)
+                        try database.write { database in
+                            try database.execute(sql: "DELETE FROM book_memory WHERE location = ?", arguments: [oldKey])
+                            try database.execute(sql: "INSERT INTO book_memory (location, memory) VALUES (?, ?) ON CONFLICT(location) DO UPDATE SET memory = excluded.memory", arguments: [newKey, encoded])
+                        }
+                        current.memories[source] = nil
+                        current.memories[target] = memory
+                        current.pending[source] = nil
+                        current.pending[target] = nil
+                    }
+                } catch { reportMemoryError(error) }
+            }
+        }
+    }
+
     /// 将合并的书记忆用单个事务写入；退出前调用，错误交给组合根。
     public func flush() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in

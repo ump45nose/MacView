@@ -176,3 +176,45 @@ struct FileReadingTests {
         #expect(try await shelf.passThrough(passRoot) == passLocation)
     }
 }
+
+@Test @MainActor func actualRemovedBookOpensNextAfterCacheChanges() async throws {
+    let fixture = try ReadingFixture()
+    let a = try fixture.pageDirectory("A", names: ["1.png"])
+    _ = try fixture.pageDirectory("B", names: ["1.png"])
+    let root = try await fixture.location(fixture.directory)
+    let old = try await fixture.location(a)
+    let pipeline = fixture.mockPipeline([.directory("A", [.image("1.png", PixelSize(width: 64, height: 64))]), .directory("B", [.image("1.png", PixelSize(width: 64, height: 64))])])
+    let shelf = FileBookshelf(sources: fixture.registry, directories: fixture.directories)
+    for try await _ in shelf.items(in: root, sort: SortSpec(key: .name)) {}
+    let session = ReaderSession(loader: fixture.loader(pipeline), settings: MockSettingsStore(), bookshelf: shelf, pipeline: pipeline)
+    await session.open(old, at: nil)
+    try FileManager.default.removeItem(at: a)
+    try await fixture.directories.apply([.removed(old)])
+    session.applyFileChanges([.removed(old)])
+    for _ in 0..<500 {
+        if session.book?.location == root.appending("B") && session.book?.pages.count == 1 { break }
+        try await Task.sleep(for: .milliseconds(2))
+    }
+    #expect(session.book?.location == root.appending("B") && session.book?.pages.count == 1)
+}
+
+@Test func hiddenPagesAndBooksAreNotListed() async throws {
+    let fixture = try ReadingFixture()
+    let shape = PixelSize(width: 10, height: 20)
+    let tree = MockTree(nodes: [.directory("root", [.image("visible.jpg", shape), .image(".hidden.jpg", shape), .directory(".hidden", [.image("inside.jpg", shape)]), .directory("book", [.image("1.jpg", shape)])])])
+    let environment = MockEnvironment(MockOptions(tree: tree, timing: .instant))
+    let registry = MockSourceRegistry(environment: environment)
+    let pipeline = MockImagePipeline(environment: environment)
+    let loader = FileBookLoader(sources: registry, directories: fixture.directories, metadata: fixture.metadata, pipeline: pipeline)
+    var settings = ResolvedBookSettings.default
+    settings.recursion = RecursionSpec(enabled: true, maxDepth: 1)
+    let book = tree.location("root")
+    let entries = try await loadedPages(loader, book: book, settings: settings)
+    #expect(entries.map(\.entry.name).sorted() == ["1.jpg", "visible.jpg"])
+    let shelf = FileBookshelf(sources: registry, directories: fixture.directories)
+    var books: [Entry] = []
+    for try await event in shelf.items(in: book, sort: SortSpec(key: .name)) {
+        switch event { case let .appended(values): books += values; case let .sorted(values): books = values }
+    }
+    #expect(books.map(\.name) == ["book"])
+}
