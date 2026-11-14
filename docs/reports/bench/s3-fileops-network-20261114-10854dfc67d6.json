@@ -1,0 +1,124 @@
+{
+  "cleanupErrors" : [
+
+  ],
+  "cleanupPassed" : true,
+  "environment" : {
+    "collectedAt" : "2026-11-14T08:51:09Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 720,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "system" : {
+      "build" : "26B123",
+      "version" : "27.2.0"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "nfs",
+        "mountPoint" : "/Users/yuwk/MacViewBench/fileops-a",
+        "path" : "/Users/yuwk/MacViewBench/fileops-a",
+        "source" : "nas.example:/export/Photos/macview-fileops-test/a"
+      },
+      {
+        "fileSystem" : "nfs",
+        "mountPoint" : "/Users/yuwk/MacViewBench/fileops-b",
+        "path" : "/Users/yuwk/MacViewBench/fileops-b",
+        "source" : "nas.example:/export/Photos/macview-fileops-test/b"
+      }
+    ]
+  },
+  "faultTest" : "C1.25 留给整体验收",
+  "recovery" : {
+    "actualSHA256" : "b60db3955d428c0cfcf3a8e2bd06d638f2cc24affa355b8044155bf9752a4810",
+    "expectedSHA256" : "b60db3955d428c0cfcf3a8e2bd06d638f2cc24affa355b8044155bf9752a4810",
+    "journalEmpty" : true,
+    "killedAtBytes" : 541065216,
+    "passed" : true,
+    "recovered" : 1,
+    "sourceRemoved" : true,
+    "temporaryRemoved" : true
+  },
+  "sameVolumePassed" : true,
+  "sameVolumeSeconds" : 0.171580542,
+  "transfers" : [
+    {
+      "conflictKept" : true,
+      "count" : 20,
+      "direction" : "network-to-local",
+      "fileTimesPreserved" : true,
+      "hashesMatch" : true,
+      "journalEmpty" : true,
+      "passed" : true,
+      "seconds" : 3.266040708,
+      "sha256ByFile" : {
+        "item00.bin" : "fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83",
+        "item01.bin" : "18af9b054114c04a1eb836533a3e760dfa9dc53934ecb02fc059ff27150e77fb",
+        "item02.bin" : "c11788fa01aebe9ddeadf2d6fd661693d75a0ca28dc957a6042b5ff6d8a08e66",
+        "item03.bin" : "0617ba41432a346a81691ec75988fd9f41939e805a3d15a6edb53eba9006a6bd",
+        "item04.bin" : "0cb3cc18c426cb929543486fd600ed6df4f38bdbc3bf757d73e7b05bef85fcf7",
+        "item05.bin" : "34c9c1c0f537cbec1e94d4b9b2687aca3bb17c2e3b62574abfa92523ed55f612",
+        "item06.bin" : "37f0c973a6c2da513b2f7c1750c1b3d6c40f72f625748e4620411c7fd0aff256",
+        "item07.bin" : "b94b8d44bcac78609f2665f3d9da8fe56c2f1e6fccd2ec20ea92502c86819fb4",
+        "item08.bin" : "50fca14acbc2d7194bae10d737229c2ae2df80afc42571cf8427543345fa3bde",
+        "item09.bin" : "0f20941a41e98010fc07075aeac4aa4e61454ea593b5cf3c34eeec1b05fe1335",
+        "item10.bin" : "1c3cdf89dfff34bac7930f2a5b066c51c3c156cdf2431dc1f3b03739eeb666bd",
+        "item11.bin" : "d68affd31253eb0df78ff4c61d1925dc68aa59fe3060a32d6ba20e403c9f5dba",
+        "item12.bin" : "f7cda690228f11890b2954763a4fae786e41bb90a5f830db4325d8f4daaa69dd",
+        "item13.bin" : "2fec6f6010bde7b40864aa4939fe75d36e4b0660947c66b7cd6a778092e11223",
+        "item14.bin" : "786d07836c2f7ac5916e0214c081952b4cd0f0aaa6d0455cd042e0910b1f7a16",
+        "item15.bin" : "72180aa295242d3f4312994b0bb212090b50b0805004a1257d974819188d2d37",
+        "item16.bin" : "a425889ada5e058c74204e39f2a1d523b3c802eb797841381c9847b8b0ca71fb",
+        "item17.bin" : "1bab044dadf85c9fde28b3cc188b77cc5f1d711462394aaee6b1c3709eceb0fc",
+        "item18.bin" : "7da95874e1321aebaa1ecf52eff7653ae9685b7f7ed05f2254bbbcdf9b130404",
+        "item19.bin" : "4d083586fa4f5f3c8b225c0bf36651f6dea7bae852efffeaa0b1547d5870877f"
+      }
+    },
+    {
+      "conflictKept" : true,
+      "count" : 20,
+      "direction" : "network-to-network",
+      "fileTimesPreserved" : true,
+      "hashesMatch" : true,
+      "journalEmpty" : true,
+      "passed" : true,
+      "seconds" : 17.114921083000002,
+      "sha256ByFile" : {
+        "item00.bin" : "fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83",
+        "item01.bin" : "18af9b054114c04a1eb836533a3e760dfa9dc53934ecb02fc059ff27150e77fb",
+        "item02.bin" : "c11788fa01aebe9ddeadf2d6fd661693d75a0ca28dc957a6042b5ff6d8a08e66",
+        "item03.bin" : "0617ba41432a346a81691ec75988fd9f41939e805a3d15a6edb53eba9006a6bd",
+        "item04.bin" : "0cb3cc18c426cb929543486fd600ed6df4f38bdbc3bf757d73e7b05bef85fcf7",
+        "item05.bin" : "34c9c1c0f537cbec1e94d4b9b2687aca3bb17c2e3b62574abfa92523ed55f612",
+        "item06.bin" : "37f0c973a6c2da513b2f7c1750c1b3d6c40f72f625748e4620411c7fd0aff256",
+        "item07.bin" : "b94b8d44bcac78609f2665f3d9da8fe56c2f1e6fccd2ec20ea92502c86819fb4",
+        "item08.bin" : "50fca14acbc2d7194bae10d737229c2ae2df80afc42571cf8427543345fa3bde",
+        "item09.bin" : "0f20941a41e98010fc07075aeac4aa4e61454ea593b5cf3c34eeec1b05fe1335",
+        "item10.bin" : "1c3cdf89dfff34bac7930f2a5b066c51c3c156cdf2431dc1f3b03739eeb666bd",
+        "item11.bin" : "d68affd31253eb0df78ff4c61d1925dc68aa59fe3060a32d6ba20e403c9f5dba",
+        "item12.bin" : "f7cda690228f11890b2954763a4fae786e41bb90a5f830db4325d8f4daaa69dd",
+        "item13.bin" : "2fec6f6010bde7b40864aa4939fe75d36e4b0660947c66b7cd6a778092e11223",
+        "item14.bin" : "786d07836c2f7ac5916e0214c081952b4cd0f0aaa6d0455cd042e0910b1f7a16",
+        "item15.bin" : "72180aa295242d3f4312994b0bb212090b50b0805004a1257d974819188d2d37",
+        "item16.bin" : "a425889ada5e058c74204e39f2a1d523b3c802eb797841381c9847b8b0ca71fb",
+        "item17.bin" : "1bab044dadf85c9fde28b3cc188b77cc5f1d711462394aaee6b1c3709eceb0fc",
+        "item18.bin" : "7da95874e1321aebaa1ecf52eff7653ae9685b7f7ed05f2254bbbcdf9b130404",
+        "item19.bin" : "4d083586fa4f5f3c8b225c0bf36651f6dea7bae852efffeaa0b1547d5870877f"
+      }
+    }
+  ]
+}

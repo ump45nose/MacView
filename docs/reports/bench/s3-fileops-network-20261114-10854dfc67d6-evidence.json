@@ -1,0 +1,110 @@
+{
+  "commitBefore": "10854dfc67d64dd116688b36939988e036b3c794",
+  "gitStatusBefore": "",
+  "baseline": {
+    "/Users/yuwk/MacViewBench/fileops-a": {
+      "device": 436207625,
+      "inode": 664103,
+      "entries": []
+    },
+    "/Users/yuwk/MacViewBench/fileops-b": {
+      "device": 436207626,
+      "inode": 664105,
+      "entries": []
+    }
+  },
+  "mountBefore": [
+    "nas.example:/export/Photos/macview-fileops-test/a on /Users/yuwk/MacViewBench/fileops-a (nfs)",
+    "nas.example:/export/Photos/macview-fileops-test/b on /Users/yuwk/MacViewBench/fileops-b (nfs)"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Packages/MacViewKit",
+        "--disable-xctest",
+        "--filter",
+        "exclusiveRenameAcrossMountedNetworkVolumes"
+      ],
+      "startedAt": "2026-11-14T08:49:29.178526+00:00",
+      "pid": 33372,
+      "exitCode": 0,
+      "seconds": 18.792017792000003,
+      "finishedAt": "2026-11-14T08:49:47.970591+00:00",
+      "output": "Building for debugging...\n[Computing dependencies]\n[Provisioning 5 / 54]\n[Pre-planning 1 / 1461]\n[Planning deferred tasks]\n[Starting]\n[1 / 1]\n[1 / 4] MVFoundation\n[1 / 62] MVArchive\n[1 / 85] mvio-helper-product\n[17 / 34] MVIOTests-product\nBuild complete! (2.58秒)\n◇ Test run started.\n↳ Testing Library Version: 2403\n↳ Target Platform: arm64e-apple-macos14.0\n◇ Test exclusiveRenameAcrossMountedNetworkVolumes() started.\n✔ Test exclusiveRenameAcrossMountedNetworkVolumes() passed after 1.333 seconds.\n✔ Test run with 1 test in 0 suites passed after 1.333 seconds.\n",
+      "environmentOverrides": {
+        "MVIO_CROSS_MOUNT_TEST": "1"
+      }
+    },
+    {
+      "argv": [
+        "swift",
+        "build",
+        "-c",
+        "release",
+        "--package-path",
+        "Packages/MacViewKit",
+        "--product",
+        "mvbench"
+      ],
+      "startedAt": "2026-11-14T08:49:47.971051+00:00",
+      "pid": 33645,
+      "exitCode": 0,
+      "seconds": 80.908955833,
+      "finishedAt": "2026-11-14T08:51:08.880192+00:00",
+      "output": "Building for production...\n[Computing dependencies]\n[Pre-planning 1 / 503]\n[Planning deferred tasks]\n[5 / 217] ArgumentParser\n[110 / 220] ArgumentParserToolInfo\n[113 / 223]\n[114 / 223] GRDB\n[130 / 295]\n[135 / 295]\n[146 / 295]\n[152 / 295]\n[153 / 295] ArgumentParserToolInfo\n[163 / 296]\n[169 / 296]\n[174 / 298]\n[179 / 298]\n[187 / 298]\n[190 / 298]\n[191 / 298]\n[192 / 298]\n[194 / 298]\n[197 / 298]\n[198 / 298] MVFoundation\n[207 / 301] MVCommands\n[209 / 302] MVMedia\n[218 / 330]\n[222 / 330]\n[226 / 330]\n[228 / 330]\n[232 / 330]\n[233 / 330]\n[234 / 330]\n[236 / 330]\n[237 / 330]\n[239 / 330] MVCommands\n[245 / 330] MVMedia\n[251 / 330] MVIO\n[259 / 332] MVFileOps\n[261 / 333] MVArchive\n[263 / 335]\n[264 / 335] ArgumentParser\n[270 / 335] MVArchive\n[276 / 335] MVFileOps\n[282 / 335] GRDB\n[290 / 337] MVCache\n[294 / 339] MVCache\n[301 / 340] MVPipeline\n[303 / 341] MVSettings\n[309 / 341] MVPipeline\n[316 / 342] MVReading\n[318 / 343] MVReading\n[325 / 344] MVServices\n[327 / 345] MVServices\n[334 / 346] MVTestSupport\n[336 / 347] MVTestSupport\n[343 / 348] mvbench-product\n[356 / 362]\n[357 / 362]\n[358 / 362] mvbench-product\n[360 / 362] mvbench-product\n[361 / 362] mvbench-product\nBuild complete! (78.61秒)\n"
+    },
+    {
+      "argv": [
+        "/Users/yuwk/Developer/Repos/Personal/MacView.worktrees/s3-fileops/Packages/MacViewKit/.build/release/mvbench",
+        "fileops",
+        "--output",
+        "/Users/yuwk/Developer/Repos/Personal/MacView.worktrees/s3-fileops/docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6.json"
+      ],
+      "startedAt": "2026-11-14T08:51:08.889593+00:00",
+      "pid": 34358,
+      "exitCode": 0,
+      "seconds": 310.441325667,
+      "finishedAt": "2026-11-14T08:56:19.357946+00:00",
+      "output": ""
+    }
+  ],
+  "startedAt": "2026-11-14T08:49:29.177495+00:00",
+  "binary": {
+    "path": "/Users/yuwk/Developer/Repos/Personal/MacView.worktrees/s3-fileops/Packages/MacViewKit/.build/release/mvbench",
+    "sha256": "1c5868af01e7cd375ccc286e3a3ff26b683a9fc97d20ef8ca1552835f5035560",
+    "mtime": 1794646267.566103,
+    "bytes": 14851784
+  },
+  "finalMounts": [
+    "nas.example:/export/Photos/macview-fileops-test/a on /Users/yuwk/MacViewBench/fileops-a (nfs)",
+    "nas.example:/export/Photos/macview-fileops-test/b on /Users/yuwk/MacViewBench/fileops-b (nfs)"
+  ],
+  "after": {
+    "/Users/yuwk/MacViewBench/fileops-a": {
+      "device": 436207625,
+      "inode": 664103,
+      "entries": []
+    },
+    "/Users/yuwk/MacViewBench/fileops-b": {
+      "device": 436207626,
+      "inode": 664105,
+      "entries": []
+    }
+  },
+  "commitAfter": "10854dfc67d64dd116688b36939988e036b3c794",
+  "gitStatusAfter": "?? docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6-evidence.json\n?? docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6.json\n",
+  "finishedAt": "2026-11-14T08:56:19.420207+00:00",
+  "mountRootsAndOriginalEntriesPreserved": true,
+  "localFileopsResidualsAfter": [],
+  "finalGitStatus": "?? docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6-evidence.json\n?? docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6.json\n",
+  "checks": {
+    "C1.5": "真实 NFS A→B 辅助进程排他 rename 返回 IOError.crossVolume；源保留，目标未创建，测试后删掉本次源。",
+    "C1.22": "500,000,000 字节同卷移动，阈值 ≤1 秒。",
+    "C1.23": "两个方向各20个1,048,576字节文件；appendNumber；item00.bin 已有内容 existing 保留，源 item00.bin 到 item00 (2).bin；逐文件 SHA-256 与源修改时间严格相等，源删除，记录为空。测试设置修改时间为1700000000123456789纳秒，比较的是读取回来的源时间。",
+    "C1.24": "1,073,741,824 字节 A→B；子进程回调在541,065,216字节阻塞，父进程 SIGKILL，恢复 completed=1、pending=0、failed=0；哈希一致，无临时项，源删除，记录为空。",
+    "C1.25": "按设计答复留给整体验收；本次未运行。"
+  }
+}
