@@ -14,6 +14,7 @@ enum Theme {
     static let primary = color(light: 0x141413, dark: 0xFAF9F5)
     static let onPrimary = color(light: 0xFAF9F5, dark: 0x141413)
     static let danger = color(light: 0xA33B2A, dark: 0xF09C8B)
+    static let onDanger = color(light: 0xFFFFFF, dark: 0x141413)
     static let dangerSoft = color(light: 0xA33B2A, lightAlpha: 0.08, dark: 0xF09C8B, darkAlpha: 0.12)
     static let well = color(light: 0xF5F4ED, dark: 0x262624)
     static let selected = color(light: 0x73726C, lightAlpha: 0.16, dark: 0xF0EEE6, darkAlpha: 0.12)

@@ -12,7 +12,7 @@ enum TestPresentation {
         return defaults.string(forKey: "MVDebugSocket") != nil
             || defaults.string(forKey: "MVSessionSelfTest") != nil
             || defaults.string(forKey: DockSelfTest.launchKey) != nil
-            || [SelfTest.launchKey, "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", CanvasTestWindowController.launchKey].contains { defaults.bool(forKey: $0) }
+            || [SelfTest.launchKey, "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", "MVFileOpsSelfTest", CanvasTestWindowController.launchKey].contains { defaults.bool(forKey: $0) }
     }
 
     static var activationAllowed: Bool { UserDefaults.standard.bool(forKey: activateKey) }

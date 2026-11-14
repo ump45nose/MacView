@@ -1,6 +1,36 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    " · 等 %lld 项操作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · %lld queued"
+          }
+        }
+      }
+    },
+    "%@ %lld / %lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$lld / %3$lld items"
+          }
+        }
+      }
+    },
+    "%@ %lld 项到“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$lld items to “%3$@”"
+          }
+        }
+      }
+    },
     "%@ · 响应缓慢 · 正在探测": {
       "localizations": {
         "en": {
@@ -69,6 +99,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ has errors. Using the settings that still work"
+          }
+        }
+      }
+    },
+    "%@：%lld 项中 %lld 项没有完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %3$lld of %2$lld items failed"
+          }
+        }
+      }
+    },
+    "%@：%lld 项完成，%lld 项没有完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$lld completed, %3$lld failed"
+          }
+        }
+      }
+    },
+    "%@：%lld 项没有完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$lld items failed"
           }
         }
       }
@@ -157,6 +217,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "%lld 次等目标卷连接后，下次启动时继续": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld will resume on next launch once the destination volume is connected"
           }
         }
       }
@@ -261,6 +331,26 @@
         }
       }
     },
+    "“%@”上建不了回收目录：%@\n永久删除后不能撤销，也不能从回收目录找回。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot create recycle folder on “%1$@”: %2$@\nPermanently deleted items cannot be undone or recovered."
+          }
+        }
+      }
+    },
+    "“%@”已存在": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” already exists"
+          }
+        }
+      }
+    },
     "“%@”已损坏：%@": {
       "localizations": {
         "en": {
@@ -337,6 +427,26 @@
         }
       }
     },
+    "上次中断的 %lld 次移动已完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed %lld interrupted move(s) from last session"
+          }
+        }
+      }
+    },
+    "上次中断的移动有 %lld 项没有完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld interrupted move(s) from last session could not be completed"
+          }
+        }
+      }
+    },
     "下一帧": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -383,12 +493,42 @@
         }
       }
     },
+    "不支持 %@ 格式：“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsupported %1$@ format: “%2$@”"
+          }
+        }
+      }
+    },
     "不支持打开“%@”": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "“%@” isn’t supported"
+          }
+        }
+      }
+    },
+    "不能把文件夹移进它自己或子文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot move a folder into itself or a subfolder"
+          }
+        }
+      }
+    },
+    "不能跨卷改名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot rename across volumes"
           }
         }
       }
@@ -867,6 +1007,16 @@
         }
       }
     },
+    "压缩包内的项不能移动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Items inside an archive cannot be moved"
+          }
+        }
+      }
+    },
     "原始尺寸": {
       "localizations": {
         "en": {
@@ -983,6 +1133,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Name"
+          }
+        }
+      }
+    },
+    "名称“%@”无效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid name “%@”"
+          }
+        }
+      }
+    },
+    "名称不能为空": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name cannot be empty"
+          }
+        }
+      }
+    },
+    "名称不能以“.”开头": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name cannot start with “.”"
+          }
+        }
+      }
+    },
+    "名称不能包含“/”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name cannot contain “/”"
           }
         }
       }
@@ -1263,12 +1453,32 @@
         }
       }
     },
+    "已%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed %@"
+          }
+        }
+      }
+    },
     "已取消": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Cancelled"
+          }
+        }
+      }
+    },
+    "已复制": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied"
           }
         }
       }
@@ -1295,6 +1505,16 @@
         }
       }
     },
+    "已撤销%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undid %@"
+          }
+        }
+      }
+    },
     "已改用默认设置。": {
       "localizations": {
         "en": {
@@ -1305,12 +1525,32 @@
         }
       }
     },
+    "已移动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moved"
+          }
+        }
+      }
+    },
     "已选中": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Selected"
+          }
+        }
+      }
+    },
+    "已重做%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redid %@"
           }
         }
       }
@@ -1589,6 +1829,16 @@
         }
       }
     },
+    "撤销%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo %@"
+          }
+        }
+      }
+    },
     "播放": {
       "localizations": {
         "en": {
@@ -1717,6 +1967,16 @@
         }
       }
     },
+    "文件操作完成后才能撤销": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait for file operations to finish before undoing"
+          }
+        }
+      }
+    },
     "文档版本 %lld 高于支持的版本 %lld": {
       "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
       "extractionState": "manual",
@@ -1779,6 +2039,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn’t save layout.json"
+          }
+        }
+      }
+    },
+    "无法创建回收目录：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot create recycle folder: %@"
           }
         }
       }
@@ -2107,6 +2377,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Loading…"
+          }
+        }
+      }
+    },
+    "永久删除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Permanently"
+          }
+        }
+      }
+    },
+    "永久删除 %lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete %lld Items Permanently"
+          }
+        }
+      }
+    },
+    "永久删除“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete “%@” Permanently"
+          }
+        }
+      }
+    },
+    "永久删除这 %lld 项？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanently delete these %lld items?"
+          }
+        }
+      }
+    },
+    "没有写入权限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No write permission"
           }
         }
       }
@@ -2839,6 +3159,16 @@
         }
       }
     },
+    "读回校验不一致，源文件保留": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verification failed after copy; source file was kept"
+          }
+        }
+      }
+    },
     "调整布局后会覆盖这个文件。": {
       "localizations": {
         "en": {
@@ -2907,6 +3237,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Go to Page…"
+          }
+        }
+      }
+    },
+    "还有 %lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld more items"
+          }
+        }
+      }
+    },
+    "这一项正在处理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This item is already being processed"
           }
         }
       }
@@ -3099,12 +3449,32 @@
         }
       }
     },
+    "重做%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redo %@"
+          }
+        }
+      }
+    },
     "重试": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Retry"
+          }
+        }
+      }
+    },
+    "重试 %lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry %lld Items"
           }
         }
       }
@@ -3375,6 +3745,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Single First Page"
+          }
+        }
+      }
+    },
+    "，跳过 %lld 项（目标里已有同名项）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ", skipped %lld (already exists in destination)"
           }
         }
       }

@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var services: CoreServices?
     private(set) var dispatcher: CommandDispatcher?
     private(set) var dock: DockCoordinator?
+    private(set) var fileOps: FileOperationController?
     var isMock: Bool {
         #if DEBUG
         UserDefaults.standard.bool(forKey: "MVMockServices")
@@ -103,6 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             let services = try await makeServices()
             self.services = services
+            fileOps = FileOperationController(app: self)
             reloadBindings()
             observeBindings()
             let dispatcher = CommandDispatcher(registry: services.commands)
@@ -140,6 +142,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         sessionSaveEnabled = true
         scheduleSessionSave()
+        await fileOps?.presentStartupRecovery()
         logger.info("启动完成")
         #if DEBUG
         SelfTest.runIfRequested(app: self)
@@ -148,6 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PanelSelfTest.runIfRequested(app: self)
         SettingsSelfTest.runIfRequested(app: self)
         SessionSelfTest.runIfRequested(app: self)
+        FileOpsSelfTest.runIfRequested(app: self)
         debugSocket = DebugSocket.startIfRequested(app: self)
         #endif
     }
@@ -174,6 +178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         if let path = UserDefaults.standard.string(forKey: Self.supportDirectoryKey) { supportDirectory = URL(fileURLWithPath: path) }
         if let path = UserDefaults.standard.string(forKey: Self.cacheDirectoryKey) { cacheDirectory = URL(fileURLWithPath: path) }
+        await FileOpsSelfTest.prepareStartupRecoveryIfNeeded(supportDirectory: supportDirectory)
         #endif
         if isMock { return CoreServices.makeMock() }
         let pixels = NSScreen.screens.map { $0.frame.size.applying(.init(scaleX: $0.backingScaleFactor, y: $0.backingScaleFactor)) }
@@ -433,8 +438,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func makeController() -> ReaderWindowController? {
-        guard let services, let dispatcher, let dock else { return nil }
-        let controller = ReaderWindowController(services: services, catalog: catalog, dispatcher: dispatcher, dock: dock, isMock: isMock)
+        guard let services, let dispatcher, let dock, let fileOps else { return nil }
+        let controller = ReaderWindowController(services: services, catalog: catalog, dispatcher: dispatcher, dock: dock, fileOps: fileOps, isMock: isMock)
         controller.onOpenExtra = { [weak self, weak controller] urls in
             guard let self, let controller else { return }
             for url in urls {
@@ -473,6 +478,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func runFromMenu(_ id: CommandID) {
         dispatcher?.run(id, in: mainController, scope: menuScope)
+    }
+
+    private var targetReaderWindow: ReaderWindow? {
+        (NSApp.keyWindow ?? NSApp.mainWindow ?? controllers.first?.window) as? ReaderWindow
+    }
+
+    @objc func undo(_ sender: Any?) {
+        targetReaderWindow?.undo(sender)
+    }
+
+    @objc func redo(_ sender: Any?) {
+        targetReaderWindow?.redo(sender)
+    }
+
+    @objc func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        targetReaderWindow?.validateMenuItem(menuItem) ?? false
     }
 
     #if DEBUG
