@@ -8,6 +8,8 @@ struct TransferRecord: Codable, Sendable, Equatable {
     var source: Location
     var target: Location
     var temporary: Location
+    // 旧记录缺少策略时，不覆盖现有目标。
+    var conflict: ConflictPolicy? = nil
 }
 struct TransferJournal: Codable, Sendable {
     var version: Int = 1
