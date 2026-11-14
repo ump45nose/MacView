@@ -169,7 +169,7 @@ private final class Fixture: Sendable {
     #expect((await f.service.perform(try #require(mixed.inverse))).failures.isEmpty && f.exists("from/image.jpg"))
 }
 
-@Test func symbolicLinksAreNotFollowedOrDeleted() async throws {
+@Test func symbolicLinksAreNotFollowed() async throws {
     let f = try await Fixture()
     let outside = f.directory.appending(path: "outside")
     try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: false)
@@ -179,9 +179,10 @@ private final class Fixture: Sendable {
     try FileManager.default.createSymbolicLink(at: container.appending(path: "link.jpg"), withDestinationURL: outside)
     let linked = f.root.appending("container").appending("link.jpg")
     let direct = await f.service.perform(.deletePermanently([linked]))
-    #expect(direct.failures.count == 1 && f.exists("outside/keep.jpg"))
+    #expect(direct.failures.isEmpty && !f.exists("container/link.jpg") && f.exists("outside/keep.jpg"))
+    try FileManager.default.createSymbolicLink(at: container.appending(path: "link.jpg"), withDestinationURL: outside)
     let recursive = await f.service.perform(.deletePermanently([f.root.appending("container")]))
-    #expect(recursive.failures.count == 1 && f.exists("outside/keep.jpg") && f.exists("container"))
+    #expect(recursive.failures.isEmpty && f.exists("outside/keep.jpg") && !f.exists("container"))
 }
 
 @Test func crossVolumeMoveCopiesVerifiesAndClearsJournal() async throws {
@@ -320,4 +321,35 @@ private final class Fixture: Sendable {
     #expect(await f.service.resumeInterruptedTransfers() == ResumeReport(completed: 0, pending: 0, failed: 1))
     #expect(f.exists("source.jpg") && f.exists("dest/source.jpg"))
     #expect(try JSONDecoder().decode(TransferJournal.self, from: Data(contentsOf: journalURL)).transfers == [record])
+}
+
+@Test func linksAndUnknownRegularFilesFollowFileOperationRules() async throws {
+    let f = try await Fixture(forceCrossVolume: false)
+    let folder = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: folder)
+    let target = f.directory.appending(path: "target")
+    try Data([1, 2, 3]).write(to: target)
+    let link = f.root.appending("link.jpg")
+    try FileManager.default.createSymbolicLink(atPath: f.directory.appending(path: "link.jpg").path, withDestinationPath: "missing")
+    let renamed = await f.service.perform(.rename(link, to: "renamed.png"))
+    #expect(renamed.failures.isEmpty)
+    if case let .moved(_, to) = try #require(renamed.changes.first) { #expect(to.kind == .other) }
+    let moved = await f.service.perform(.transfer([f.root.appending("renamed.png")], into: folder, mode: .move, conflict: .skip))
+    #expect(moved.failures.isEmpty)
+    #expect(try await f.fs.itemWithoutFollowingLinks(at: folder.appending("renamed.png")).type == .symbolicLink)
+    let copy = await f.service.perform(.transfer([folder.appending("renamed.png")], into: f.root, mode: .copy, conflict: .skip))
+    #expect((copy.failures.first?.error as? IOError) == .unsupported(folder.appending("renamed.png")))
+    let cross = try await Fixture(forceCrossVolume: true)
+    try await cross.fs.makeDirectory(at: cross.root.appending("dest"))
+    try FileManager.default.createSymbolicLink(atPath: cross.directory.appending(path: "link").path, withDestinationPath: "missing")
+    let crossLink = cross.root.appending("link")
+    let rejected = await cross.service.perform(.transfer([crossLink], into: cross.root.appending("dest"), mode: .move, conflict: .skip))
+    #expect((rejected.failures.first?.error as? IOError) == .unsupported(crossLink))
+    #expect(try await cross.fs.itemWithoutFollowingLinks(at: crossLink).type == .symbolicLink)
+    let unknown = f.root.appending("unknown.xyzabc")
+    try await f.fs.createFile(at: unknown)
+    try await f.fs.write(Data([5, 6]), at: 0, to: unknown, priority: .visible)
+    let copied = await f.service.perform(.transfer([unknown], into: folder, mode: .copy, conflict: .skip))
+    #expect(copied.failures.isEmpty)
+    #expect(try Data(contentsOf: f.directory.appending(path: "dest/unknown.xyzabc")) == Data([5, 6]))
 }

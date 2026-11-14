@@ -42,6 +42,7 @@ struct ReadRequest: Sendable, Equatable {
     var noCache: Bool
     /// 读失败时关掉文件重新打开再读一次。网络卷断开较久后恢复时，故障中的那次读会返回错误。
     var retryByReopening: Bool
+    var freshDescriptor: Bool = false
 }
 
 /// 阻塞的文件操作。只在专用线程或辅助进程中调用，不能在协作线程池上调用。
@@ -119,9 +120,9 @@ enum FileOperations {
         return nil
     }
 
-    static func stat(_ path: String) throws(FileOperationError) -> FileAttributes {
+    static func stat(_ path: String, followLinks: Bool = true) throws(FileOperationError) -> FileAttributes {
         var info = Darwin.stat()
-        guard fstatat(AT_FDCWD, path, &info, 0) == 0 else { throw .system(call: "stat", code: errno) }
+        guard fstatat(AT_FDCWD, path, &info, followLinks ? 0 : AT_SYMLINK_NOFOLLOW) == 0 else { throw .system(call: "stat", code: errno) }
         let name = path.split(separator: "/").last.map(String.init) ?? ""
         return attributes(name: name, info)
     }
@@ -299,16 +300,21 @@ final class FileReader: Sendable {
     }
 
     private func openFile(_ request: ReadRequest) throws(FileOperationError) -> (OpenFile, cached: Bool) {
-        if let file = cache.withLock({ $0.files[request.path] }) { return (file, true) }
+        if !request.freshDescriptor, let file = cache.withLock({ $0.files[request.path] }) { return (file, true) }
         let fd = open(request.path, O_RDONLY | O_CLOEXEC)
         guard fd >= 0 else { throw .system(call: "open", code: errno) }
-        if request.noCache { _ = fcntl(fd, F_NOCACHE, 1) }
+        if request.noCache && fcntl(fd, F_NOCACHE, 1) == -1 && request.freshDescriptor {
+            let code = errno
+            close(fd)
+            throw .system(call: "fcntl(F_NOCACHE)", code: code)
+        }
         let file = OpenFile(fd: fd)
-        cache.withLock { cache in
+        if !request.freshDescriptor { cache.withLock { cache in
             if cache.files.updateValue(file, forKey: request.path) == nil { cache.order.append(request.path) }
             while cache.order.count > capacity {
                 cache.files[cache.order.removeFirst()] = nil
             }
+        }
         }
         return (file, false)
     }

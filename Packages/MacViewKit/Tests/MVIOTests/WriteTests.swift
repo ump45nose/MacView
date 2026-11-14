@@ -10,7 +10,8 @@ import Testing
         .create(path: "/a"), .write(path: "/a", offset: 42, data: Data([0, 1, 255])),
         .finish(path: "/a", modificationNanos: nil), .finish(path: "/a", modificationNanos: 123),
         .rename(source: "/a", target: "/b", exclusive: true), .rename(source: "/a", target: "/b", exclusive: false),
-        .makeDirectory(path: "/d"), .remove(path: "/a"), .trash(path: "/a")
+        .makeDirectory(path: "/d"), .remove(path: "/a"), .trash(path: "/a"), .lstat(path: "/link"),
+        .read(ReadRequest(path: "/a", offset: 0, length: 3, expectedSize: nil, expectedModificationNanos: nil, noCache: true, retryByReopening: false, freshDescriptor: true))
     ]
     for request in requests {
         let (id, decoded) = try HelperCodec.decodeRequest(HelperCodec.encode(id: 17, request).dropFirst(4))
@@ -41,6 +42,25 @@ import Testing
     try await fs.finishFile(at: a, modificationNanos: stamp)
     #expect(try Data(contentsOf: directory.appending(path: "a")) == Data([0, 0, 1, 2, 3]))
     #expect(try FileOperations.stat(directory.appending(path: "a").path).modificationNanos == stamp)
+    // 先缓存普通描述符，再以同大小、同修改时间的新文件替换路径；一次性读必须看到新文件。
+    let cached = try await fs.open(a)
+    #expect(try await cached.read(0..<5, priority: .visible, group: nil) == Data([0, 0, 1, 2, 3]))
+    let replacement = directory.appending(path: "replacement")
+    try Data([9, 8, 7, 6, 5]).write(to: replacement)
+    let replacementFD = Darwin.open(replacement.path, O_WRONLY)
+    try #require(replacementFD >= 0)
+    var times = [timespec(tv_sec: 0, tv_nsec: Int(UTIME_OMIT)), timespec(tv_sec: 1_700_000_000, tv_nsec: 123_456_789)]
+    try #require(futimens(replacementFD, &times) == 0)
+    close(replacementFD)
+    try FileManager.default.removeItem(at: directory.appending(path: "a"))
+    try FileManager.default.moveItem(at: replacement, to: directory.appending(path: "a"))
+    #expect(try await fs.readUncached(a, range: 0..<5, priority: .visible) == Data([9, 8, 7, 6, 5]))
+    #expect(try await fs.itemWithoutFollowingLinks(at: a).type == .regular)
+    let linkURL = directory.appending(path: "dangling")
+    try FileManager.default.createSymbolicLink(atPath: linkURL.path, withDestinationPath: "missing")
+    let link = folder.appending("dangling")
+    #expect(try await fs.itemWithoutFollowingLinks(at: link).type == .symbolicLink)
+    try await fs.remove(link)
     try await fs.createFile(at: b)
     await #expect(throws: IOError.alreadyExists(b)) { try await fs.rename(a, to: b, exclusive: true) }
     try await fs.rename(a, to: b, exclusive: false)
