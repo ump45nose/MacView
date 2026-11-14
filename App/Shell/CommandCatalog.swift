@@ -48,8 +48,8 @@ struct CommandCatalog {
         menu = MenuModel(roots: CoreCommands.defaultMenu.roots.map { root in
             guard case let .submenu(titleKey, children) = root else { return root }
             switch titleKey {
-            // “关闭”放在“文件”菜单末尾。
-            case "文件": return .submenu(titleKey: titleKey, children: children + [.separator, .command(.windowClose)])
+            // 撤销与重做在“编辑”菜单；“关闭”放在“文件”菜单末尾。
+            case "文件": return .submenu(titleKey: titleKey, children: Self.removing([.editUndo, .editRedo], from: children) + [.separator, .command(.windowClose)])
             case "显示": return .submenu(titleKey: titleKey, children: children + [.separator] + Self.dockMenu)
             case "窗口": return .submenu(titleKey: titleKey, children: Self.removing(dockCommands, from: children))
             default: return root

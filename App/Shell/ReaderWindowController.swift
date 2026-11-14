@@ -13,11 +13,59 @@ import os
 @MainActor
 final class ReaderWindow: NSWindow {
     var router: InputRouter?
+    weak var fileOps: FileOperationController?
+    weak var statusBar: StatusBarView?
+
+    override var undoManager: UndoManager? {
+        (delegate as? ReaderWindowController)?.windowWillReturnUndoManager(self) ?? super.undoManager
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if !(firstResponder is NSTextView), fileOps?.isBusy == true, let chord = KeyMapping.chord(for: event),
+           chord == KeyChord("z", modifiers: .command) || chord == KeyChord("z", modifiers: [.command, .shift]) {
+            statusBar?.showMessage(String(localized: "文件操作完成后才能撤销"))
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 
     override func keyDown(with event: NSEvent) {
         if router?.handle(event, in: self) != true {
             super.keyDown(with: event)
         }
+    }
+
+    @objc func undo(_ sender: Any?) { stepUndo(isUndo: true) }
+    @objc func redo(_ sender: Any?) { stepUndo(isUndo: false) }
+
+    private func stepUndo(isUndo: Bool) {
+        if let textView = firstResponder as? NSTextView {
+            if isUndo { textView.undoManager?.undo() } else { textView.undoManager?.redo() }
+            return
+        }
+        guard let fileOps else { return }
+        if fileOps.isBusy {
+            statusBar?.showMessage(String(localized: "文件操作完成后才能撤销"))
+        } else if isUndo, fileOps.undoManager.canUndo {
+            fileOps.undoManager.undo()
+        } else if !isUndo, fileOps.undoManager.canRedo {
+            fileOps.undoManager.redo()
+        }
+    }
+
+    override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard menuItem.action == #selector(undo(_:)) || menuItem.action == #selector(redo(_:)) else {
+            return super.validateMenuItem(menuItem)
+        }
+        let isUndo = menuItem.action == #selector(undo(_:))
+        let textView = firstResponder as? NSTextView
+        let manager = textView != nil ? textView?.undoManager : fileOps?.undoManager
+        let canStep = (isUndo ? manager?.canUndo : manager?.canRedo) ?? false
+        let name = (isUndo ? manager?.undoActionName : manager?.redoActionName) ?? ""
+        menuItem.title = canStep && !name.isEmpty
+            ? (isUndo ? String(localized: "撤销\(name)") : String(localized: "重做\(name)"))
+            : (isUndo ? String(localized: "撤销") : String(localized: "重做"))
+        return textView != nil ? canStep : (!(fileOps?.isBusy ?? true) && canStep)
     }
 }
 
@@ -49,6 +97,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     /// 本窗口的停靠区；页面视图在中间栏。
     let dock: WindowDock
     let services: CoreServices
+    let fileOps: FileOperationController
+    let textUndoManager = UndoManager()
     private let dispatcher: CommandDispatcher
     private var catalog: CommandCatalog
     private let isMock: Bool
@@ -91,8 +141,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private(set) var firstScreenThumbnailMilliseconds: Double?
     #endif
 
-    init(services: CoreServices, catalog: CommandCatalog, dispatcher: CommandDispatcher, dock dockCoordinator: DockCoordinator, isMock: Bool) {
+    init(services: CoreServices, catalog: CommandCatalog, dispatcher: CommandDispatcher, dock dockCoordinator: DockCoordinator, fileOps: FileOperationController, isMock: Bool) {
         self.services = services
+        self.fileOps = fileOps
         self.dispatcher = dispatcher
         self.isMock = isMock
         session = services.makeSession()
@@ -127,6 +178,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window.contentView = content
         window.initialFirstResponder = viewer
         window.router = router
+        window.fileOps = fileOps
+        window.statusBar = statusBar
         super.init(window: window)
         router.onCommand = { [weak self] id, arguments, scope in
             self?.dispatcher.run(id, arguments: arguments, in: self, scope: scope)
@@ -401,6 +454,13 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     // MARK: 窗口
+
+    func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? {
+        if window.firstResponder is NSText || window.firstResponder is NSTextField {
+            return textUndoManager
+        }
+        return fileOps.undoManager
+    }
 
     func windowDidBecomeMain(_ notification: Notification) {
         dock.coordinator.activate(dock)

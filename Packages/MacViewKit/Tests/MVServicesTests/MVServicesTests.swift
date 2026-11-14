@@ -293,6 +293,32 @@ import Testing
         await fixture.shutdown(services)
     }
 
+    @Test("appliedFileChanges 在目录缓存与会话更新之后才发出，支持多处订阅")
+    func appliedFileChangesFiresAfterDirectoryCacheAndSessionUpdate() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let operations = try #require(services.fileOperations)
+        let book = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        let directories = DirectoryCache(index: try #require(services.runtime?.index))
+        let session = services.makeSession()
+        await session.open(book, at: nil)
+        let deleted = try #require(session.book?.pages[0].id)
+        let stream1 = services.appliedFileChanges(), stream2 = services.appliedFileChanges()
+        let observer1 = Task { @MainActor () -> ([FileChange], Bool, Int) in
+            for await batch in stream1 {
+                let cached = try? await directories.cachedChildren(of: book)?.entries.contains { $0.location == deleted }
+                return (batch, cached ?? true, session.book?.pages.count ?? 0)
+            }
+            return ([], true, 0)
+        }
+        let observer2 = Task { () -> [FileChange] in for await batch in stream2 { return batch }; return [] }
+        #expect((await operations.perform(.deletePermanently([deleted]))).failures.isEmpty)
+        let first = await observer1.value, second = await observer2.value
+        #expect(first.0 == [.removed(deleted)] && second == [.removed(deleted)] && !first.1 && first.2 == 11)
+        await fixture.shutdown(services)
+    }
+
     @Test("启动时恢复未完成的传输")
     func recoversTransfersAtStartup() async throws {
         let fixture = try ServiceFixture()
@@ -309,7 +335,9 @@ import Testing
         try FileManager.default.createDirectory(at: fixture.configuration.supportDirectory, withIntermediateDirectories: true)
         try JSONSerialization.data(withJSONObject: json).write(to: fixture.configuration.supportDirectory.appending(path: "transfers.json"))
         let services = try await fixture.make()
-        try await waitUntil { !FileManager.default.fileExists(atPath: sourceURL.path) && FileManager.default.fileExists(atPath: targetURL.path) }
+        let report = await services.interruptedTransfersReport()
+        #expect(report == ResumeReport(completed: 1, pending: 0, failed: 0))
+        #expect(!FileManager.default.fileExists(atPath: sourceURL.path) && FileManager.default.fileExists(atPath: targetURL.path))
         #expect(try Data(contentsOf: targetURL) == Data([7, 8, 9]))
         await fixture.shutdown(services)
     }
@@ -318,6 +346,10 @@ import Testing
     func mockAndWeakSessions() async throws {
         let services = CoreServices.makeMock(MockOptions(timing: .instant))
         #expect(services.keyBindings == nil && services.fileOperations == nil)
+        #expect(await services.interruptedTransfersReport() == nil)
+        var received = 0
+        for await _ in services.appliedFileChanges() { received += 1 }
+        #expect(received == 0)
         var session: ReaderSession? = services.makeSession()
         weak let weakSession = session
         session = nil

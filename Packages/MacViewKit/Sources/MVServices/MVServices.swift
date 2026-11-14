@@ -4,7 +4,7 @@ import MVArchive
 import MVCache
 import MVCommands
 import MVFoundation
-import MVFileOps
+@_exported import MVFileOps
 import MVIO
 import MVMedia
 import MVPipeline
@@ -41,8 +41,9 @@ public struct CoreConfiguration: Sendable {
     private var pressureSource: (any DispatchSourceMemoryPressure)?
     private var settingsTask: Task<Void, Never>?
     private var fileChangesTask: Task<Void, Never>?
-    private var recoveryTask: Task<Void, Never>?
+    private var recoveryTask: Task<ResumeReport, Never>?
     private var shutdownTask: Task<Void, Never>?
+    nonisolated private let fileChangeObservers = Mutex<[UUID: AsyncStream<[FileChange]>.Continuation]>([:])
     private static let log = Logger(category: "services")
 
     struct Runtime: Sendable {
@@ -107,7 +108,7 @@ public struct CoreConfiguration: Sendable {
                                     loader: FileBookLoader(sources: sources, directories: directories, metadata: caches.metadata, pipeline: pipeline),
                                     keyBindings: keyBindings, fileOperations: fileOperations, runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches))
         services.subscribe(directories: directories)
-        services.recoveryTask = Task { _ = await fileOperations.resumeInterruptedTransfers() }
+        services.recoveryTask = Task { await fileOperations.resumeInterruptedTransfers() }
         return services
     }
 
@@ -116,6 +117,27 @@ public struct CoreConfiguration: Sendable {
         settingsTask?.cancel()
         fileChangesTask?.cancel()
         recoveryTask?.cancel()
+        let continuations = fileChangeObservers.withLock {
+            let values = Array($0.values)
+            $0.removeAll()
+            return values
+        }
+        continuations.forEach { $0.finish() }
+    }
+
+    public func appliedFileChanges() -> AsyncStream<[FileChange]> {
+        guard fileOperations != nil else { return AsyncStream { $0.finish() } }
+        return AsyncStream { continuation in
+            let id = UUID()
+            fileChangeObservers.withLock { $0[id] = continuation }
+            continuation.onTermination = { [weak self] _ in
+                self?.fileChangeObservers.withLock { _ = $0.removeValue(forKey: id) }
+            }
+        }
+    }
+
+    public func interruptedTransfersReport() async -> ResumeReport? {
+        await recoveryTask?.value
     }
 
     public func makeSession() -> ReaderSession {
@@ -149,6 +171,8 @@ public struct CoreConfiguration: Sendable {
                     }
                     self.sessions.removeAll { $0.value == nil }
                     for session in active { session.applyFileChanges(batch) }
+                    let continuations = self.fileChangeObservers.withLock { Array($0.values) }
+                    continuations.forEach { $0.yield(batch) }
                 }
             }
         }
@@ -202,6 +226,12 @@ public struct CoreConfiguration: Sendable {
         settingsTask?.cancel()
         fileChangesTask?.cancel()
         recoveryTask?.cancel()
+        let continuations = fileChangeObservers.withLock {
+            let values = Array($0.values)
+            $0.removeAll()
+            return values
+        }
+        continuations.forEach { $0.finish() }
         let sessions = sessions.compactMap(\.value)
         let runtime = runtime
         let pipeline = pipeline

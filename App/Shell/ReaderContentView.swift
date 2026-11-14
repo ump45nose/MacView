@@ -46,6 +46,8 @@ final class ReaderContentView: NSView {
     private let volumeBanner = VolumeStatusView()
     /// 按文件各一条。
     private(set) var fileErrorBanners: [String: FileErrorBanner] = [:]
+    /// 文件操作失败时的错误条，同一窗口新失败替换旧错误条。
+    private(set) var fileOperationBanner: FileOperationBanner?
     private var isDropTarget = false {
         didSet { updateDropBorder() }
     }
@@ -109,6 +111,15 @@ final class ReaderContentView: NSView {
             }
             banners.addArrangedSubview(banner)
             fileErrorBanners[error.file] = banner
+        }
+    }
+
+    /// 显示或移除文件操作错误条；新错误条替换旧错误条。
+    func setFileOperationBanner(_ banner: FileOperationBanner?) {
+        fileOperationBanner?.removeFromSuperview()
+        fileOperationBanner = banner
+        if let banner {
+            banners.addArrangedSubview(banner)
         }
     }
 

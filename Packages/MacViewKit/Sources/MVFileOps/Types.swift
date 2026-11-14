@@ -43,8 +43,9 @@ public struct FileOperationResult: Sendable {
     public var inverse: FileOperation?
     public var skipped: [Location]
     public var failures: [FileFailure]
-    public init(changes: [FileChange] = [], inverse: FileOperation? = nil, skipped: [Location] = [], failures: [FileFailure] = []) {
-        self.changes = changes; self.inverse = inverse; self.skipped = skipped; self.failures = failures
+    public var retry: FileOperation?
+    public init(changes: [FileChange] = [], inverse: FileOperation? = nil, skipped: [Location] = [], failures: [FileFailure] = [], retry: FileOperation? = nil) {
+        self.changes = changes; self.inverse = inverse; self.skipped = skipped; self.failures = failures; self.retry = retry
     }
 }
 public struct RecycleBin: Sendable, Hashable {

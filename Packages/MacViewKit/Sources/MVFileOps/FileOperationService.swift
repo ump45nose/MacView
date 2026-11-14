@@ -30,6 +30,11 @@ public final class FileOperationService: Sendable {
     private let createTemporary: @Sendable (Location) async throws -> Void
     private let removeTemporary: @Sendable (Location) async throws -> Void
     private let observers = Mutex<[UUID: AsyncStream<[FileChange]>.Continuation]>([:])
+    private let stepDelay = Mutex<Duration?>(nil)
+
+    public func setStepDelay(_ delay: Duration?) {
+        stepDelay.withLock { $0 = delay }
+    }
 
     public convenience init(fileSystem: FileSystemProvider, journalURL: URL) throws {
         try self.init(fileSystem: fileSystem, journalURL: journalURL, isNetwork: { try fileSystem.isNetworkVolume($0) }, volumeRoot: { try fileSystem.volumeRoot(of: $0) }, networkRoots: { fileSystem.mountedNetworkRoots() }, trash: { try await fileSystem.moveToTrash($0) })
@@ -96,51 +101,70 @@ public final class FileOperationService: Sendable {
         switch operation {
         case let .sequence(operations):
             var outcome = Outcome()
-            for child in operations {
+            var retries: [FileOperation] = []
+            for (index, child) in operations.enumerated() {
                 if Task.isCancelled { break }
                 let result = await execute(child, progress: progress)
                 outcome.merge(result, irreversible: true)
-                if result.changes.isEmpty && !result.failures.isEmpty { break }
+                if let retry = result.retry { retries.append(retry) }
+                if result.changes.isEmpty && !result.failures.isEmpty {
+                    retries.append(contentsOf: operations[(index + 1)...])
+                    break
+                }
             }
-            return outcome.result
-        case let .delete(locations): return await batch(locations, progress: progress) { entry, type, context in
-            let target: Location
-            if try self.isNetwork(entry.location) {
-                let root = try self.volumeRoot(entry.location)
-                let batch: Location
-                if let existing = context.bins[root] { batch = existing }
-                else {
-                    do { batch = try await self.createRecycleBatch(root); context.bins[root] = batch }
-                    catch { throw FileOpsError.recycleUnavailable(String(describing: error)) }
-                }
-                var number = 1
-                while true {
-                    let candidate = batch.appending(Self.numberedName(entry.name, number: number, directory: type == .directory))
-                    do { try await self.fileSystem.rename(entry.location, to: candidate, exclusive: true); target = candidate; break }
-                    catch IOError.alreadyExists { number += 1 }
-                }
-            } else { target = try await self.trash(entry.location) }
-            return (.removed(entry.location), .relocate([Relocation(source: target, target: entry.location)]))
-        }
+            var result = outcome.result
+            result.retry = retries.isEmpty ? nil : (retries.count == 1 ? retries[0] : .sequence(retries))
+            return result
+        case let .delete(locations):
+            var result = await batch(locations, progress: progress) { entry, type, context in
+                let target: Location
+                if try self.isNetwork(entry.location) {
+                    let root = try self.volumeRoot(entry.location)
+                    let batch: Location
+                    if let existing = context.bins[root] { batch = existing }
+                    else {
+                        do { batch = try await self.createRecycleBatch(root); context.bins[root] = batch }
+                        catch { throw FileOpsError.recycleUnavailable(String(describing: error)) }
+                    }
+                    var number = 1
+                    while true {
+                        let candidate = batch.appending(Self.numberedName(entry.name, number: number, directory: type == .directory))
+                        do { try await self.fileSystem.rename(entry.location, to: candidate, exclusive: true); target = candidate; break }
+                        catch IOError.alreadyExists { number += 1 }
+                    }
+                } else { target = try await self.trash(entry.location) }
+                return (.removed(entry.location), .relocate([Relocation(source: target, target: entry.location)]))
+            }
+            if !result.failures.isEmpty { result.retry = .delete(result.failures.map(\.location)) }
+            return result
         case let .deletePermanently(locations):
             var result = await batch(locations, progress: progress) { entry, _, _ in
                 try await self.removeTree(entry.location)
                 return (.removed(entry.location), nil)
             }
             result.inverse = nil
+            if !result.failures.isEmpty { result.retry = .deletePermanently(result.failures.map(\.location)) }
             return result
         case let .rename(source, name):
-            return await batch([source], progress: progress) { entry, type, _ in
+            var result = await batch([source], progress: progress) { entry, type, _ in
                 try Self.validate(name)
                 guard let parent = source.parent else { throw FileOpsError.readOnly }
                 let target = parent.appending(name)
                 try await self.fileSystem.rename(source, to: target, exclusive: true)
                 return (.moved(from: source, to: Self.relocated(entry, to: target, type: type)), .relocate([Relocation(source: target, target: source)]))
             }
+            if !result.failures.isEmpty { result.retry = .rename(source, to: name) }
+            return result
         case let .transfer(sources, folder, mode, conflict):
-            do { try Self.validateLocation(folder) } catch { return FileOperationResult(failures: sources.map { FileFailure(location: $0, error: error) }) }
-            return await batch(sources, progress: progress) { entry, type, context in
+            do { try Self.validateLocation(folder) } catch {
+                let failures = sources.map { FileFailure(location: $0, error: error) }
+                return FileOperationResult(failures: failures, retry: failures.isEmpty ? nil : .transfer(sources, into: folder, mode: mode, conflict: conflict))
+            }
+            var result = await batch(sources, progress: progress) { entry, type, context in
                 if type == .directory && folder.hasPrefix(entry.location) { throw FileOpsError.intoItself }
+                if mode == .move, let published = try await self.completePublishedMove(entry, in: folder) {
+                    return (.moved(from: entry.location, to: Self.relocated(entry, to: published, type: type)), .relocate([Relocation(source: published, target: entry.location)]))
+                }
                 var number = 1
                 while true {
                     let target = folder.appending(Self.numberedName(entry.name, number: number, directory: type == .directory))
@@ -163,12 +187,17 @@ public final class FileOperationService: Sendable {
                     }
                 }
             }
+            if !result.failures.isEmpty { result.retry = .transfer(result.failures.map(\.location), into: folder, mode: mode, conflict: conflict) }
+            return result
         case let .relocate(relocations):
             let targets = Dictionary(relocations.map { ($0.source, $0.target) }, uniquingKeysWith: { first, _ in first })
-            return await batch(relocations.map(\.source), progress: progress) { entry, type, context in
+            var result = await batch(relocations.map(\.source), progress: progress) { entry, type, context in
                 let target = targets[entry.location]!
                 try Self.validateLocation(target)
                 if type == .directory && target.hasPrefix(entry.location) { throw FileOpsError.intoItself }
+                if let parent = target.parent, let published = try await self.completePublishedMove(entry, in: parent, exactTarget: target) {
+                    return (.moved(from: entry.location, to: Self.relocated(entry, to: published, type: type)), .relocate([Relocation(source: published, target: entry.location)]))
+                }
                 do {
                     if self.forceCrossVolume { throw IOError.crossVolume }
                     try await self.fileSystem.rename(entry.location, to: target, exclusive: true)
@@ -177,6 +206,11 @@ public final class FileOperationService: Sendable {
                 }
                 return (.moved(from: entry.location, to: Self.relocated(entry, to: target, type: type)), .relocate([Relocation(source: target, target: entry.location)]))
             }
+            if !result.failures.isEmpty {
+                let failed = Set(result.failures.map(\.location))
+                result.retry = .relocate(relocations.filter { failed.contains($0.source) })
+            }
+            return result
         case let .makeDirectory(parent, name):
             do {
                 try Self.validateLocation(parent); try Self.validate(name)
@@ -185,13 +219,17 @@ public final class FileOperationService: Sendable {
                 let entry = try await fileSystem.entry(at: location)
                 progress?(FileProgress(completedItems: 1, totalItems: 1))
                 return FileOperationResult(changes: [.added(entry)], inverse: .removeEmptyDirectory(location))
-            } catch { return FileOperationResult(failures: [FileFailure(location: parent, error: error)]) }
+            } catch {
+                return FileOperationResult(failures: [FileFailure(location: parent, error: error)], retry: .makeDirectory(in: parent, name: name))
+            }
         case let .removeEmptyDirectory(location):
-            return await batch([location], progress: progress) { entry, type, _ in
+            var result = await batch([location], progress: progress) { entry, type, _ in
                 guard type == .directory, let parent = location.parent else { throw IOError.unsupported(location) }
                 try await self.fileSystem.remove(location)
                 return (.removed(location), .makeDirectory(in: parent, name: entry.name))
             }
+            if !result.failures.isEmpty { result.retry = .removeEmptyDirectory(location) }
+            return result
         }
     }
 
@@ -246,6 +284,7 @@ public final class FileOperationService: Sendable {
                 outcome.changes.append(change)
                 if let inverse { outcome.inverses.append(inverse) } else { outcome.irreversible = true }
                 context.complete(size)
+                if let delay = stepDelay.withLock({ $0 }) { try? await Task.sleep(for: delay) }
             } catch is Skipped { context.discard(); outcome.skipped.append(location) }
             catch let collision as TemporaryCollision { context.discard(); outcome.failures.append(FileFailure(location: location, error: collision.error)) }
             catch { context.discard(); outcome.failures.append(FileFailure(location: location, error: error)) }
@@ -320,6 +359,20 @@ public final class FileOperationService: Sendable {
     }
     private static func temporaryLocation(source: Location, targetParent: Location, id: UUID) -> Location {
         targetParent.appending(".\(source.name).\(id.uuidString.replacingOccurrences(of: "-", with: "").lowercased()).macview-part")
+    }
+    /// 跨卷移动已改成正式名字、只差删源时，重试直接核对内容并删源，不重新复制。
+    private func completePublishedMove(_ entry: Entry, in targetParent: Location, exactTarget: Location? = nil) async throws -> Location? {
+        guard let records = try? JournalStore.load(journalURL).transfers else { return nil }
+        guard let record = records.first(where: {
+            $0.source == entry.location && $0.target.parent == targetParent && (exactTarget == nil || $0.target == exactTarget)
+        }) else { return nil }
+        guard try await exists(record.temporary) == nil, let target = try await exists(record.target) else { return nil }
+        do { try await verifyRecoverySource(entry, in: target) }
+        catch IOError.cancelled { throw IOError.cancelled }
+        catch { return nil }
+        try await Task.detached { try await self.removeTree(entry.location) }.value
+        try JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } }
+        return record.target
     }
 
     /// 目标先写入独立临时项，逐文件读回校验，再原子改名。跨卷移动先持久化记录。
@@ -443,6 +496,7 @@ public final class FileOperationService: Sendable {
                 try await fileSystem.write(output, at: offset, to: target, priority: .background)
                 offset += Int64(data.count)
                 progress?(Int64(data.count))
+                if let delay = stepDelay.withLock({ $0 }) { try? await Task.sleep(for: delay) }
             }
             try await fileSystem.finishFile(at: target, modificationNanos: entry.identity.modificationNanos)
             let written = try await fileSystem.itemWithoutFollowingLinks(at: target)

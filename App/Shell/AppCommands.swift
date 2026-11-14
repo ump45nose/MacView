@@ -35,6 +35,24 @@ extension AppDelegate {
             guard let self else { return }
             (controller(for: context.session) ?? newWindow())?.chooseBook()
         }
+        for (id, action, isUndo) in [(CommandID.editUndo, #selector(ReaderWindow.undo(_:)), true), (.editRedo, #selector(ReaderWindow.redo(_:)), false)] {
+            register(id, isEnabled: { [weak self] context in
+                guard let self else { return false }
+                let window = (controller(for: context.session) ?? mainController ?? controllers.first)?.window
+                if let textView = window?.firstResponder as? NSTextView {
+                    return (isUndo ? textView.undoManager?.canUndo : textView.undoManager?.canRedo) == true
+                }
+                return fileOps?.isBusy == false && (isUndo ? fileOps?.undoManager.canUndo : fileOps?.undoManager.canRedo) == true
+            }) { [weak self] context in
+                guard let self else { return }
+                let target = controller(for: context.session) ?? mainController ?? controllers.first
+                if !(target?.window?.firstResponder is NSTextView), fileOps?.isBusy == true {
+                    target?.content.statusBar.showMessage(String(localized: "文件操作完成后才能撤销"))
+                } else if !NSApp.sendAction(action, to: nil, from: nil) {
+                    if isUndo { undo(nil) } else { redo(nil) }
+                }
+            }
+        }
 
         let moves: [(CommandID, PageMove)] = [
             (.frameNext, .nextFrame), (.framePrevious, .previousFrame), (.pageNext, .nextPage), (.pagePrevious, .previousPage),
