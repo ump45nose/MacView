@@ -229,6 +229,24 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         dispatcher.run(id, in: self, scope: InputRouter.scope(of: window?.firstResponder))
     }
 
+    /// 按当前焦点取一次文件命令的作用对象快照。
+    func fileOrigin() -> FileOrigin {
+        let key = NSApp.keyWindow
+        let responder = (key === window || key is FloatingPanelWindow) ? key?.firstResponder : window?.firstResponder
+        if let view = responder as? NSView {
+            let panels = Array(dock.panels.values) + dock.coordinator.floatingWindows.values.map(\.panel)
+            for case let panel as CollectionPanel in panels where panel.owner === self && view.isDescendant(of: panel.view) {
+                return FileOrigin(window: self, items: panel.targetEntries)
+            }
+        }
+        guard let book = session.book else { return FileOrigin(window: self) }
+        if book.pages.indices.contains(session.currentPage) {
+            return FileOrigin(window: self, items: [book.pages[session.currentPage].entry])
+        }
+        let kind: EntryKind = if case .archive = EntryKind(fileName: book.location.name) { EntryKind(fileName: book.location.name) } else { .directory }
+        return FileOrigin(window: self, items: [Entry(identity: ContentIdentity(location: book.location, size: 0, modificationNanos: 0), name: book.location.name, kind: kind)])
+    }
+
     /// InputRouter 持有解析器状态；配置重载时整体替换，并清除未完成的序列。
     func updateBindings(_ catalog: CommandCatalog) {
         self.catalog = catalog

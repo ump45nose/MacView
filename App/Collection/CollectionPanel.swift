@@ -68,6 +68,11 @@ class CollectionPanel: DockPanel {
             )
             collection.onActivate = { [weak self] in self?.activate($0) }
             collection.onDoubleClick = { [weak self] in self?.doubleClicked($0) }
+            collection.onContextMenu = { [weak self] indices in
+                guard let self, let owner else { return nil }
+                let items = entries(at: indices)
+                return items.isEmpty ? nil : owner.fileOps.contextMenu(for: FileOrigin(window: owner, items: items))
+            }
             collection.onVisibleRangeChange = { [weak self] in self?.visibleRangeChanged($0) }
             collection.onItemExtentChange = { [weak self] extent in
                 guard let self else { return }
@@ -156,6 +161,12 @@ class CollectionPanel: DockPanel {
 
     // MARK: 子类实现
 
+    var targetEntries: [Entry] {
+        guard let collection else { return [] }
+        return entries(at: collection.selectedIndices)
+    }
+
+    func entries(at indices: [Int]) -> [Entry] { [] }
     func windowChanged() {}
     func reload() {}
     func sortChanged() {}

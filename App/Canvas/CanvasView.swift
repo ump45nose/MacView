@@ -109,6 +109,7 @@ final class CanvasView: NSScrollView {
     var onActivate: ((Int) -> Void)?
     /// 双击；没有设置时走 `onActivate`。
     var onDoubleClick: ((Int) -> Void)?
+    var onContextMenu: ((Int?) -> NSMenu?)?
     /// 捏合缩放改了 `itemExtent`。
     var onItemExtentChange: ((Double) -> Void)?
     var onMeasure: ((CanvasMeasure) -> Void)?
@@ -695,6 +696,13 @@ final class CanvasView: NSScrollView {
         return true
     }
 
+    fileprivate func contextMenu(for event: NSEvent) -> NSMenu? {
+        window?.makeFirstResponder(content)
+        let point = content.convert(event.locationInWindow, from: nil)
+        let index = layout.items(in: CGRect(x: point.x, y: point.y, width: 1, height: 1)).first(where: { $0.frame.contains(point) && $0.index < items.count })?.index
+        return onContextMenu?(index)
+    }
+
     /// 捏合改缩略图尺寸，锚点不动。
     override func magnify(with event: NSEvent) {
         zoom(by: 1 + event.magnification)
@@ -754,5 +762,9 @@ private final class CanvasDocumentView: NSView {
         if canvas?.key(event) != true {
             super.keyDown(with: event)
         }
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        canvas?.contextMenu(for: event)
     }
 }

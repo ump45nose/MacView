@@ -29,7 +29,27 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         }
 
         func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-            builder.isEnabled(command)
+            if let title = (NSApp.delegate as? AppDelegate)?.menuTitle(for: command) {
+                menuItem.title = title
+            }
+            return builder.isEnabled(command)
+        }
+    }
+
+    @MainActor
+    private final class DynamicSubmenu: NSObject, NSMenuItemValidation {
+        let key: String
+        let submenu: NSMenu
+
+        init(key: String, submenu: NSMenu) {
+            self.key = key
+            self.submenu = submenu
+        }
+
+        @objc func noop(_ sender: Any?) {}
+
+        func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+            (NSApp.delegate as? AppDelegate)?.updateSubmenu(key: key, menu: submenu) ?? false
         }
     }
 
@@ -97,6 +117,14 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
             switch child {
             case let .command(id):
                 menu.addItem(commandItem(id))
+            case let .submenu(key, nested) where nested.isEmpty:
+                let submenu = NSMenu(title: Bundle.main.localizedString(forKey: key, value: nil, table: nil))
+                let dynamic = DynamicSubmenu(key: key, submenu: submenu)
+                let item = NSMenuItem(title: submenu.title, action: #selector(DynamicSubmenu.noop(_:)), keyEquivalent: "")
+                item.target = dynamic
+                item.representedObject = dynamic
+                item.submenu = submenu
+                menu.addItem(item)
             case let .submenu(key, nested):
                 let submenu = commandMenu(titleKey: key, children: nested)
                 menu.addItem(holder(for: submenu))

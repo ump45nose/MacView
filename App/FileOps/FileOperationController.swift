@@ -1,6 +1,11 @@
 import AppKit
+import MVCommands
 import MVFoundation
+import MVIO
+import MVReading
 import MVServices
+import MVSettings
+import UniformTypeIdentifiers
 
 /// 命令开始时取的快照：来源窗口和作用对象。
 struct FileOrigin { weak var window: ReaderWindowController?; var items: [Entry] = [] }
@@ -23,13 +28,20 @@ final class FileOperationController {
     }
 
     let undoManager = UndoManager()
+    private(set) var fileSettings = FileOperationSettings.default
+    private(set) var classifyDestinations: [Location] = []
     private weak var app: AppDelegate?, progressController: ReaderWindowController?
     private var queue: [QueueItem] = [], isExecuting = false, activeLocations: Set<Location> = []
     private var currentTask: Task<FileOperationResult, Never>?, latestProgress = FileProgress(), showingProgress = false
     private var refreshProgressDisplay: (() -> Void)?
+    private var settingsTask: Task<Void, Never>?, changesTask: Task<Void, Never>?
+    private var pasteboardLeases: [FileLease] = [], openWithLeases: [FileLease] = []
 
     var isBusy: Bool { isExecuting || !queue.isEmpty }
-    init(app: AppDelegate) { self.app = app; undoManager.groupsByEvent = false }
+    init(app: AppDelegate) {
+        self.app = app; undoManager.groupsByEvent = false
+        observeSettings()
+    }
 
     func perform(_ operation: FileOperation, title: String, origin: FileOrigin, reportsFailures: Bool = true) async -> FileOperationResult? {
         guard app?.services?.fileOperations != nil else { return nil }
@@ -212,5 +224,234 @@ final class FileOperationController {
             }
         }
         collect(operation); return set
+    }
+
+    // MARK: 设置与分类目标
+
+    private func observeSettings() {
+        guard let services = app?.services else { return }
+        settingsTask = Task { [weak self] in
+            await self?.reloadSettings()
+            for await change in services.settings.changes() {
+                guard !Task.isCancelled, let self else { return }
+                if change == .global { await self.reloadSettings() }
+            }
+        }
+        changesTask = Task { [weak self] in
+            for await _ in services.appliedFileChanges() {
+                guard !Task.isCancelled, let self else { return }
+                await self.reloadSettings()
+            }
+        }
+    }
+
+    func reloadSettings() async {
+        guard let services = app?.services else { return }
+        let ops = await services.settings.global().fileOperations
+        fileSettings = ops
+        var destinations: [Location] = []
+        for target in ops.classifyTargets {
+            destinations.append(target.location)
+            guard target.listsSubfolders, let provider = try? services.sources.provider(for: target.location) else { continue }
+            var subfolders: [Entry] = []
+            try? await { for try await batch in provider.children(of: target.location, priority: .near) { subfolders.append(contentsOf: batch.filter { $0.kind == .directory }) } }()
+            destinations.append(contentsOf: ReadingOrder.sorted(subfolders, by: SortSpec(key: .name)).map(\.location))
+        }
+        classifyDestinations = destinations
+    }
+
+    // MARK: 命令与菜单
+
+    func canRead(_ origin: FileOrigin) -> Bool { app?.services?.fileOperations != nil && !origin.items.isEmpty }
+    func canModify(_ origin: FileOrigin) -> Bool { canRead(origin) && origin.items.allSatisfy { $0.location.layers.count == 1 } }
+    func canRename(_ origin: FileOrigin) -> Bool { canModify(origin) && origin.items.count == 1 }
+
+    func isNetworkVolume(_ location: Location) -> Bool {
+        if case .network = location.root { return true }
+        return (try? (app?.services?.sources as? FileSourceRegistry)?.fileSystem.isNetworkVolume(location)) == true
+    }
+
+    func deleteTitle(for origin: FileOrigin) -> String {
+        if origin.items.contains(where: { $0.location.layers.count > 1 }) { return String(localized: "删除") }
+        if let first = origin.items.first, isNetworkVolume(first.location) { return String(localized: "移到回收目录") }
+        return String(localized: "移到废纸篓")
+    }
+
+    func delete(origin: FileOrigin) async {
+        guard canModify(origin) else { return }
+        let verb = deleteTitle(for: origin)
+        let title = origin.items.count == 1 ? "\(verb)“\(origin.items[0].name)”" : String(localized: "\(verb) \(origin.items.count) 项")
+        _ = await perform(.delete(origin.items.map(\.location)), title: title, origin: origin)
+    }
+
+    func presentRename(origin: FileOrigin) {
+        guard canRename(origin), let window = targetController(for: origin)?.window, window.attachedSheet == nil else { return }
+        let sheet = RenameSheet(entry: origin.items[0], origin: origin, fileOps: self)
+        window.beginSheet(sheet); sheet.selectInitialRange()
+    }
+
+    func transfer(origin: FileOrigin, into destination: Location, mode: TransferMode) async {
+        guard canModify(origin) else { return }
+        let verb = mode == .move ? String(localized: "移动") : String(localized: "复制")
+        let title = origin.items.count == 1 ? "\(verb)“\(origin.items[0].name)”" : String(localized: "\(verb) \(origin.items.count) 项")
+        _ = await perform(.transfer(origin.items.map(\.location), into: destination, mode: mode, conflict: fileSettings.nameConflict), title: title, origin: origin)
+    }
+
+    func chooseFolderAndTransfer(origin: FileOrigin, mode: TransferMode) {
+        guard canModify(origin), let window = targetController(for: origin)?.window else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.allowsMultipleSelection = false; panel.canCreateDirectories = true
+        panel.prompt = mode == .move ? String(localized: "移动") : String(localized: "复制")
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url, let self, let services = self.app?.services else { return }
+            Task { @MainActor in
+                if let location = try? await services.sources.location(for: url) { await self.transfer(origin: origin, into: location, mode: mode) }
+            }
+        }
+    }
+
+    private func resolveLeases(for locations: [Location], in services: CoreServices) async throws -> [FileLease] {
+        var leases: [FileLease] = []
+        for loc in locations { leases.append(try await services.sources.provider(for: loc).fileLease(for: loc)) }
+        return leases
+    }
+
+    func copyItems(origin: FileOrigin) async {
+        guard canRead(origin), let services = app?.services else { return }
+        do {
+            let leases = try await resolveLeases(for: origin.items.map(\.location), in: services)
+            var imagePayload: (Data, NSPasteboard.PasteboardType)?
+            if origin.items.count == 1, origin.items[0].kind == .image {
+                let item = origin.items[0], handle = try await services.sources.provider(for: item.location).open(item.location)
+                let data = try await handle.read(0..<handle.identity.size, priority: .visible, group: nil)
+                imagePayload = (data, NSPasteboard.PasteboardType(Self.contentType(for: item).identifier))
+            }
+            pasteboardLeases = leases
+            let pb = NSPasteboard.general; pb.clearContents()
+            pb.writeObjects(leases.map { $0.url as NSURL })
+            if let (data, pbType) = imagePayload { pb.setData(data, forType: pbType) }
+        } catch { targetController(for: origin)?.content.statusBar.showMessage(ErrorText.describe(error)) }
+    }
+
+    func copyPaths(origin: FileOrigin) async {
+        guard canRead(origin), let services = app?.services else { return }
+        do {
+            let leases = try await resolveLeases(for: origin.items.map { Self.outerFileLocation(of: $0.location) }, in: services)
+            let pb = NSPasteboard.general; pb.clearContents()
+            pb.setString(leases.map { $0.url.path(percentEncoded: false) }.joined(separator: "\n"), forType: .string)
+        } catch { targetController(for: origin)?.content.statusBar.showMessage(ErrorText.describe(error)) }
+    }
+
+    func revealInFinder(origin: FileOrigin) async {
+        guard canRead(origin), let services = app?.services else { return }
+        do {
+            let leases = try await resolveLeases(for: origin.items.map { Self.outerFileLocation(of: $0.location) }, in: services)
+            NSWorkspace.shared.activateFileViewerSelecting(leases.map(\.url))
+        } catch { targetController(for: origin)?.content.statusBar.showMessage(ErrorText.describe(error)) }
+    }
+
+    static func outerFileLocation(of location: Location) -> Location {
+        location.layers.count > 1 ? Location(root: location.root, layers: [location.layers[0]]) : location
+    }
+
+    static func contentType(for entry: Entry) -> UTType {
+        if entry.kind == .directory { return .folder }
+        let ext = (entry.name as NSString).pathExtension
+        return (!ext.isEmpty ? UTType(filenameExtension: ext) : nil) ?? .data
+    }
+
+    static func applicationsForOpening(_ entries: [Entry]) -> (defaultApp: URL?, others: [URL]) {
+        guard let first = entries.first else { return (nil, []) }
+        let type = contentType(for: first), ws = NSWorkspace.shared, selfURL = Bundle.main.bundleURL.standardizedFileURL
+        let rawDefault = ws.urlForApplication(toOpen: type)
+        let defaultApp = rawDefault?.standardizedFileURL == selfURL ? nil : rawDefault
+        var seen: Set<URL> = [selfURL]
+        if let defaultApp { seen.insert(defaultApp.standardizedFileURL) }
+        return (defaultApp, ws.urlsForApplications(toOpen: type).filter { seen.insert($0.standardizedFileURL).inserted })
+    }
+
+    func openWithApplication(_ appURL: URL, origin: FileOrigin) {
+        guard canRead(origin), let services = app?.services else { return }
+        Task { @MainActor in
+            do {
+                let leases = try await resolveLeases(for: origin.items.map(\.location), in: services)
+                openWithLeases.append(contentsOf: leases)
+                _ = try await NSWorkspace.shared.open(leases.map(\.url), withApplicationAt: appURL, configuration: .init())
+            } catch { targetController(for: origin)?.content.statusBar.showMessage(ErrorText.describe(error)) }
+        }
+    }
+
+    func chooseApplicationAndOpen(origin: FileOrigin) {
+        guard canRead(origin), let window = targetController(for: origin)?.window else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false; panel.canChooseFiles = true; panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.application]; panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.beginSheetModal(for: window) { [weak self] response in
+            if response == .OK, let url = panel.url { self?.openWithApplication(url, origin: origin) }
+        }
+    }
+
+    @discardableResult
+    func populateOpenWithMenu(_ menu: NSMenu, origin: FileOrigin) -> Bool {
+        menu.removeAllItems()
+        guard canRead(origin) else { return false }
+        let (defaultApp, others) = Self.applicationsForOpening(origin.items)
+        func appItem(_ url: URL, isDefault: Bool) -> NSMenuItem {
+            let name = url.deletingPathExtension().lastPathComponent
+            let item = MenuAction(isDefault ? String(localized: "\(name)（默认）") : name) { [weak self] in self?.openWithApplication(url, origin: origin) }.item
+            let icon = NSWorkspace.shared.icon(forFile: url.path); icon.size = NSSize(width: 16, height: 16); item.image = icon
+            return item
+        }
+        if let defaultApp {
+            menu.addItem(appItem(defaultApp, isDefault: true))
+            if !others.isEmpty { menu.addItem(.separator()) }
+        }
+        others.forEach { menu.addItem(appItem($0, isDefault: false)) }
+        if defaultApp != nil || !others.isEmpty { menu.addItem(.separator()) }
+        menu.addItem(MenuAction(String(localized: "其他…")) { [weak self] in self?.chooseApplicationAndOpen(origin: origin) }.item)
+        return true
+    }
+
+    @discardableResult
+    func populateTransferMenu(_ menu: NSMenu, origin: FileOrigin, mode: TransferMode) -> Bool {
+        menu.removeAllItems()
+        guard canModify(origin) else { return false }
+        for (index, destination) in classifyDestinations.enumerated() {
+            let prefix = index < 9 ? "\(index + 1)  " : (index == 9 ? "0  " : "")
+            menu.addItem(MenuAction(prefix + destination.name) { [weak self] in
+                Task { @MainActor in await self?.transfer(origin: origin, into: destination, mode: mode) }
+            }.item)
+        }
+        if !classifyDestinations.isEmpty { menu.addItem(.separator()) }
+        menu.addItem(MenuAction(String(localized: "选择文件夹…")) { [weak self] in self?.chooseFolderAndTransfer(origin: origin, mode: mode) }.item)
+        return true
+    }
+
+    func contextMenu(for origin: FileOrigin) -> NSMenu {
+        let menu = NSMenu(); menu.autoenablesItems = false; let catalog = app?.catalog
+        func cmdItem(_ id: CommandID, title: String? = nil, enabled: Bool, action: @escaping () -> Void) -> NSMenuItem {
+            let item = MenuAction(title ?? catalog?.title(of: id) ?? id.rawValue, action: action).item
+            item.isEnabled = enabled
+            if let chord = catalog?.menuBinding(for: id)?.sequence.first, let eq = KeyMapping.menuKeyEquivalent(for: chord) {
+                item.keyEquivalent = eq.key; item.keyEquivalentModifierMask = eq.mask
+            }
+            return item
+        }
+        func subItem(_ title: String, enabled: Bool, build: (NSMenu) -> Void) -> NSMenuItem {
+            let sub = NSMenu(title: title); if enabled { build(sub) }
+            let holder = NSMenuItem(title: title, action: nil, keyEquivalent: ""); holder.submenu = sub; holder.isEnabled = enabled
+            return holder
+        }
+        let readable = canRead(origin), modifiable = canModify(origin)
+        menu.addItem(cmdItem(.fileCopy, enabled: readable) { [weak self] in Task { await self?.copyItems(origin: origin) } })
+        menu.addItem(cmdItem(.fileCopyPath, enabled: readable) { [weak self] in Task { await self?.copyPaths(origin: origin) } })
+        menu.addItem(cmdItem(.fileReveal, enabled: readable) { [weak self] in Task { await self?.revealInFinder(origin: origin) } })
+        menu.addItem(subItem(String(localized: "用指定应用打开"), enabled: readable) { _ = populateOpenWithMenu($0, origin: origin) })
+        menu.addItem(.separator())
+        menu.addItem(subItem(String(localized: "移动到"), enabled: modifiable) { _ = populateTransferMenu($0, origin: origin, mode: .move) })
+        menu.addItem(subItem(String(localized: "复制到"), enabled: modifiable) { _ = populateTransferMenu($0, origin: origin, mode: .copy) })
+        menu.addItem(cmdItem(.fileRename, title: String(localized: "重命名…"), enabled: canRename(origin)) { [weak self] in self?.presentRename(origin: origin) })
+        menu.addItem(cmdItem(.fileDelete, title: deleteTitle(for: origin), enabled: modifiable) { [weak self] in Task { await self?.delete(origin: origin) } })
+        return menu
     }
 }

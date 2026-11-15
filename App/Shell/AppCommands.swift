@@ -1,5 +1,6 @@
 import AppKit
 import MVCommands
+import MVFoundation
 import MVLayout
 import MVReading
 
@@ -35,6 +36,7 @@ extension AppDelegate {
             guard let self else { return }
             (controller(for: context.session) ?? newWindow())?.chooseBook()
         }
+        registerFileCommands(in: registry)
         for (id, action, isUndo) in [(CommandID.editUndo, #selector(ReaderWindow.undo(_:)), true), (.editRedo, #selector(ReaderWindow.redo(_:)), false)] {
             register(id, isEnabled: { [weak self] context in
                 guard let self else { return false }
@@ -101,5 +103,59 @@ extension AppDelegate {
             }
         }
         registerViewerCommands(in: registry)
+    }
+
+    func activeFileOrigin(for session: SessionID? = nil) -> FileOrigin {
+        (controller(for: session) ?? mainController ?? controllers.first)?.fileOrigin() ?? FileOrigin()
+    }
+
+    func menuTitle(for id: CommandID) -> String? {
+        guard id == .fileDelete, let fileOps else { return nil }
+        return fileOps.deleteTitle(for: activeFileOrigin())
+    }
+
+    func updateSubmenu(key: String, menu: NSMenu) -> Bool {
+        guard let fileOps else { menu.removeAllItems(); return false }
+        let origin = activeFileOrigin()
+        switch key {
+        case "用指定应用打开": return fileOps.populateOpenWithMenu(menu, origin: origin)
+        case "移动到": return fileOps.populateTransferMenu(menu, origin: origin, mode: .move)
+        case "复制到": return fileOps.populateTransferMenu(menu, origin: origin, mode: .copy)
+        default: return false
+        }
+    }
+
+    private func registerFileCommands(in registry: CommandRegistry) {
+        func register(
+            _ id: CommandID,
+            isEnabled: @escaping @MainActor (FileOperationController, FileOrigin) -> Bool,
+            perform: @escaping @MainActor (FileOperationController, FileOrigin, [String: JSONValue]?) -> Void
+        ) {
+            guard let descriptor = catalog.descriptor(id) else { preconditionFailure("命令清单中没有 \(id.rawValue)") }
+            registry.register(descriptor, isEnabled: { [weak self] context in
+                guard let self, let fileOps else { return false }
+                return isEnabled(fileOps, activeFileOrigin(for: context.session))
+            }) { [weak self] context, arguments in
+                guard let self, let fileOps else { return }
+                perform(fileOps, activeFileOrigin(for: context.session), arguments)
+            }
+        }
+        register(.fileDelete, isEnabled: { $0.canModify($1) }) { fileOps, origin, _ in Task { await fileOps.delete(origin: origin) } }
+        register(.fileRename, isEnabled: { $0.canRename($1) }) { fileOps, origin, _ in fileOps.presentRename(origin: origin) }
+        register(.fileCopy, isEnabled: { $0.canRead($1) }) { fileOps, origin, _ in Task { await fileOps.copyItems(origin: origin) } }
+        register(.fileCopyPath, isEnabled: { $0.canRead($1) }) { fileOps, origin, _ in Task { await fileOps.copyPaths(origin: origin) } }
+        register(.fileReveal, isEnabled: { $0.canRead($1) }) { fileOps, origin, _ in Task { await fileOps.revealInFinder(origin: origin) } }
+        register(.fileOpenWith, isEnabled: { $0.canRead($1) }) { fileOps, origin, arguments in
+            if case let .string(path) = arguments?["application"] {
+                fileOps.openWithApplication(URL(fileURLWithPath: path), origin: origin)
+            } else if let defaultApp = FileOperationController.applicationsForOpening(origin.items).defaultApp {
+                fileOps.openWithApplication(defaultApp, origin: origin)
+            } else {
+                fileOps.chooseApplicationAndOpen(origin: origin)
+            }
+        }
+        if let recycleDescriptor = catalog.descriptor(.recycleEmpty) {
+            registry.register(recycleDescriptor, isEnabled: { [weak self] _ in self?.services?.fileOperations != nil }) { _, _ in }
+        }
     }
 }

@@ -97,6 +97,11 @@ final class PageListPanel: CollectionPanel {
         owner?.session.go(.index(order[index]))
     }
 
+    override func entries(at indices: [Int]) -> [Entry] {
+        guard let pages = owner?.session.book?.pages else { return [] }
+        return indices.compactMap { order.indices.contains($0) && pages.indices.contains(order[$0]) ? pages[order[$0]].entry : nil }
+    }
+
     private static func item(_ page: Page) -> CollectionItem {
         let metadata = page.metadata
         let size = metadata.map { "\($0.pixelSize.width)×\($0.pixelSize.height)" } ?? ""
