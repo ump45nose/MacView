@@ -12,13 +12,17 @@ import MVServices
 @MainActor
 final class FileOpsSelfTest {
     static let launchKey = "MVFileOpsSelfTest"
+    static var isRequested: Bool {
+        guard let raw = UserDefaults.standard.string(forKey: launchKey)?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return false }
+        return !["0", "no", "false"].contains(raw.lowercased())
+    }
     private static var recoveryRootURL: URL?, recoverySourceURL: URL?, recoveryTargetURL: URL?
     private let app: AppDelegate, log = SelfTestLog(), fm = FileManager.default
     private let temporary = URL(fileURLWithPath: NSTemporaryDirectory()).appending(path: "MacViewFileOpsSelfTest-\(UUID().uuidString)", directoryHint: .isDirectory)
     private var targetWindow: NSWindow?
 
     static func prepareStartupRecoveryIfNeeded(supportDirectory: URL) async {
-        guard UserDefaults.standard.bool(forKey: launchKey), recoveryRootURL == nil else { return }
+        guard isRequested, recoveryRootURL == nil else { return }
         let root = URL(fileURLWithPath: NSTemporaryDirectory()).appending(path: "MacViewFileOpsRecovery-\(UUID().uuidString)", directoryHint: .isDirectory)
         let srcURL = root.appending(path: "recover-src.dat"), dstURL = root.appending(path: "recover-dst.dat"), tmpURL = root.appending(path: ".recover-dst.dat.macview-part")
         do {
@@ -38,7 +42,15 @@ final class FileOpsSelfTest {
     }
 
     static func runIfRequested(app: AppDelegate) {
-        guard UserDefaults.standard.bool(forKey: launchKey) else { return }
+        guard isRequested else { return }
+        if UserDefaults.standard.string(forKey: SelfTest.outputKey) == nil,
+           let raw = UserDefaults.standard.string(forKey: launchKey),
+           !["1", "yes", "true"].contains(raw.lowercased()) {
+            UserDefaults.standard.set(raw, forKey: SelfTest.outputKey)
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 60) {
+            print("FAIL 文件操作自检总超时（60s）"); fflush(stdout); _Exit(2)
+        }
         let test = FileOpsSelfTest(app: app)
         Task { await test.run() }
     }
@@ -203,6 +215,132 @@ final class FileOpsSelfTest {
         await click(sheet2.confirmButton, in: sheet2)
         await until("确认永久删除完成") { window.attachedSheet == nil && !fileOps.isBusy && !self.exists(tempFileURL) }
         log.check(!exists(tempFileURL) && fileOps.undoManager.undoActionName == previousUndoName, "C2.4c 确认后临时文件被永久删除且不进入撤销历史")
+        try await runCommandChecks(controller: controller, window: window, services: services, fileOps: fileOps, bookDir: bookDir, targetDir: targetDir, targetLoc: targetLoc)
+    }
+
+    private func runCommandChecks(controller: ReaderWindowController, window: NSWindow, services: CoreServices, fileOps: FileOperationController, bookDir: URL, targetDir: URL, targetLoc: Location) async throws {
+        guard let pageList = controller.dock.panels[DockPanels.pageList] as? PageListPanel, let listView = pageList.collection,
+              let bookshelf = controller.dock.panels[DockPanels.bookshelf] as? BookshelfPanel, let shelfView = bookshelf.collection else {
+            return log.check(false, "找不到页面列表或书架面板")
+        }
+        try? fm.removeItem(at: targetDir.appending(path: "001.png"))
+        controller.open([bookDir])
+        await until("重新打开测试书") { controller.session.book?.location.name == "book" && controller.session.book?.pages.count == 3 && listView.items.count == 3 }
+        let book001 = bookDir.appending(path: "001.png"), book002 = bookDir.appending(path: "002.png"), book099 = bookDir.appending(path: "099.png")
+        let bytes001 = try Data(contentsOf: book001), bytes002 = try Data(contentsOf: book002)
+
+        // C2.6：重命名冲突报错且不改文件，改新名成功并按排序更新，⌘Z 恢复原名。
+        listView.selectRows(IndexSet(integer: 1)); window.makeFirstResponder(listView); await settle()
+        fileOps.presentRename(origin: controller.fileOrigin()); await settle()
+        guard let renameSheet = window.attachedSheet as? RenameSheet else { return log.check(false, "C2.6 未弹出重命名表单") }
+        log.check(renameSheet.textField.currentEditor()?.selectedRange == NSRange(location: 0, length: 3) && !renameSheet.confirmButton.isEnabled, "C2.6 初始选中扩展名前主体且未改动时按钮不可用")
+        renameSheet.setInputText("001.png")
+        await click(renameSheet.confirmButton, in: renameSheet)
+        await until("重名错误显示") { !renameSheet.errorRow.isHidden }
+        log.check(renameSheet.errorLabel.stringValue == "这个文件夹里已有“001.png”。" && !renameSheet.confirmButton.isEnabled, "C2.6 重名显示表单内红字错误且按钮禁用：\(renameSheet.errorLabel.stringValue)")
+        log.check((try? Data(contentsOf: book001)) == bytes001 && (try? Data(contentsOf: book002)) == bytes002 && controller.content.fileOperationBanner == nil, "C2.6 重名时两个文件不变且不弹顶部错误条")
+        log.snapshot(renameSheet, "fileops-rename-conflict")
+        renameSheet.setInputText("099.png")
+        log.check(renameSheet.errorRow.isHidden && renameSheet.confirmButton.isEnabled, "C2.6 改动名字后红字消失且按钮可用")
+        await click(renameSheet.confirmButton, in: renameSheet)
+        await until("重命名 099.png 完成") { window.attachedSheet == nil && !fileOps.isBusy && self.exists(book099) && listView.items.map(\.name) == ["001.png", "003.png", "099.png"] }
+        log.check(!exists(book002) && exists(book099) && listView.items.map(\.name) == ["001.png", "003.png", "099.png"], "C2.6 改成新名字成功且列表按排序更新：\(listView.items.map(\.name))")
+        window.makeFirstResponder(controller.viewer); await sendKey(kVK_ANSI_Z, [.command])
+        await until("⌘Z 恢复 002.png") { !fileOps.isBusy && self.exists(book002) && listView.items.map(\.name) == ["001.png", "002.png", "003.png"] }
+        log.check(exists(book002) && !exists(book099) && listView.items.map(\.name) == ["001.png", "002.png", "003.png"], "C2.6 ⌘Z 恢复原名与列表顺序")
+
+        // C2.7：复制图片写 URL + 原文件图片数据；复制路径得到完整 POSIX 路径；压缩包内复制路径得到压缩包路径。
+        controller.session.go(.index(0)); window.makeFirstResponder(controller.viewer); await settle()
+        await fileOps.copyItems(origin: controller.fileOrigin())
+        let pb = NSPasteboard.general, copiedURLs = pb.readObjects(forClasses: [NSURL.self], options: nil) as? [URL]
+        log.check(copiedURLs?.first?.standardizedFileURL == book001.standardizedFileURL && pb.data(forType: .png) == bytes001, "C2.7 复制单张图片后剪贴板同时有文件 URL 与原图数据")
+        await fileOps.copyPaths(origin: controller.fileOrigin())
+        log.check(pb.string(forType: .string) == book001.path(percentEncoded: false), "C2.7 复制路径得到完整 POSIX 路径：\(pb.string(forType: .string) ?? "")")
+
+        let zipURL = temporary.appending(path: "c27-archive.zip"), ditto = Process()
+        ditto.executableURL = URL(fileURLWithPath: "/usr/bin/ditto"); ditto.arguments = ["-c", "-k", bookDir.path, zipURL.path]
+        try ditto.run(); ditto.waitUntilExit(); let zipBytes = try Data(contentsOf: zipURL)
+        controller.open([zipURL])
+        await until("打开压缩包书") { controller.session.book?.location.name == "c27-archive.zip" && controller.session.book?.pages.count == 3 }
+        window.makeFirstResponder(controller.viewer); await settle()
+        await fileOps.copyPaths(origin: controller.fileOrigin())
+        log.check(pb.string(forType: .string) == zipURL.path(percentEncoded: false), "C2.7 压缩包内的页复制路径得到压缩包路径：\(pb.string(forType: .string) ?? "")")
+
+        // C2.8：压缩包书里删除、重命名、移动到、复制到灰掉，文件不变。
+        let ctx = listView.contextMenu(forItemAt: 0)
+        func itemEnabled(_ menu: NSMenu?, _ title: String) -> Bool? { menu?.items.first { $0.title == title }?.isEnabled }
+        log.check(itemEnabled(ctx, "删除") == false && itemEnabled(ctx, "重命名…") == false && itemEnabled(ctx, "移动到") == false && itemEnabled(ctx, "复制到") == false, "C2.8 压缩包右键菜单中删除、重命名、移动到、复制到灰掉")
+        log.check(itemEnabled(ctx, "复制") == true && itemEnabled(ctx, "复制路径") == true && itemEnabled(ctx, "在 Finder 中显示") == true && itemEnabled(ctx, "用指定应用打开") == true, "C2.8 压缩包右键菜单中复制、复制路径、在 Finder 中显示、用指定应用打开可用")
+        await sendKey(kVK_Delete, [.command]); await settle()
+        log.check((try? Data(contentsOf: zipURL)) == zipBytes && controller.session.book?.pages.count == 3, "C2.8 压缩包内按 ⌘⌫ 不修改文件")
+
+        // C2.9：双页显示时，查看器里的文件命令只作用于主页。
+        controller.open([bookDir])
+        await until("回到文件夹书") { controller.session.book?.location.name == "book" && controller.session.book?.pages.count == 3 }
+        controller.session.update { $0.browseMode = .paged; $0.pageMode = .double; $0.firstPageSingle = false; $0.widePage = .asIs }
+        await until("进入双页模式") { controller.session.frames.first?.elements.count == 2 }
+        window.makeFirstResponder(controller.viewer); await settle(); let spreadOrigin = controller.fileOrigin()
+        log.check(controller.session.frames.first?.elements.count == 2 && spreadOrigin.items.map(\.name) == ["001.png"], "C2.9 双页显示时查看器作用对象只取主页：\(spreadOrigin.items.map(\.name))")
+        await fileOps.transfer(origin: spreadOrigin, into: targetLoc, mode: .move)
+        log.check(!exists(book001) && exists(book002) && exists(targetDir.appending(path: "001.png")), "C2.9 双页下移动只移走主页 001.png，副页 002.png 保留")
+        await sendKey(kVK_ANSI_Z, [.command]); await until("双页移动撤销恢复") { !fileOps.isBusy && self.exists(book001) }
+        controller.session.update { $0.pageMode = .single }; await settle()
+
+        // C2.10：“用指定应用打开”由文件类型得到，不读文件（不存在的路径也能列出应用）。
+        let ghostEntry = Entry(identity: ContentIdentity(location: targetLoc.appending("ghost-nonexistent.png"), size: 128, modificationNanos: 0), name: "ghost-nonexistent.png", kind: .image)
+        let apps = FileOperationController.applicationsForOpening([ghostEntry]), openWithMenu = NSMenu()
+        let openWithEnabled = fileOps.populateOpenWithMenu(openWithMenu, origin: FileOrigin(window: controller, items: [ghostEntry]))
+        log.check(!exists(targetDir.appending(path: "ghost-nonexistent.png")) && openWithEnabled && (apps.defaultApp != nil || !apps.others.isEmpty) && openWithMenu.items.count >= 2, "C2.10 不存在的路径按扩展名列出可打开应用（共 \(openWithMenu.items.count) 项）且不触发文件读取")
+
+        // C2.10a：两个窗口打开同一本书，移动当前页后两边都去掉，撤销后两边都回来且当前页不跳。
+        guard let second = app.newWindow(), let secondWindow = second.window else { return log.check(false, "C2.10a 无法新建第二个窗口") }
+        second.open([bookDir])
+        await until("第二窗口打开同一本书") { second.session.book?.location.name == "book" && second.session.book?.pages.count == 3 }
+        controller.session.go(.index(0)); second.session.go(.index(0)); await settle()
+        window.makeKeyAndOrderFront(nil); window.makeFirstResponder(controller.viewer)
+        await fileOps.transfer(origin: controller.fileOrigin(), into: targetLoc, mode: .move)
+        await until("两窗口都去掉 001.png") { controller.session.book?.pages.map(\.entry.name) == ["002.png", "003.png"] && second.session.book?.pages.map(\.entry.name) == ["002.png", "003.png"] }
+        log.check(controller.session.book?.pages.count == 2 && second.session.book?.pages.count == 2, "C2.10a 一个窗口移动当前页后两个窗口都去掉这一页")
+        await sendKey(kVK_ANSI_Z, [.command])
+        await until("撤销后两窗口都恢复 3 页") { !fileOps.isBusy && controller.session.book?.pages.count == 3 && second.session.book?.pages.count == 3 }
+        let secondPageName = second.session.book.flatMap { $0.pages.indices.contains(second.session.currentPage) ? $0.pages[second.session.currentPage].entry.name : nil }
+        log.check(controller.session.book?.pages.map(\.entry.name) == ["001.png", "002.png", "003.png"] && secondPageName == "002.png", "C2.10a 撤销后两边都恢复 3 页且当前页保持在 002.png 不跳：\(secondPageName ?? "")")
+        secondWindow.close(); targetWindow = window; window.makeKeyAndOrderFront(nil); await settle()
+
+        // C2.10b：当前书改名后在新位置继续且页码不变、书架刷新；当前书移到另一文件夹后打开书架下一本且书架刷新。
+        let (shelfDir, outDir) = try makePair("c210b", "shelf", "out")
+        let bookADir = shelfDir.appending(path: "bookA", directoryHint: .isDirectory), bookBDir = shelfDir.appending(path: "bookB", directoryHint: .isDirectory)
+        try fm.createDirectory(at: bookADir, withIntermediateDirectories: true); try fm.createDirectory(at: bookBDir, withIntermediateDirectories: true)
+        for index in 1...3 {
+            try writePNG(to: bookADir.appending(path: String(format: "%03d.png", index)), hue: CGFloat(index) * 0.15)
+            try writePNG(to: bookBDir.appending(path: String(format: "%03d.png", index)), hue: CGFloat(index) * 0.25)
+        }
+        controller.open([bookADir])
+        await until("打开 bookA 且书架列出两本书") { controller.session.book?.location.name == "bookA" && controller.session.book?.pages.count == 3 && shelfView.items.map(\.name) == ["bookA", "bookB"] }
+        controller.session.go(.index(1)); await settle()
+        let bookALoc = try await services.sources.location(for: bookADir), outLoc = try await services.sources.location(for: outDir)
+        let bookAEntry = Entry(identity: ContentIdentity(location: bookALoc, size: 0, modificationNanos: 0), name: "bookA", kind: .directory)
+        _ = await fileOps.perform(.rename(bookALoc, to: "bookA-renamed"), title: "重命名“bookA”", origin: FileOrigin(window: controller, items: [bookAEntry]))
+        await until("bookA 改名后会话与书架刷新") { controller.session.book?.location.name == "bookA-renamed" && shelfView.items.map(\.name) == ["bookA-renamed", "bookB"] }
+        log.check(controller.session.book?.location.name == "bookA-renamed" && controller.session.currentPage == 1 && shelfView.items.map(\.name) == ["bookA-renamed", "bookB"], "C2.10b 当前书改名后在新位置继续、页码不变且书架刷新")
+        let renamedLoc = try await services.sources.location(for: shelfDir.appending(path: "bookA-renamed"))
+        let renamedEntry = Entry(identity: ContentIdentity(location: renamedLoc, size: 0, modificationNanos: 0), name: "bookA-renamed", kind: .directory)
+        await fileOps.transfer(origin: FileOrigin(window: controller, items: [renamedEntry]), into: outLoc, mode: .move)
+        await until("当前书移走后打开下一本 bookB 且书架刷新") { controller.session.book?.location.name == "bookB" && controller.session.book?.pages.count == 3 && shelfView.items.map(\.name) == ["bookB"] }
+        log.check(controller.session.book?.location.name == "bookB" && shelfView.items.map(\.name) == ["bookB"], "C2.10b 把当前书移到另一个文件夹后打开书架下一本且书架刷新")
+
+        // C2.10c：表格多选右键规则，以及重命名表单打开后改变列表选中项，提交时仍改原来那一项。
+        pageList.setStyle(.table); await settle()
+        listView.selectRows(IndexSet([0, 2]))
+        log.check(itemEnabled(listView.contextMenu(forItemAt: 2), "重命名…") == false && itemEnabled(listView.contextMenu(forItemAt: 1), "重命名…") == true, "C2.10c 右键已选中项取全部多选（重命名灰掉），右键未选中项只取该项（重命名可用）")
+        listView.selectRows(IndexSet(integer: 0)); window.makeFirstResponder(listView); await settle()
+        fileOps.presentRename(origin: controller.fileOrigin()); await settle()
+        guard let snapSheet = window.attachedSheet as? RenameSheet else { return log.check(false, "C2.10c 未弹出重命名表单") }
+        listView.selectRows(IndexSet(integer: 1)); await settle()
+        snapSheet.setInputText("001-snap.png")
+        await click(snapSheet.confirmButton, in: snapSheet)
+        await until("快照重命名完成") { window.attachedSheet == nil && !fileOps.isBusy && self.exists(bookBDir.appending(path: "001-snap.png")) }
+        log.check(exists(bookBDir.appending(path: "001-snap.png")) && exists(bookBDir.appending(path: "002.png")) && !exists(bookBDir.appending(path: "001.png")), "C2.10c 重命名表单打开后改变页面列表选中项，提交时仍修改原快照项 001.png")
     }
 
     private func exists(_ url: URL) -> Bool { fm.fileExists(atPath: url.path) }

@@ -27,6 +27,7 @@ final class BookshelfPanel: CollectionPanel {
     private var running: Set<Location> = []
     private var publishTask: Task<Void, Never>?
     private var listTask: Task<Void, Never>?
+    private var changesTask: Task<Void, Never>?
     private var loadError: String?
     private var isListing = false
     /// 最近跟随的书。用户离开这个目录后，只有换了书才跟回去。
@@ -52,7 +53,25 @@ final class BookshelfPanel: CollectionPanel {
         observedSession = boundSession
         owner?.session.shelfSortChanged(sort)
         followedBook = nil
+        observeFileChanges()
         observeBook()
+    }
+
+    private func observeFileChanges() {
+        changesTask?.cancel()
+        guard let stream = owner?.services.appliedFileChanges() else { return }
+        changesTask = Task { [weak self] in
+            for await batch in stream {
+                guard !Task.isCancelled, let self, let directory else { continue }
+                if batch.contains(where: {
+                    switch $0 {
+                    case let .removed(loc): loc.parent == directory
+                    case let .added(entry): entry.location.parent == directory
+                    case let .moved(from, to): from.parent == directory || to.location.parent == directory
+                    }
+                }) { startListing() }
+            }
+        }
     }
 
     private func observeBook() {
@@ -202,6 +221,10 @@ final class BookshelfPanel: CollectionPanel {
         guard entries.indices.contains(index), entries[index].kind == .directory else { return }
         directory = entries[index].location
         startListing()
+    }
+
+    override func entries(at indices: [Int]) -> [Entry] {
+        indices.compactMap { entries.indices.contains($0) ? entries[$0] : nil }
     }
 
     // MARK: 封面

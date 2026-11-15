@@ -45,10 +45,12 @@ struct CollectionItem: Equatable {
 }
 
 /// 统一的集合组件：列表和详情表格用 NSTableView，网格和瀑布流用画布。
-final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
+final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, InputScoped {
     private static let tableColumn = NSUserInterfaceItemIdentifier("second")
     private static let sizeColumn = NSUserInterfaceItemIdentifier("size")
     private static let nameColumn = NSUserInterfaceItemIdentifier("name")
+
+    var inputScope: InputScope { .list }
 
     var style: CollectionStyle {
         didSet { if style != oldValue { styleChanged() } }
@@ -68,6 +70,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     /// 单击或回车。
     var onActivate: ((Int) -> Void)?
     var onDoubleClick: ((Int) -> Void)?
+    var onContextMenu: (([Int]) -> NSMenu?)?
     /// 可见项加余量变化。
     var onVisibleRangeChange: ((Range<Int>) -> Void)?
     #if DEBUG
@@ -86,6 +89,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private let rowImages: CollectionRowImages
     /// 列表和表格里加载失败的项，显示错误文字；点击时重试。
     private var failures: [ContentIdentity: String] = [:]
+    private var isUpdatingCanvas = false
     #if DEBUG
     /// 可见区还是空的时候通知被跳过，等视图出现或下一次绘制再试。
     private var visibleThumbnailsPending = false
@@ -101,9 +105,14 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         super.init(frame: .zero)
         canvas.itemExtentRange = PanelExtent.range
         canvas.spacing = 6
-        canvas.activatesOnSingleClick = true
+        canvas.activatesOnSingleClick = false
         canvas.onActivate = { [weak self] in self?.onActivate?($0) }
         canvas.onDoubleClick = { [weak self] in self?.onDoubleClick?($0) }
+        canvas.onSelectionChange = { [weak self] selection in
+            guard let self, !isUpdatingCanvas, selection.count == 1, let index = selection.first else { return }
+            if (NSApp.currentEvent?.modifierFlags ?? []).isDisjoint(with: [.command, .shift]) { onActivate?(index) }
+        }
+        canvas.onContextMenu = { [weak self] in $0.flatMap { self?.contextMenu(forItemAt: $0) } }
         canvas.onVisibleRangeChange = { [weak self] in self?.onVisibleRangeChange?($0.margin) }
         canvas.onItemExtentChange = { [weak self] extent in
             self?.itemExtent = extent
@@ -125,6 +134,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         table.intercellSpacing = NSSize(width: 0, height: 1)
         table.gridStyleMask = []
         table.allowsColumnReordering = false
+        table.allowsMultipleSelection = true
         table.dataSource = self
         table.delegate = self
         table.target = self
@@ -134,6 +144,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             guard let self, table.selectedRow >= 0 else { return }
             onActivate?(table.selectedRow)
         }
+        table.onContextMenu = { [weak self] in $0.flatMap { self?.contextMenu(forItemAt: $0) } }
         let name = NSTableColumn(identifier: Self.nameColumn)
         name.title = String(localized: "名称")
         name.resizingMask = .autoresizingMask
@@ -198,13 +209,16 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             canvas.frame = bounds
             canvas.kind = style == .grid ? .grid : .masonry
             addSubview(canvas, positioned: .below, relativeTo: messageLabel)
+            isUpdatingCanvas = true
             canvas.setItems(canvasItems())
+            isUpdatingCanvas = false
             highlightCanvas(reveal: true)
         } else {
             tableScroll.frame = bounds
             addSubview(tableScroll, positioned: .below, relativeTo: messageLabel)
             configureTable()
             table.reloadData()
+            selectCurrentRow()
             revealCurrent()
             reportTableRange()
         }
@@ -239,19 +253,26 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     func setItems(_ newItems: [CollectionItem], current newCurrent: Int?) {
         let old = items
+        let oldCurrent = current
         items = newItems
         current = newCurrent
         if style.usesCanvas {
+            isUpdatingCanvas = true
             canvas.setItems(canvasItems())
-            highlightCanvas(reveal: false)
+            isUpdatingCanvas = false
+            if newCurrent != oldCurrent || canvas.selection.isEmpty {
+                highlightCanvas(reveal: false)
+            }
         } else if old.count == newItems.count {
             let changed = IndexSet(old.indices.filter { old[$0] != newItems[$0] })
             if !changed.isEmpty {
                 table.reloadData(forRowIndexes: changed, columnIndexes: IndexSet(table.tableColumns.indices))
             }
+            if newCurrent != oldCurrent || table.selectedRowIndexes.isEmpty { selectCurrentRow() }
             updateRowHighlights()
         } else {
             table.reloadData()
+            selectCurrentRow()
             reportTableRange()
         }
         #if DEBUG
@@ -265,13 +286,20 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         if style.usesCanvas {
             highlightCanvas(reveal: reveal)
         } else {
+            selectCurrentRow()
             updateRowHighlights()
             if reveal { revealCurrent() }
         }
     }
 
+    private func selectCurrentRow() {
+        table.selectRowIndexes(current.flatMap { items.indices.contains($0) ? IndexSet(integer: $0) : nil } ?? IndexSet(), byExtendingSelection: false)
+    }
+
     private func highlightCanvas(reveal: Bool) {
+        isUpdatingCanvas = true
         canvas.select(current.map { [$0] } ?? [], focus: current)
+        isUpdatingCanvas = false
         if reveal, let current, let frame = canvas.frame(of: current), !frame.intersects(canvas.documentVisibleRect) {
             canvas.scrollTo(index: current)
         }
@@ -435,13 +463,32 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         if failures.removeValue(forKey: items[row].canvas.identity) != nil {
             table.reloadData(forRowIndexes: [row], columnIndexes: IndexSet(table.tableColumns.indices))
         }
-        onActivate?(row)
+        if (NSApp.currentEvent?.modifierFlags ?? []).isDisjoint(with: [.command, .shift]) { onActivate?(row) }
     }
 
     @objc private func rowDoubleClicked(_ sender: Any?) {
         let row = table.clickedRow
         guard items.indices.contains(row) else { return }
         onDoubleClick?(row)
+    }
+
+    var selectedIndices: [Int] {
+        let valid = (style.usesCanvas ? Array(canvas.selection).sorted() : Array(table.selectedRowIndexes)).filter { items.indices.contains($0) }
+        return !valid.isEmpty ? valid : (current.flatMap { items.indices.contains($0) ? [$0] : nil } ?? [])
+    }
+
+    func selectRows(_ rows: IndexSet) {
+        if style.usesCanvas {
+            isUpdatingCanvas = true; canvas.select(Set(rows), focus: rows.last); isUpdatingCanvas = false
+        } else {
+            table.selectRowIndexes(rows, byExtendingSelection: false)
+        }
+    }
+
+    func contextMenu(forItemAt index: Int) -> NSMenu? {
+        guard items.indices.contains(index) else { return nil }
+        let selected = selectedIndices
+        return onContextMenu?(selected.contains(index) ? selected : [index])
     }
 
     // MARK: 自检
@@ -471,6 +518,7 @@ enum PanelExtent {
 /// 表格：回车激活，输入作用域是列表。
 private final class CollectionTable: NSTableView, InputScoped {
     var onReturn: (() -> Void)?
+    var onContextMenu: ((Int?) -> NSMenu?)?
     var inputScope: InputScope { .list }
 
     override func keyDown(with event: NSEvent) {
@@ -479,6 +527,12 @@ private final class CollectionTable: NSTableView, InputScoped {
         } else {
             super.keyDown(with: event)
         }
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        window?.makeFirstResponder(self)
+        let row = self.row(at: convert(event.locationInWindow, from: nil))
+        return onContextMenu?(row >= 0 ? row : nil)
     }
 }
 

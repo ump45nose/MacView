@@ -27,6 +27,8 @@ final class FlatButton: NSButton {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override var isEnabled: Bool { didSet { alphaValue = isEnabled ? 1 : 0.45 } }
+
     func setText(_ text: String) {
         attributedTitle = NSAttributedString(string: text, attributes: [.font: font as Any, .foregroundColor: foreground])
         invalidateIntrinsicContentSize()

@@ -21,6 +21,16 @@
         }
       }
     },
+    "%@ %lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$lld Items"
+          }
+        }
+      }
+    },
     "%@ %lld 项到“%@”": {
       "localizations": {
         "en": {
@@ -99,6 +109,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ has errors. Using the settings that still work"
+          }
+        }
+      }
+    },
+    "%@（默认）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (Default)"
           }
         }
       }
@@ -827,6 +847,16 @@
         }
       }
     },
+    "其他…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other…"
+          }
+        }
+      }
+    },
     "内存": {
       "localizations": {
         "en": {
@@ -843,6 +873,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Read"
+          }
+        }
+      }
+    },
+    "分类到目标": {
+      "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Classify to Target"
           }
         }
       }
@@ -883,6 +925,18 @@
         }
       }
     },
+    "切换移动或复制": {
+      "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toggle Move or Copy"
+          }
+        }
+      }
+    },
     "切换阅读方向": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -911,6 +965,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Date Created"
+          }
+        }
+      }
+    },
+    "删除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
           }
         }
       }
@@ -1219,6 +1283,18 @@
         }
       }
     },
+    "在 Finder 中显示": {
+      "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Finder"
+          }
+        }
+      }
+    },
     "在书架中显示当前书": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1259,6 +1335,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fill and Crop"
+          }
+        }
+      }
+    },
+    "复制": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
+          }
+        }
+      }
+    },
+    "复制到": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy To"
+          }
+        }
+      }
+    },
+    "复制路径": {
+      "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Path"
           }
         }
       }
@@ -2001,6 +2109,18 @@
         }
       }
     },
+    "新建目标并移入": {
+      "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Target and Move Into"
+          }
+        }
+      }
+    },
     "新建窗口": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2175,6 +2295,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show or Hide Docks"
+          }
+        }
+      }
+    },
+    "显示或隐藏分类面板": {
+      "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide Classify Panel"
           }
         }
       }
@@ -2563,6 +2695,18 @@
         }
       }
     },
+    "清空回收目录…": {
+      "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empty Recycle Folder…"
+          }
+        }
+      }
+    },
     "瀑布": {
       "localizations": {
         "en": {
@@ -2605,6 +2749,16 @@
         }
       }
     },
+    "用指定应用打开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open With"
+          }
+        }
+      }
+    },
     "画布测试": {
       "localizations": {
         "en": {
@@ -2635,6 +2789,16 @@
         }
       }
     },
+    "移到回收目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Recycle Folder"
+          }
+        }
+      }
+    },
     "移到左侧": {
       "localizations": {
         "en": {
@@ -2651,6 +2815,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Move to Bottom"
+          }
+        }
+      }
+    },
+    "移到废纸篓": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Trash"
+          }
+        }
+      }
+    },
+    "移动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move"
+          }
+        }
+      }
+    },
+    "移动到": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move To"
           }
         }
       }
@@ -3261,6 +3455,16 @@
         }
       }
     },
+    "这个文件夹里已有“%@”。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” already exists in this folder."
+          }
+        }
+      }
+    },
     "这个目录下没有书": {
       "localizations": {
         "en": {
@@ -3397,6 +3601,16 @@
         }
       }
     },
+    "选择文件夹…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Folder…"
+          }
+        }
+      }
+    },
     "选择要打开的文件夹或压缩包": {
       "localizations": {
         "en": {
@@ -3455,6 +3669,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Redo %@"
+          }
+        }
+      }
+    },
+    "重命名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename"
+          }
+        }
+      }
+    },
+    "重命名“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename “%@”"
+          }
+        }
+      }
+    },
+    "重命名…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename…"
           }
         }
       }
