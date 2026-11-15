@@ -110,6 +110,9 @@ final class CanvasView: NSScrollView {
     /// 双击；没有设置时走 `onActivate`。
     var onDoubleClick: ((Int) -> Void)?
     var onContextMenu: ((Int?) -> NSMenu?)?
+    var onDraggingWriters: ((Int) -> [(index: Int, writer: any NSPasteboardWriting)])?
+    var onDragSessionBegan: ((NSDraggingSession, [any NSPasteboardWriting]) -> Void)?
+    var onDragSessionEnded: ((NSDragOperation) -> Void)?
     /// 捏合缩放改了 `itemExtent`。
     var onItemExtentChange: ((Double) -> Void)?
     var onMeasure: ((CanvasMeasure) -> Void)?
@@ -132,6 +135,7 @@ final class CanvasView: NSScrollView {
     private var stickyAnchor: LayoutAnchor?
     private var isRelayingOut = false
     private var focus: Int?
+    private var dragCandidate: (index: Int, point: NSPoint)?
     private var reportedRange: CanvasVisibleRange?
     private var lastMotion = ContinuousClock.now
     /// 去抖用的计时器：每次更新把触发时间推后，停止 `settleDelay` 秒后触发一次。
@@ -636,6 +640,7 @@ final class CanvasView: NSScrollView {
 
     /// 点击选中，⌘ 切换，⇧ 从焦点项选到点击项；双击激活。点到失败的项时重试。
     fileprivate func click(_ event: NSEvent) {
+        dragCandidate = nil
         window?.makeFirstResponder(content)
         let point = content.convert(event.locationInWindow, from: nil)
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -660,9 +665,38 @@ final class CanvasView: NSScrollView {
             select(next, focus: index)
         } else if flags.contains(.shift), let focus {
             select(Set(min(focus, index)...max(focus, index)), focus: focus)
+        } else if onDraggingWriters != nil {
+            dragCandidate = (index: index, point: event.locationInWindow)
         } else {
             select([index], focus: index)
         }
+    }
+
+    fileprivate func drag(_ event: NSEvent) {
+        guard let candidate = dragCandidate else { return }
+        let point = event.locationInWindow
+        guard hypot(point.x - candidate.point.x, point.y - candidate.point.y) > 4 else { return }
+        dragCandidate = nil
+        guard let pairs = onDraggingWriters?(candidate.index), !pairs.isEmpty else { return }
+        let fallbackFrame = layout.frame(of: candidate.index) ?? CGRect(origin: content.convert(point, from: nil), size: CGSize(width: 64, height: 64))
+        let fallbackIcon = NSWorkspace.shared.icon(for: .data)
+        let draggingItems: [NSDraggingItem] = pairs.map { itemIndex, writer in
+            let item = NSDraggingItem(pasteboardWriter: writer)
+            let frame = layout.frame(of: itemIndex) ?? fallbackFrame
+            let raw = tiles[itemIndex]?.layer.contents
+            let image: Any = (raw != nil && CFGetTypeID(raw as AnyObject) == CGImage.typeID) ? raw! : fallbackIcon
+            item.setDraggingFrame(frame, contents: image)
+            return item
+        }
+        let session = content.beginDraggingSession(with: draggingItems, event: event, source: content)
+        session.animatesToStartingPositionsOnCancelOrFail = false
+        onDragSessionBegan?(session, pairs.map(\.writer))
+    }
+
+    fileprivate func release(_ event: NSEvent) {
+        guard let candidate = dragCandidate else { return }
+        dragCandidate = nil
+        select([candidate.index], focus: candidate.index)
     }
 
     /// 方向键按画面上的位置移动选中项，回车激活。其余按键交给响应链。
@@ -737,7 +771,7 @@ extension Duration {
 }
 
 /// 画布的文档视图：只承载图层，把鼠标和按键交给画布。
-private final class CanvasDocumentView: NSView {
+private final class CanvasDocumentView: NSView, NSDraggingSource {
     weak var canvas: CanvasView?
 
     override init(frame: NSRect) {
@@ -753,9 +787,18 @@ private final class CanvasDocumentView: NSView {
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {
         canvas?.click(event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        canvas?.drag(event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        canvas?.release(event)
     }
 
     override func keyDown(with event: NSEvent) {
@@ -766,5 +809,13 @@ private final class CanvasDocumentView: NSView {
 
     override func menu(for event: NSEvent) -> NSMenu? {
         canvas?.contextMenu(for: event)
+    }
+
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        context == .outsideApplication ? .copy : []
+    }
+
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        canvas?.onDragSessionEnded?(operation)
     }
 }
