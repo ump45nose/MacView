@@ -90,9 +90,11 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
     /// 列表和表格里加载失败的项，显示错误文字；点击时重试。
     private var failures: [ContentIdentity: String] = [:]
     private var isUpdatingCanvas = false
+    private var pendingTableWriters: [Int: any NSPasteboardWriting] = [:]
     #if DEBUG
     /// 可见区还是空的时候通知被跳过，等视图出现或下一次绘制再试。
     private var visibleThumbnailsPending = false
+    private(set) var lastDragSession: (session: NSDraggingSession, writers: [any NSPasteboardWriting])?
     #endif
 
     init(pipeline: any ImagePipeline, settings: any SettingsStore, style: CollectionStyle, itemExtent: Double, secondColumn: String, thumbSize: CGSize) {
@@ -113,6 +115,15 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
             if (NSApp.currentEvent?.modifierFlags ?? []).isDisjoint(with: [.command, .shift]) { onActivate?(index) }
         }
         canvas.onContextMenu = { [weak self] in $0.flatMap { self?.contextMenu(forItemAt: $0) } }
+        canvas.onDraggingWriters = { [weak self] in self?.draggingWriters(forItemAt: $0) ?? [] }
+        canvas.onDragSessionBegan = { [weak self] session, writers in
+            #if DEBUG
+            self?.lastDragSession = (session, writers)
+            #endif
+        }
+        canvas.onDragSessionEnded = { operation in
+            (NSApp.delegate as? AppDelegate)?.fileOps?.dragSessionEnded(operation: operation)
+        }
         canvas.onVisibleRangeChange = { [weak self] in self?.onVisibleRangeChange?($0.margin) }
         canvas.onItemExtentChange = { [weak self] extent in
             self?.itemExtent = extent
@@ -135,6 +146,8 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         table.gridStyleMask = []
         table.allowsColumnReordering = false
         table.allowsMultipleSelection = true
+        table.setDraggingSourceOperationMask(.copy, forLocal: false)
+        table.setDraggingSourceOperationMask([], forLocal: true)
         table.dataSource = self
         table.delegate = self
         table.target = self
@@ -491,6 +504,37 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         return onContextMenu?(selected.contains(index) ? selected : [index])
     }
 
+    func pasteboardWriter(forItemAt index: Int) -> (any NSPasteboardWriting)? {
+        guard items.indices.contains(index) else { return nil }
+        return (NSApp.delegate as? AppDelegate)?.fileOps?.pasteboardWriter(forItemAt: index, in: self)
+    }
+
+    func draggingWriters(forItemAt index: Int) -> [(index: Int, writer: any NSPasteboardWriting)] {
+        guard items.indices.contains(index) else { return [] }
+        let selected = selectedIndices
+        let indices = selected.contains(index) ? selected : [index]
+        return indices.compactMap { i in pasteboardWriter(forItemAt: i).map { (i, $0) } }
+    }
+
+    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> (any NSPasteboardWriting)? {
+        guard let writer = pasteboardWriter(forItemAt: row) else { return nil }
+        pendingTableWriters[row] = writer
+        return writer
+    }
+
+    func tableView(_ tableView: NSTableView, draggingSession session: NSDraggingSession, willBeginAt screenPoint: NSPoint, forRowIndexes rowIndexes: IndexSet) {
+        session.animatesToStartingPositionsOnCancelOrFail = false
+        #if DEBUG
+        lastDragSession = (session, rowIndexes.compactMap { pendingTableWriters[$0] })
+        #endif
+        pendingTableWriters.removeAll()
+    }
+
+    func tableView(_ tableView: NSTableView, draggingSession session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        pendingTableWriters.removeAll()
+        (NSApp.delegate as? AppDelegate)?.fileOps?.dragSessionEnded(operation: operation)
+    }
+
     // MARK: 自检
 
     var rowCount: Int { table.numberOfRows }
@@ -501,6 +545,22 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         let rect = table.rect(ofRow: row)
         return table.convert(NSPoint(x: rect.midX, y: rect.midY), to: nil)
     }
+
+    func itemPointInWindow(_ index: Int) -> NSPoint? {
+        if style.usesCanvas {
+            guard index < canvas.placedCount else { return nil }
+            if let frame = canvas.frame(of: index), !frame.intersects(canvas.documentVisibleRect) {
+                canvas.scrollTo(index: index)
+            }
+            guard let frame = canvas.frame(of: index), let doc = canvas.documentView else { return nil }
+            return doc.convert(NSPoint(x: frame.midX, y: frame.midY), to: nil)
+        }
+        return rowPointInWindow(index)
+    }
+
+    #if DEBUG
+    func clearLastDragSession() { lastDragSession = nil }
+    #endif
 
     func cellText(row: Int) -> [String] {
         (0..<table.numberOfColumns).compactMap { column in
@@ -520,6 +580,9 @@ private final class CollectionTable: NSTableView, InputScoped {
     var onReturn: (() -> Void)?
     var onContextMenu: ((Int?) -> NSMenu?)?
     var inputScope: InputScope { .list }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) { super.mouseDown(with: event) }
 
     override func keyDown(with event: NSEvent) {
         if event.specialKey == .carriageReturn || event.specialKey == .enter, event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty {
@@ -545,6 +608,8 @@ private final class CollectionRowBackground: NSTableRowView {
     override var isSelected: Bool {
         didSet { if isSelected != oldValue { needsDisplay = true } }
     }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     override func drawBackground(in dirtyRect: NSRect) {
         guard isCurrent || isSelected else { return }

@@ -1,6 +1,7 @@
 #if DEBUG
 import AppKit
 import Carbon.HIToolbox
+import CryptoKit
 import Foundation
 import MVCommands
 import MVFoundation
@@ -43,6 +44,7 @@ final class FileOpsSelfTest {
 
     static func runIfRequested(app: AppDelegate) {
         guard isRequested else { return }
+        UserDefaults.standard.set(true, forKey: "NSAllowMultipleDrags")
         if UserDefaults.standard.string(forKey: SelfTest.outputKey) == nil,
            let raw = UserDefaults.standard.string(forKey: launchKey),
            !["1", "yes", "true"].contains(raw.lowercased()) {
@@ -341,6 +343,103 @@ final class FileOpsSelfTest {
         await click(snapSheet.confirmButton, in: snapSheet)
         await until("快照重命名完成") { window.attachedSheet == nil && !fileOps.isBusy && self.exists(bookBDir.appending(path: "001-snap.png")) }
         log.check(exists(bookBDir.appending(path: "001-snap.png")) && exists(bookBDir.appending(path: "002.png")) && !exists(bookBDir.appending(path: "001.png")), "C2.10c 重命名表单打开后改变页面列表选中项，提交时仍修改原快照项 001.png")
+
+        try await runDragChecks(controller: controller, window: window, services: services, fileOps: fileOps, pageList: pageList, listView: listView, bookshelf: bookshelf, shelfView: shelfView, bookDir: bookDir, zipURL: zipURL, zipBytes: zipBytes)
+    }
+
+    private func runDragChecks(controller: ReaderWindowController, window: NSWindow, services: CoreServices, fileOps: FileOperationController, pageList: PageListPanel, listView: CollectionView, bookshelf: BookshelfPanel, shelfView: CollectionView, bookDir: URL, zipURL: URL, zipBytes: Data) async throws {
+        let dropRoot = temporary.appending(path: "c211-drop", directoryHint: .isDirectory)
+        let dropNormalDir = dropRoot.appending(path: "normal", directoryHint: .isDirectory)
+        let dropMultiDir = dropRoot.appending(path: "multi", directoryHint: .isDirectory)
+        let dropSingleDir = dropRoot.appending(path: "single", directoryHint: .isDirectory)
+        let dropArchiveDir = dropRoot.appending(path: "archive", directoryHint: .isDirectory)
+        for dir in [dropNormalDir, dropMultiDir, dropSingleDir, dropArchiveDir] {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        let dropTarget = SelfTestDropTargetView(frame: NSRect(x: 0, y: 0, width: 40, height: 40))
+        window.contentView?.addSubview(dropTarget)
+        defer { dropTarget.removeFromSuperview() }
+
+        controller.open([bookDir])
+        await until("C2.11 打开文件夹书") { controller.session.book?.location.name == "book" && controller.session.book?.pages.count == 3 && listView.items.count == 3 }
+        let book001 = bookDir.appending(path: "001.png"), book002 = bookDir.appending(path: "002.png"), book003 = bookDir.appending(path: "003.png")
+        let hash001 = try sha256(of: book001), hash002 = try sha256(of: book002), hash003 = try sha256(of: book003)
+        let undoBeforeDrag = fileOps.undoManager.undoActionName
+
+        // 列表模式拖出普通文件：真实拖动事件产生 NSDraggingSession 并将文件 URL 写入拖动粘贴板，放置目标视图接收后得到完整文件且 SHA-256 一致。
+        pageList.setStyle(.list); await settle()
+        listView.selectRows(IndexSet(integer: 0))
+        await dragItem(at: 0, in: listView, window: window)
+        let droppedNormal = try await dropTarget.receiveDrop(from: listView, into: dropNormalDir)
+        let droppedNormal001 = dropNormalDir.appending(path: "001.png")
+        log.check(droppedNormal.map(\.lastPathComponent) == ["001.png"] && exists(droppedNormal001) && (try? sha256(of: droppedNormal001)) == hash001, "C2.11 普通文件经真实拖动事件拖到放置目标目录，文件完整且 SHA-256 与源文件一致")
+
+        // 网格/瀑布流模式及选中项拖出规则：拖动选中项内的一项拖出全部选中项，拖动未选中项只拖出该项；书架同样可拖出。
+        pageList.setStyle(.grid); await settle()
+        await until("页面列表网格排好") { listView.canvas.placedCount == 3 }
+        listView.selectRows(IndexSet([0, 2]))
+        await dragItem(at: 2, in: listView, window: window)
+        let droppedMulti = try await dropTarget.receiveDrop(from: listView, into: dropMultiDir)
+        log.check(droppedMulti.map(\.lastPathComponent) == ["001.png", "003.png"] && (try? sha256(of: dropMultiDir.appending(path: "001.png"))) == hash001 && (try? sha256(of: dropMultiDir.appending(path: "003.png"))) == hash003, "C2.11 拖动选中项内的一项拖出全部选中项（001.png、003.png）且 SHA-256 一致")
+        listView.selectRows(IndexSet([0, 2]))
+        await dragItem(at: 1, in: listView, window: window)
+        let droppedSingle = try await dropTarget.receiveDrop(from: listView, into: dropSingleDir)
+        log.check(droppedSingle.map(\.lastPathComponent) == ["002.png"] && (try? sha256(of: dropSingleDir.appending(path: "002.png"))) == hash002, "C2.11 拖动未选中项只拖出该项（002.png）且 SHA-256 一致")
+
+        bookshelf.setStyle(.table); await settle()
+        await dragItem(at: 0, in: shelfView, window: window)
+        let shelfTableURLs = shelfView.lastDragSession?.session.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
+        bookshelf.setStyle(.masonry); await settle()
+        await until("书架瀑布流排好") { shelfView.canvas.placedCount >= 1 }
+        await dragItem(at: 0, in: shelfView, window: window)
+        let shelfDraggedURLs = shelfView.lastDragSession?.session.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
+        log.check(shelfTableURLs?.first?.standardizedFileURL == bookDir.standardizedFileURL && shelfDraggedURLs?.first?.standardizedFileURL == bookDir.standardizedFileURL, "C2.11 书架详情与瀑布流模式经真实拖动事件写出书目录 URL")
+        bookshelf.setStyle(.list)
+
+        // 压缩包内的页拖出：使用 NSFilePromiseProvider，文件名用原名，后台队列经 fileLease 解出并复制，完成后释放租约，SHA-256 一致。
+        controller.open([zipURL])
+        await until("C2.11 打开压缩包书") { controller.session.book?.location.name == "c27-archive.zip" && controller.session.book?.pages.count == 3 && listView.items.count == 3 }
+        pageList.setStyle(.masonry); await settle()
+        await until("压缩包页面列表瀑布流排好") { listView.canvas.placedCount == 3 }
+        listView.selectRows(IndexSet(integer: 0))
+        await dragItem(at: 0, in: listView, window: window)
+        let receivers = listView.lastDragSession?.session.draggingPasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver]
+        let promiseDelegate = (listView.lastDragSession?.writers.first as? NSFilePromiseProvider)?.delegate as? FilePromiseDelegate
+        log.check(receivers?.count == 1 && promiseDelegate != nil, "C2.11 压缩包内的页拖动时向粘贴板提供 NSFilePromiseProvider")
+        let droppedArchive = try await dropTarget.receiveDrop(from: listView, into: dropArchiveDir)
+        let droppedArchive001 = dropArchiveDir.appending(path: "001.png")
+        guard let archivePageLoc = controller.session.book?.pages.first?.entry.location else { return log.check(false, "C2.11 找不到压缩包第一页位置") }
+        let extractedLease = try await services.sources.provider(for: archivePageLoc).fileLease(for: archivePageLoc)
+        let extractedHash = try sha256(of: extractedLease.url)
+        log.check(droppedArchive.map(\.lastPathComponent) == ["001.png"] && exists(droppedArchive001) && (try? sha256(of: droppedArchive001)) == extractedHash && extractedHash == hash001, "C2.11 压缩包内的页经 NSFilePromiseProvider 拖出到放置目标目录，文件名为原名且与解出文件 SHA-256 哈希一致")
+        log.check(promiseDelegate?.hasActiveLease == false, "C2.11 压缩包文件承诺完成后已释放 fileLease 租约")
+        log.check(!fileOps.isBusy && fileOps.undoManager.undoActionName == undoBeforeDrag && exists(book001) && (try? Data(contentsOf: zipURL)) == zipBytes, "C2.11 拖出不经 FileOperationController、不进撤销历史、不修改源")
+        pageList.setStyle(.list); await settle()
+    }
+
+    private func sha256(of url: URL) throws -> String {
+        try SHA256.hash(data: Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func dragItem(at index: Int, in view: CollectionView, window: NSWindow) async {
+        view.clearLastDragSession()
+        window.contentView?.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+        guard let start = view.itemPointInWindow(index) else { return }
+        let end = NSPoint(x: start.x + 24, y: start.y + 24)
+        func event(_ type: NSEvent.EventType, at point: NSPoint) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+        }
+        if view.style.usesCanvas {
+            NSApp.sendEvent(event(.leftMouseDown, at: start))
+            NSApp.postEvent(event(.leftMouseUp, at: end), atStart: false)
+            NSApp.sendEvent(event(.leftMouseDragged, at: end))
+        } else {
+            NSApp.postEvent(event(.leftMouseDragged, at: end), atStart: false)
+            NSApp.postEvent(event(.leftMouseUp, at: end), atStart: false)
+            NSApp.sendEvent(event(.leftMouseDown, at: start))
+        }
+        try? await Task.sleep(for: .milliseconds(60))
     }
 
     private func exists(_ url: URL) -> Bool { fm.fileExists(atPath: url.path) }
@@ -384,6 +483,7 @@ final class FileOpsSelfTest {
         try? await Task.sleep(for: .milliseconds(50))
     }
     private func click(_ button: NSButton, in window: NSWindow) async {
+        window.makeKey()
         window.contentView?.layoutSubtreeIfNeeded()
         let point = button.convert(NSPoint(x: button.bounds.midX, y: button.bounds.midY), to: nil)
         func event(_ type: NSEvent.EventType) -> NSEvent {
@@ -391,6 +491,50 @@ final class FileOpsSelfTest {
         }
         NSApp.postEvent(event(.leftMouseUp), atStart: false); NSApp.sendEvent(event(.leftMouseDown))
         try? await Task.sleep(for: .milliseconds(80))
+    }
+}
+
+/// 自检用的放置目标视图：登记接收文件 URL 与文件承诺，把真实拖动会话中的普通文件或 `NSFilePromiseProvider` 写入临时目标目录。
+@MainActor
+private final class SelfTestDropTargetView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        registerForDraggedTypes([.fileURL] + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { .copy }
+
+    func receiveDrop(from view: CollectionView, into destination: URL) async throws -> [URL] {
+        guard let (session, writers) = view.lastDragSession else { return [] }
+        var written: [URL] = []
+        if let urls = session.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] {
+            for src in urls {
+                let dst = destination.appending(path: src.lastPathComponent)
+                if FileManager.default.fileExists(atPath: dst.path) { try FileManager.default.removeItem(at: dst) }
+                try FileManager.default.copyItem(at: src, to: dst)
+                written.append(dst)
+            }
+        }
+        for case let provider as NSFilePromiseProvider in writers {
+            guard let delegate = provider.delegate as? FilePromiseDelegate else { continue }
+            let name = delegate.filePromiseProvider(provider, fileNameForType: provider.fileType)
+            let queue = delegate.operationQueue(for: provider)
+            let dst = destination.appending(path: name)
+            nonisolated(unsafe) let unsafeProvider = provider
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                queue.addOperation {
+                    delegate.filePromiseProvider(unsafeProvider, writePromiseTo: dst) { error in
+                        if let error { continuation.resume(throwing: error) }
+                        else { continuation.resume() }
+                    }
+                }
+            }
+            written.append(dst)
+        }
+        return written
     }
 }
 #endif

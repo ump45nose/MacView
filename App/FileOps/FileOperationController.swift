@@ -1,10 +1,12 @@
 import AppKit
+import Darwin
 import MVCommands
 import MVFoundation
 import MVIO
 import MVReading
 import MVServices
 import MVSettings
+import Synchronization
 import UniformTypeIdentifiers
 
 /// 命令开始时取的快照：来源窗口和作用对象。
@@ -36,6 +38,13 @@ final class FileOperationController {
     private var refreshProgressDisplay: (() -> Void)?
     private var settingsTask: Task<Void, Never>?, changesTask: Task<Void, Never>?
     private var pasteboardLeases: [FileLease] = [], openWithLeases: [FileLease] = []
+    private var activePromiseDelegates: [FilePromiseDelegate] = []
+    private let promiseQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "io.github.ump45nose.MacView.file-promises"
+        queue.qualityOfService = .userInitiated
+        return queue
+    }()
 
     var isBusy: Bool { isExecuting || !queue.isEmpty }
     init(app: AppDelegate) {
@@ -453,5 +462,112 @@ final class FileOperationController {
         menu.addItem(cmdItem(.fileRename, title: String(localized: "重命名…"), enabled: canRename(origin)) { [weak self] in self?.presentRename(origin: origin) })
         menu.addItem(cmdItem(.fileDelete, title: deleteTitle(for: origin), enabled: modifiable) { [weak self] in Task { await self?.delete(origin: origin) } })
         return menu
+    }
+
+    // MARK: 拖出
+
+    func pasteboardWriter(forItemAt index: Int, in collectionView: CollectionView) -> (any NSPasteboardWriting)? {
+        guard let panel = collectionPanel(for: collectionView), let entry = panel.entries(at: [index]).first else { return nil }
+        return pasteboardWriter(for: entry)
+    }
+
+    func pasteboardWriter(for entry: Entry) -> (any NSPasteboardWriting)? {
+        guard let services = app?.services, services.fileOperations != nil else { return nil }
+        if entry.location.layers.count == 1 { return Self.fileURL(for: entry).map { $0 as NSURL } }
+        let delegate = FilePromiseDelegate(entry: entry, sources: services.sources, queue: promiseQueue)
+        let provider = NSFilePromiseProvider(fileType: Self.contentType(for: entry).identifier, delegate: delegate)
+        provider.userInfo = delegate; activePromiseDelegates.append(delegate)
+        return provider
+    }
+
+    func dragSessionEnded(operation: NSDragOperation) {
+        if operation == [] { activePromiseDelegates.forEach { $0.releaseLease() } }
+        activePromiseDelegates.removeAll()
+    }
+
+    private func collectionPanel(for collectionView: CollectionView) -> CollectionPanel? {
+        guard let app else { return nil }
+        let panels = app.controllers.flatMap { $0.dock.panels.values } + (app.dock?.floatingWindows.values.map(\.panel) ?? [])
+        for case let panel as CollectionPanel in panels where panel.collection === collectionView { return panel }
+        return nil
+    }
+
+    static func fileURL(for entry: Entry) -> URL? {
+        guard entry.location.layers.count == 1, let components = entry.location.layers.first else { return nil }
+        let path: String
+        switch entry.location.root {
+        case .local: path = "/" + components.joined(separator: "/")
+        case .network:
+            guard let mount = mountPoint(for: entry.location.root) else { return nil }
+            let base = mount == "/" ? "" : mount
+            path = components.isEmpty && !base.isEmpty ? base : base + "/" + components.joined(separator: "/")
+        case .plugin: return nil
+        }
+        return URL(filePath: path, directoryHint: entry.kind == .directory ? .isDirectory : .notDirectory)
+    }
+
+    private static func mountPoint(for root: Location.Root) -> String? {
+        guard case let .network(scheme, host, share) = root else { return nil }
+        let count = getfsstat(nil, 0, MNT_NOWAIT)
+        guard count > 0 else { return nil }
+        var buffer = Array(repeating: Darwin.statfs(), count: Int(count) + 4)
+        let filled = buffer.withUnsafeMutableBufferPointer { getfsstat($0.baseAddress, Int32($0.count * MemoryLayout<Darwin.statfs>.stride), MNT_NOWAIT) }
+        guard filled > 0 else { return nil }
+        for var info in buffer.prefix(Int(filled)) {
+            let fs = withUnsafeBytes(of: &info.f_fstypename) { String(cString: $0.bindMemory(to: CChar.self).baseAddress!) }
+            let src = withUnsafeBytes(of: &info.f_mntfromname) { String(cString: $0.bindMemory(to: CChar.self).baseAddress!) }
+            let mnt = withUnsafeBytes(of: &info.f_mntonname) { String(cString: $0.bindMemory(to: CChar.self).baseAddress!) }
+            if scheme == "smb", fs == "smbfs", (src.removingPercentEncoding ?? src).lowercased().hasSuffix("/\(host)/\(share)".lowercased()) { return mnt }
+            if scheme == "nfs", fs == "nfs", src.lowercased().hasPrefix("\(host):".lowercased()), src.hasSuffix(share) { return mnt }
+        }
+        return nil
+    }
+}
+
+/// 压缩包内条目的拖出文件承诺：放下时在后台操作队列上经 `fileLease` 解出并复制到目标 URL，完成或取消时释放租约。
+final class FilePromiseDelegate: NSObject, NSFilePromiseProviderDelegate, Sendable {
+    private struct State { var lease: FileLease?; var task: Task<Void, Never>? }
+    let entry: Entry
+    private let sources: any SourceRegistry, queue: OperationQueue, state = Mutex(State())
+    var hasActiveLease: Bool { state.withLock { $0.lease != nil } }
+
+    init(entry: Entry, sources: any SourceRegistry, queue: OperationQueue) {
+        self.entry = entry; self.sources = sources; self.queue = queue
+    }
+    deinit { releaseLease() }
+
+    func releaseLease() {
+        let task = state.withLock { state -> Task<Void, Never>? in
+            defer { state.task = nil; state.lease = nil }
+            return state.task
+        }
+        task?.cancel()
+    }
+
+    func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String { entry.name }
+    func operationQueue(for filePromiseProvider: NSFilePromiseProvider) -> OperationQueue { queue }
+
+    func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, writePromiseTo url: URL, completionHandler: @escaping @Sendable ((any Error)?) -> Void) {
+        let entry = self.entry, sources = self.sources, semaphore = DispatchSemaphore(value: 0)
+        let resultBox = Mutex<Result<FileLease, any Error>?>(nil)
+        let task = Task(priority: .userInitiated) { [weak self] in
+            defer { semaphore.signal() }
+            do {
+                let lease = try await sources.provider(for: entry.location).fileLease(for: entry.location)
+                self?.state.withLock { $0.lease = lease }
+                resultBox.withLock { $0 = .success(lease) }
+            } catch { resultBox.withLock { $0 = .failure(error) } }
+        }
+        state.withLock { $0.task = task }
+        semaphore.wait()
+        defer { state.withLock { $0.lease = nil; $0.task = nil } }
+        do {
+            guard let result = resultBox.withLock({ $0 }) else { throw CancellationError() }
+            let lease = try result.get()
+            if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+            try FileManager.default.copyItem(at: lease.url, to: url)
+            withExtendedLifetime(lease) {}
+            completionHandler(nil)
+        } catch { completionHandler(error) }
     }
 }
