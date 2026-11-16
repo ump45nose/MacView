@@ -12,7 +12,7 @@ import MVServices
 import MVSettings
 
 /// 文件操作控制器、撤销重做、进度取消、错误条、永久删除确认与启动恢复的自检（`-MVFileOpsSelfTest YES`）。
-/// 网络卷验收（`~/MacViewBench/fileops-a`，用独立的 support/cache/layout 目录）：先 `net-kill`（S2、S5、S6、S9，最后在 S7 的跨卷移动中自杀），再用同一 support 目录 `net-verify`（S7 恢复、S12、清理）。
+/// 网络卷验收（`~/MacViewBench/fileops-a`，用独立的 support/cache/layout 目录）：先 `net-kill`（S2、S5、S6，最后在 S7 的跨卷移动中自杀），再用同一 support 目录 `net-verify`（S7 恢复、S12、S9、清理）。
 @MainActor
 final class FileOpsSelfTest {
     static let launchKey = "MVFileOpsSelfTest"
@@ -21,12 +21,12 @@ final class FileOpsSelfTest {
     static var isRequested: Bool { !mode.isEmpty && !["0", "no", "false"].contains(mode) }
     private static var recoveryRootURL: URL?, recoverySourceURL: URL?, recoveryTargetURL: URL?
     private let app: AppDelegate, log = SelfTestLog(), fm = FileManager.default
-    private let temporary = URL(fileURLWithPath: NSTemporaryDirectory()).appending(path: "MacViewFileOpsSelfTest-\(UUID().uuidString)", directoryHint: .isDirectory)
+    private let temporary = TestPresentation.scratchDirectory("fileops")
     private var targetWindow: NSWindow?
 
     static func prepareStartupRecoveryIfNeeded(supportDirectory: URL) async {
         guard isRequested, !networkModes.contains(mode), recoveryRootURL == nil else { return }
-        let root = URL(fileURLWithPath: NSTemporaryDirectory()).appending(path: "MacViewFileOpsRecovery-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let root = TestPresentation.scratchDirectory("fileops-recovery")
         let srcURL = root.appending(path: "recover-src.dat"), dstURL = root.appending(path: "recover-dst.dat"), tmpURL = root.appending(path: ".recover-dst.dat.macview-part")
         do {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -46,12 +46,7 @@ final class FileOpsSelfTest {
 
     static func runIfRequested(app: AppDelegate) {
         guard isRequested else { return }
-        UserDefaults.standard.set(true, forKey: "NSAllowMultipleDrags")
-        if UserDefaults.standard.string(forKey: SelfTest.outputKey) == nil,
-           let raw = UserDefaults.standard.string(forKey: launchKey),
-           !["1", "yes", "true"].contains(raw.lowercased()), !networkModes.contains(mode) {
-            UserDefaults.standard.set(raw, forKey: SelfTest.outputKey)
-        }
+        UserDefaults.standard.register(defaults: ["NSAllowMultipleDrags": true])   // 只在本次运行生效，不写持久偏好
         DispatchQueue.global().asyncAfter(deadline: .now() + 240) {
             print("FAIL 文件操作自检总超时（240s）"); fflush(stdout); _Exit(2)
         }
@@ -63,6 +58,11 @@ final class FileOpsSelfTest {
 
     private func run() async {
         TestPresentation.activateIfAllowed()
+        // 要求前台时等 App 真正进入前台：系统拒绝激活时表单按钮收不到合成点击，不在这种半激活状态下跑检查。
+        if TestPresentation.activationAllowed {
+            await until("App 进入前台") { NSApp.isActive }
+            guard NSApp.isActive else { exit(log.summarize()) }
+        }
         guard let services = app.services, let fileOps = app.fileOps, let controller = app.controllers.first, let window = controller.window else {
             log.check(false, "文件操作自检需要真实服务、控制器和窗口"); exit(log.summarize())
         }
@@ -70,7 +70,7 @@ final class FileOpsSelfTest {
         do {
             switch Self.mode {
             case "net-kill": try await runNetworkKill(controller: controller, window: window, services: services, fileOps: fileOps)
-            case "net-verify": try await runNetworkVerify(controller: controller, services: services, fileOps: fileOps)
+            case "net-verify": try await runNetworkVerify(controller: controller, window: window, services: services, fileOps: fileOps)
             default: try await runChecks(controller: controller, window: window, services: services, fileOps: fileOps)
             }
         }
@@ -708,16 +708,12 @@ final class FileOpsSelfTest {
         // 关掉预读，S5 期间的接口流量只来自这次移动。
         try? await services.settings.updateGlobal { $0.prefetch.currentBookPages = false; $0.prefetch.viewerDecodeFrames = 0; $0.prefetch.viewerReadAheadPages = 0; $0.prefetch.neighborBooks = 0; $0.prefetch.shelfCovers = false }
         pageList.setStyle(.table)
-        func openBook(_ url: URL, pages: Int) async {
-            controller.open([url])
-            await until("打开 \(url.lastPathComponent)") { controller.session.book?.location.name == url.lastPathComponent && controller.session.book?.isEnumerated == true && listView.items.count == pages }
-        }
 
         // C2.18（S2）
         let s2Book = netA.appending(path: "\(Self.netPrefix)s2", directoryHint: .isDirectory), s2Page = s2Book.appending(path: "001.png"), trash = netA.appending(path: ".macview-trash", directoryHint: .isDirectory)
         try fm.createDirectory(at: s2Book, withIntermediateDirectories: true)
         try writePNG(to: s2Page, hue: 0.1); try writePNG(to: s2Book.appending(path: "002.png"), hue: 0.3)
-        await openBook(s2Book, pages: 2)
+        await openBook(s2Book, pages: 2, controller: controller, listView: listView)
         window.makeFirstResponder(controller.viewer); await settle(); await sendKey(kVK_Delete, [.command])
         await until("C2.18 删除网络卷上的 001.png") { !fileOps.isBusy && !self.exists(s2Page) && listView.items.map(\.name) == ["002.png"] }
         let batches = ((try? fm.contentsOfDirectory(atPath: trash.path)) ?? []).filter { !$0.hasPrefix(".") }
@@ -749,7 +745,7 @@ final class FileOpsSelfTest {
         try fm.createDirectory(at: s5Book, withIntermediateDirectories: true); try fm.createDirectory(at: s5Target, withIntermediateDirectories: true)
         try writePNG(to: s5Book.appending(path: "001.png"), hue: 0.2); try writePNG(to: s5Large, hue: 0.4); try writePattern(to: s5Large, totalBytes: 500_000_000, seed: 17)
         await fileOps.setClassifyTargets([ClassifyTarget(location: try await services.sources.location(for: s5Target), listsSubfolders: false)]); controller.classifyPanel?.refreshState()
-        await openBook(s5Book, pages: 2)
+        await openBook(s5Book, pages: 2, controller: controller, listView: listView)
         await until("C2.19 后台读取结束") { (services.sources as? FileSourceRegistry)?.currentVolumeHealth().allSatisfy { $0.inFlight == 0 } == true }
         listView.selectRows(IndexSet(integer: 1)); window.makeFirstResponder(listView); await settle()
         let bytesBefore = Self.interfaceBytes(), start = ContinuousClock.now
@@ -772,7 +768,7 @@ final class FileOpsSelfTest {
                 expected[index == 1 && !skip ? "001 (2).png" : name] = (try sha256(of: url), modificationDate(url))
             }
             if skip { expected["001.png"] = nil }
-            await openBook(s6Book, pages: 20)
+            await openBook(s6Book, pages: 20, controller: controller, listView: listView)
             listView.selectRows(IndexSet(integersIn: 0..<20)); window.makeFirstResponder(listView); await settle(); await sendKey(kVK_ANSI_1)
             await until("C2.19 S6 移动完成") { !fileOps.isBusy && self.exists(s6Target.appending(path: "020.png")) }
             let arrived = expected.allSatisfy { name, value in (try? sha256(of: s6Target.appending(path: name))) == value.hash && modificationDate(s6Target.appending(path: name)) == value.date }
@@ -782,22 +778,6 @@ final class FileOpsSelfTest {
                       "C2.19 S6 \(skip ? "跳过" : "加序号")：到达的项哈希与修改时间一致，源剩 \(sources)，目标原有的 001.png 不变，状态栏：\(message)")
             if !skip { try await services.settings.updateGlobal { $0.fileOperations.nameConflict = .skip }; await until("C2.19 重名处理改为跳过") { fileOps.fileSettings.nameConflict == .skip } }
         }
-
-        // C2.21（S9）：普通页和压缩包内的页各做一次“在 Finder 中显示”和用“预览”打开。
-        let preview = URL(fileURLWithPath: "/System/Applications/Preview.app"), previewWasRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Preview").isEmpty
-        let s9Zip = netLocal.appending(path: "s9.zip"), ditto = Process()
-        ditto.executableURL = URL(fileURLWithPath: "/usr/bin/ditto"); ditto.arguments = ["-c", "-k", s6Target.path, s9Zip.path]; try ditto.run(); ditto.waitUntilExit()
-        let extractDir = app.cacheDirectory.appending(path: "extract", directoryHint: .isDirectory)
-        for url in [s6Target, s9Zip] {
-            await openBook(url, pages: 20)
-            controller.session.go(.index(1)); window.makeFirstResponder(controller.viewer); await settle()
-            let origin = controller.fileOrigin(), extractedBefore = (try? fm.contentsOfDirectory(atPath: extractDir.path)) ?? []
-            let revealed = origin.items.first.map { FileOperationController.outerFileLocation(of: $0.location) }, expected = try await services.sources.location(for: url == s9Zip ? s9Zip : s6Target.appending(path: "002.png"))
-            await fileOps.revealInFinder(origin: origin); fileOps.openWithApplication(preview, origin: origin)
-            await until("C2.21 预览打开 \(url.lastPathComponent)") { !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Preview").isEmpty && (url != s9Zip || ((try? self.fm.contentsOfDirectory(atPath: extractDir.path)) ?? []).count > extractedBefore.count) }
-            log.check(revealed == expected, "C2.21 S9 \(url == s9Zip ? "压缩包内的页定位到所在压缩包并解出后交给预览" : "普通页定位到 002.png 并交给预览")（Finder 选中与预览窗口由用户目视确认）")
-        }
-        if !previewWasRunning { NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Preview").forEach { $0.terminate() } }
 
         // C2.20（S7）：网络卷 A → 本机移动 1 GB 文件，复制过程中 kill -9；由 net-verify 检查恢复结果。
         let s7Book = netA.appending(path: "\(Self.netPrefix)s7", directoryHint: .isDirectory), s7Target = netLocal.appending(path: "s7-target", directoryHint: .isDirectory), s7Source = s7Book.appending(path: "large-1gb.bin")
@@ -813,11 +793,18 @@ final class FileOpsSelfTest {
                   let part = (try? self.fm.contentsOfDirectory(atPath: s7Target.path))?.first(where: { $0.hasSuffix(".macview-part") }) else { return false }
             return ((try? self.fm.attributesOfItem(atPath: s7Target.appending(path: part).path)[.size] as? Int) ?? 0) > 32 << 20
         }
-        log.check(controller.content.statusBar.isShowingProgress, "C2.20 S7 1 GB 跨卷移动进行中、状态栏显示进度，执行 kill -9")
+        log.check(controller.content.statusBar.isShowingProgress, "C2.20 S7 1 GB 跨卷移动进行中、状态栏显示进度，对本进程 pid=\(getpid())（前台=\(NSApp.isActive)）执行 kill -9")
         fflush(stdout); kill(getpid(), SIGKILL)
     }
 
-    private func runNetworkVerify(controller: ReaderWindowController, services: CoreServices, fileOps: FileOperationController) async throws {
+    private func openBook(_ url: URL, pages: Int, controller: ReaderWindowController, listView: CollectionView) async {
+        controller.open([url])
+        await until("打开 \(url.lastPathComponent)") { controller.session.book?.location.name == url.lastPathComponent && controller.session.book?.isEnumerated == true && listView.items.count == pages }
+    }
+
+    /// 重启后的一步：S7 恢复结果、S12，再做会切走前台的 S9（Finder、预览），最后清理。
+    private func runNetworkVerify(controller: ReaderWindowController, window: NSWindow, services: CoreServices, fileOps: FileOperationController) async throws {
+        guard let listView = (controller.dock.panels[DockPanels.pageList] as? PageListPanel)?.collection else { return log.check(false, "找不到页面列表") }
         let s7Target = netLocal.appending(path: "s7-target", directoryHint: .isDirectory), s7Moved = s7Target.appending(path: "large-1gb.bin")
         let expectedHash = (try? String(contentsOf: netLocal.appending(path: "s7-hash.txt"), encoding: .utf8)) ?? "", hash = (try? sha256(of: s7Moved)) ?? ""
         let message = controller.content.statusBar.message ?? "", targetItems = (try? fm.contentsOfDirectory(atPath: s7Target.path)) ?? []
@@ -827,6 +814,24 @@ final class FileOpsSelfTest {
                   "C2.20 S7 目标只有正式文件、源已删除、移动记录已清空、SHA-256 一致：\(targetItems) \(hash)")
         let undo = editMenu(action: #selector(ReaderWindow.undo(_:)))
         log.check(!fileOps.undoManager.canUndo && !undo.enabled, "C2.23 S12 重新启动后撤销菜单不可用：\(undo.title)")
+
+        let s6Target = netLocal.appending(path: "s6-target", directoryHint: .isDirectory)
+        // C2.21（S9）：普通页和压缩包内的页各做一次“在 Finder 中显示”和用“预览”打开。
+        let preview = URL(fileURLWithPath: "/System/Applications/Preview.app"), previewWasRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Preview").isEmpty
+        let s9Zip = netLocal.appending(path: "s9.zip"), ditto = Process()
+        ditto.executableURL = URL(fileURLWithPath: "/usr/bin/ditto"); ditto.arguments = ["-c", "-k", s6Target.path, s9Zip.path]; try ditto.run(); ditto.waitUntilExit()
+        let extractDir = app.cacheDirectory.appending(path: "extract", directoryHint: .isDirectory)
+        for url in [s6Target, s9Zip] {
+            await openBook(url, pages: 20, controller: controller, listView: listView)
+            controller.session.go(.index(1)); window.makeFirstResponder(controller.viewer); await settle()
+            let origin = controller.fileOrigin(), extractedBefore = (try? fm.contentsOfDirectory(atPath: extractDir.path)) ?? []
+            let revealed = origin.items.first.map { FileOperationController.outerFileLocation(of: $0.location) }, expected = try await services.sources.location(for: url == s9Zip ? s9Zip : s6Target.appending(path: "002.png"))
+            await fileOps.revealInFinder(origin: origin); fileOps.openWithApplication(preview, origin: origin)
+            await until("C2.21 预览打开 \(url.lastPathComponent)") { !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Preview").isEmpty && (url != s9Zip || ((try? self.fm.contentsOfDirectory(atPath: extractDir.path)) ?? []).count > extractedBefore.count) }
+            log.check(revealed == expected, "C2.21 S9 \(url == s9Zip ? "压缩包内的页定位到所在压缩包并解出后交给预览" : "普通页定位到 002.png 并交给预览")（Finder 选中与预览窗口由用户目视确认）")
+        }
+        if !previewWasRunning { NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Preview").forEach { $0.terminate() } }
+
         await services.shutdown()
         for name in netItems() { try? fm.removeItem(at: netA.appending(path: name)) }
         try? fm.removeItem(at: netLocal)
@@ -837,7 +842,7 @@ final class FileOpsSelfTest {
         let handle = try FileHandle(forWritingTo: url); defer { try? handle.close() }
         var remaining = max(0, totalBytes - Int(try handle.seekToEnd()))
         let block = Data((0..<(4 << 20)).map { UInt8(truncatingIfNeeded: $0 &+ Int(seed)) })
-        while remaining > 0 { let count = min(remaining, block.count); try handle.write(contentsOf: block.prefix(count)); remaining -= count }
+        while remaining > 0 { let count = min(remaining, block.count); try autoreleasepool { try handle.write(contentsOf: block.prefix(count)) }; remaining -= count }
         try handle.synchronize()   // 写回完成后再计时，网络卷上未写回的数据会拖慢随后的改名
     }
 
@@ -881,7 +886,11 @@ final class FileOpsSelfTest {
     private func sha256(of url: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: url); defer { try? handle.close() }
         var hash = SHA256()
-        while let data = try handle.read(upToCount: 4 << 20), !data.isEmpty { hash.update(data: data) }
+        // 每块放进自动释放池：主线程上读 1 GB 时不让读出的块堆到下一次事件循环才释放。
+        while try autoreleasepool(invoking: { () throws -> Bool in
+            guard let data = try handle.read(upToCount: 4 << 20), !data.isEmpty else { return false }
+            hash.update(data: data); return true
+        }) {}
         return hash.finalize().map { String(format: "%02x", $0) }.joined()
     }
 

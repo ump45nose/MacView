@@ -535,6 +535,21 @@ final class ClassifyPanelView: NSView {
 @MainActor
 final class ClassifyListView: NSView {
     static let rowHeight: CGFloat = 28
+    private static let badgeFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium), detailFont = NSFont.systemFont(ofSize: 11), nameFont = NSFont.systemFont(ofSize: 12.5)
+    private static func symbol(_ name: String, _ size: CGFloat, _ weight: NSFont.Weight = .regular) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: size, weight: weight))
+    }
+    private static let folderImage = symbol("folder", 12), globeImage = symbol("globe", 10)
+    private static let expandedImage = symbol("chevron.down", 9, .semibold), collapsedImage = symbol("chevron.right", 9, .semibold)
+    /// 行文字的属性按（字体、颜色、透明度）建一次后复用，绘制时不再每行新建字体和字典。
+    private static var attributeCache: [String: [NSAttributedString.Key: Any]] = [:]
+    private static func attributes(_ name: String, _ font: NSFont, _ color: NSColor, alpha: CGFloat) -> [NSAttributedString.Key: Any] {
+        let key = "\(name)-\(alpha)"
+        if let cached = attributeCache[key] { return cached }
+        let made: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color.withAlphaComponent(alpha)]
+        attributeCache[key] = made
+        return made
+    }
 
     private(set) var rows: [ClassifyPanel.Row] = []
     private(set) var selectedLocation: Location?, editingLocation: Location?, flashedLocation: Location?
@@ -672,37 +687,37 @@ final class ClassifyListView: NSView {
                 Theme.well.withAlphaComponent(rowAlpha).setFill()
                 let badgePath = NSBezierPath(roundedRect: badgeRect, xRadius: 4, yRadius: 4)
                 badgePath.fill(); Theme.lineStrong.withAlphaComponent(rowAlpha).setStroke(); badgePath.lineWidth = 0.5; badgePath.stroke()
-                let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium), .foregroundColor: Theme.text2.withAlphaComponent(rowAlpha)]
+                let attrs = Self.attributes("badge", Self.badgeFont, Theme.text2, alpha: rowAlpha)
                 let size = (key as NSString).size(withAttributes: attrs)
                 (key as NSString).draw(at: NSPoint(x: badgeRect.midX - size.width / 2, y: badgeRect.midY - size.height / 2), withAttributes: attrs)
             }
             if !row.isSubfolder, row.listsSubfolders,
-               let img = NSImage(systemSymbolName: row.isExpanded ? "chevron.down" : "chevron.right", accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 9, weight: .semibold)) {
+               let img = row.isExpanded ? Self.expandedImage : Self.collapsedImage {
                 img.draw(in: NSRect(x: indent + 21, y: rect.minY + 9, width: 10, height: 10), from: .zero, operation: .sourceOver, fraction: rowAlpha * 0.7, respectFlipped: true, hints: nil)
             }
-            if let folderImg = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 12, weight: .regular)) {
+            if let folderImg = Self.folderImage {
                 folderImg.draw(in: NSRect(x: indent + 34, y: rect.minY + 7, width: 14, height: 14), from: .zero, operation: .sourceOver, fraction: rowAlpha * 0.75, respectFlipped: true, hints: nil)
             }
             var rightEdge = rect.maxX - 10
             if !row.isSubfolder, row.isNetwork,
-               let netImg = NSImage(systemSymbolName: "globe", accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 10, weight: .regular)) {
+               let netImg = Self.globeImage {
                 rightEdge -= 12
                 netImg.draw(in: NSRect(x: rightEdge, y: rect.minY + 8, width: 11, height: 11), from: .zero, operation: .sourceOver, fraction: rowAlpha * 0.65, respectFlipped: true, hints: nil)
                 rightEdge -= 4
             }
             let detail = row.errorText ?? (row.isSubfolder ? "" : row.whereText)
             if !detail.isEmpty {
-                let detailAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: Theme.text2.withAlphaComponent(rowAlpha * (row.errorText != nil ? 1.0 : 0.7))]
+                let detailAttrs = Self.attributes("detail", Self.detailFont, Theme.text2, alpha: rowAlpha * (row.errorText != nil ? 1.0 : 0.7))
                 let detailStr = detail as NSString, drawW = min(detailStr.size(withAttributes: detailAttrs).width, max(36, min(110, rect.width * 0.42)))
                 rightEdge -= drawW
                 detailStr.draw(with: NSRect(x: rightEdge, y: rect.minY + 6, width: drawW, height: 16), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: detailAttrs)
                 rightEdge -= 6
             }
             let nameX = indent + 52, nameW = max(24, rightEdge - nameX)
-            let nameAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12.5), .foregroundColor: (row.isSubfolder ? Theme.text2 : Theme.text).withAlphaComponent(rowAlpha)]
+            let nameAttrs = row.isSubfolder ? Self.attributes("subfolder", Self.nameFont, Theme.text2, alpha: rowAlpha) : Self.attributes("name", Self.nameFont, Theme.text, alpha: rowAlpha)
             (row.name as NSString).draw(with: NSRect(x: nameX, y: rect.minY + 5, width: nameW, height: 18), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: nameAttrs)
         }
-        if !editorContainer.isHidden, let folderImg = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 12, weight: .regular)) {
+        if !editorContainer.isHidden, let folderImg = Self.folderImage {
             folderImg.draw(in: NSRect(x: inputBox.frame.minX - 16, y: editorContainer.frame.minY + 7, width: 14, height: 14), from: .zero, operation: .sourceOver, fraction: 0.85, respectFlipped: true, hints: nil)
         }
         if isDraggingRow, let dropIdx = dragDropTopIndex {

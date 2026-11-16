@@ -14,7 +14,7 @@ import MVSettings
 final class SettingsSelfTest {
     private let app: AppDelegate
     private let log = SelfTestLog()
-    private let temporary = URL(fileURLWithPath: NSTemporaryDirectory()).appending(path: "MacViewSettingsSelfTest-\(UUID().uuidString)", directoryHint: .isDirectory)
+    private let temporary = TestPresentation.scratchDirectory("settings")
 
     static func runIfRequested(app: AppDelegate) {
         guard UserDefaults.standard.bool(forKey: "MVSettingsSelfTest") else { return }

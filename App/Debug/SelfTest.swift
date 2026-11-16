@@ -491,10 +491,15 @@ final class SelfTest {
 @MainActor
 final class SelfTestLog {
     let output = UserDefaults.standard.string(forKey: SelfTest.outputKey).map { URL(fileURLWithPath: $0) }
-    private var failures = 0
+    private var failures = 0, activeSamples = 0, samples = 0
 
     init() {
         if let output { try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true) }
+        // 要求前台运行时每 100 ms 采样一次 App 是否在前台，汇总行给出比例，作为“全程前台”的证据。
+        guard TestPresentation.activationAllowed else { return }
+        RunLoop.main.add(Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { guard let self else { return }; self.samples += 1; if NSApp.isActive { self.activeSamples += 1 } }
+        }, forMode: .common)
     }
 
     func check(_ condition: Bool, _ message: String) {
@@ -512,6 +517,7 @@ final class SelfTestLog {
 
     /// 打印汇总行，返回失败数（用作退出码）。汇总行带上被测构建的源码提交和 cdhash，结果和构建绑定。
     func summarize() -> Int32 {
+        if samples > 0 { print("INFO 前台采样 \(activeSamples)/\(samples)") }
         print("SELFTEST \(failures == 0 ? "OK" : "FAILED \(failures)") commit=\(BuildIdentity.commit ?? "无") cdhash=\(BuildIdentity.cdhash ?? "无")")
         fflush(stdout)
         return Int32(failures)
