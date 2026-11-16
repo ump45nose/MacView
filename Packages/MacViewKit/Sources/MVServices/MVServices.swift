@@ -260,7 +260,8 @@ public struct CoreConfiguration: Sendable {
                     completion.finish()
                 }
                 let deadline = Task.detached {
-                    do { try await Task.sleep(for: .milliseconds(900)) } catch { return }
+                    // 这是关闭期限，禁止计时器合并占用留给取消与返回的一百毫秒余量。
+                    do { try await Task.sleep(for: .milliseconds(900), tolerance: .zero) } catch { return }
                     work.cancel()
                     (pipeline as? FileImagePipeline)?.beginShutdown()
                     runtime?.scheduler.shutdown()
