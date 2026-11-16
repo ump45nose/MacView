@@ -4172,6 +4172,156 @@
           }
         }
       }
+    },
+    "没有回收目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Recycle Folders"
+          }
+        }
+      }
+    },
+    "清空回收目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empty Recycle Folders"
+          }
+        }
+      }
+    },
+    "删到回收目录的项在清空前都能手动找回。只列出当前已连接的卷。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Items deleted to recycle folders can be recovered manually until emptied. Only connected volumes are listed."
+          }
+        }
+      }
+    },
+    "%lld 次删除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld deletions"
+          }
+        }
+      }
+    },
+    "清空…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empty…"
+          }
+        }
+      }
+    },
+    "永久删除“%@”回收目录里的内容？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanently delete items in the recycle folder on “%@”?"
+          }
+        }
+      }
+    },
+    "永久删除 %lld 个卷回收目录里的内容？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanently delete items in the recycle folders on %lld volumes?"
+          }
+        }
+      }
+    },
+    "共 %lld 次删除。清空后不能撤销。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld deletions in total. You can’t undo this action."
+          }
+        }
+      }
+    },
+    "复制和移动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy and Move"
+          }
+        }
+      }
+    },
+    "目标中已有同名项时": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When an item with the same name exists"
+          }
+        }
+      }
+    },
+    "加序号": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Both"
+          }
+        }
+      }
+    },
+    "跳过": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        }
+      }
+    },
+    "在名字后加序号，例如 IMG_0012 (2).jpg": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Append a number to the name, e.g. IMG_0012 (2).jpg"
+          }
+        }
+      }
+    },
+    "保留目标里的文件，不放入这一项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep the existing file in the destination and skip this item"
+          }
+        }
+      }
+    },
+    "两种方式都不覆盖目标里的文件。跳过的项会在结果里注明。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neither option overwrites existing files in the destination. Skipped items are noted in the result."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

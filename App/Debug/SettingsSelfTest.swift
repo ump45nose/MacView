@@ -89,6 +89,15 @@ final class SettingsSelfTest {
         log.check(model.global.defaultBook.browseMode == .verticalStrip && model.global.defaultBook.pageMode == .double, "选竖条不改单双页")
         choice.wrappedValue = BrowseChoice.options[0].1
         log.check(choice.wrappedValue == BrowseChoice.options[0].1 && model.global.defaultBook.pageMode == .single, "全局默认回到单页")
+
+        let conflict = global(model, \.fileOperations.nameConflict)
+        conflict.wrappedValue = .skip
+        await until("重名处理 skip 写入 settings.json") { (try? self.settingsDocument())?.contains("\"skip\"") == true }
+        let reopened = SettingsWindowController(store: app.services!.settings, sources: app.services!.sources, supportDirectory: app.supportDirectory, cacheDirectory: app.cacheDirectory)
+        await reopened.state.model.loadAll()
+        log.check(reopened.state.model.global.fileOperations.nameConflict == .skip, "C2.16 切换重名处理后 settings.json 的 fileOperations.nameConflict 随之改变，重新打开设置窗口显示一致")
+        conflict.wrappedValue = .appendNumber
+        await until("重名处理恢复 appendNumber") { (try? self.settingsDocument())?.contains("\"appendNumber\"") == true }
     }
 
     /// C2.15

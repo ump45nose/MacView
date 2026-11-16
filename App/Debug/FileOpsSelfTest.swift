@@ -574,6 +574,71 @@ final class FileOpsSelfTest {
         await until("C2.15c ⌘Z 删除已建的新文件夹") { !fileOps.isBusy && !self.exists(partialDir) }
         log.check(!exists(partialDir) && dockedPanel.editingLocation == nil, "C2.15c 撤销后已创建的新文件夹被删除且输入框收起")
         await sendKey(kVK_ANSI_3, [.command, .option]); await settle()
+
+        // C2.16：设置自检——切换重名处理后 settings.json 的 fileOperations.nameConflict 随之改变，重新打开设置窗口显示一致。
+        guard let settings = app.openSettings(), let settingsWin = settings.window else { return log.check(false, "C2.16 无法打开设置窗口") }
+        await settings.state.model.loadAll()
+        settings.state.page = .files; await settle()
+        log.check(SettingsPage.allCases.last == .files && settings.state.page.title == String(localized: "文件"), "C2.16 设置窗口包含“文件”页且排在最后")
+        let settingsFile = app.supportDirectory.appending(path: "settings.json")
+        global(settings.state.model, \.fileOperations.nameConflict).wrappedValue = .skip
+        await until("C2.16 nameConflict=skip 写入 settings.json") {
+            ((try? String(contentsOf: settingsFile, encoding: .utf8))?.contains("\"skip\"") == true) && fileOps.fileSettings.nameConflict == .skip
+        }
+        log.snapshot(settingsWin, "settings-files-skip")
+        settingsWin.close()
+        let reopenedSettings = SettingsWindowController(store: services.settings, sources: services.sources, supportDirectory: app.supportDirectory, cacheDirectory: app.cacheDirectory)
+        reopenedSettings.show(); reopenedSettings.state.page = .files
+        await until("C2.16 重开设置窗口读取 skip") { reopenedSettings.state.model.global.fileOperations.nameConflict == .skip }
+        log.check(reopenedSettings.state.model.global.fileOperations.nameConflict == .skip && fileOps.fileSettings.nameConflict == .skip, "C2.16 切换重名处理为“跳过”后 settings.json 与重新打开的设置窗口显示一致")
+        reopenedSettings.window?.close()
+        _ = app.openSettings()
+        global(settings.state.model, \.fileOperations.nameConflict).wrappedValue = .appendNumber
+        await until("C2.16 nameConflict=appendNumber 写入 settings.json") {
+            ((try? String(contentsOf: settingsFile, encoding: .utf8))?.contains("\"appendNumber\"") == true) && fileOps.fileSettings.nameConflict == .appendNumber
+        }
+        log.snapshot(settingsWin, "settings-files-appendNumber")
+        settingsWin.close(); targetWindow = window; window.makeKeyAndOrderFront(nil); window.makeFirstResponder(controller.viewer); await settle()
+
+        // C2.17：清空回收目录——没有回收目录时提示“没有回收目录”；有回收目录时列表显示的卷与删除批次数一致，勾选后二次确认清空。
+        let (volADir, volBDir) = try makePair("c217", "Photos", "Archive")
+        let volALoc = try await services.sources.location(for: volADir), volBLoc = try await services.sources.location(for: volBDir)
+        fileOps.customRecycleRoots = [volALoc, volBLoc]
+        defer { fileOps.customRecycleRoots = nil }
+        controller.run(.recycleEmpty)
+        await until("C2.17 无回收目录状态栏提示") { controller.content.statusBar.message == String(localized: "没有回收目录") }
+        log.check(controller.content.statusBar.message == String(localized: "没有回收目录") && window.attachedSheet == nil, "C2.17 没有回收目录时状态栏提示“没有回收目录”且不弹表单")
+
+        let trashA = volADir.appending(path: ".macview-trash", directoryHint: .isDirectory)
+        let trashB = volBDir.appending(path: ".macview-trash", directoryHint: .isDirectory)
+        for batch in ["20261116-010000-0001", "20261116-010001-0002"] {
+            let dir = trashA.appending(path: batch, directoryHint: .isDirectory)
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            try writePNG(to: dir.appending(path: "deleted.png"), hue: 0.2)
+        }
+        let batchB = trashB.appending(path: "20261116-010002-0001", directoryHint: .isDirectory)
+        try fm.createDirectory(at: batchB, withIntermediateDirectories: true)
+        try writePNG(to: batchB.appending(path: "deleted.png"), hue: 0.5)
+
+        let undoBeforeRecycle = fileOps.undoManager.undoActionName
+        controller.run(.recycleEmpty)
+        await until("C2.17 弹出清空回收目录选卷表单") { window.attachedSheet is EmptyRecycleBinsSheet }
+        guard let recycleSheet = window.attachedSheet as? EmptyRecycleBinsSheet else { return log.check(false, "C2.17 未弹出清空回收目录表单") }
+        log.check(recycleSheet.items.map { "\($0.volumeName):\($0.batchCount)" } == ["Photos:2", "Archive:1"] && recycleSheet.items.allSatisfy(\.isSelected) && recycleSheet.emptyButton.isEnabled, "C2.17 列表显示的卷与删除批次数一致（Photos:2、Archive:1）且默认全选")
+        log.snapshot(recycleSheet, "fileops-recycle-list")
+        await click(recycleSheet.rowButtons[0], in: recycleSheet)
+        await click(recycleSheet.rowButtons[1], in: recycleSheet)
+        log.check(!recycleSheet.emptyButton.isEnabled && !recycleSheet.revealButton.isEnabled, "C2.17 没有勾选任何卷时“清空…”与“在 Finder 中显示”按钮不可用")
+        await click(recycleSheet.rowButtons[0], in: recycleSheet)
+        log.check(recycleSheet.items.map(\.isSelected) == [true, false] && recycleSheet.emptyButton.isEnabled, "C2.17 勾选 Photos 后“清空…”可用")
+        await click(recycleSheet.emptyButton, in: recycleSheet)
+        await until("C2.17 弹出清空回收目录二次确认表单") { window.attachedSheet is PermanentDeleteSheet }
+        guard let confirmRecycle = window.attachedSheet as? PermanentDeleteSheet else { return log.check(false, "C2.17 未弹出二次确认表单") }
+        log.check(confirmRecycle.headingLabel.stringValue == "永久删除“Photos”回收目录里的内容？" && confirmRecycle.detailLabel.stringValue == "共 2 次删除。清空后不能撤销。", "C2.17 二次确认显示卷名与删除批次总数：\(confirmRecycle.headingLabel.stringValue) / \(confirmRecycle.detailLabel.stringValue)")
+        log.snapshot(confirmRecycle, "fileops-recycle-confirm")
+        await click(confirmRecycle.confirmButton, in: confirmRecycle)
+        await until("C2.17 确认后清空 Photos 回收目录") { window.attachedSheet == nil && !fileOps.isBusy && !self.exists(trashA) }
+        log.check(!exists(trashA) && exists(trashB) && fileOps.undoManager.undoActionName == undoBeforeRecycle, "C2.17 确认后永久删除所选卷的回收目录、未选卷保留且不登记撤销")
     }
 
     private func clickClassifyRow(at index: Int, clickCount: Int, in listView: ClassifyListView, window: NSWindow) async {
