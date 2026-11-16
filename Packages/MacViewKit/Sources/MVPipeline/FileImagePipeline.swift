@@ -50,11 +50,22 @@ public final class FileImagePipeline: ImagePipeline {
             try await lifetime.value { try await source.frame(at: index) }
         }
     }
+    /// 尺寸属于单个作业：被放弃的旧作业仍可能运行，不能借用新作业的登记项。
+    private final class BundleBounds: Sendable {
+        private let value: Mutex<PixelSize>
+        init(_ bounds: PixelSize) { value = Mutex(bounds) }
+        func include(_ bounds: PixelSize) {
+            value.withLock { current in
+                current.width = max(current.width, bounds.width)
+                current.height = max(current.height, bounds.height)
+            }
+        }
+        var snapshot: PixelSize { value.withLock { $0 } }
+    }
     private struct State: Sendable {
         var content: [String: (UUID, ContentWork)] = [:]
         var renders: [String: (UUID, SharedWork<RenderedImage>)] = [:]
-        var bundles: [String: (UUID, SharedWork<Bundle>)] = [:]
-        var bundleBounds: [String: PixelSize] = [:]
+        var bundles: [String: (UUID, SharedWork<Bundle>, BundleBounds)] = [:]
         var sourceDecodes = 0
         var deferredDerivatives: Set<String> = []
         var repairingDerivatives: Set<String> = []
@@ -70,6 +81,9 @@ public final class FileImagePipeline: ImagePipeline {
     /// 各会话尚未结束的预取任务数，和 `state.sessions` 里的任务分开记，避免在持有 `state` 时等待任务收尾。
     private let prefetchInFlight = Mutex<[SessionID: Int]>([:])
     private let lifetime = PipelineLifetime()
+#if DEBUG
+    let bundleContentLoaded = Mutex<(@Sendable () async -> Void)?>(nil)
+#endif
     let inFlight = InFlightBudget()
 
     public init(sources: any SourceRegistry, decoder: ImageDecoder, caches: PipelineCaches, configuration: PipelineConfiguration) {
@@ -389,14 +403,13 @@ public final class FileImagePipeline: ImagePipeline {
             requestedBounds.width = max(requestedBounds.width, configuration.thumbnailLongSide)
             requestedBounds.height = max(requestedBounds.height, configuration.thumbnailLongSide)
         }
-        let pair = try state.withLock { state -> (UUID, SharedWork<Bundle>) in
+        let pair = try state.withLock { state -> (UUID, SharedWork<Bundle>, BundleBounds) in
             try lifetime.checkRunning()
-            var bounds = state.bundleBounds[key] ?? requestedBounds
-            bounds.width = max(bounds.width, requestedBounds.width)
-            bounds.height = max(bounds.height, requestedBounds.height)
-            state.bundleBounds[key] = bounds
-            if let pair = state.bundles[key], pair.1.join(consumer: context.id, priority: context.priority) { return pair }
-            let pair = (UUID(), SharedWork<Bundle>(scheduler: scheduler, lifetime: lifetime))
+            if let pair = state.bundles[key], pair.1.join(consumer: context.id, priority: context.priority) {
+                pair.2.include(requestedBounds)
+                return pair
+            }
+            let pair = (UUID(), SharedWork<Bundle>(scheduler: scheduler, lifetime: lifetime), BundleBounds(requestedBounds))
             _ = pair.1.join(consumer: context.id, priority: context.priority)
             state.bundles[key] = pair
             return pair
@@ -407,13 +420,15 @@ public final class FileImagePipeline: ImagePipeline {
             defer { state.withLock { state in
                 if state.bundles[key]?.0 == pair.0 {
                     state.bundles[key] = nil
-                    state.bundleBounds[key] = nil
                 }
             } }
             let loaded = try await content(identity, full: true, metadata: true, context: work.context)
             let size = loaded.metadata!.pixelSize
+#if DEBUG
+            await bundleContentLoaded.withLock { $0 }?()
+#endif
             // 在原始读取完成后才确定解码尺寸；读取期间进入的不同渲染件合并到同一最大尺寸。
-            let bounds = state.withLock { $0.bundleBounds[key]! }
+            let bounds = pair.2.snapshot
             let requiredSize = size.fitting(within: bounds)
             let browseSize = size.fitting(within: caches.browse == nil ? bounds : configuration.browseBounds)
             let largest = PixelSize(width: max(requiredSize.width, browseSize.width), height: max(requiredSize.height, browseSize.height))
@@ -576,7 +591,6 @@ public final class FileImagePipeline: ImagePipeline {
             $0.content.removeAll()
             $0.renders.removeAll()
             $0.bundles.removeAll()
-            $0.bundleBounds.removeAll()
             $0.deferredDerivatives.removeAll()
             $0.repairingDerivatives.removeAll()
         }
