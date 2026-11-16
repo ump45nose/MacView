@@ -254,6 +254,8 @@ final class FileReader: Sendable {
     private struct Cache {
         var files: [String: OpenFile] = [:]
         var order: [String] = []
+        var generation: UInt64 = 0
+        var mutations: [String: Int] = [:]
     }
 
     private let capacity: Int
@@ -270,6 +272,35 @@ final class FileReader: Sendable {
             forget(request.path)
             return try readOnce(request)
         }
+    }
+
+    /// 改名或删除前释放源路径及其后代的缓存引用，修改完成前不重新缓存；读取本身照常进行。
+    func withInvalidatedCache<T>(for request: HelperRequest, operation: () throws(FileOperationError) -> T) throws(FileOperationError) -> T {
+        let path: String
+        switch request {
+        case let .rename(source, _, _): path = source
+        case let .remove(source), let .trash(source): path = source
+        default: return try operation()
+        }
+        cache.withLock { cache in
+            cache.generation &+= 1
+            cache.mutations[path, default: 0] += 1
+            let paths = cache.order.filter { Self.includes($0, under: path) }
+            for path in paths { cache.files[path] = nil }
+            cache.order.removeAll { Self.includes($0, under: path) }
+        }
+        defer {
+            cache.withLock { cache in
+                cache.generation &+= 1
+                if cache.mutations[path] == 1 { cache.mutations[path] = nil }
+                else { cache.mutations[path, default: 0] -= 1 }
+            }
+        }
+        return try operation()
+    }
+
+    private static func includes(_ path: String, under ancestor: String) -> Bool {
+        path == ancestor || path.hasPrefix(ancestor.hasSuffix("/") ? ancestor : ancestor + "/")
     }
 
     private func readOnce(_ request: ReadRequest) throws(FileOperationError) -> Data {
@@ -307,7 +338,8 @@ final class FileReader: Sendable {
     }
 
     private func openFile(_ request: ReadRequest) throws(FileOperationError) -> (OpenFile, cached: Bool) {
-        if !request.freshDescriptor, let file = cache.withLock({ $0.files[request.path] }) { return (file, true) }
+        let (cached, generation) = cache.withLock { (request.freshDescriptor ? nil : $0.files[request.path], $0.generation) }
+        if let cached { return (cached, true) }
         let fd = open(request.path, O_RDONLY | O_CLOEXEC)
         guard fd >= 0 else { throw .system(call: "open", code: errno) }
         if request.noCache && fcntl(fd, F_NOCACHE, 1) == -1 && request.freshDescriptor {
@@ -317,6 +349,9 @@ final class FileReader: Sendable {
         }
         let file = OpenFile(fd: fd)
         if !request.freshDescriptor { cache.withLock { cache in
+            // 修改窗口内的读取，以及打开期间跨过修改边界的读取，结束后直接关闭描述符。
+            guard cache.generation == generation,
+                  !cache.mutations.keys.contains(where: { Self.includes(request.path, under: $0) }) else { return }
             if cache.files.updateValue(file, forKey: request.path) == nil { cache.order.append(request.path) }
             while cache.order.count > capacity {
                 cache.files[cache.order.removeFirst()] = nil

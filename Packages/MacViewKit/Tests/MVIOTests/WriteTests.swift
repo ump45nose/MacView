@@ -1,4 +1,5 @@
 import Darwin
+import Dispatch
 import Foundation
 import MVFoundation
 import Synchronization
@@ -102,6 +103,108 @@ import Testing
     #expect(try Data(contentsOf: created).isEmpty)
 }
 
+@Test(arguments: [false, true], ["renameFile", "renameParent", "removeFile", "removeParent"])
+func mutationsReleaseCachedReadDescriptors(helper: Bool, operation: String) async throws {
+    let directory = try makeDescriptorTestDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let parent = directory.appending(path: "book")
+    try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false)
+    let file = parent.appending(path: "page")
+    try Data([1, 2, 3]).write(to: file)
+    let backend = descriptorTestBackend(helper: helper)
+    defer { backend.abandon() }
+    #expect(try await readForDescriptorTest(file.path, using: backend) == Data([1, 2, 3]))
+
+    let request: HelperRequest
+    switch operation {
+    case "renameFile":
+        request = .rename(source: file.path, target: parent.appending(path: "renamed").path, exclusive: true)
+    case "renameParent":
+        request = .rename(source: parent.path, target: directory.appending(path: "renamed").path, exclusive: true)
+    case "removeFile":
+        request = .remove(path: file.path)
+    default:
+        // 外部先删掉子项，缓存仍持有该文件；删除空父目录时也必须释放后代描述符。
+        try FileManager.default.removeItem(at: file)
+        request = .remove(path: parent.path)
+    }
+    try await executeForDescriptorTest(request, using: backend)
+    await #expect(throws: FileOperationError.system(call: "open", code: ENOENT)) {
+        _ = try await readForDescriptorTest(file.path, using: backend)
+    }
+}
+
+@Test(arguments: [false, true])
+func cachedReadInvalidationRespectsDirectoryBoundaries(helper: Bool) async throws {
+    let directory = try makeDescriptorTestDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let parent = directory.appending(path: "book"), sibling = directory.appending(path: "book-extra")
+    for folder in [parent, sibling] {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+    }
+    let file = parent.appending(path: "page"), other = sibling.appending(path: "page")
+    for path in [file, other] { try Data([1, 2, 3]).write(to: path) }
+    let backend = descriptorTestBackend(helper: helper)
+    defer { backend.abandon() }
+    for path in [file, other] {
+        #expect(try await readForDescriptorTest(path.path, using: backend) == Data([1, 2, 3]))
+        try FileManager.default.removeItem(at: path)
+    }
+    try await executeForDescriptorTest(.remove(path: parent.path), using: backend)
+    await #expect(throws: FileOperationError.system(call: "open", code: ENOENT)) {
+        _ = try await readForDescriptorTest(file.path, using: backend)
+    }
+    // 同前缀的相邻目录不受影响，已 unlink 的文件仍能从原有缓存描述符读取。
+    #expect(try await readForDescriptorTest(other.path, using: backend) == Data([1, 2, 3]))
+}
+
+@Test(arguments: [false, true], [false, true])
+func readsDuringFileMutationDoNotLeaveCachedDescriptors(rename: Bool, parent: Bool) throws {
+    let directory = try makeDescriptorTestDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let folder = directory.appending(path: "book"), file = folder.appending(path: "page")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+    let bytes = Data([1, 2, 3])
+    try bytes.write(to: file)
+    let reader = FileReader()
+    let read = ReadRequest(path: file.path, offset: 0, length: 3, expectedSize: nil, expectedModificationNanos: nil, noCache: false, retryByReopening: false)
+    #expect(try reader.read(read) == bytes)
+    let source = parent ? folder.path : file.path
+    let mutation: HelperRequest = rename
+        ? .rename(source: source, target: directory.appending(path: "renamed").path, exclusive: true)
+        : .remove(path: source)
+    let completed = DispatchSemaphore(value: 0)
+    let concurrentRead = Mutex<Result<Data, FileOperationError>?>(nil)
+
+    _ = try reader.withInvalidatedCache(for: mutation) { () throws(FileOperationError) in
+        // 缓存已清除，但系统调用尚未开始：让另一个线程完整读完，固定重缓存的竞态顺序。
+        DispatchQueue.global().async {
+            let result = Result { () throws(FileOperationError) in try reader.read(read) }
+            concurrentRead.withLock { $0 = result }
+            completed.signal()
+        }
+        guard completed.wait(timeout: .now() + 10) == .success else {
+            throw .system(call: "concurrent read timed out", code: ETIMEDOUT)
+        }
+        if parent && !rename, unlink(file.path) != 0 { throw .system(call: "unlink", code: errno) }
+        let result = try FileOperations.execute(mutation)
+        // 修改窗口还没结束时，旧路径就应当无法再通过缓存读取。
+        #expect(throws: FileOperationError.system(call: "open", code: ENOENT)) { try reader.read(read) }
+        return result
+    }
+    let result = try #require(concurrentRead.withLock { $0 })
+    #expect(try result.get() == bytes)
+    #expect(throws: FileOperationError.system(call: "open", code: ENOENT)) { try reader.read(read) }
+
+    // 修改结束后恢复正常缓存，新源路径的描述符仍按原规则复用。
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let replacement = Data([4, 5, 6])
+    try replacement.write(to: file)
+    #expect(try reader.read(read) == replacement)
+    try FileManager.default.removeItem(at: file)
+    #expect(try reader.read(read) == replacement)
+}
+
 @Test func crossVolumeAndDegradedWritesFail() async throws {
     let backend = WriteFailureBackend()
     var config = IOConfiguration(helperExecutable: nil)
@@ -154,6 +257,34 @@ func exclusiveRenameAcrossMountedNetworkVolumes() async throws {
 }
 
 private final class WriteBundleMarker {}
+
+private func makeDescriptorTestDirectory() throws -> URL {
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    let directory = root.appending(path: ".mvio-descriptor-test-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+    return directory
+}
+
+private func descriptorTestBackend(helper: Bool) -> any FileBackend {
+    let helperURL = Bundle(for: WriteBundleMarker.self).bundleURL.deletingLastPathComponent().appending(path: "mvio-helper")
+    return helper ? HelperBackend(executable: helperURL) : DirectBackend()
+}
+
+private func readForDescriptorTest(_ path: String, using backend: any FileBackend) async throws(FileOperationError) -> Data {
+    let request = ReadRequest(path: path, offset: 0, length: 3, expectedSize: nil, expectedModificationNanos: nil, noCache: false, retryByReopening: false)
+    let result = await withCheckedContinuation { continuation in
+        backend.read(request) { continuation.resume(returning: $0) }
+    }
+    return try result.get()
+}
+
+private func executeForDescriptorTest(_ request: HelperRequest, using backend: any FileBackend) async throws(FileOperationError) {
+    let result = await withCheckedContinuation { continuation in
+        backend.execute(request) { continuation.resume(returning: $0) }
+    }
+    _ = try result.get()
+}
+
 private final class WriteFailureBackend: FileBackend {
     let hang = Atomic(false)
     let calls = Atomic(0)
