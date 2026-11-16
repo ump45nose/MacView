@@ -86,6 +86,53 @@ private func browseAndDisplayChooseDecodeLevelsIndependently(_ sample: DecodeLev
     await environment.pipeline.shutdown()
 }
 
+#if DEBUG
+@Test func abandonedBundleKeepsItsBoundsAfterReplacementFinishes() async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let identity = try await environment.identity("image/size/3600x5400.jpg")
+    let gate = FirstBundleGate()
+    defer { gate.open() }
+    environment.pipeline.bundleContentLoaded.withLock { $0 = { await gate.wait() } }
+    let first = Task { try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .book) }
+    try await waitUntil { gate.entered }
+    first.cancel()
+    await #expect(throws: CancellationError.self) { try await first.value }
+    // 新作业先结束并撤下登记，旧作业再恢复；旧作业必须仍持有自己的尺寸。
+    _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 96, priority: .book)
+    gate.open()
+    await environment.pipeline.shutdown()
+}
+
+private final class FirstBundleGate: Sendable {
+    private struct State {
+        var entered = false
+        var continuation: CheckedContinuation<Void, Never>?
+    }
+    private let state = Mutex(State())
+    var entered: Bool { state.withLock { $0.entered } }
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            let first = state.withLock { state in
+                guard !state.entered else { return false }
+                state.entered = true
+                state.continuation = continuation
+                return true
+            }
+            if !first { continuation.resume() }
+        }
+    }
+    func open() {
+        let continuation = state.withLock { state in
+            defer { state.continuation = nil }
+            return state.continuation
+        }
+        continuation?.resume()
+    }
+}
+
+#endif
+
 @Test func concurrentRenditionsShareTheReadAndSourceDecode() async throws {
     let environment = try PipelineEnvironment()
     defer { environment.clean() }
@@ -393,7 +440,8 @@ func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: Ren
     try await eventually { environment.registry.control.reads.count == 1 }
     environment.pipeline.setPrefetchPlan(plan, session: second)
     let foreground = Task { try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .visible) }
-    try await Task.sleep(for: .milliseconds(20))
+    // 确认两个会话和前台都已加入同一作业，不能用固定延时推断调度顺序。
+    try await waitUntil { environment.pipeline.bundleMemberCount(identity) == 3 }
     environment.pipeline.cancelAll(session: first)
     await gate.release()
     #expect(try await foreground.value.image.height == 128)
@@ -696,20 +744,20 @@ func foregroundThumbnailJoiningPrefetchPromotesDecodeAheadOfQueue(_ priority: IO
     await environment.pipeline.shutdown()
 }
 
-private func waitUntil(_ condition: () -> Bool) async throws {
+private func waitUntil(fileID: StaticString = #fileID, line: UInt = #line, _ condition: () -> Bool) async throws {
     let deadline = ContinuousClock.now + .seconds(5)
     while !condition() {
-        guard ContinuousClock.now < deadline else { throw PipelineTestFailure.timedOut }
+        guard ContinuousClock.now < deadline else { throw PipelineTestFailure.timedOut("\(fileID):\(line)") }
         try await Task.sleep(for: .milliseconds(2))
     }
 }
 
-private func eventually(_ predicate: () async throws -> Bool) async throws {
+private func eventually(fileID: StaticString = #fileID, line: UInt = #line, _ predicate: () async throws -> Bool) async throws {
     for _ in 0..<400 {
         if try await predicate() { return }
         try await Task.sleep(for: .milliseconds(5))
     }
-    throw PipelineTestFailure.timedOut
+    throw PipelineTestFailure.timedOut("\(fileID):\(line)")
 }
 
 private func eventuallyForCancellationResume(
@@ -725,7 +773,7 @@ private func eventuallyForCancellationResume(
     throw CancellationResumeTestFailure.timedOut("\(description)（\(fileID):\(line)）")
 }
 
-private enum PipelineTestFailure: Error { case timedOut }
+private enum PipelineTestFailure: Error { case timedOut(String) }
 private enum CancellationResumeTestFailure: Error { case timedOut(String) }
 
 /// 真实文件来源的计数外壳；不替换文件解析、调度或解码。
