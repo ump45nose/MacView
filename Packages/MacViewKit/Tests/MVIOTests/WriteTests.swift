@@ -159,7 +159,7 @@ func cachedReadInvalidationRespectsDirectoryBoundaries(helper: Bool) async throw
 }
 
 @Test(arguments: [false, true], [false, true])
-func readsDuringFileMutationDoNotLeaveCachedDescriptors(rename: Bool, parent: Bool) throws {
+func readsDuringFileMutationDoNotLeaveCachedDescriptors(rename: Bool, parent: Bool) async throws {
     let directory = try makeDescriptorTestDirectory()
     defer { try? FileManager.default.removeItem(at: directory) }
     let folder = directory.appending(path: "book"), file = folder.appending(path: "page")
@@ -176,22 +176,31 @@ func readsDuringFileMutationDoNotLeaveCachedDescriptors(rename: Bool, parent: Bo
     let completed = DispatchSemaphore(value: 0)
     let concurrentRead = Mutex<Result<Data, FileOperationError>?>(nil)
 
-    _ = try reader.withInvalidatedCache(for: mutation) { () throws(FileOperationError) in
-        // 缓存已清除，但系统调用尚未开始：让另一个线程完整读完，固定重缓存的竞态顺序。
-        DispatchQueue.global().async {
-            let result = Result { () throws(FileOperationError) in try reader.read(read) }
-            concurrentRead.withLock { $0 = result }
-            completed.signal()
+    // 只有专用线程阻塞等待读取；测试任务挂起，给共享线程池留下执行并发读和超时回调的槽位。
+    let mutationResult: Result<Result<Data, FileOperationError>, FileOperationError> = await withCheckedContinuation { continuation in
+        Thread.detachNewThread {
+            let result = Result { () throws(FileOperationError) -> Result<Data, FileOperationError> in
+                try reader.withInvalidatedCache(for: mutation) { () throws(FileOperationError) in
+                    // 缓存已清除，但系统调用尚未开始：让另一个线程完整读完，固定重缓存的竞态顺序。
+                    DispatchQueue.global().async {
+                        let result = Result { () throws(FileOperationError) in try reader.read(read) }
+                        concurrentRead.withLock { $0 = result }
+                        completed.signal()
+                    }
+                    guard completed.wait(timeout: .now() + 10) == .success else {
+                        throw .system(call: "concurrent read timed out", code: ETIMEDOUT)
+                    }
+                    if parent && !rename, unlink(file.path) != 0 { throw .system(call: "unlink", code: errno) }
+                    _ = try FileOperations.execute(mutation)
+                    return Result { () throws(FileOperationError) in try reader.read(read) }
+                }
+            }
+            continuation.resume(returning: result)
         }
-        guard completed.wait(timeout: .now() + 10) == .success else {
-            throw .system(call: "concurrent read timed out", code: ETIMEDOUT)
-        }
-        if parent && !rename, unlink(file.path) != 0 { throw .system(call: "unlink", code: errno) }
-        let result = try FileOperations.execute(mutation)
-        // 修改窗口还没结束时，旧路径就应当无法再通过缓存读取。
-        #expect(throws: FileOperationError.system(call: "open", code: ENOENT)) { try reader.read(read) }
-        return result
     }
+    // 修改窗口还没结束时，旧路径就应当无法再通过缓存读取。
+    let afterMutation = try mutationResult.get()
+    #expect(throws: FileOperationError.system(call: "open", code: ENOENT)) { try afterMutation.get() }
     let result = try #require(concurrentRead.withLock { $0 })
     #expect(try result.get() == bytes)
     #expect(throws: FileOperationError.system(call: "open", code: ENOENT)) { try reader.read(read) }
