@@ -27,7 +27,13 @@ final class DirectBackend: FileBackend {
     private let reader = FileReader()
 
     func execute(_ request: HelperRequest, completion: @escaping @Sendable (Result<String?, FileOperationError>) -> Void) {
-        queue.async { completion(Result { () throws(FileOperationError) in try FileOperations.execute(request) }) }
+        queue.async { [reader] in
+            completion(Result { () throws(FileOperationError) in
+                try reader.withInvalidatedCache(for: request) { () throws(FileOperationError) in
+                    try FileOperations.execute(request)
+                }
+            })
+        }
     }
 
     func stat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void) {

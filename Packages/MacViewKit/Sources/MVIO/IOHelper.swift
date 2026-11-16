@@ -71,7 +71,10 @@ public enum IOHelper {
                     }
                 case .create, .write, .finish, .rename, .makeDirectory, .remove, .trash:
                     do throws(FileOperationError) {
-                        if let path = try FileOperations.execute(request) { reply(id, .path(path)) }
+                        let path = try reader.withInvalidatedCache(for: request) { () throws(FileOperationError) in
+                            try FileOperations.execute(request)
+                        }
+                        if let path { reply(id, .path(path)) }
                         else { reply(id, .done) }
                     } catch {
                         reply(id, .failure(error))
