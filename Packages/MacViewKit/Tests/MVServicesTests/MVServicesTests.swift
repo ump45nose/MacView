@@ -293,29 +293,51 @@ import Testing
         await fixture.shutdown(services)
     }
 
-    @Test("appliedFileChanges 在目录缓存与会话更新之后才发出，支持多处订阅")
+    @Test("appliedFileChanges 在目录缓存、书记忆与会话更新之后才发出，支持多处订阅")
     func appliedFileChangesFiresAfterDirectoryCacheAndSessionUpdate() async throws {
         let fixture = try ServiceFixture()
         defer { fixture.clean() }
         let services = try await fixture.make()
         let operations = try #require(services.fileOperations)
         let book = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        let parent = try #require(book.parent)
         let directories = DirectoryCache(index: try #require(services.runtime?.index))
+        for try await _ in services.bookshelf.items(in: parent, sort: SortSpec(key: .name)) {}
         let session = services.makeSession()
         await session.open(book, at: nil)
         let deleted = try #require(session.book?.pages[0].id)
         let stream1 = services.appliedFileChanges(), stream2 = services.appliedFileChanges()
-        let observer1 = Task { @MainActor () -> ([FileChange], Bool, Int) in
+        let observer1 = Task { @MainActor () throws -> [FileChange] in
             for await batch in stream1 {
-                let cached = try? await directories.cachedChildren(of: book)?.entries.contains { $0.location == deleted }
-                return (batch, cached ?? true, session.book?.pages.count ?? 0)
+                let cached = try #require(try await directories.cachedChildren(of: book))
+                #expect(!cached.entries.contains { $0.location == deleted })
+                #expect(session.book?.pages.count == 11)
+                return batch
             }
-            return ([], true, 0)
+            return []
         }
         let observer2 = Task { () -> [FileChange] in for await batch in stream2 { return batch }; return [] }
         #expect((await operations.perform(.deletePermanently([deleted]))).failures.isEmpty)
-        let first = await observer1.value, second = await observer2.value
-        #expect(first.0 == [.removed(deleted)] && second == [.removed(deleted)] && !first.1 && first.2 == 11)
+        let first = try await observer1.value, second = await observer2.value
+        #expect(first == [.removed(deleted)] && second == first)
+
+        session.go(.index(3))
+        let currentName = try #require(session.book?.pages[session.currentPage].entry.name)
+        let renamed = parent.appending("renamed-pages")
+        let moveStream = services.appliedFileChanges()
+        let moveObserver = Task { @MainActor () throws -> [FileChange] in
+            for await batch in moveStream {
+                let cached = try #require(try await directories.cachedChildren(of: parent))
+                #expect(cached.entries.contains { $0.location == renamed } && !cached.entries.contains { $0.location == book })
+                #expect(await services.settings.bookMemory(for: renamed)?.lastPage == renamed.appending(currentName))
+                #expect(await services.settings.bookMemory(for: book) == nil)
+                return batch
+            }
+            return []
+        }
+        let moved = await operations.perform(.rename(book, to: "renamed-pages"))
+        #expect(moved.failures.isEmpty)
+        #expect(try await moveObserver.value == moved.changes)
         await fixture.shutdown(services)
     }
 
@@ -337,6 +359,7 @@ import Testing
         let services = try await fixture.make()
         let report = await services.interruptedTransfersReport()
         #expect(report == ResumeReport(completed: 1, pending: 0, failed: 0))
+        #expect(await services.interruptedTransfersReport() == report)
         #expect(!FileManager.default.fileExists(atPath: sourceURL.path) && FileManager.default.fileExists(atPath: targetURL.path))
         #expect(try Data(contentsOf: targetURL) == Data([7, 8, 9]))
         await fixture.shutdown(services)
