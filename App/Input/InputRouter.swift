@@ -38,10 +38,10 @@ final class InputRouter {
     }
 
     /// 处理到达窗口的按键；返回 false 时由调用方交给 AppKit 的默认处理。
-    func handle(_ event: NSEvent, in window: NSWindow) -> Bool {
+    func handle(_ event: NSEvent, in window: NSWindow, overlay: InputScope? = nil) -> Bool {
         guard let chord = KeyMapping.chord(for: event) else { return false }
         let scope = Self.scope(of: window.firstResponder)
-        switch resolver.feed(chord, scope: scope, at: .now) {
+        switch resolver.feed(chord, scope: scope, overlay: overlay, at: .now) {
         case let .command(id, arguments):
             setPending(nil)
             onCommand?(id, arguments, scope)

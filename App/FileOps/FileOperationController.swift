@@ -31,7 +31,7 @@ final class FileOperationController {
 
     let undoManager = UndoManager()
     private(set) var fileSettings = FileOperationSettings.default
-    private(set) var classifyDestinations: [Location] = []
+    private(set) var classifyDestinations: [(location: Location, title: String, parent: Location?)] = []
     private weak var app: AppDelegate?, progressController: ReaderWindowController?
     private var queue: [QueueItem] = [], isExecuting = false, activeLocations: Set<Location> = []
     private var currentTask: Task<FileOperationResult, Never>?, latestProgress = FileProgress(), showingProgress = false
@@ -50,6 +50,7 @@ final class FileOperationController {
     init(app: AppDelegate) {
         self.app = app; undoManager.groupsByEvent = false
         observeSettings()
+        registerClassifyCommands()
     }
 
     func perform(_ operation: FileOperation, title: String, origin: FileOrigin, reportsFailures: Bool = true) async -> FileOperationResult? {
@@ -149,6 +150,10 @@ final class FileOperationController {
             window.beginSheet(sheet)
         }
         if !otherFailures.isEmpty {
+            if otherFailures.allSatisfy({ if case FileOpsError.readOnly = $0.error { true } else { false } }) {
+                controller.content.statusBar.showMessage(String(localized: "压缩包内的项不能移动"))
+                return
+            }
             guard reportsFailures else { return }
             let total = result.changes.count + result.skipped.count + result.failures.count
             let bannerTitle = total > otherFailures.count
@@ -169,7 +174,7 @@ final class FileOperationController {
             return
         }
         if recycleLocations.isEmpty, (!result.changes.isEmpty || !result.skipped.isEmpty) {
-            controller.content.statusBar.showMessage(Self.completionMessage(operation: operation, title: title, result: result, isUndo: isUndo))
+            controller.content.statusBar.showMessage(completionMessage(operation: operation, title: title, result: result, isUndo: isUndo))
         }
     }
 
@@ -209,14 +214,21 @@ final class FileOperationController {
         return (text, fraction)
     }
 
-    private static func completionMessage(operation: FileOperation, title: String, result: FileOperationResult, isUndo: Bool?) -> String {
+    private func completionMessage(operation: FileOperation, title: String, result: FileOperationResult, isUndo: Bool?) -> String {
         if let isUndo { return isUndo ? String(localized: "已撤销\(title)") : String(localized: "已重做\(title)") }
         let skip = result.skipped.isEmpty ? "" : String(localized: "，跳过 \(result.skipped.count) 项（目标里已有同名项）")
-        if case let .transfer(sources, folder, mode, _) = operation {
+        let transferOp: (sources: [Location], folder: Location, mode: TransferMode)? = switch operation {
+        case let .transfer(sources, folder, mode, _): (sources, folder, mode)
+        case let .sequence(ops): if case let .transfer(sources, folder, mode, _)? = ops.last { (sources, folder, mode) } else { nil }
+        default: nil
+        }
+        if let (sources, folder, mode) = transferOp {
             let verb = mode == .move ? String(localized: "已移动") : String(localized: "已复制")
-            return result.changes.count == 1 && sources.count == 1 && result.skipped.isEmpty
-                ? "\(verb) \(sources[0].name) → \(folder.name)"
-                : String(localized: "\(verb) \(result.changes.count) 项到“\(folder.name)”") + skip
+            let label = folder.parent.flatMap { p in fileSettings.classifyTargets.contains { $0.location == p } ? "\(p.name) / \(folder.name)" : nil } ?? folder.name
+            let movedCount = sources.count - result.skipped.count - result.failures.count
+            return movedCount == 1 && sources.count == 1 && result.skipped.isEmpty
+                ? "\(verb) \(sources[0].name) → \(label)"
+                : String(localized: "\(verb) \(max(1, movedCount)) 项到“\(label)”") + skip
         }
         return String(localized: "已\(title)") + skip
     }
@@ -258,15 +270,53 @@ final class FileOperationController {
         guard let services = app?.services else { return }
         let ops = await services.settings.global().fileOperations
         fileSettings = ops
-        var destinations: [Location] = []
+        var destinations: [(location: Location, title: String, parent: Location?)] = []
         for target in ops.classifyTargets {
-            destinations.append(target.location)
+            destinations.append((target.location, target.location.name, nil))
             guard target.listsSubfolders, let provider = try? services.sources.provider(for: target.location) else { continue }
             var subfolders: [Entry] = []
-            try? await { for try await batch in provider.children(of: target.location, priority: .near) { subfolders.append(contentsOf: batch.filter { $0.kind == .directory }) } }()
-            destinations.append(contentsOf: ReadingOrder.sorted(subfolders, by: SortSpec(key: .name)).map(\.location))
+            try? await { for try await batch in provider.children(of: target.location, priority: .near) { subfolders.append(contentsOf: batch.filter { $0.kind == .directory && ReadingListing.isVisible($0) }) } }()
+            for sub in ReadingOrder.sorted(subfolders, by: SortSpec(key: .name)) {
+                destinations.append((sub.location, "\(target.location.name) / \(sub.name)", target.location))
+            }
         }
         classifyDestinations = destinations
+    }
+
+    func setClassifyMode(_ mode: TransferMode, announceIn controller: ReaderWindowController? = nil) {
+        fileSettings.classifyMode = mode
+        if let controller { controller.content.statusBar.showMessage(String(localized: "分类模式：\(mode == .move ? String(localized: "移动") : String(localized: "复制"))")) }
+        Task { try? await app?.services?.settings.updateGlobal { $0.fileOperations.classifyMode = mode } }
+    }
+
+    func setClassifyTargets(_ targets: [ClassifyTarget]) async {
+        fileSettings.classifyTargets = targets
+        try? await app?.services?.settings.updateGlobal { $0.fileOperations.classifyTargets = targets }
+        await reloadSettings()
+    }
+
+    private func targetWindow(_ ctx: CommandContext) -> ReaderWindowController? {
+        targetController(for: FileOrigin(window: app?.controller(for: ctx.session)))
+    }
+
+    private func registerClassifyCommands() {
+        guard let registry = app?.services?.commands, let catalog = app?.catalog else { return }
+        if let desc = catalog.descriptor(.classifyTarget) {
+            registry.register(desc, isEnabled: { [weak self] ctx in self?.app?.services?.fileOperations != nil && self?.targetWindow(ctx)?.classifyPanel != nil }) { [weak self] ctx, args in
+                if case let .number(raw)? = args?["index"] { self?.targetWindow(ctx)?.classifyPanel?.classify(atVisibleIndex: Int(raw) - 1) }
+            }
+        }
+        if let desc = catalog.descriptor(.classifyModeToggle) {
+            registry.register(desc, isEnabled: { [weak self] _ in self?.app?.services?.fileOperations != nil }) { [weak self] ctx, _ in
+                guard let self else { return }
+                setClassifyMode(fileSettings.classifyMode == .move ? .copy : .move, announceIn: targetWindow(ctx))
+            }
+        }
+        if let desc = catalog.descriptor(.classifyNewTarget) {
+            registry.register(desc, isEnabled: { [weak self] ctx in self?.targetWindow(ctx)?.classifyPanel?.canBeginNewTarget == true }) { [weak self] ctx, _ in
+                self?.targetWindow(ctx)?.classifyPanel?.beginNewTarget()
+            }
+        }
     }
 
     // MARK: 命令与菜单
@@ -425,13 +475,19 @@ final class FileOperationController {
     func populateTransferMenu(_ menu: NSMenu, origin: FileOrigin, mode: TransferMode) -> Bool {
         menu.removeAllItems()
         guard canModify(origin) else { return false }
-        for (index, destination) in classifyDestinations.enumerated() {
+        let controller = targetController(for: origin)
+        let panel = (controller?.dock.panels[DockPanels.classify] as? ClassifyPanel) ?? (app?.dock?.floatingWindows[DockPanels.classify]?.panel as? ClassifyPanel)
+        let items: [(location: Location, title: String)] = panel?.visibleDestinations ?? {
+            let collapsed = panel?.settings.collapsed ?? []
+            return classifyDestinations.filter { $0.parent.map { !collapsed.contains($0) } ?? true }.map { ($0.location, $0.title) }
+        }()
+        for (index, item) in items.enumerated() {
             let prefix = index < 9 ? "\(index + 1)  " : (index == 9 ? "0  " : "")
-            menu.addItem(MenuAction(prefix + destination.name) { [weak self] in
-                Task { @MainActor in await self?.transfer(origin: origin, into: destination, mode: mode) }
+            menu.addItem(MenuAction(prefix + item.title) { [weak self] in
+                Task { @MainActor in await self?.transfer(origin: origin, into: item.location, mode: mode) }
             }.item)
         }
-        if !classifyDestinations.isEmpty { menu.addItem(.separator()) }
+        if !items.isEmpty { menu.addItem(.separator()) }
         menu.addItem(MenuAction(String(localized: "选择文件夹…")) { [weak self] in self?.chooseFolderAndTransfer(origin: origin, mode: mode) }.item)
         return true
     }

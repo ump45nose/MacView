@@ -30,7 +30,13 @@ final class ReaderWindow: NSWindow {
     }
 
     override func keyDown(with event: NSEvent) {
-        if router?.handle(event, in: self) != true {
+        let controller = delegate as? ReaderWindowController
+        if let panelWindow = controller?.classifyPanel?.view.window, panelWindow !== self,
+           let editor = panelWindow.firstResponder as? NSTextView, editor.isEditable {
+            editor.keyDown(with: event)
+            return
+        }
+        if router?.handle(event, in: self, overlay: controller?.inputOverlay) != true {
             super.keyDown(with: event)
         }
     }
@@ -247,6 +253,28 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         return FileOrigin(window: self, items: [Entry(identity: ContentIdentity(location: book.location, size: 0, modificationNanos: 0), name: book.location.name, kind: kind)])
     }
 
+    /// 当前在本窗口打开（停靠且显示，或浮动且绑定到本窗口）的分类面板。
+    var classifyPanel: ClassifyPanel? {
+        if case let .docked(edge, _) = dock.dockLayout.placement(of: DockPanels.classify),
+           dock.dockLayout.isPanelVisible(DockPanels.classify),
+           dock.dockLayout[edge].style == .split || dock.dockLayout.currentTab(in: edge) == DockPanels.classify,
+           let panel = dock.panels[DockPanels.classify] as? ClassifyPanel {
+            return panel
+        }
+        if dock.coordinator.current.isPanelVisible(DockPanels.classify),
+           let panel = dock.coordinator.floatingWindows[DockPanels.classify]?.panel as? ClassifyPanel,
+           panel.owner === self {
+            return panel
+        }
+        return nil
+    }
+
+    var inputOverlay: InputScope? {
+        guard let panel = classifyPanel, !(window?.firstResponder is NSTextView),
+              !(panel.view.window?.firstResponder is NSTextView) else { return nil }
+        return .classify
+    }
+
     /// InputRouter 持有解析器状态；配置重载时整体替换，并清除未完成的序列。
     func updateBindings(_ catalog: CommandCatalog) {
         self.catalog = catalog
@@ -280,6 +308,10 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         content.statusBar.refresh(session)
         window?.toolbar?.validateVisibleItems()
         updateVolumeStatus()
+        (dock.panels[DockPanels.classify] as? ClassifyPanel)?.refreshState()
+        if let floating = dock.coordinator.floatingWindows[DockPanels.classify]?.panel as? ClassifyPanel, floating.owner === self {
+            floating.refreshState()
+        }
         onSessionChange?()
     }
 

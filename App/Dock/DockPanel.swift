@@ -72,6 +72,7 @@ struct DockPanelType {
 enum DockPanels {
     static let bookshelf = PanelID("bookshelf")
     static let pageList = PanelID("pageList")
+    static let classify = PanelID("classify")
 
     static let all: [DockPanelType] = [
         DockPanelType(
@@ -81,6 +82,10 @@ enum DockPanels {
         DockPanelType(
             id: pageList, title: String(localized: "页面列表"), symbol: "square.grid.3x3",
             toggleCommand: .pageListToggle, defaultEdge: .right, make: PageListPanel.init
+        ),
+        DockPanelType(
+            id: classify, title: String(localized: "分类"), symbol: "tray.and.arrow.down",
+            toggleCommand: .classifyPanelToggle, defaultEdge: .right, make: ClassifyPanel.init
         ),
     ]
 
