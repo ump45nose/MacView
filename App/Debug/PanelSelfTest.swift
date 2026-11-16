@@ -13,7 +13,7 @@ import MVSettings
 final class PanelSelfTest {
     private let app: AppDelegate
     private let log = SelfTestLog()
-    private let temporary = URL(fileURLWithPath: NSTemporaryDirectory()).appending(path: "MacViewPanelSelfTest-\(UUID().uuidString)")
+    private let temporary = TestPresentation.scratchDirectory("panel")
 
     static func runIfRequested(app: AppDelegate) {
         guard UserDefaults.standard.bool(forKey: "MVPanelSelfTest") else { return }

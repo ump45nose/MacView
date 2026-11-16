@@ -16,7 +16,7 @@ import MVSettings
 final class ViewerSelfTest {
     private let app: AppDelegate
     private let log = SelfTestLog()
-    private let temporary = URL(fileURLWithPath: NSTemporaryDirectory()).appending(path: "MacViewViewerSelfTest-\(UUID().uuidString)")
+    private let temporary = TestPresentation.scratchDirectory("viewer")
 
     static func runIfRequested(app: AppDelegate) {
         guard UserDefaults.standard.bool(forKey: "MVViewerSelfTest") else { return }

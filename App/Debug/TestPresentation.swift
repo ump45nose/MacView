@@ -16,6 +16,12 @@ enum TestPresentation {
             || [SelfTest.launchKey, "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", CanvasTestWindowController.launchKey].contains { defaults.bool(forKey: $0) }
     }
 
+    /// 自检的临时文件放进本次运行的隔离 support 目录（测试实例启动时已检查必须传 `-MVSupportDirectory`），不落系统临时目录。
+    static func scratchDirectory(_ name: String) -> URL {
+        URL(fileURLWithPath: UserDefaults.standard.string(forKey: AppDelegate.supportDirectoryKey)!)
+            .appending(path: "selftest-tmp/\(name)-\(UUID().uuidString)", directoryHint: .isDirectory)
+    }
+
     static var activationAllowed: Bool { UserDefaults.standard.bool(forKey: activateKey) }
 
     static var screen: NSScreen? { NSScreen.screens.max { $0.maximumFramesPerSecond < $1.maximumFramesPerSecond } }
