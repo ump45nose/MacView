@@ -117,7 +117,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 视频也要隔离：用 AVAssetResourceLoader 从辅助进程按范围取数据，不让 AVFoundation 在进程内读网络卷。
   - 辅助进程由 posix_spawn 起宿主自己的可执行文件（环境变量 `MVIO_HELPER=1`），经 socketpair 收发二进制帧，读到 EOF 即退出（S1-T1）。不用 launchd 托管的 XPC 服务：同一 App 域内只有一个实例，卡住的实例活着时无法换新的。
   - 卡住的辅助进程被弃用时发 SIGKILL 并关闭 socket，下一个请求起新的辅助进程。
-- 文件写入与移动（S3-T2 阶段 1，尚未验收）：创建、写入、完成、改名、建目录、删除和本机废纸篓经调度器及现有期限；网络卷由辅助进程执行。排他改名在 NFS 返回 ENOTSUP/EINVAL 时回退普通改名，存在检查与改名之间的竞态。
+- 文件写入与移动（S3-T2）：创建、写入、完成、改名、建目录、删除和本机废纸篓经调度器及现有期限；网络卷由辅助进程执行。排他改名在 NFS 返回 ENOTSUP/EINVAL 时回退普通改名，存在检查与改名之间的竞态。
 - 跨卷移动先原子写入本机传输记录，记录源、目标、临时位置和冲突策略；临时名为 `.<原名>.<完整传输 ID（32 位十六进制）>.macview-part`，排他创建遇到重名时先删除记录再报错，删除记录失败也报错。复制逐文件读回 SHA-256，排他发布后删除源；复制操作也使用带 ID 的临时名，但不写移动记录。创建后的失败和取消会清理临时项，清理失败时保留移动记录供恢复。
 - 组合根启动时恢复中断的移动：临时项存在时删除后重做；没有临时项且目标、源均存在时，逐项比较类型、大小和 SHA-256，匹配才删除源；不匹配或无法读取则保留源，按记录中的冲突策略重做。临时项和源均不存在、目标存在时，删除记录并计入 completed；三者均不存在时，删除记录并计入 failed。该功能尚未发布，不保留旧式临时项迁移逻辑。
 - 文件操作用不跟随链接的类型查询；未知扩展名的普通文件可操作，链接同卷改名、移动和删除操作链接本身，复制和跨卷移动拒绝链接。校验读回每次重新打开描述符并设置 F_NOCACHE，读完关闭；创建、写入和完成文件时检查 F_NOCACHE 的设置结果，失败则关闭描述符并返回错误。临时文件创建成功后设置失败时，文件操作层尝试删除空文件，删除失败保留移动记录。只保留文件修改时间，不保留目录自身修改时间。
@@ -330,7 +330,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - `memory` 返回 `rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes`、`inFlightBytes` 和 `waitingTasks`；`cacheBudgets` 返回对应四项内存预算以及 `thumbnailDiskBytes`、`browseDiskBytes` 两项磁盘预算。
   - 合成滚动和屏幕状态有关：屏幕锁定时事件不生效。
   - 首屏计时的状态机和可见缩略图回报（`ReaderWindowController` 的 `beginFirstScreenThumbnails` 等、`CollectionView.onVisibleThumbnails`、`CanvasView.onImageApplied`）只在 Debug 编译，Release 二进制里没有这些符号。
-- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。自检默认不激活 App，离不开键盘焦点的项走未激活的回退或记 `SKIP`；加 `-MVSelfTestActivate YES` 才激活，留给用户键鼠空闲时跑。结果行是 `SELFTEST OK|FAILED n commit=… cdhash=…`。
+- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`、`-MVFileOpsSelfTest YES|net-kill|net-verify`（后两个是网络卷验收，见 S3-F2 报告）。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。自检默认不激活 App，离不开键盘焦点的项走未激活的回退或记 `SKIP`；加 `-MVSelfTestActivate YES` 才激活，留给用户键鼠空闲时跑。结果行是 `SELFTEST OK|FAILED n commit=… cdhash=…`。
 - 观测：用 os_signpost 标记帧时间和请求延迟，用 Instruments 的 Animation Hitches 验收。
 - 构建身份：构建阶段“记录源码提交”把 `git rev-parse HEAD`（工作树有改动时加 `-dirty`）写进 Info.plist 的 `MVSourceCommit`。验收证据和录制都记 App 的 commit 与 CDHash，`run.py --g2` 只认与被验收 App 一致的证据，见 [S2-T2 报告](reports/S2-T2.md)。
 
@@ -420,7 +420,7 @@ public final class FileSourceRegistry: SourceRegistry { public init(scheduler: I
 public enum IOHelper { public static func runIfRequested() }   // 宿主 main 开头调用：作为辅助进程启动时进入请求循环，不返回
 public final class ByteSourceAsset: Sendable { public let asset: AVURLAsset; public init(source: any ByteSource, priority: IOPriority = .visible) }   // 网络卷视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
 
-// MVFileOps：已接入 CoreServices，真实网络验收未完成
+// MVFileOps
 public struct Relocation: Sendable, Hashable { public var source: Location; public var target: Location }
 public indirect enum FileOperation: Sendable, Hashable {
     case delete([Location]), deletePermanently([Location]), rename(Location, to: String)
@@ -430,7 +430,7 @@ public indirect enum FileOperation: Sendable, Hashable {
 public enum FileOpsError: Error, Sendable, Equatable { case readOnly, invalidName(String), recycleUnavailable(String), verificationFailed, intoItself }
 public struct FileFailure: Sendable { public var location: Location; public var error: any Error }
 public struct FileProgress: Sendable, Hashable { public var completedItems, totalItems: Int; public var completedBytes, totalBytes: Int64 }
-public struct FileOperationResult: Sendable { public var changes: [FileChange]; public var inverse: FileOperation?; public var skipped: [Location]; public var failures: [FileFailure] }
+public struct FileOperationResult: Sendable { public var changes: [FileChange]; public var inverse: FileOperation?; public var skipped: [Location]; public var failures: [FileFailure]; public var retry: FileOperation? }
 public struct RecycleBin: Sendable, Hashable { public var location: Location; public var batchCount: Int }
 public struct ResumeReport: Sendable, Hashable { public var completed, pending, failed: Int }
 public final class FileOperationService: Sendable {
@@ -715,6 +715,8 @@ public struct CoreConfiguration: Sendable {
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
     public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?   // Mock 为 nil
     public let fileOperations: FileOperationService?   // Mock 为 nil
+    public func appliedFileChanges() -> AsyncStream<[FileChange]>   // 目录缓存、书记忆和活跃会话都更新完后再向界面广播
+    public func interruptedTransfersReport() async -> ResumeReport?   // 等待启动时的中断传输恢复结束，只消费一次
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
     public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
