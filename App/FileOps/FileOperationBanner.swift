@@ -74,32 +74,40 @@ final class FileOperationBanner: NSView {
     @objc private func closeClicked(_ sender: Any?) { onClose() }
 }
 
-/// 回收目录建不起来时转为永久删除的确认表单（设计稿 4）。
+/// 回收目录建不起来时转为永久删除，或清空回收目录第二步的确认表单（设计稿 4）。
 @MainActor
 final class PermanentDeleteSheet: NSWindow {
+    let headingLabel = NSTextField(labelWithString: "")
+    let detailLabel = NSTextField(wrappingLabelWithString: "")
     let cancelButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
     let confirmButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.danger, foreground: Theme.onDanger, radius: 7, height: 26, padding: 11)
     private var onDecision: ((Bool) -> Void)?
 
-    init(count: Int, volumeName: String, reason: String, onDecision: @escaping (Bool) -> Void) {
+    convenience init(count: Int, volumeName: String, reason: String, onDecision: @escaping (Bool) -> Void) {
+        self.init(
+            heading: String(localized: "永久删除这 \(count) 项？"),
+            detail: String(localized: "“\(volumeName)”上建不了回收目录：\(reason)\n永久删除后不能撤销，也不能从回收目录找回。"),
+            onDecision: onDecision
+        )
+    }
+
+    init(heading: String, detail: String, onDecision: @escaping (Bool) -> Void) {
         self.onDecision = onDecision
         super.init(contentRect: NSRect(x: 0, y: 0, width: 420, height: 150), styleMask: [.titled], backing: .buffered, defer: false)
         isReleasedWhenClosed = false; backgroundColor = Theme.ground
         let icon = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) ?? NSImage())
         icon.symbolConfiguration = .init(pointSize: 18, weight: .regular); icon.contentTintColor = Theme.danger
-        let heading = NSTextField(labelWithString: String(localized: "永久删除这 \(count) 项？"))
-        heading.font = .systemFont(ofSize: 13, weight: .semibold); heading.textColor = Theme.text
-        let headerRow = NSStackView(views: [icon, heading]); headerRow.spacing = 10
-        let detail = NSTextField(wrappingLabelWithString: String(localized: "“\(volumeName)”上建不了回收目录：\(reason)\n永久删除后不能撤销，也不能从回收目录找回。"))
-        detail.font = .systemFont(ofSize: 12); detail.textColor = Theme.text2
+        headingLabel.stringValue = heading; headingLabel.font = .systemFont(ofSize: 13, weight: .semibold); headingLabel.textColor = Theme.text
+        let headerRow = NSStackView(views: [icon, headingLabel]); headerRow.spacing = 10
+        detailLabel.stringValue = detail; detailLabel.font = .systemFont(ofSize: 12); detailLabel.textColor = Theme.text2
         cancelButton.setText(String(localized: "取消")); cancelButton.keyEquivalent = "\u{1b}"
         cancelButton.target = self; cancelButton.action = #selector(cancelPressed(_:))
         confirmButton.setText(String(localized: "永久删除")); confirmButton.target = self; confirmButton.action = #selector(confirmPressed(_:))
 
         let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
         let actions = NSStackView(views: [spacer, cancelButton, confirmButton]); actions.spacing = 8
-        let body = NSStackView(views: [headerRow, detail, actions])
-        body.orientation = .vertical; body.alignment = .leading; body.spacing = 10; body.setCustomSpacing(14, after: detail)
+        let body = NSStackView(views: [headerRow, detailLabel, actions])
+        body.orientation = .vertical; body.alignment = .leading; body.spacing = 10; body.setCustomSpacing(14, after: detailLabel)
         body.edgeInsets = NSEdgeInsets(top: 18, left: 20, bottom: 16, right: 20); body.translatesAutoresizingMaskIntoConstraints = false
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 150)); container.addSubview(body)
         NSLayoutConstraint.activate([
@@ -117,6 +125,130 @@ final class PermanentDeleteSheet: NSWindow {
         let callback = onDecision; onDecision = nil
         if let parent = sheetParent { parent.endSheet(self) } else { close() }
         callback?(confirmed)
+    }
+}
+
+/// 清空回收目录第一步选卷表单（设计稿 4）：列出已连接各卷的卷名、挂载路径与删除批次数，默认全选。
+@MainActor
+final class EmptyRecycleBinsSheet: NSWindow {
+    struct Item: Equatable {
+        var location: Location, volumeName: String, mountPath: String, batchCount: Int, binURL: URL?, isSelected = true
+    }
+
+    @MainActor
+    final class VolumeRow: NSButton {
+        private let checkBox = NSView(), checkIcon = NSImageView()
+        let nameLabel = NSTextField(labelWithString: ""), pathLabel = NSTextField(labelWithString: ""), countLabel = NSTextField(labelWithString: "")
+        var isChecked = true { didSet { updateAppearance() } }
+
+        init(item: Item, index: Int, target: AnyObject?, action: Selector?) {
+            super.init(frame: .zero)
+            self.tag = index; self.target = target; self.action = action; isBordered = false; title = ""
+            checkBox.wantsLayer = true; checkBox.layer?.cornerRadius = 4
+            checkIcon.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
+            checkIcon.symbolConfiguration = .init(pointSize: 9, weight: .bold); checkIcon.contentTintColor = .white
+            checkIcon.translatesAutoresizingMaskIntoConstraints = false; checkBox.addSubview(checkIcon)
+            nameLabel.stringValue = item.volumeName; nameLabel.font = .systemFont(ofSize: 13, weight: .medium); nameLabel.textColor = Theme.text
+            pathLabel.stringValue = item.mountPath; pathLabel.font = .systemFont(ofSize: 11); pathLabel.textColor = Theme.text2; pathLabel.lineBreakMode = .byTruncatingMiddle
+            countLabel.stringValue = String(localized: "\(item.batchCount) 次删除"); countLabel.font = .systemFont(ofSize: 12); countLabel.textColor = Theme.text2
+            let textStack = NSStackView(views: [nameLabel, pathLabel]); textStack.orientation = .vertical; textStack.alignment = .leading; textStack.spacing = 1
+            let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+            let row = NSStackView(views: [checkBox, textStack, spacer, countLabel])
+            row.alignment = .centerY; row.spacing = 10; row.edgeInsets = NSEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
+            row.translatesAutoresizingMaskIntoConstraints = false; addSubview(row)
+            NSLayoutConstraint.activate([
+                checkBox.widthAnchor.constraint(equalToConstant: 14), checkBox.heightAnchor.constraint(equalToConstant: 14),
+                checkIcon.centerXAnchor.constraint(equalTo: checkBox.centerXAnchor), checkIcon.centerYAnchor.constraint(equalTo: checkBox.centerYAnchor),
+                row.leadingAnchor.constraint(equalTo: leadingAnchor), row.trailingAnchor.constraint(equalTo: trailingAnchor),
+                row.topAnchor.constraint(equalTo: topAnchor), row.bottomAnchor.constraint(equalTo: bottomAnchor),
+            ])
+            isChecked = item.isSelected; updateAppearance()
+        }
+
+        @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
+        override func hitTest(_ point: NSPoint) -> NSView? { super.hitTest(point) != nil ? self : nil }
+        override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); updateAppearance() }
+
+        private func updateAppearance() {
+            checkIcon.isHidden = !isChecked
+            effectiveAppearance.performAsCurrentDrawingAppearance {
+                checkBox.layer?.backgroundColor = (isChecked ? NSColor(srgbRed: 0x3A / 255, green: 0x72 / 255, blue: 0xD8 / 255, alpha: 1) : Theme.raised).cgColor
+                checkBox.layer?.borderWidth = isChecked ? 0 : 1
+                checkBox.layer?.borderColor = Theme.lineStrong.cgColor
+            }
+        }
+    }
+
+    private(set) var items: [Item]
+    private(set) var rowButtons: [VolumeRow] = []
+    let cancelButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
+    let revealButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
+    let emptyButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.danger, foreground: Theme.onDanger, radius: 7, height: 26, padding: 11)
+    private let listBox = NSStackView()
+    private let onReveal: (Item) -> Void
+    private var onConfirm: (([Item]) -> Void)?
+
+    init(items: [Item], onReveal: @escaping (Item) -> Void, onConfirm: @escaping ([Item]) -> Void) {
+        self.items = items; self.onReveal = onReveal; self.onConfirm = onConfirm
+        let initialHeight = CGFloat(min(420, 148 + items.count * 46))
+        super.init(contentRect: NSRect(x: 0, y: 0, width: 420, height: initialHeight), styleMask: [.titled], backing: .buffered, defer: false)
+        isReleasedWhenClosed = false; backgroundColor = Theme.ground
+        let heading = NSTextField(labelWithString: String(localized: "清空回收目录"))
+        heading.font = .systemFont(ofSize: 13, weight: .semibold); heading.textColor = Theme.text
+        let detail = NSTextField(wrappingLabelWithString: String(localized: "删到回收目录的项在清空前都能手动找回。只列出当前已连接的卷。"))
+        detail.font = .systemFont(ofSize: 12); detail.textColor = Theme.text2
+
+        listBox.orientation = .vertical; listBox.alignment = .leading; listBox.spacing = 0
+        listBox.wantsLayer = true; listBox.layer?.cornerRadius = 8; listBox.layer?.borderWidth = 0.5
+        for (index, item) in items.enumerated() {
+            if index > 0 {
+                let sep = NSView(); sep.wantsLayer = true; sep.layer?.backgroundColor = Theme.line.cgColor
+                listBox.addArrangedSubview(sep)
+                NSLayoutConstraint.activate([sep.heightAnchor.constraint(equalToConstant: 0.5), sep.widthAnchor.constraint(equalTo: listBox.widthAnchor)])
+            }
+            let row = VolumeRow(item: item, index: index, target: self, action: #selector(rowToggled(_:)))
+            rowButtons.append(row); listBox.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: listBox.widthAnchor).isActive = true
+        }
+        cancelButton.setText(String(localized: "取消")); cancelButton.keyEquivalent = "\u{1b}"
+        cancelButton.target = self; cancelButton.action = #selector(cancelPressed(_:))
+        revealButton.setText(String(localized: "在 Finder 中显示")); revealButton.target = self; revealButton.action = #selector(revealPressed(_:))
+        emptyButton.setText(String(localized: "清空…")); emptyButton.target = self; emptyButton.action = #selector(emptyPressed(_:))
+
+        let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let actions = NSStackView(views: [spacer, cancelButton, revealButton, emptyButton]); actions.spacing = 8
+        let body = NSStackView(views: [heading, detail, listBox, actions])
+        body.orientation = .vertical; body.alignment = .leading; body.spacing = 6
+        body.setCustomSpacing(10, after: detail); body.setCustomSpacing(14, after: listBox)
+        body.edgeInsets = NSEdgeInsets(top: 18, left: 20, bottom: 16, right: 20); body.translatesAutoresizingMaskIntoConstraints = false
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: initialHeight)); container.addSubview(body)
+        NSLayoutConstraint.activate([
+            body.widthAnchor.constraint(equalToConstant: 420), listBox.widthAnchor.constraint(equalTo: body.widthAnchor, constant: -40),
+            actions.widthAnchor.constraint(equalTo: body.widthAnchor, constant: -40),
+            body.leadingAnchor.constraint(equalTo: container.leadingAnchor), body.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            body.topAnchor.constraint(equalTo: container.topAnchor), body.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        contentView = container; updateState()
+    }
+
+    @objc private func rowToggled(_ sender: VolumeRow) {
+        items[sender.tag].isSelected.toggle(); sender.isChecked = items[sender.tag].isSelected; updateState()
+    }
+    @objc private func revealPressed(_ sender: Any?) { if let first = items.first(where: \.isSelected) { onReveal(first) } }
+    @objc private func cancelPressed(_ sender: Any?) { onConfirm = nil; if let parent = sheetParent { parent.endSheet(self) } else { close() } }
+    @objc private func emptyPressed(_ sender: Any?) {
+        let selected = items.filter(\.isSelected)
+        guard !selected.isEmpty else { return }
+        let callback = onConfirm; onConfirm = nil
+        if let parent = sheetParent { parent.endSheet(self) } else { close() }
+        callback?(selected)
+    }
+    private func updateState() {
+        let hasSelection = items.contains(where: \.isSelected)
+        revealButton.isEnabled = hasSelection; emptyButton.isEnabled = hasSelection
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            listBox.layer?.backgroundColor = Theme.raised.cgColor; listBox.layer?.borderColor = Theme.line.cgColor
+        }
     }
 }
 

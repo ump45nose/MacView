@@ -4,9 +4,9 @@ import MVMedia
 import MVSettings
 import SwiftUI
 
-/// 设置窗口的四页。
+/// 设置窗口的五页。
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case browse, display, cache, rules
+    case browse, display, cache, rules, files
 
     var id: String { rawValue }
 
@@ -16,6 +16,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .display: String(localized: "显示")
         case .cache: String(localized: "缓存")
         case .rules: String(localized: "路径规则")
+        case .files: String(localized: "文件")
         }
     }
 }
@@ -60,6 +61,7 @@ struct SettingsRootView: View {
                 case .display: DisplaySettingsPage(model: state.model)
                 case .cache: CacheSettingsPage(model: state.model)
                 case .rules: PathRulesPage(model: state.model)
+                case .files: FileSettingsPage(model: state.model)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -109,7 +111,7 @@ func browseChoice(_ model: SettingsModel) -> Binding<BrowseChoice> {
 }
 
 @MainActor
-private func global<Value>(_ model: SettingsModel, _ path: WritableKeyPath<GlobalSettings, Value>) -> Binding<Value> {
+func global<Value>(_ model: SettingsModel, _ path: WritableKeyPath<GlobalSettings, Value>) -> Binding<Value> {
     Binding(
         get: { model.global[keyPath: path] },
         set: { value in model.updateGlobal { $0[keyPath: path] = value } }
@@ -367,5 +369,42 @@ struct CacheSettingsPage: View {
             return base + String(localized: "。开关在下次启动时生效")
         }
         return base + String(localized: "。已改动，下次启动时生效")
+    }
+}
+
+struct FileSettingsPage: View {
+    let model: SettingsModel
+
+    private static let conflictOptions: [(String, ConflictPolicy)] = [
+        (String(localized: "加序号"), .appendNumber),
+        (String(localized: "跳过"), .skip),
+    ]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                SettingsSection(title: String(localized: "复制和移动")) {
+                    SettingsRow(title: String(localized: "目标中已有同名项时"), detail: conflictDetail) {
+                        SettingsSegments(
+                            label: String(localized: "目标中已有同名项时"),
+                            options: Self.conflictOptions,
+                            selection: global(model, \.fileOperations.nameConflict)
+                        )
+                    }
+                }
+                Text("两种方式都不覆盖目标里的文件。跳过的项会在结果里注明。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(nsColor: Theme.text2))
+                    .padding(.horizontal, 12)
+            }
+            .padding(16)
+        }
+    }
+
+    private var conflictDetail: String {
+        switch model.global.fileOperations.nameConflict {
+        case .appendNumber: String(localized: "在名字后加序号，例如 IMG_0012 (2).jpg")
+        case .skip: String(localized: "保留目标里的文件，不放入这一项")
+        }
     }
 }

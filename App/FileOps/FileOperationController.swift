@@ -30,6 +30,7 @@ final class FileOperationController {
     }
 
     let undoManager = UndoManager()
+    var customRecycleRoots: [Location]?
     private(set) var fileSettings = FileOperationSettings.default
     private(set) var classifyDestinations: [(location: Location, title: String, parent: Location?)] = []
     private weak var app: AppDelegate?, progressController: ReaderWindowController?
@@ -179,6 +180,7 @@ final class FileOperationController {
     }
 
     func presentStartupRecovery() async {
+        registerClassifyCommands()
         guard let report = await app?.services?.interruptedTransfersReport(),
               report.completed > 0 || report.pending > 0 || report.failed > 0,
               let controller = targetController(for: FileOrigin()) else { return }
@@ -317,6 +319,67 @@ final class FileOperationController {
                 self?.targetWindow(ctx)?.classifyPanel?.beginNewTarget()
             }
         }
+        if let desc = catalog.descriptor(.recycleEmpty) {
+            registry.register(desc, isEnabled: { [weak self] _ in self?.app?.services?.fileOperations != nil }) { [weak self] ctx, _ in
+                guard let self else { return }
+                await self.presentEmptyRecycleBins(origin: FileOrigin(window: self.targetWindow(ctx)))
+            }
+        }
+    }
+
+    func presentEmptyRecycleBins(origin: FileOrigin) async {
+        guard let service = app?.services?.fileOperations, let controller = targetController(for: origin) else { return }
+        let bins = await fetchRecycleBins(using: service)
+        guard !bins.isEmpty else {
+            controller.content.statusBar.showMessage(String(localized: "没有回收目录"))
+            return
+        }
+        var items: [EmptyRecycleBinsSheet.Item] = []
+        for bin in bins {
+            let parent = bin.location.parent
+            let volumeName = (parent?.name.isEmpty == false ? parent?.name : nil) ?? bin.location.root.displayName
+            let binURL = (try? await app?.services?.sources.provider(for: bin.location).fileLease(for: bin.location).url)
+                ?? Self.fileURL(for: Entry(identity: ContentIdentity(location: bin.location, size: 0, modificationNanos: 0), name: bin.location.name, kind: .directory))
+            let mountPath = binURL?.deletingLastPathComponent().path(percentEncoded: false) ?? "/Volumes/\(volumeName)"
+            items.append(.init(location: bin.location, volumeName: volumeName, mountPath: mountPath, batchCount: bin.batchCount, binURL: binURL))
+        }
+        guard let window = controller.window, window.attachedSheet == nil else { return }
+        let sheet = EmptyRecycleBinsSheet(
+            items: items,
+            onReveal: { item in
+                if let url = item.binURL { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.path(percentEncoded: false)) }
+            },
+            onConfirm: { [weak self, weak window] selected in
+                guard let self, let window, !selected.isEmpty else { return }
+                let heading = selected.count == 1
+                    ? String(localized: "永久删除“\(selected[0].volumeName)”回收目录里的内容？")
+                    : String(localized: "永久删除 \(selected.count) 个卷回收目录里的内容？")
+                let totalBatches = selected.reduce(0) { $0 + $1.batchCount }
+                let detail = String(localized: "共 \(totalBatches) 次删除。清空后不能撤销。")
+                let confirmSheet = PermanentDeleteSheet(heading: heading, detail: detail) { [weak self] confirmed in
+                    guard confirmed, let self else { return }
+                    Task { @MainActor in
+                        _ = await self.perform(.deletePermanently(selected.map(\.location)), title: String(localized: "清空回收目录"), origin: origin)
+                    }
+                }
+                window.beginSheet(confirmSheet)
+            }
+        )
+        window.beginSheet(sheet, completionHandler: nil)
+    }
+
+    private func fetchRecycleBins(using service: FileOperationService) async -> [RecycleBin] {
+        guard let roots = customRecycleRoots, let services = app?.services else { return await service.recycleBins() }
+        var bins: [RecycleBin] = []
+        for root in roots {
+            let bin = root.appending(".macview-trash")
+            guard let provider = try? services.sources.provider(for: bin),
+                  (try? await provider.entry(at: bin).kind) == .directory else { continue }
+            var count = 0
+            try? await { for try await batch in provider.children(of: bin, priority: .visible) { count += batch.filter { $0.kind == .directory }.count } }()
+            bins.append(RecycleBin(location: bin, batchCount: count))
+        }
+        return bins
     }
 
     // MARK: 命令与菜单
