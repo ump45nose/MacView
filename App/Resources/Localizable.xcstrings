@@ -311,6 +311,26 @@
         }
       }
     },
+    "+ 新建目标并复制进去": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ New Target & Copy In"
+          }
+        }
+      }
+    },
+    "+ 新建目标并移入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ New Target & Move In"
+          }
+        }
+      }
+    },
     "Mock 服务": {
       "localizations": {
         "en": {
@@ -877,6 +897,16 @@
         }
       }
     },
+    "分类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Classify"
+          }
+        }
+      }
+    },
     "分类到目标": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -885,6 +915,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Classify to Target"
+          }
+        }
+      }
+    },
+    "分类模式：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Classify mode: %@"
           }
         }
       }
@@ -945,6 +985,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Toggle Reading Direction"
+          }
+        }
+      }
+    },
+    "列出子文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "List Subfolders"
           }
         }
       }
@@ -1071,12 +1121,32 @@
         }
       }
     },
+    "卷不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume unavailable"
+          }
+        }
+      }
+    },
     "压缩包内的项不能移动": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Items inside an archive cannot be moved"
+          }
+        }
+      }
+    },
+    "压缩包内的项不能移动或复制到目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Items in an archive cannot be moved or copied to targets"
           }
         }
       }
@@ -1703,6 +1773,16 @@
         }
       }
     },
+    "当前服务不支持文件操作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File operations are not supported by the current service"
+          }
+        }
+      }
+    },
     "当前目录各书的封面": {
       "localizations": {
         "en": {
@@ -1821,6 +1901,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copy"
+          }
+        }
+      }
+    },
+    "按 1–0 把当前页%@到对应目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press 1–0 to %@ the current page to a target"
           }
         }
       }
@@ -2097,6 +2187,26 @@
         }
       }
     },
+    "新建“%@”并复制进去": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create “%@” & Copy In"
+          }
+        }
+      }
+    },
+    "新建“%@”并移入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create “%@” & Move In"
+          }
+        }
+      }
+    },
     "新建标签页": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2139,6 +2249,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Newly opened books use these defaults. A book’s settings override path rules, and path rules override these."
+          }
+        }
+      }
+    },
+    "新文件夹名称": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New folder name"
           }
         }
       }
@@ -2675,6 +2795,36 @@
         }
       }
     },
+    "添加": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
+          }
+        }
+      }
+    },
+    "添加后，面板打开时按 1–0\n把当前页%@过去": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once added, press 1–0 while the panel is open\nto %@ the current page there"
+          }
+        }
+      }
+    },
+    "添加目标…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Target…"
+          }
+        }
+      }
+    },
     "添加覆盖项": {
       "localizations": {
         "en": {
@@ -2845,6 +2995,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Move To"
+          }
+        }
+      }
+    },
+    "移除目标": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Target"
           }
         }
       }
@@ -3441,6 +3601,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld more items"
+          }
+        }
+      }
+    },
+    "还没有目标文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Target Folders Yet"
           }
         }
       }

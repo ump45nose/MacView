@@ -6,6 +6,7 @@ import Foundation
 import MVCommands
 import MVFoundation
 import MVIO
+import MVLayout
 import MVReading
 import MVServices
 
@@ -344,6 +345,7 @@ final class FileOpsSelfTest {
         await until("快照重命名完成") { window.attachedSheet == nil && !fileOps.isBusy && self.exists(bookBDir.appending(path: "001-snap.png")) }
         log.check(exists(bookBDir.appending(path: "001-snap.png")) && exists(bookBDir.appending(path: "002.png")) && !exists(bookBDir.appending(path: "001.png")), "C2.10c 重命名表单打开后改变页面列表选中项，提交时仍修改原快照项 001.png")
 
+        try await runClassifyChecks(controller: controller, window: window, services: services, fileOps: fileOps, zipURL: zipURL, zipBytes: zipBytes)
         try await runDragChecks(controller: controller, window: window, services: services, fileOps: fileOps, pageList: pageList, listView: listView, bookshelf: bookshelf, shelfView: shelfView, bookDir: bookDir, zipURL: zipURL, zipBytes: zipBytes)
     }
 
@@ -361,7 +363,7 @@ final class FileOpsSelfTest {
         defer { dropTarget.removeFromSuperview() }
 
         controller.open([bookDir])
-        await until("C2.11 打开文件夹书") { controller.session.book?.location.name == "book" && controller.session.book?.pages.count == 3 && listView.items.count == 3 }
+        await until("C2.11 打开文件夹书") { controller.session.book?.location.name == "book" && controller.session.book?.pages.count == 3 && listView.items.count == 3 && shelfView.items.contains(where: { $0.name == "book" }) }
         let book001 = bookDir.appending(path: "001.png"), book002 = bookDir.appending(path: "002.png"), book003 = bookDir.appending(path: "003.png")
         let hash001 = try sha256(of: book001), hash002 = try sha256(of: book002), hash003 = try sha256(of: book003)
         let undoBeforeDrag = fileOps.undoManager.undoActionName
@@ -417,6 +419,185 @@ final class FileOpsSelfTest {
         pageList.setStyle(.list); await settle()
     }
 
+    private func runClassifyChecks(controller: ReaderWindowController, window: NSWindow, services: CoreServices, fileOps: FileOperationController, zipURL: URL, zipBytes: Data) async throws {
+        let root = temporary.appending(path: "c212", directoryHint: .isDirectory)
+        let bookDir = root.appending(path: "book", directoryHint: .isDirectory), favDir = root.appending(path: "精选", directoryHint: .isDirectory)
+        let editDir = root.appending(path: "待修", directoryHint: .isDirectory), landDir = favDir.appending(path: "A-风景", directoryHint: .isDirectory), portDir = favDir.appending(path: "B-人像", directoryHint: .isDirectory)
+        for dir in [bookDir, favDir, editDir, landDir, portDir] { try fm.createDirectory(at: dir, withIntermediateDirectories: true) }
+        for index in 1...4 { try writePNG(to: bookDir.appending(path: String(format: "%03d.png", index)), hue: CGFloat(index) * 0.18) }
+
+        controller.open([bookDir])
+        await until("C2.12 打开测试书") { controller.session.book?.location.name == "book" && controller.session.book?.pages.count == 4 }
+        window.makeFirstResponder(controller.viewer); await settle()
+        await sendKey(kVK_ANSI_3, [.command, .option])
+        await until("打开分类面板") { controller.classifyPanel != nil }
+        guard let panel = controller.classifyPanel else { return log.check(false, "C2.12 无法打开分类面板") }
+        let listView = panel.panelView.listView
+        await panel.addTargetURLs([favDir], listsSubfolders: true)
+        await until("列出精选子文件夹") { panel.visibleRows.map(\.name) == ["精选", "A-风景", "B-人像"] }
+        log.check(panel.visibleRows.map(\.keyBadge) == ["1", "2", "3"], "C2.12 开启列出子文件夹的目标展开并按顺序编号 1、2、3")
+
+        // C2.12（S4）：按数字键移动两页 → 切到复制按一次 → 切回移动并用“新建目标并移入”分类一页 → 连续 ⌘Z 撤销全部 → 连续 ⇧⌘Z 重做全部。
+        let p1 = bookDir.appending(path: "001.png"), p2 = bookDir.appending(path: "002.png"), p3 = bookDir.appending(path: "003.png"), p4 = bookDir.appending(path: "004.png")
+        let landP1 = landDir.appending(path: "001.png"), portP2 = portDir.appending(path: "002.png"), landP3 = landDir.appending(path: "003.png")
+        let nightDir = favDir.appending(path: "C-夜景", directoryHint: .isDirectory), nightP3 = nightDir.appending(path: "003.png")
+        await sendKey(kVK_ANSI_2)
+        await until("按键 2 移动 001.png 到 A-风景") { !fileOps.isBusy && self.exists(landP1) && controller.session.book?.pages.count == 3 }
+        log.check(!exists(p1) && exists(landP1) && listView.flashedLocation?.name == "A-风景", "C2.12 按 2 把 001.png 移入“A-风景”且对应行闪烁 Clay")
+        await sendKey(kVK_ANSI_3)
+        await until("按键 3 移动 002.png 到 B-人像") { !fileOps.isBusy && self.exists(portP2) && controller.session.book?.pages.count == 2 }
+        log.check(!exists(p2) && exists(portP2), "C2.12 按 3 把 002.png 移入“B-人像”")
+
+        fileOps.setClassifyMode(.copy, announceIn: controller); panel.refreshState(); await settle()
+        await sendKey(kVK_ANSI_2)
+        await until("复制模式下按 2 复制 003.png 到 A-风景") { !fileOps.isBusy && self.exists(landP3) }
+        log.check(exists(p3) && exists(landP3) && controller.session.book?.pages.count == 2, "C2.12 复制模式下按 2 复制 003.png 到“A-风景”且源文件保留")
+
+        fileOps.setClassifyMode(.move, announceIn: controller); panel.selectRow(at: panel.visibleRows.first?.location); await settle()
+        await click(panel.panelView.newTargetButton, in: window)
+        await until("出现新建目标输入框") { panel.editingLocation != nil && window.firstResponder is NSTextView }
+        listView.setInputText("C-夜景"); await sendKey(kVK_Return)
+        await until("新建“C-夜景”并移入 003.png 完成") { !fileOps.isBusy && self.exists(nightP3) && panel.editingLocation == nil }
+        log.check(!exists(p3) && exists(nightP3) && panel.visibleRows.map(\.name) == ["精选", "A-风景", "B-人像", "C-夜景"] && panel.selectedLocation?.name == "C-夜景", "C2.12 新建目标并移入创建“C-夜景”子文件夹、移入 003.png 并选中新子文件夹：\(panel.visibleRows.map(\.name))")
+        log.snapshot(window, "classify-panel")
+
+        for step in 1...4 { await sendKey(kVK_ANSI_Z, [.command]); await until("C2.12 第 \(step) 次 ⌘Z 完成") { !fileOps.isBusy } }
+        await until("4 次 ⌘Z 后子文件夹列表恢复") { panel.visibleRows.map(\.name) == ["精选", "A-风景", "B-人像"] && controller.session.book?.pages.count == 4 }
+        log.check(exists(p1) && exists(p2) && exists(p3) && !exists(landP1) && !exists(portP2) && !exists(landP3) && !exists(nightDir) && panel.visibleRows.map(\.name) == ["精选", "A-风景", "B-人像"], "C2.12 连续 4 次 ⌘Z 撤销全部后文件系统与面板子文件夹列表完全回到初始状态")
+
+        for step in 1...4 { await sendKey(kVK_ANSI_Z, [.command, .shift]); await until("C2.12 第 \(step) 次 ⇧⌘Z 完成") { !fileOps.isBusy } }
+        await until("4 次 ⇧⌘Z 后子文件夹列表恢复 C-夜景") { panel.visibleRows.map(\.name) == ["精选", "A-风景", "B-人像", "C-夜景"] && controller.session.book?.pages.count == 1 }
+        log.check(!exists(p1) && !exists(p2) && !exists(p3) && exists(landP1) && exists(portP2) && exists(landP3) && exists(nightP3), "C2.12 连续 4 次 ⇧⌘Z 重做全部后文件与新建子文件夹全部恢复")
+
+        // C2.13：焦点在名称输入框时数字键输入文字；面板关闭后数字键恢复为缩放。
+        window.makeFirstResponder(controller.viewer); panel.selectRow(at: panel.visibleRows.first?.location); await settle()
+        await click(panel.panelView.newTargetButton, in: window)
+        await until("C2.13 输入框获得焦点") { window.firstResponder is NSTextView }
+        await sendKey(kVK_ANSI_1)
+        log.check(listView.inputField.stringValue == "1" && exists(p4), "C2.13 焦点在名称输入框时按数字键 1 输入文字而不触发分类：\(listView.inputField.stringValue)")
+        await sendKey(kVK_Escape)
+        await until("Esc 取消输入框") { panel.editingLocation == nil && !(window.firstResponder is NSTextView) }
+        await sendKey(kVK_ANSI_3, [.command, .option])
+        await until("关闭分类面板") { controller.classifyPanel == nil }
+        window.makeFirstResponder(controller.viewer); await settle()
+        await sendKey(kVK_ANSI_1)
+        await until("面板关闭后按 1 切换为 100% 缩放") { controller.session.settings.scaleMode == .original }
+        log.check(controller.session.settings.scaleMode == .original && exists(p4), "C2.13 面板关闭后数字键 1 恢复为 100% 缩放且不移动文件")
+        await sendKey(kVK_ANSI_0); await settle()
+
+        // C2.14：展开子文件夹后编号顺延；拖动顶层行后编号随之变化，settings.json 里的目标顺序一致。
+        await sendKey(kVK_ANSI_3, [.command, .option])
+        await until("重新打开分类面板") { controller.classifyPanel != nil }
+        guard let panel2 = controller.classifyPanel else { return log.check(false, "C2.14 无法重新打开分类面板") }
+        let listView2 = panel2.panelView.listView
+        await panel2.addTargetURLs([editDir], listsSubfolders: false)
+        await until("添加待修目标") { panel2.visibleRows.last?.name == "待修" }
+        guard let favLoc = panel2.visibleRows.first?.location else { return }
+        panel2.toggleCollapse(for: favLoc); await settle()
+        log.check(panel2.visibleRows.map { "\($0.keyBadge ?? ""):\($0.name)" } == ["1:精选", "2:待修"], "C2.14 收起子文件夹时顶层编号为 1:精选、2:待修")
+        panel2.toggleCollapse(for: favLoc); await settle()
+        log.check(panel2.visibleRows.map { "\($0.keyBadge ?? ""):\($0.name)" } == ["1:精选", "2:A-风景", "3:B-人像", "4:C-夜景", "5:待修"], "C2.14 展开子文件夹后编号顺延为 1…5：\(panel2.visibleRows.map { "\($0.keyBadge ?? ""):\($0.name)" })")
+        let moveMenu = NSMenu()
+        _ = fileOps.populateTransferMenu(moveMenu, origin: controller.fileOrigin(), mode: .move)
+        log.check(moveMenu.items.prefix(5).map(\.title) == ["1  精选", "2  精选 / A-风景", "3  精选 / B-人像", "4  精选 / C-夜景", "5  待修"], "C2.14 右键“移动到”菜单与分类面板可见目标及编号一致")
+        await dragClassifyRow(fromIndex: 4, toY: 2, in: listView2, window: window)
+        await until("拖动待修到顶部") { panel2.visibleRows.first?.name == "待修" }
+        let persistedNames = await services.settings.global().fileOperations.classifyTargets.map(\.location.name)
+        log.check(panel2.visibleRows.prefix(2).map { "\($0.keyBadge ?? ""):\($0.name)" } == ["1:待修", "2:精选"] && persistedNames == ["待修", "精选"], "C2.14 拖动顶层行后编号更新且 settings.json 目标顺序一致：\(persistedNames)")
+
+        // C2.15：单击行不移动文件，双击行与按对应数字键效果相同。
+        await clickClassifyRow(at: 0, clickCount: 1, in: listView2, window: window)
+        log.check(panel2.selectedLocation?.name == "待修" && exists(p4) && !exists(editDir.appending(path: "004.png")), "C2.15 单击行只选中目标而不移动文件")
+        await clickClassifyRow(at: 0, clickCount: 2, in: listView2, window: window)
+        await until("双击待修行移动 004.png") { !fileOps.isBusy && self.exists(editDir.appending(path: "004.png")) }
+        log.check(!exists(p4) && exists(editDir.appending(path: "004.png")), "C2.15 双击行将当前页移动到该目标（与按对应数字键相同）")
+        await sendKey(kVK_ANSI_Z, [.command])
+        await until("撤销双击移动恢复 004.png") { !fileOps.isBusy && self.exists(p4) }
+
+        // C2.15a：压缩包书里按数字键，状态栏提示“压缩包内的项不能移动”，文件不变（对应 S10）。
+        controller.open([zipURL])
+        await until("C2.15a 打开压缩包书") { controller.session.book?.location.name == "c27-archive.zip" && controller.session.book?.pages.count == 3 }
+        window.makeFirstResponder(controller.viewer); await settle()
+        await sendKey(kVK_ANSI_1)
+        let archiveMsg = controller.content.statusBar.message ?? ""
+        log.check(archiveMsg == "压缩包内的项不能移动" && (try? Data(contentsOf: zipURL)) == zipBytes && !panel2.panelView.newTargetButton.isEnabled, "C2.15a 压缩包书里按数字键提示“压缩包内的项不能移动”且文件不变：\(archiveMsg)")
+
+        // C2.15b：面板浮动时，按数字键作用于它绑定的窗口的当前页；名称输入框拿到焦点后，回车仍放入输入框出现时的那一页。
+        let p5 = bookDir.appending(path: "005.png"); try writePNG(to: p5, hue: 0.9)
+        controller.open([bookDir])
+        await until("恢复文件夹书含 004/005") { controller.session.book?.location.name == "book" && controller.session.book?.pages.count == 2 }
+        controller.dock.perform { $0.moving(DockPanels.classify, to: .floating(DockFrame(x: 140, y: 140, width: 260, height: 420))) }
+        await until("分类面板转为浮动") { controller.dock.coordinator.floatingWindows[DockPanels.classify] != nil }
+        guard let floatingWin = controller.dock.coordinator.floatingWindows[DockPanels.classify],
+              let floatingPanel = floatingWin.panel as? ClassifyPanel,
+              let second = app.newWindow(), let secondWindow = second.window else { return log.check(false, "C2.15b 无法准备浮动面板或第二窗口") }
+        second.open([bookDir])
+        await until("第二窗口打开 book") { second.session.book?.location.name == "book" && second.session.book?.pages.count == 2 }
+        second.session.go(.index(0)); await settle()
+        targetWindow = secondWindow; secondWindow.makeKeyAndOrderFront(nil); secondWindow.makeFirstResponder(second.viewer)
+        controller.dock.coordinator.activate(second.dock); await settle()
+        log.check(floatingPanel.owner === second, "C2.15b 浮动分类面板随活动窗口绑定到第二窗口")
+        await sendKey(kVK_ANSI_1)
+        await until("浮动面板按 1 移动第二窗口当前页 004.png") { !fileOps.isBusy && self.exists(editDir.appending(path: "004.png")) }
+        log.check(!exists(p4) && exists(editDir.appending(path: "004.png")), "C2.15b 浮动面板按数字键作用于绑定窗口的当前页")
+        await sendKey(kVK_ANSI_Z, [.command])
+        await until("撤销恢复 004.png") { !fileOps.isBusy && self.exists(p4) && second.session.book?.pages.count == 2 }
+        second.session.go(.index(0)); await settle()
+        floatingPanel.selectRow(at: floatingPanel.visibleRows.first?.location)
+        await click(floatingPanel.panelView.newTargetButton, in: floatingWin)
+        await until("浮动面板输入框出现并锁定快照") { floatingPanel.editingLocation != nil && floatingPanel.newTargetOrigin.items.map(\.name) == ["004.png"] }
+        second.session.go(.index(1)); await settle()
+        floatingPanel.panelView.listView.setInputText("浮动快照"); await sendKey(kVK_Return)
+        let floatSnapFile = editDir.appending(path: "浮动快照/004.png")
+        await until("浮动面板回车完成新建并移入") { !fileOps.isBusy && self.exists(floatSnapFile) }
+        log.check(exists(floatSnapFile) && !exists(p4) && exists(p5), "C2.15b 浮动面板输入框出现后翻到 005.png，回车仍放入快照时的 004.png")
+        targetWindow = secondWindow; secondWindow.makeKeyAndOrderFront(nil); secondWindow.makeFirstResponder(second.viewer)
+        await sendKey(kVK_ANSI_Z, [.command])
+        await until("撤销浮动新建恢复 004.png") { !fileOps.isBusy && self.exists(p4) && !self.exists(editDir.appending(path: "浮动快照")) }
+        secondWindow.close(); targetWindow = window; window.makeKeyAndOrderFront(nil)
+        controller.dock.coordinator.activate(controller.dock); controller.dock.coordinator.dockFloating(DockPanels.classify)
+        window.makeFirstResponder(controller.viewer); await settle()
+
+        // C2.15c：新建目标并移入时目录建好、传输失败（自检里事先删掉源文件），输入框下显示原因；撤销后新文件夹被删除。
+        guard let dockedPanel = controller.classifyPanel else { return log.check(false, "C2.15c 找不到停靠分类面板") }
+        let dockedList = dockedPanel.panelView.listView
+        controller.session.go(.index(0)); await settle()
+        dockedPanel.selectRow(at: dockedPanel.visibleRows.first?.location)
+        await click(dockedPanel.panelView.newTargetButton, in: window)
+        await until("C2.15c 输入框出现") { dockedPanel.editingLocation != nil }
+        try fm.removeItem(at: p4)
+        let partialDir = editDir.appending(path: "半途失败", directoryHint: .isDirectory)
+        dockedList.setInputText("半途失败"); await sendKey(kVK_Return)
+        await until("C2.15c 目录建好但传输失败显示原因") { !fileOps.isBusy && !dockedList.errorLabel.isHidden }
+        log.check(exists(partialDir) && dockedPanel.editingLocation != nil && !dockedList.errorLabel.stringValue.isEmpty && !dockedList.retryButton.isHidden, "C2.15c 目录已建好而传输失败时保留输入框、下方显示原因并提供重试：\(dockedList.errorLabel.stringValue)")
+        window.makeFirstResponder(controller.viewer); await sendKey(kVK_ANSI_Z, [.command])
+        await until("C2.15c ⌘Z 删除已建的新文件夹") { !fileOps.isBusy && !self.exists(partialDir) }
+        log.check(!exists(partialDir) && dockedPanel.editingLocation == nil, "C2.15c 撤销后已创建的新文件夹被删除且输入框收起")
+        await sendKey(kVK_ANSI_3, [.command, .option]); await settle()
+    }
+
+    private func clickClassifyRow(at index: Int, clickCount: Int, in listView: ClassifyListView, window: NSWindow) async {
+        window.contentView?.layoutSubtreeIfNeeded()
+        guard let point = listView.rowPointInWindow(index) else { return }
+        for currentClick in 1...clickCount {
+            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                NSApp.sendEvent(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: currentClick, pressure: type == .leftMouseUp ? 0 : 1)!)
+            }
+        }
+        try? await Task.sleep(for: .milliseconds(80))
+    }
+
+    private func dragClassifyRow(fromIndex: Int, toY: CGFloat, in listView: ClassifyListView, window: NSWindow) async {
+        window.contentView?.layoutSubtreeIfNeeded()
+        guard let start = listView.rowPointInWindow(fromIndex) else { return }
+        let end = listView.convert(NSPoint(x: 40, y: toY), to: nil)
+        func event(_ type: NSEvent.EventType, at point: NSPoint) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+        }
+        NSApp.sendEvent(event(.leftMouseDown, at: start)); NSApp.sendEvent(event(.leftMouseDragged, at: end)); NSApp.sendEvent(event(.leftMouseUp, at: end))
+        try? await Task.sleep(for: .milliseconds(80))
+    }
+
     private func sha256(of url: URL) throws -> String {
         try SHA256.hash(data: Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()
     }
@@ -432,13 +613,14 @@ final class FileOpsSelfTest {
         }
         if view.style.usesCanvas {
             NSApp.sendEvent(event(.leftMouseDown, at: start))
-            NSApp.postEvent(event(.leftMouseUp, at: end), atStart: false)
             NSApp.sendEvent(event(.leftMouseDragged, at: end))
+            NSApp.sendEvent(event(.leftMouseUp, at: end))
         } else {
             NSApp.postEvent(event(.leftMouseDragged, at: end), atStart: false)
             NSApp.postEvent(event(.leftMouseUp, at: end), atStart: false)
             NSApp.sendEvent(event(.leftMouseDown, at: start))
         }
+        while NSApp.nextEvent(matching: [.leftMouseUp, .leftMouseDragged], until: .distantPast, inMode: .default, dequeue: true) != nil {}
         try? await Task.sleep(for: .milliseconds(60))
     }
 
@@ -483,7 +665,7 @@ final class FileOpsSelfTest {
         try? await Task.sleep(for: .milliseconds(50))
     }
     private func click(_ button: NSButton, in window: NSWindow) async {
-        window.makeKey()
+        window.makeKeyAndOrderFront(nil)
         window.contentView?.layoutSubtreeIfNeeded()
         let point = button.convert(NSPoint(x: button.bounds.midX, y: button.bounds.midY), to: nil)
         func event(_ type: NSEvent.EventType) -> NSEvent {
@@ -492,6 +674,10 @@ final class FileOpsSelfTest {
         NSApp.postEvent(event(.leftMouseUp), atStart: false); NSApp.sendEvent(event(.leftMouseDown))
         try? await Task.sleep(for: .milliseconds(80))
     }
+}
+
+extension NSButton {
+    open override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 /// 自检用的放置目标视图：登记接收文件 URL 与文件承诺，把真实拖动会话中的普通文件或 `NSFilePromiseProvider` 写入临时目标目录。
