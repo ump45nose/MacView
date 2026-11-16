@@ -58,7 +58,7 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 - Swift 6 语言模式，完整并发检查，零警告。
 - 单元测试用 Swift Testing。
 - 性能数据来自 mvbench 与 signpost；界面性能用 `xctrace`（Animation Hitches）采集。
-- App 没有测试目标，界面行为用 `-MVSelfTest`、`-MVDockSelfTest` 自检。点击和拖动要走真实事件路径（经 `NSApp.sendEvent` 发送），`performClick` 测不到依赖当前事件的逻辑；读模型也证明不了屏幕上的显示，这类结果由用户确认。
+- App 没有测试目标，界面行为用 `-MVSelfTest`、`-MVDockSelfTest`、`-MVFileOpsSelfTest` 等自检（参数见 architecture.md）。要前台的自检加 `-MVSelfTestActivate YES` 并经 `open -n -W -a <App> --args …` 启动，从终端直接起的进程拿不到前台；每次运行用独立的 `-MVSupportDirectory`、`-MVCacheDirectory`、`-MVLayoutFile`。点击和拖动要走真实事件路径（经 `NSApp.sendEvent` 发送），`performClick` 测不到依赖当前事件的逻辑；读模型也证明不了屏幕上的显示，这类结果由用户确认。
 
 ## 依赖
 
