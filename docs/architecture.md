@@ -430,7 +430,7 @@ public indirect enum FileOperation: Sendable, Hashable {
 public enum FileOpsError: Error, Sendable, Equatable { case readOnly, invalidName(String), recycleUnavailable(String), verificationFailed, intoItself }
 public struct FileFailure: Sendable { public var location: Location; public var error: any Error }
 public struct FileProgress: Sendable, Hashable { public var completedItems, totalItems: Int; public var completedBytes, totalBytes: Int64 }
-public struct FileOperationResult: Sendable { public var changes: [FileChange]; public var inverse: FileOperation?; public var skipped: [Location]; public var failures: [FileFailure]; public var retry: FileOperation? }
+public struct FileOperationResult: Sendable { public var changes: [FileChange]; public var inverse: FileOperation?; public var skipped: [Location]; public var failures: [FileFailure]; public var retry: FileOperation? }   // retry 只含失败项，不含 skip；sequence 遇失败即停，重试从该步未完成的项接续后续步骤；跨卷已发布目标只核对并删源
 public struct RecycleBin: Sendable, Hashable { public var location: Location; public var batchCount: Int }
 public struct ResumeReport: Sendable, Hashable { public var completed, pending, failed: Int }
 public final class FileOperationService: Sendable {
@@ -439,6 +439,7 @@ public final class FileOperationService: Sendable {
     public func changes() -> AsyncStream<[FileChange]>
     public func resumeInterruptedTransfers() async -> ResumeReport
     public func recycleBins() async -> [RecycleBin]
+    public func setStepDelay(_ delay: Duration?)   // App 自检用的逐项／分块延迟，nil 恢复正常速度
 }
 
 // MVArchive
@@ -715,8 +716,8 @@ public struct CoreConfiguration: Sendable {
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
     public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?   // Mock 为 nil
     public let fileOperations: FileOperationService?   // Mock 为 nil
-    public func appliedFileChanges() -> AsyncStream<[FileChange]>   // 目录缓存、书记忆和活跃会话都更新完后再向界面广播
-    public func interruptedTransfersReport() async -> ResumeReport?   // 等待启动时的中断传输恢复结束，只消费一次
+    public func appliedFileChanges() -> AsyncStream<[FileChange]>   // 目录缓存、书记忆和活跃会话都处理完后再广播；支持多个订阅者，Mock 返回已结束的空流
+    public func interruptedTransfersReport() async -> ResumeReport?   // 等待启动恢复并返回同一份结果；Mock 为 nil
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
     public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }

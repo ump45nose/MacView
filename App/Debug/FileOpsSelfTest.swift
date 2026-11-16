@@ -728,8 +728,6 @@ final class FileOpsSelfTest {
         await sendKey(kVK_ANSI_Z, [.command])
         await until("C2.18 ⌘Z 恢复 001.png") { !fileOps.isBusy && self.exists(s2Page) && listView.items.map(\.name) == ["001.png", "002.png"] }
         log.check(exists(s2Page) && listView.items.map(\.name) == ["001.png", "002.png"], "C2.18 S2 ⌘Z 后文件回到原处")
-        // 绕过 Core 的已知问题（阶段 2b 修复后删掉）：内核给新建项配的 `._<名字>` 伴生文件会随本体一起被删，removeTree 事先列出的这一项随后报“找不到”。
-        for batch in batches { _ = unlink(trash.appending(path: "._\(batch)").path) }
         controller.run(.recycleEmpty)
         await until("C2.18 弹出清空回收目录表单") { window.attachedSheet is EmptyRecycleBinsSheet }
         guard let recycleSheet = window.attachedSheet as? EmptyRecycleBinsSheet else { return log.check(false, "C2.18 未弹出清空回收目录表单") }

@@ -107,7 +107,7 @@ public final class FileOperationService: Sendable {
                 let result = await execute(child, progress: progress)
                 outcome.merge(result, irreversible: true)
                 if let retry = result.retry { retries.append(retry) }
-                if result.changes.isEmpty && !result.failures.isEmpty {
+                if !result.failures.isEmpty {
                     retries.append(contentsOf: operations[(index + 1)...])
                     break
                 }
@@ -339,7 +339,10 @@ public final class FileOperationService: Sendable {
         let type = try await fileSystem.itemWithoutFollowingLinks(at: location).type
         guard type != .other else { throw IOError.unsupported(location) }
         if type == .directory {
-            for child in try await children(location) { try await removeTree(child.location) }
+            for child in try await children(location) {
+                do { try await removeTree(child.location) }
+                catch IOError.notFound {}
+            }
         }
         if temporaryRoot { try await removeTemporary(location) }
         else { try await fileSystem.remove(location) }
@@ -362,14 +365,13 @@ public final class FileOperationService: Sendable {
     }
     /// 跨卷移动已改成正式名字、只差删源时，重试直接核对内容并删源，不重新复制。
     private func completePublishedMove(_ entry: Entry, in targetParent: Location, exactTarget: Location? = nil) async throws -> Location? {
-        guard let records = try? JournalStore.load(journalURL).transfers else { return nil }
+        let records = try JournalStore.load(journalURL).transfers
         guard let record = records.first(where: {
             $0.source == entry.location && $0.target.parent == targetParent && (exactTarget == nil || $0.target == exactTarget)
         }) else { return nil }
-        guard try await exists(record.temporary) == nil, let target = try await exists(record.target) else { return nil }
-        do { try await verifyRecoverySource(entry, in: target) }
-        catch IOError.cancelled { throw IOError.cancelled }
-        catch { return nil }
+        guard try await exists(record.temporary) == nil else { return nil }
+        guard let target = try await exists(record.target) else { throw IOError.notFound(record.target) }
+        try await verifyRecoverySource(entry, in: target)
         try await Task.detached { try await self.removeTree(entry.location) }.value
         try JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } }
         return record.target

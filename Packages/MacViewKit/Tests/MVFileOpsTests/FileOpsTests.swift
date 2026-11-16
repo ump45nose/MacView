@@ -185,6 +185,21 @@ private final class Fixture: Sendable {
         })
     }
     func exists(_ path: String) -> Bool { FileManager.default.fileExists(atPath: directory.appending(path: path).path) }
+    func fileTree() throws -> [String: Data] {
+        let entries = try #require(FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isDirectoryKey]))
+        var result: [String: Data] = [:]
+        for case let url as URL in entries {
+            var path = String(url.path.dropFirst(directory.path.count + 1))
+            if path == "transfers.json" { continue }
+            if path.hasPrefix("trash/") {
+                // Fixture 的本机废纸篓给文件加 UUID；只比较原文件名和内容。
+                path = "trash/" + path.dropFirst("trash/".count + 37)
+            }
+            if try url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true { result[path + "/"] = Data() }
+            else { result[path] = try Data(contentsOf: url) }
+        }
+        return result
+    }
     deinit {
         try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.appending(path: "readonly").path)
         try? FileManager.default.removeItem(at: directory)
@@ -562,106 +577,142 @@ private final class Fixture: Sendable {
     #expect(redoRemove.failures.isEmpty && !f.exists("empty"))
 }
 
-@Test func retryCoversOnlyFailedItemsAcrossOperations() async throws {
-    let f = try await Fixture()
-    let dest = f.root.appending("dest")
-    try await f.fs.makeDirectory(at: dest)
-    let a = f.root.appending("a.jpg"), b = f.root.appending("b.jpg")
-    try await f.fs.createFile(at: a)
-    let transfer = await f.service.perform(.transfer([a, b], into: dest, mode: .move, conflict: .appendNumber))
-    #expect(transfer.changes.count == 1 && transfer.failures.count == 1 && transfer.retry == .transfer([b], into: dest, mode: .move, conflict: .appendNumber))
-    try await f.fs.createFile(at: b)
-    let retriedTransfer = await f.service.perform(try #require(transfer.retry))
-    #expect(retriedTransfer.failures.isEmpty && retriedTransfer.retry == nil && f.exists("dest/a.jpg") && f.exists("dest/b.jpg") && !f.exists("a.jpg") && !f.exists("b.jpg"))
+private enum RetryKind: CaseIterable, Sendable {
+    case move, copy, delete, deletePermanently, rename, relocate
 
-    for (first, second, op, expectedRetry) in [
-        ("c.jpg", "d.jpg", FileOperation.delete([f.root.appending("c.jpg"), f.root.appending("d.jpg")]), FileOperation.delete([f.root.appending("d.jpg")])),
-        ("e.jpg", "g.jpg", .deletePermanently([f.root.appending("e.jpg"), f.root.appending("g.jpg")]), .deletePermanently([f.root.appending("g.jpg")])),
-    ] {
-        try await f.fs.createFile(at: f.root.appending(first))
-        let res = await f.service.perform(op)
-        #expect(res.retry == expectedRetry)
-        try await f.fs.createFile(at: f.root.appending(second))
-        let retried = await f.service.perform(try #require(res.retry))
-        #expect(retried.failures.isEmpty && retried.retry == nil && !f.exists(first) && !f.exists(second))
+    func operation(in root: Location, failedOnly: Bool = false) -> FileOperation {
+        let sources = (failedOnly ? ["b.jpg"] : ["a.jpg", "b.jpg"]).map { root.appending($0) }
+        let dest = root.appending("dest")
+        switch self {
+        case .move: return .transfer(sources, into: dest, mode: .move, conflict: .appendNumber)
+        case .copy: return .transfer(sources, into: dest, mode: .copy, conflict: .appendNumber)
+        case .delete: return .delete(sources)
+        case .deletePermanently: return .deletePermanently(sources)
+        case .rename: return .rename(root.appending("b.jpg"), to: "renamed.jpg")
+        case .relocate: return .relocate(sources.map { Relocation(source: $0, target: dest.appending($0.name)) })
+        }
     }
+}
 
-    let h = f.root.appending("h.jpg")
-    #expect((await f.service.perform(.rename(h, to: "h2.jpg"))).retry == .rename(h, to: "h2.jpg"))
-    try await f.fs.createFile(at: h)
-    let retriedRen = await f.service.perform(.rename(h, to: "h2.jpg"))
-    #expect(retriedRen.failures.isEmpty && retriedRen.retry == nil && f.exists("h2.jpg") && !f.exists("h.jpg"))
+private func createRetryFile(_ path: String, in fixture: Fixture) async throws {
+    let location = path.split(separator: "/").reduce(fixture.root) { $0.appending(String($1)) }
+    try await fixture.fs.createFile(at: location)
+    try await fixture.fs.write(Data(path.utf8), at: 0, to: location, priority: .background)
+    try await fixture.fs.finishFile(at: location, modificationNanos: 1_700_000_000_123_456_789)
+}
 
-    let r1 = Relocation(source: f.root.appending("h2.jpg"), target: f.root.appending("h3.jpg"))
-    let r2 = Relocation(source: f.root.appending("missing.jpg"), target: f.root.appending("m2.jpg"))
-    let reloc = await f.service.perform(.relocate([r1, r2]))
-    #expect(reloc.retry == .relocate([r2]))
-    try await f.fs.createFile(at: r2.source)
-    let retriedReloc = await f.service.perform(try #require(reloc.retry))
-    #expect(retriedReloc.failures.isEmpty && retriedReloc.retry == nil && f.exists("h3.jpg") && f.exists("m2.jpg"))
+@Test(arguments: RetryKind.allCases) private func retryCoversOnlyFailedItemsAcrossOperations(_ kind: RetryKind) async throws {
+    let f = try await Fixture(), successful = try await Fixture()
+    for fixture in [f, successful] {
+        try await fixture.fs.makeDirectory(at: fixture.root.appending("dest"))
+        try await createRetryFile("a.jpg", in: fixture)
+    }
+    try await createRetryFile("b.jpg", in: successful)
+    let first = await f.service.perform(kind.operation(in: f.root))
+    #expect(first.failures.count == 1 && first.retry == kind.operation(in: f.root, failedOnly: true))
+    try await createRetryFile("b.jpg", in: f)
+    let retried = await f.service.perform(try #require(first.retry))
+    let once = await successful.service.perform(kind.operation(in: successful.root))
+    #expect(retried.failures.isEmpty && retried.retry == nil && once.failures.isEmpty)
+    #expect(first.changes.count + retried.changes.count == once.changes.count)
+    #expect(try f.fileTree() == successful.fileTree())
 }
 
 @Test func retryCrossVolumeMovePublishedOnlyRemovesSource() async throws {
-    let f = try await Fixture()
-    let srcDir = f.root.appending("src"), destDir = f.root.appending("dest")
-    try await f.fs.makeDirectory(at: srcDir)
-    try await f.fs.makeDirectory(at: destDir)
-    let source = srcDir.appending("photo.jpg")
-    try await f.fs.createFile(at: source)
-    let payload = Data([10, 20, 30, 40])
-    try await f.fs.write(payload, at: 0, to: source, priority: .background)
-    let tempCreates = Mutex(0)
-    let srcURL = f.directory.appending(path: "src")
-    defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: srcURL.path) }
-    let service = try FileOperationService(
-        fileSystem: f.fs, journalURL: f.directory.appending(path: "transfers.json"), forceCrossVolume: true,
-        createTemporary: { location in
-            tempCreates.withLock { $0 += 1 }
-            try await f.fs.createFile(at: location)
-            try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: srcURL.path)
-        },
-        isNetwork: { _ in false }, volumeRoot: { _ in f.root }, networkRoots: { [] }, trash: { try await f.fs.moveToTrash($0) }
-    )
-    let first = await service.perform(.transfer([source], into: destDir, mode: .move, conflict: .appendNumber))
-    #expect(first.changes.isEmpty && first.failures.count == 1 && tempCreates.withLock { $0 } == 1 && f.exists("dest/photo.jpg") && f.exists("src/photo.jpg"))
-    let retryOp = try #require(first.retry)
-    #expect(retryOp == .transfer([source], into: destDir, mode: .move, conflict: .appendNumber))
+    for relocate in [false, true] {
+        let f = try await Fixture(), successful = try await Fixture(forceCrossVolume: true)
+        for fixture in [f, successful] {
+            try await fixture.fs.makeDirectory(at: fixture.root.appending("src"))
+            try await fixture.fs.makeDirectory(at: fixture.root.appending("dest"))
+            try await createRetryFile("src/photo.jpg", in: fixture)
+        }
+        func operation(in root: Location) -> FileOperation {
+            let source = root.appending("src").appending("photo.jpg"), target = root.appending("dest").appending("photo.jpg")
+            return relocate ? .relocate([Relocation(source: source, target: target)]) : .transfer([source], into: root.appending("dest"), mode: .move, conflict: .appendNumber)
+        }
+        let tempCreates = Mutex(0)
+        let srcURL = f.directory.appending(path: "src")
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: srcURL.path) }
+        let service = try FileOperationService(
+            fileSystem: f.fs, journalURL: f.directory.appending(path: "transfers.json"), forceCrossVolume: true,
+            createTemporary: { location in
+                tempCreates.withLock { $0 += 1 }
+                try await f.fs.createFile(at: location)
+                try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: srcURL.path)
+            },
+            isNetwork: { _ in false }, volumeRoot: { _ in f.root }, networkRoots: { [] }, trash: { try await f.fs.moveToTrash($0) }
+        )
+        let first = await service.perform(operation(in: f.root))
+        #expect(first.changes.isEmpty && first.failures.count == 1 && tempCreates.withLock { $0 } == 1 && f.exists("dest/photo.jpg") && f.exists("src/photo.jpg"))
+        let retryOp = try #require(first.retry)
+        #expect(retryOp == operation(in: f.root))
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: srcURL.path)
 
-    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: srcURL.path)
-    let retried = await service.perform(retryOp)
-    #expect(tempCreates.withLock { $0 } == 1 && retried.failures.isEmpty && retried.retry == nil)
-    #expect(!f.exists("src/photo.jpg") && f.exists("dest/photo.jpg") && !f.exists("dest/photo (2).jpg"))
-    #expect(try Data(contentsOf: f.directory.appending(path: "dest/photo.jpg")) == payload)
-    #expect(retried.inverse == .relocate([Relocation(source: destDir.appending("photo.jpg"), target: source)]))
-    #expect(try JournalStore.load(f.directory.appending(path: "transfers.json")).transfers.isEmpty)
+        // 已发布的目标被改动时保留源，不能退回复制并生成另一个目标。
+        let targetURL = f.directory.appending(path: "dest/photo.jpg")
+        let payload = try Data(contentsOf: targetURL)
+        try Data(repeating: 9, count: payload.count).write(to: targetURL)
+        let mismatched = await service.perform(retryOp)
+        #expect(mismatched.failures.first?.error as? FileOpsError == .verificationFailed)
+        #expect(tempCreates.withLock { $0 } == 1 && f.exists("src/photo.jpg") && !f.exists("dest/photo (2).jpg"))
+        try payload.write(to: targetURL)
+        try await f.fs.finishFile(at: f.root.appending("dest").appending("photo.jpg"), modificationNanos: 1_700_000_000_123_456_789)
+
+        let retried = await service.perform(try #require(mismatched.retry))
+        let once = await successful.service.perform(operation(in: successful.root))
+        #expect(tempCreates.withLock { $0 } == 1 && retried.failures.isEmpty && retried.retry == nil && once.failures.isEmpty)
+        #expect(try f.fileTree() == successful.fileTree())
+        #expect(try await f.fs.entry(at: f.root.appending("dest").appending("photo.jpg")).identity.modificationNanos == 1_700_000_000_123_456_789)
+        #expect(retried.inverse == .relocate([Relocation(source: f.root.appending("dest").appending("photo.jpg"), target: f.root.appending("src").appending("photo.jpg"))]))
+        #expect(try JournalStore.load(f.directory.appending(path: "transfers.json")).transfers.isEmpty)
+    }
 }
 
 @Test func retrySequenceDropsCompletedSteps() async throws {
-    let f = try await Fixture()
-    let source = f.root.appending("a.jpg"), targetFolder = f.root.appending("new-target")
-    let op: FileOperation = .sequence([.makeDirectory(in: f.root, name: "new-target"), .transfer([source], into: targetFolder, mode: .move, conflict: .appendNumber)])
-    let first = await f.service.perform(op)
-    #expect(f.exists("new-target") && first.changes.count == 1 && first.failures.count == 1)
-    #expect(first.retry == .transfer([source], into: targetFolder, mode: .move, conflict: .appendNumber))
-    try await f.fs.createFile(at: source)
-    let second = await f.service.perform(try #require(first.retry))
-    #expect(second.failures.isEmpty && second.retry == nil && f.exists("new-target/a.jpg") && !f.exists("a.jpg"))
+    for hasLaterStep in [false, true] {
+        let f = try await Fixture(), successful = try await Fixture()
+        for fixture in [f, successful] { try await createRetryFile("a.jpg", in: fixture) }
+        try await createRetryFile("b.jpg", in: successful)
+        func operation(in root: Location) -> FileOperation {
+            let sources = (hasLaterStep ? ["a.jpg", "b.jpg"] : ["b.jpg"]).map { root.appending($0) }
+            var steps: [FileOperation] = [.makeDirectory(in: root, name: "new-target"), .transfer(sources, into: root.appending("new-target"), mode: .move, conflict: .appendNumber)]
+            if hasLaterStep { steps.append(.rename(root.appending("new-target"), to: "final-target")) }
+            return .sequence(steps)
+        }
+        let first = await f.service.perform(operation(in: f.root))
+        #expect(f.exists("new-target") && !f.exists("final-target") && first.failures.count == 1)
+        let retryTransfer: FileOperation = .transfer([f.root.appending("b.jpg")], into: f.root.appending("new-target"), mode: .move, conflict: .appendNumber)
+        let expected: FileOperation = hasLaterStep ? .sequence([retryTransfer, .rename(f.root.appending("new-target"), to: "final-target")]) : retryTransfer
+        #expect(first.retry == expected)
+        try await createRetryFile("b.jpg", in: f)
+        let retried = await f.service.perform(try #require(first.retry))
+        let once = await successful.service.perform(operation(in: successful.root))
+        #expect(retried.failures.isEmpty && retried.retry == nil && once.failures.isEmpty)
+        #expect(first.changes.count + retried.changes.count == once.changes.count)
+        #expect(try f.fileTree() == successful.fileTree())
+    }
 }
 
 @Test func retryExcludesSkippedItems() async throws {
-    let f = try await Fixture()
-    let dest = f.root.appending("dest"), existing = f.root.appending("existing.jpg"), ok = f.root.appending("ok.jpg"), missing = f.root.appending("missing.jpg")
-    try await f.fs.makeDirectory(at: dest)
-    try await f.fs.createFile(at: existing)
-    try await f.fs.createFile(at: dest.appending("existing.jpg"))
-    try await f.fs.createFile(at: ok)
-
-    let skipOnly = await f.service.perform(.transfer([existing, ok], into: dest, mode: .move, conflict: .skip))
-    #expect(skipOnly.skipped == [existing] && skipOnly.failures.isEmpty && skipOnly.retry == nil && f.exists("existing.jpg") && f.exists("dest/ok.jpg"))
-
-    let mixed = await f.service.perform(.transfer([existing, missing], into: dest, mode: .move, conflict: .skip))
+    let f = try await Fixture(), successful = try await Fixture()
+    for fixture in [f, successful] {
+        try await fixture.fs.makeDirectory(at: fixture.root.appending("dest"))
+        for path in ["existing.jpg", "ok.jpg", "dest/existing.jpg"] { try await createRetryFile(path, in: fixture) }
+    }
+    try await createRetryFile("missing.jpg", in: successful)
+    let dest = f.root.appending("dest"), existing = f.root.appending("existing.jpg"), missing = f.root.appending("missing.jpg")
+    let skipOnly = await f.service.perform(.transfer([existing], into: dest, mode: .move, conflict: .skip))
+    #expect(skipOnly.skipped == [existing] && skipOnly.failures.isEmpty && skipOnly.retry == nil)
+    func operation(in root: Location) -> FileOperation {
+        .transfer(["existing.jpg", "ok.jpg", "missing.jpg"].map { root.appending($0) }, into: root.appending("dest"), mode: .move, conflict: .skip)
+    }
+    let mixed = await f.service.perform(operation(in: f.root))
     #expect(mixed.skipped == [existing] && mixed.failures.count == 1 && mixed.retry == .transfer([missing], into: dest, mode: .move, conflict: .skip))
-    try await f.fs.createFile(at: missing)
+    try await createRetryFile("missing.jpg", in: f)
     let retried = await f.service.perform(try #require(mixed.retry))
-    #expect(retried.failures.isEmpty && retried.retry == nil && f.exists("dest/missing.jpg") && f.exists("existing.jpg"))
+    let once = await successful.service.perform(operation(in: successful.root))
+    #expect(retried.failures.isEmpty && retried.retry == nil && retried.skipped.isEmpty && once.failures.isEmpty)
+    #expect(once.skipped == [successful.root.appending("existing.jpg")])
+    #expect(mixed.changes.count + retried.changes.count == once.changes.count)
+    #expect(try f.fileTree() == successful.fileTree())
 }
