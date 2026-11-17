@@ -14,8 +14,9 @@ let modules: [(name: String, dependencies: [String])] = [
     ("MVCommands", ["MVFoundation"]),
     ("MVLayout", ["MVFoundation", "MVSettings"]),
     ("MVReading", ["MVFoundation", "MVIO", "MVMedia", "MVCache", "MVPipeline", "MVSettings"]),
-    ("MVServices", ["MVFoundation", "MVIO", "MVFileOps", "MVArchive", "MVMedia", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading"]),
-    ("MVTestSupport", ["MVFoundation", "MVIO", "MVMedia", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVServices"]),
+    ("MVLibraryData", ["MVFoundation", "MVIO", "MVCache", "MVReading", "GRDB"]),
+    ("MVServices", ["MVFoundation", "MVIO", "MVFileOps", "MVArchive", "MVMedia", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVLibraryData"]),
+    ("MVTestSupport", ["MVFoundation", "MVIO", "MVMedia", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVServices", "MVLibraryData"]),
 ]
 
 /// 测试另外需要的目标：MVIO 的测试要启动辅助进程，MVMedia 的测试要读夹具。
@@ -28,6 +29,7 @@ let testExtras: [String: [Target.Dependency]] = [
     "MVPipeline": ["MVTestSupport"],
     "MVReading": ["MVTestSupport"],
     "MVServices": ["MVTestSupport", "mvio-helper"],
+    "MVLibraryData": [.product(name: "GRDB", package: "GRDB.swift")],
 ]
 
 let package = Package(
@@ -60,6 +62,7 @@ let package = Package(
                 "MVCache",
                 "MVPipeline",
                 "MVArchive",
+                "MVLibraryData",
                 "MVTestSupport",
             ]
         ),
