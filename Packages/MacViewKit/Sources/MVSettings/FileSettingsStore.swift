@@ -93,7 +93,7 @@ public final class FileSettingsStore: SettingsStore {
         }
     }
 
-    /// 迁移单条记忆，连同其中属于该书的页面位置；目标已有值会被覆盖。
+    /// 按位置前缀迁移书及所有记忆的上次页；目标已有记忆时保留目标。
     public func relocateBookMemory(from source: Location, to target: Location) async {
         guard source != target, !target.layers.isEmpty else { return }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -102,28 +102,42 @@ public final class FileSettingsStore: SettingsStore {
                 do {
                     try writePending()
                     try state.withLock { current in
-                        guard var memory = current.memories[source] else { return }
-                        memory.book = target
-                        if let page = memory.lastPage, page.hasPrefix(source), let index = source.layers.indices.last {
-                            let tail = Array(page.layers[index].dropFirst(source.layers[index].count))
+                        func rebase(_ location: Location) -> Location {
+                            guard location.hasPrefix(source), let index = source.layers.indices.last else { return location }
                             var layers = target.layers
-                            layers[layers.count - 1] += tail
-                            layers += page.layers.dropFirst(index + 1)
-                            memory.lastPage = Location(root: target.root, layers: layers)
+                            layers[layers.count - 1] += location.layers[index].dropFirst(source.layers[index].count)
+                            layers += location.layers.dropFirst(index + 1)
+                            return Location(root: target.root, layers: layers)
                         }
+                        let original = current.memories
+                        var updated = original.filter { !$0.key.hasPrefix(source) }
+                        for (book, var memory) in updated {
+                            memory.lastPage = memory.lastPage.map(rebase)
+                            updated[book] = memory
+                        }
+                        for (book, var memory) in original where book.hasPrefix(source) {
+                            memory.book = rebase(book)
+                            memory.lastPage = memory.lastPage.map(rebase)
+                            if updated[memory.book] == nil { updated[memory.book] = memory }
+                        }
+                        let removed = original.keys.filter { updated[$0] == nil }
+                        let changed = updated.filter { original[$0.key] != $0.value }
+                        guard !removed.isEmpty || !changed.isEmpty else { return }
                         let encoder = JSONEncoder()
                         encoder.outputFormatting = .sortedKeys
-                        let oldKey = String(decoding: try encoder.encode(source), as: UTF8.self)
-                        let newKey = String(decoding: try encoder.encode(target), as: UTF8.self)
-                        let encoded = try encoder.encode(memory)
                         try database.write { database in
-                            try database.execute(sql: "DELETE FROM book_memory WHERE location = ?", arguments: [oldKey])
-                            try database.execute(sql: "INSERT INTO book_memory (location, memory) VALUES (?, ?) ON CONFLICT(location) DO UPDATE SET memory = excluded.memory", arguments: [newKey, encoded])
+                            for book in removed {
+                                let key = String(decoding: try encoder.encode(book), as: UTF8.self)
+                                try database.execute(sql: "DELETE FROM book_memory WHERE location = ?", arguments: [key])
+                            }
+                            for (book, memory) in changed {
+                                let key = String(decoding: try encoder.encode(book), as: UTF8.self)
+                                try database.execute(sql: "INSERT INTO book_memory (location, memory) VALUES (?, ?) ON CONFLICT(location) DO UPDATE SET memory = excluded.memory", arguments: [key, try encoder.encode(memory)])
+                            }
                         }
-                        current.memories[source] = nil
-                        current.memories[target] = memory
-                        current.pending[source] = nil
-                        current.pending[target] = nil
+                        current.memories = updated
+                        for book in removed { current.pending[book] = nil }
+                        for book in changed.keys { current.pending[book] = nil }
                     }
                 } catch { reportMemoryError(error) }
             }
@@ -226,7 +240,7 @@ public final class FileSettingsStore: SettingsStore {
         for (key, value) in defaults {
             let field = path.isEmpty ? key : path + "." + key
             if let present = object[key] { object[key] = filling(present, defaults: value, path: field, missing: &missing) }
-            else { object[key] = value; if field != "fileOperations" { missing.append(field) } }
+            else { object[key] = value; if field != "fileOperations" && field != "historyLimit" { missing.append(field) } }
         }
         return object
     }

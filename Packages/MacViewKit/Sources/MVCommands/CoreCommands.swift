@@ -26,6 +26,12 @@ extension CommandID {
     public static let editUndo = CommandID("edit.undo")
     public static let editRedo = CommandID("edit.redo")
     public static let bookReveal = CommandID("book.reveal")
+    public static let bookmarkAdd = CommandID("library.bookmark.add")
+    public static let playlistAddCurrent = CommandID("library.playlist.addCurrent")
+    public static let playlistRemoveItem = CommandID("library.playlist.removeItem")
+    public static let historyToggle = CommandID("panel.history.toggle")
+    public static let bookmarksToggle = CommandID("panel.bookmarks.toggle")
+    public static let playlistToggle = CommandID("panel.playlist.toggle")
     public static let browsePaged = CommandID("view.paged")
     public static let browseWaterfall = CommandID("view.waterfall")
     public static let browseVerticalStrip = CommandID("view.verticalStrip")
@@ -218,6 +224,11 @@ public enum CoreCommands {
         ]),
         Group(title: "书", sections: [
             Section([
+                commandMany(.bookmarkAdd, .init("加入书签", bundle: .main), "book", key: KeyChord("d", modifiers: .command), scopes: [.viewer, .list]),
+                commandMany(.playlistAddCurrent, .init("加入播放列表…", bundle: .main), "book", key: KeyChord("l", modifiers: .command), scopes: [.viewer, .list]),
+                command(.playlistRemoveItem, .init("从播放列表移除", bundle: .main), "book"),
+            ]),
+            Section([
                 command(.bookNext, .init("下一本书", bundle: .main), "book", keys: [KeyChord("Down", modifiers: .option)]),
                 command(.bookPrevious, .init("上一本书", bundle: .main), "book", keys: [KeyChord("Up", modifiers: .option)]),
                 command(.bookReveal, .init("在书架中显示当前书", bundle: .main), "book", scope: .global,
@@ -256,6 +267,12 @@ public enum CoreCommands {
                         keys: [KeyChord("2", modifiers: [.command, .option])]),
                 command(.classifyPanelToggle, .init("显示或隐藏分类面板", bundle: .main), "window", scope: .global,
                         keys: [KeyChord("3", modifiers: [.command, .option])]),
+                command(.historyToggle, .init("显示或隐藏历史", bundle: .main), "window", scope: .global,
+                        keys: [KeyChord("4", modifiers: [.command, .option])]),
+                command(.bookmarksToggle, .init("显示或隐藏书签", bundle: .main), "window", scope: .global,
+                        keys: [KeyChord("5", modifiers: [.command, .option])]),
+                command(.playlistToggle, .init("显示或隐藏播放列表", bundle: .main), "window", scope: .global,
+                        keys: [KeyChord("6", modifiers: [.command, .option])]),
                 command(.docksToggle, .init("显示或隐藏停靠区", bundle: .main), "window", keys: [KeyChord("Tab")]),
             ]),
         ]),

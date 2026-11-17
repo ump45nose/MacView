@@ -254,13 +254,15 @@ public struct GlobalSettings: Codable, Sendable, Hashable {
     /// 显示尺寸解码的长边上限；放大超过它时解码原图或分块。
     public var maxDecodeLongSide: Int
     public var fileOperations: FileOperationSettings
+    public var historyLimit: Int
 
-    public init(defaultBook: ResolvedBookSettings, cache: CacheBudgets, prefetch: PrefetchRanges, maxDecodeLongSide: Int, fileOperations: FileOperationSettings = .default) {
+    public init(defaultBook: ResolvedBookSettings, cache: CacheBudgets, prefetch: PrefetchRanges, maxDecodeLongSide: Int, fileOperations: FileOperationSettings = .default, historyLimit: Int = 1000) {
         self.defaultBook = defaultBook
         self.cache = cache
         self.prefetch = prefetch
         self.maxDecodeLongSide = maxDecodeLongSide
         self.fileOperations = fileOperations
+        self.historyLimit = historyLimit
     }
 
     public init(from decoder: any Decoder) throws {
@@ -269,7 +271,12 @@ public struct GlobalSettings: Codable, Sendable, Hashable {
                   cache: try values.decode(CacheBudgets.self, forKey: .cache),
                   prefetch: try values.decode(PrefetchRanges.self, forKey: .prefetch),
                   maxDecodeLongSide: try values.decode(Int.self, forKey: .maxDecodeLongSide),
-                  fileOperations: try values.decodeIfPresent(FileOperationSettings.self, forKey: .fileOperations) ?? .default)
+                  fileOperations: try values.decodeIfPresent(FileOperationSettings.self, forKey: .fileOperations) ?? .default,
+                  historyLimit: try values.decodeIfPresent(Int.self, forKey: .historyLimit) ?? 1000)
+        guard historyLimit > 0 else {
+            throw DecodingError.dataCorruptedError(forKey: .historyLimit, in: values,
+                debugDescription: String(localized: "\("historyLimit") 必须大于 0，现在是 \(historyLimit)", bundle: .main))
+        }
     }
 
     public static let `default` = GlobalSettings(defaultBook: .default, cache: .default, prefetch: .default, maxDecodeLongSide: 8192)

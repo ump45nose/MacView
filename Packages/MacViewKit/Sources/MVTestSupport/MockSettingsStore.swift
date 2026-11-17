@@ -49,15 +49,25 @@ public final class MockSettingsStore: SettingsStore {
     public func relocateBookMemory(from source: Location, to target: Location) async {
         guard source != target, !target.layers.isEmpty else { return }
         state.withLock { current in
-            guard var memory = current.memories.removeValue(forKey: source) else { return }
-            memory.book = target
-            if let page = memory.lastPage, page.hasPrefix(source), let index = source.layers.indices.last {
+            func rebase(_ location: Location) -> Location {
+                guard location.hasPrefix(source), let index = source.layers.indices.last else { return location }
                 var layers = target.layers
-                layers[layers.count - 1] += page.layers[index].dropFirst(source.layers[index].count)
-                layers += page.layers.dropFirst(index + 1)
-                memory.lastPage = Location(root: target.root, layers: layers)
+                layers[layers.count - 1] += location.layers[index].dropFirst(source.layers[index].count)
+                layers += location.layers.dropFirst(index + 1)
+                return Location(root: target.root, layers: layers)
             }
-            current.memories[target] = memory
+            let original = current.memories
+            var updated = original.filter { !$0.key.hasPrefix(source) }
+            for (book, var memory) in updated {
+                memory.lastPage = memory.lastPage.map(rebase)
+                updated[book] = memory
+            }
+            for (book, var memory) in original where book.hasPrefix(source) {
+                memory.book = rebase(book)
+                memory.lastPage = memory.lastPage.map(rebase)
+                if updated[memory.book] == nil { updated[memory.book] = memory }
+            }
+            current.memories = updated
         }
     }
 
