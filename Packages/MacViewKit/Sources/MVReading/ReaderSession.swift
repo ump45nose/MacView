@@ -15,6 +15,9 @@ public final class ReaderSession {
     public private(set) var currentFrame = 0
     public private(set) var settings: ResolvedBookSettings = .default
     public private(set) var loadError: (any Error)?
+    public var onBookOpened: (@MainActor (Location) -> Void)?
+    public var isVirtualBook: Bool { book?.location.playlistID != nil }
+    public private(set) var unavailablePages: Set<Location> = []
 
     /// 当前页的序号：分页模式下是当前页帧中阅读顺序靠前的一页，连续和瀑布模式下是可见区的第一页。书还没读到这一页时是书记忆中的序号。
     public var currentPage: Int { anchorIndex }
@@ -37,12 +40,15 @@ public final class ReaderSession {
     @ObservationIgnored private var anchorPart: PagePart = .whole
     @ObservationIgnored private var visiblePages: Range<Int>?
     @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var pendingBookOpened = false
     @ObservationIgnored private var openedAt = Date()
     @ObservationIgnored private var memory: BookMemory?
     @ObservationIgnored private var removedMetadata: [Location: ImageMetadata] = [:]
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var settingsTask: Task<Void, Never>?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var refreshingPages: Set<Location> = []
     /// 前端回报的设备像素。切书保留，直到下一次回报。
     @ObservationIgnored private var viewport: PixelSize?
     @ObservationIgnored private var backingScale = 1.0
@@ -76,6 +82,7 @@ public final class ReaderSession {
         loadTask?.cancel()
         settingsTask?.cancel()
         saveTask?.cancel()
+        refreshTask?.cancel()
         adjacentTask?.cancel()
         pipeline.cancelAll(session: id)
         if let memory {
@@ -90,10 +97,12 @@ public final class ReaderSession {
         let current = generation
         loadTask?.cancel()
         saveTask?.cancel()
+        refreshTask?.cancel()
+        refreshingPages.removeAll()
         cancelAdjacent()
         pipeline.cancelAll(session: id)
         if let memory { await store.saveBookMemory(memory) }
-        await bookshelf.rememberBook(location)
+        if location.playlistID == nil { await bookshelf.rememberBook(location) }
         let remembered = await store.bookMemory(for: location)
         let resolved = await store.resolve(for: location)
         let global = await store.global()
@@ -105,7 +114,9 @@ public final class ReaderSession {
         seedRandomOrder()
         openedAt = Date()
         book = Book(location: location)
+        pendingBookOpened = true
         removedMetadata.removeAll()
+        unavailablePages.removeAll()
         frames = []
         currentFrame = 0
         anchor = page ?? remembered?.lastPage
@@ -125,6 +136,7 @@ public final class ReaderSession {
     /// 将文件操作的一批变更反映到当前页和当前书。
     public func applyFileChanges(_ changes: [FileChange]) {
         guard let currentBook = book else { return }
+        if isVirtualBook { applyVirtualFileChanges(changes); return }
         for change in changes {
             switch change {
             case let .removed(location) where currentBook.location.hasPrefix(location):
@@ -214,6 +226,119 @@ public final class ReaderSession {
         }
     }
 
+    /// 虚拟书保留列表中的项，文件变更只更新其位置、身份和可用状态。
+    private func applyVirtualFileChanges(_ changes: [FileChange]) {
+        guard var pages = book?.pages else { return }
+        var pending: [Entry] = []
+        var needsValidation: Set<Location> = []
+        for change in changes {
+            switch change {
+            case let .removed(location):
+                for page in pages where page.id.hasPrefix(location) {
+                    unavailablePages.insert(page.id)
+                    refreshingPages.remove(page.id)
+                }
+            case let .moved(from, to):
+                let moving = Set(pages.filter { $0.id.hasPrefix(from) }.map(\.id))
+                let existing = Set(pages.map(\.id)).subtracting(moving)
+                pages = pages.compactMap { page in
+                    var result = page
+                    if moving.contains(page.id), let destination = Self.rebased(page.id, from: from, to: to.location) {
+                        if anchor == page.id { anchor = destination }
+                        unavailablePages.remove(page.id)
+                        refreshingPages.remove(page.id)
+                        // 存储保留目标已存在的项，会话同步去掉迁来的重复项。
+                        guard !existing.contains(destination) else { return nil }
+                        result.entry.identity.location = destination
+                        if page.id == from { result.entry = to }
+                    } else if page.id.hasPrefix(to.location) {
+                        let recovered = unavailablePages.contains(page.id)
+                        if page.id == to.location {
+                            unavailablePages.remove(page.id)
+                            result.entry = to
+                            result.metadata = nil
+                            pending.append(to)
+                        } else if recovered { needsValidation.insert(page.id) }
+                    }
+                    return result
+                }
+            case .added: break
+            }
+        }
+        book?.pages = pages
+        unavailablePages.formIntersection(Set(pages.map(\.id)))
+        layoutFrames(); remember(); prefetch()
+        refreshVirtualPages(needsValidation)
+        let current = generation
+        for entry in pending {
+            Task { [weak self, pipeline] in
+                guard let metadata = try? await pipeline.metadata(for: entry.identity, priority: .visible),
+                      let self, self.generation == current,
+                      !self.unavailablePages.contains(entry.location),
+                      self.book?.pages.contains(where: { $0.entry.identity == entry.identity }) == true else { return }
+                self.apply(.metadata([entry.location: metadata]))
+            }
+        }
+    }
+
+    /// 可用性由前端检查；恢复时重新校验快照，避免继续请求旧身份的缓存。
+    public func setAvailability(_ results: [Location: Availability]) {
+        guard isVirtualBook, let pages = book?.pages else { return }
+        let locations = Set(pages.map(\.id))
+        var recovered: Set<Location> = []
+        for (location, availability) in results where locations.contains(location) {
+            switch availability {
+            case .available:
+                if unavailablePages.contains(location), !refreshingPages.contains(location) { recovered.insert(location) }
+            case .missing, .volumeUnavailable:
+                unavailablePages.insert(location)
+                refreshingPages.remove(location)
+            }
+        }
+        refreshVirtualPages(recovered)
+        prefetch()
+    }
+
+    private func refreshVirtualPages(_ locations: Set<Location>) {
+        guard !locations.isEmpty, let location = book?.location else { return }
+        refreshingPages.formUnion(locations)
+        let pending = refreshingPages
+        refreshTask?.cancel()
+        let current = generation
+        let stream = loader.load(location, settings: settings, startingAt: anchor)
+        refreshTask = Task { [weak self] in
+            do {
+                var refreshed: [Location: Page] = [:]
+                for try await event in stream {
+                    guard !Task.isCancelled else { return }
+                    switch event {
+                    case let .appended(pages), let .sorted(pages):
+                        for page in pages where pending.contains(page.id) { refreshed[page.id] = page }
+                    case let .metadata(values):
+                        for (location, metadata) in values { refreshed[location]?.metadata = metadata }
+                    }
+                }
+                guard !Task.isCancelled, let self, self.generation == current, var pages = self.book?.pages else { return }
+                for index in pages.indices where self.refreshingPages.contains(pages[index].id) {
+                    if let page = refreshed[pages[index].id] {
+                        pages[index] = page
+                        self.unavailablePages.remove(page.id)
+                    }
+                }
+                self.book?.pages = pages
+                self.refreshingPages.subtract(pending)
+                self.layoutFrames(); self.remember(); self.prefetch()
+                self.refreshTask = nil
+            } catch {
+                guard !Task.isCancelled, let self, self.generation == current else { return }
+                self.unavailablePages.formUnion(pending.intersection(self.refreshingPages))
+                self.refreshingPages.subtract(pending)
+                self.prefetch()
+                self.refreshTask = nil
+            }
+        }
+    }
+
     private func belongsToBook(_ location: Location, book: Location, pages: [Page]) -> Bool {
         guard location.hasPrefix(book), let parent = location.parent, let index = book.layers.indices.last else { return false }
         let relative = Array(location.layers[index].dropFirst(book.layers[index].count)) + location.layers.dropFirst(index + 1).flatMap { $0 }
@@ -277,7 +402,7 @@ public final class ReaderSession {
     }
 
     public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async {
-        guard let location = book?.location else { return }
+        guard !isVirtualBook, let location = book?.location else { return }
         do {
             if let neighbor = try await bookshelf.neighbor(of: location, direction, sort: sort) { await open(neighbor, at: nil) }
         } catch { loadError = error }
@@ -291,7 +416,7 @@ public final class ReaderSession {
         layoutFrames()
         remember()
         prefetch()
-        if previous.sort != settings.sort || previous.recursion != settings.recursion { reload() }
+        if !isVirtualBook, previous.sort != settings.sort || previous.recursion != settings.recursion { reloadBook() }
     }
 
     /// 连续和瀑布模式由前端回报可见范围，当前页随可见区的第一页移动并写入书记忆。
@@ -335,6 +460,7 @@ public final class ReaderSession {
             let known = Dictionary((book?.pages ?? []).compactMap { page in page.metadata.map { (page.entry.identity, $0) } }, uniquingKeysWith: { _, last in last })
             book?.pages = pages.map { page in var value = page; value.metadata = value.metadata ?? known[page.entry.identity]; return value }
             book?.isEnumerated = true
+            unavailablePages.formIntersection(Set(pages.map(\.id)))
         case let .metadata(values):
             guard var pages = book?.pages else { return }
             for index in pages.indices { if let value = values[pages[index].id] { pages[index].metadata = value } }
@@ -387,14 +513,17 @@ public final class ReaderSession {
             self.settings = resolved.applying(self.bookLayer)
             self.layoutFrames()
             self.prefetch()
-            if previous.sort != self.settings.sort || previous.recursion != self.settings.recursion { self.reload() }
+            if !self.isVirtualBook, previous.sort != self.settings.sort || previous.recursion != self.settings.recursion { self.reloadBook() }
         }
     }
 
-    private func reload() {
+    /// 保留当前页身份；该项已移除时停在原序号，越界时停在最后一页。
+    public func reloadBook() {
         guard let location = book?.location else { return }
         generation += 1
         loadTask?.cancel()
+        refreshTask?.cancel()
+        refreshingPages.removeAll()
         pipeline.cancelAll(session: id)
         remember()
         book = Book(location: location)
@@ -410,6 +539,10 @@ public final class ReaderSession {
                 for try await event in stream {
                     guard !Task.isCancelled, let self, current == self.generation else { return }
                     self.apply(event)
+                    if self.pendingBookOpened, let book = self.book, !book.pages.isEmpty {
+                        self.pendingBookOpened = false
+                        self.onBookOpened?(book.location)
+                    }
                 }
             } catch {
                 guard let self, current == self.generation, !Task.isCancelled else { return }
@@ -442,7 +575,7 @@ public final class ReaderSession {
         layoutFrames()
         remember()
         restartAdjacent()
-        if previous.sort != settings.sort || previous.recursion != settings.recursion { reload() }
+        if !isVirtualBook, previous.sort != settings.sort || previous.recursion != settings.recursion { reloadBook() }
     }
 
     private func prefetch() {
@@ -472,6 +605,7 @@ public final class ReaderSession {
             }
         }
         appendAdjacent(to: &items)
+        items.removeAll { unavailablePages.contains($0.identity.location) || refreshingPages.contains($0.identity.location) }
         pipeline.setPrefetchPlan(PrefetchPlan(items: items), session: id)
     }
 
@@ -512,7 +646,7 @@ public final class ReaderSession {
     }
 
     private func startAdjacent() {
-        guard let sort = shelfSort, let current = book?.location, let parent = current.parent else { return }
+        guard !isVirtualBook, let sort = shelfSort, let current = book?.location, let parent = current.parent else { return }
         let neighborCount = max(0, global.prefetch.neighborBooks)
         let covers = global.prefetch.shelfCovers
         guard neighborCount > 0 || covers else { return }

@@ -379,21 +379,93 @@ private final class SettingsDirectory: Sendable {
     deinit { try? FileManager.default.removeItem(at: url) }
 }
 
-@Test func relocateBookMemoryReplacesDestinationAndPersists() async throws {
+@Test func relocateBookMemoryKeepsDestinationAndPersists() async throws {
     let directory = try SettingsDirectory()
     let old = Location(root: .local, layers: [["book"]]), target = Location(root: .local, layers: [["renamed"]])
     let store = try FileSettingsStore(directory: directory.url)
     let memory = BookMemory(book: old, settings: BookSettings(pageMode: .double), lastPage: old.appending("3.jpg"), lastPageIndex: 2)
     await store.saveBookMemory(memory)
-    await store.saveBookMemory(BookMemory(book: target, lastPageIndex: 99))
+    let destination = BookMemory(book: target, lastPageIndex: 99)
+    await store.saveBookMemory(destination)
     await store.relocateBookMemory(from: old, to: target)
     #expect(await store.bookMemory(for: old) == nil)
     let relocated = await store.bookMemory(for: target)
-    #expect(relocated?.book == target && relocated?.lastPage == target.appending("3.jpg") && relocated?.lastPageIndex == 2 && relocated?.settings.pageMode == .double)
+    #expect(relocated == destination)
     try await store.flush()
     let reopened = try FileSettingsStore(directory: directory.url)
     #expect(await reopened.bookMemory(for: old) == nil)
     #expect(await reopened.bookMemory(for: target) == relocated)
+}
+
+@Test("C1.19 未打开的目录书、压缩包及虚拟书的上次页按前缀迁移并落盘")
+func prefixMemoryRelocationIncludesUnopenedBooksAndVirtualPages() async throws {
+    let directory = try SettingsDirectory()
+    let source = Location(root: .local, layers: [["old"]])
+    let target = Location(root: .local, layers: [["new"]])
+    let folder = source.appending("folder")
+    let archive = source.appending("book.zip")
+    let nestedPage = Location(root: .local, layers: [["old", "book.zip"], ["inner.zip"], ["3.jpg"]])
+    let virtual = Location.playlist(UUID())
+    let memories = [
+        BookMemory(book: folder, settings: BookSettings(pageMode: .double, scaleMode: .fitWidth), lastPage: folder.appending("3.jpg"), lastPageIndex: 2),
+        BookMemory(book: archive, settings: BookSettings(pageMode: .single, scaleMode: .fitHeight), lastPage: nestedPage, lastPageIndex: 2),
+        BookMemory(book: virtual, lastPage: folder.appending("3.jpg"), lastPageIndex: 7),
+    ]
+    let store = try FileSettingsStore(directory: directory.url)
+    for memory in memories { await store.saveBookMemory(memory) }
+    await store.relocateBookMemory(from: source, to: target)
+    let newFolder = target.appending("folder"), newArchive = target.appending("book.zip")
+    #expect(await store.bookMemory(for: folder) == nil)
+    #expect(await store.bookMemory(for: archive) == nil)
+    #expect(await store.bookMemory(for: newFolder)?.settings == memories[0].settings)
+    #expect(await store.bookMemory(for: newFolder)?.lastPage == newFolder.appending("3.jpg"))
+    #expect(await store.bookMemory(for: newArchive)?.settings == memories[1].settings)
+    #expect(await store.bookMemory(for: newArchive)?.lastPage == Location(root: .local, layers: [["new", "book.zip"], ["inner.zip"], ["3.jpg"]]))
+    #expect(await store.bookMemory(for: virtual)?.lastPage == newFolder.appending("3.jpg"))
+    #expect(await store.bookMemory(for: virtual)?.lastPageIndex == 7)
+    try await store.flush()
+    let reopened = try FileSettingsStore(directory: directory.url)
+    for book in [newFolder, newArchive, virtual] {
+        let expected = await store.bookMemory(for: book)
+        #expect(await reopened.bookMemory(for: book) == expected)
+    }
+    #expect(await reopened.bookMemory(for: folder) == nil)
+}
+
+@Test("C1.12 旧设置缺历史上限时安静补 1000")
+func legacyGlobalSettingsUseHistoryLimitWithoutWarning() async throws {
+    let directory = try SettingsDirectory()
+    var legacy = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(GlobalSettings.default)) as? [String: Any])
+    legacy.removeValue(forKey: "historyLimit")
+    let data = try JSONSerialization.data(withJSONObject: legacy)
+    #expect(try JSONDecoder().decode(GlobalSettings.self, from: data).historyLimit == 1000)
+    let file = directory.url.appending(path: "settings.json")
+    try JSONSerialization.data(withJSONObject: ["version": 1, "value": legacy]).write(to: file)
+    let store = try FileSettingsStore(directory: directory.url)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+    #expect(await store.global().historyLimit == 1000)
+    try await store.updateGlobal { $0.historyLimit = 500 }
+    try await settingsWait { events.values.contains(.global) }
+    #expect(!events.values.contains { if case .fileError = $0 { true } else { false } })
+    #expect(await (try FileSettingsStore(directory: directory.url)).global().historyLimit == 500)
+}
+
+@Test("C1.12 非正历史上限报告配置错误并保留上一份", arguments: [0, -1])
+func nonPositiveHistoryLimitsKeepLastGoodSettings(_ limit: Int) async throws {
+    let directory = try SettingsDirectory()
+    let file = directory.url.appending(path: "settings.json")
+    var global = GlobalSettings.default
+    global.historyLimit = 250
+    try writeSettingsDocument(global, to: file)
+    let store = try FileSettingsStore(directory: directory.url)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+    global.historyLimit = limit
+    try writeSettingsDocument(global, to: file)
+    try await settingsWait { events.values.contains { if case let .fileError(_, message) = $0 { message.contains("historyLimit") } else { false } } }
+    #expect(await store.global().historyLimit == 250)
+    #expect(throws: DecodingError.self) { try JSONDecoder().decode(GlobalSettings.self, from: JSONEncoder().encode(global)) }
 }
 
 @Test func legacyGlobalSettingsUseFileOperationDefaultsAndPersistThem() async throws {

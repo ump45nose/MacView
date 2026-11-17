@@ -88,3 +88,26 @@ private func menuCommands(_ nodes: [MenuNode]) -> [CommandID] {
     #expect(resolver.feed(KeyChord("r", modifiers: [.command, .shift]), scope: .list, at: now) == .unmatched)
     #expect(resolver.feed(KeyChord("r", modifiers: [.command, .shift]), scope: .viewer, at: now) == .command(.recursionToggle, nil))
 }
+
+@Test("C1.13 资料库默认键无冲突，加入命令在书菜单，面板开关在窗口菜单")
+func libraryCommandsHaveBindingsAndMenuPositions() throws {
+    let bindings = CoreCommands.all.flatMap(\.defaultBindings)
+    #expect(BindingResolver.conflicts(in: bindings).isEmpty)
+    var resolver = BindingResolver(bindings: bindings)
+    let now = ContinuousClock.now
+    for scope in [InputScope.viewer, .list] {
+        #expect(resolver.feed(KeyChord("d", modifiers: .command), scope: scope, at: now) == .command(.bookmarkAdd, nil))
+        #expect(resolver.feed(KeyChord("l", modifiers: .command), scope: scope, at: now) == .command(.playlistAddCurrent, nil))
+        for (key, command) in [("4", CommandID.historyToggle), ("5", .bookmarksToggle), ("6", .playlistToggle)] {
+            #expect(resolver.feed(KeyChord(key, modifiers: [.command, .option]), scope: scope, at: now) == .command(command, nil))
+        }
+    }
+    #expect(CoreCommands.all.first { $0.id == .playlistRemoveItem }?.defaultBindings.isEmpty == true)
+    let bookMenu = try #require(CoreCommands.defaultMenu.roots.first { if case .submenu("书", _) = $0 { true } else { false } })
+    let windowMenu = try #require(CoreCommands.defaultMenu.roots.first { if case .submenu("窗口", _) = $0 { true } else { false } })
+    #expect(Set(menuCommands([bookMenu])).isSuperset(of: [.bookmarkAdd, .playlistAddCurrent, .playlistRemoveItem]))
+    #expect(Set(menuCommands([windowMenu])).isSuperset(of: [.historyToggle, .bookmarksToggle, .playlistToggle]))
+    #expect(CommandID.bookmarkAdd.rawValue == "library.bookmark.add")
+    #expect(CommandID.playlistAddCurrent.rawValue == "library.playlist.addCurrent")
+    #expect(CommandID.playlistRemoveItem.rawValue == "library.playlist.removeItem")
+}
