@@ -5,6 +5,38 @@ import Testing
 private let nas = Location.Root.network(scheme: "nfs", host: "nas.local", share: "/export")
 
 struct LocationTests {
+    @Test func c11PlaylistAndPrefixKeys() {
+        let id = UUID()
+        #expect(Location.playlistRootID == "playlist")
+        #expect(Location.playlist(id).playlistID == id)
+        #expect(Location(root: .plugin(id: "playlist"), layers: [[id.uuidString, "extra"]]).playlistID == nil)
+        #expect(Location(root: .local, layers: [[id.uuidString]]).playlistID == nil)
+        let emptyRoot = Location(root: .local, layers: [])
+        #expect(emptyRoot.hasPrefix(emptyRoot))
+        #expect(emptyRoot.hasPrefix(Location(root: .local)))
+        #expect(emptyRoot.prefixKey == Location(root: .local).prefixKey)
+        var seed: UInt64 = 0xC11
+        func random(_ count: Int) -> Int {
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            return Int((seed >> 32) % UInt64(count))
+        }
+        let roots: [Location.Root] = [.local, nas, .plugin(id: "a:/!"), .network(scheme: "smb", host: "主机", share: "/a!")]
+        let names = ["a", "a/b", "!", "/", "汉字", "a\u{1f}b", "", "é", "e\u{301}", "%:0"]
+        for _ in 0..<1000 {
+            let root = roots[random(roots.count)]
+            let layers = (0..<(1 + random(3))).map { _ in (0..<(1 + random(3))).map { _ in names[random(names.count)] } }
+            let location = Location(root: root, layers: layers)
+            let layer = random(layers.count)
+            var prefixLayers = Array(layers.prefix(layer + 1))
+            prefixLayers[layer] = Array(prefixLayers[layer].prefix(random(prefixLayers[layer].count + 1)))
+            let prefix = Location(root: root, layers: prefixLayers)
+            for candidate in [prefix, Location(root: roots[random(roots.count)], layers: [[names[random(names.count)]]]), Location(root: root)] {
+                let keyMatches = location.prefixKey == candidate.prefixKey || location.prefixKey.hasPrefix(candidate.prefixKey + "/")
+                #expect(location.hasPrefix(candidate) == keyMatches)
+            }
+        }
+    }
+
     @Test(arguments: [
         Location(root: .local, layers: [["Users", "me", "a.jpg"]]),
         Location(root: nas, layers: [["Picture", "a.zip"], ["inner", "b.zip"], ["001.jpg"]]),

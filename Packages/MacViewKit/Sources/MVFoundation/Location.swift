@@ -1,3 +1,5 @@
+import Foundation
+
 /// 一个文件或容器的位置：根加上逐层的路径。
 ///
 /// - `layers[0]` 是根下的路径；之后每层是上一层末端压缩包内的路径。
@@ -50,8 +52,46 @@ public struct Location: Hashable, Sendable, Codable {
 
     /// 是否等于 `prefix` 或位于其下，包括其下压缩包内的项。
     public func hasPrefix(_ prefix: Location) -> Bool {
-        guard root == prefix.root, let last = prefix.layers.indices.last, last < layers.count else { return false }
-        return layers[..<last] == prefix.layers[..<last] && layers[last].starts(with: prefix.layers[last])
+        let layers = layers.isEmpty ? [[]] : layers
+        let prefixLayers = prefix.layers.isEmpty ? [[]] : prefix.layers
+        guard root == prefix.root, let last = prefixLayers.indices.last, last < layers.count else { return false }
+        return layers[..<last] == prefixLayers[..<last] && layers[last].starts(with: prefixLayers[last])
+    }
+}
+
+extension Location {
+    public static let playlistRootID = "playlist"
+
+    public static func playlist(_ id: UUID) -> Location {
+        Location(root: .plugin(id: playlistRootID), layers: [[id.uuidString]])
+    }
+
+    public var playlistID: UUID? {
+        guard root == .plugin(id: Self.playlistRootID), layers.count == 1,
+              layers[0].count == 1 else { return nil }
+        return UUID(uuidString: layers[0][0])
+    }
+
+    /// `/` 分隔组件，`!` 单独标识进入压缩包；名称先规范化再编码，不含分隔符。
+    /// 可用相等或 `prefix + "/"` 的范围查询代替逐条解码位置。
+    public var prefixKey: String {
+        func encode(_ string: String) -> String {
+            let digits = Array("0123456789abcdef".utf8)
+            return String(decoding: string.precomposedStringWithCanonicalMapping.utf8.flatMap {
+                [digits[Int($0 >> 4)], digits[Int($0 & 15)]]
+            }, as: UTF8.self)
+        }
+        var components: [String]
+        switch root {
+        case .local: components = ["l"]
+        case let .network(scheme, host, share): components = ["n" + encode(scheme) + ":" + encode(host) + ":" + encode(share)]
+        case let .plugin(id): components = ["p" + encode(id)]
+        }
+        for (index, layer) in layers.enumerated() {
+            if index > 0 { components.append("!") }
+            components.append(contentsOf: layer.map { "n" + encode($0) })
+        }
+        return components.joined(separator: "/")
     }
 }
 
