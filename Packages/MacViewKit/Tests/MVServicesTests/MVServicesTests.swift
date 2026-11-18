@@ -525,17 +525,21 @@ import Testing
         let first = services.makeSession(), second = services.makeSession()
         await first.open(.playlist(id), at: entries[2].location)
         await second.open(.playlist(id), at: entries[2].location)
+        let expectedSize = PixelSize(width: 480, height: 720)
         func settled(_ expected: [Entry], current: Location) async throws {
             try await waitUntil {
                 [first, second].allSatisfy {
+                    // sorted 只表示页序已就绪；重载后的元数据由后续事件交付。
                     $0.book?.pages.map(\.id) == expected.map(\.location) && $0.book?.isEnumerated == true &&
+                    $0.book?.pages.allSatisfy { $0.metadata?.pixelSize == expectedSize } == true &&
                     $0.book?.pages[$0.currentPage].id == current
                 }
             }
         }
+        try await settled(Array(entries.prefix(4)), current: entries[2].location)
         _ = try await library.addItems([entries[4]], to: id)
         try await settled(entries, current: entries[2].location)
-        #expect(first.book?.pages.last?.metadata?.pixelSize == PixelSize(width: 480, height: 720))
+        #expect([first, second].allSatisfy { $0.book?.pages.last?.metadata?.pixelSize == expectedSize })
         try await library.removeItems([entries[0].location], from: id)
         try await settled(Array(entries.dropFirst()), current: entries[2].location)
         try await library.moveItems([entries[4].location], in: id, to: 0)
