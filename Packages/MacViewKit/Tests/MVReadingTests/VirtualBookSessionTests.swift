@@ -111,6 +111,97 @@ import Testing
         #expect(shelf.calls == 0)
     }
 
+    @Test("C1.10 打开即接收逐容器状态，占位元数据不能清除不可用页")
+    func openingConsumesExplicitAvailability() async throws {
+        let (_, _, store, shelf, pipeline) = setup()
+        let pair = AsyncThrowingStream<BookLoadEvent, any Error>.makeStream()
+        let session = ReaderSession(loader: EventLoader(stream: pair.stream), settings: store, bookshelf: shelf, pipeline: pipeline)
+        let ordered = pages(in: tree.location("A"), count: 3)
+        let opening = Task { await session.open(.playlist(UUID()), at: nil) }
+        pair.continuation.yield(.sorted(ordered))
+        pair.continuation.yield(.availability([ordered[0].id: .missing]))
+        await wait { session.unavailablePages.contains(ordered[0].id) }
+        pair.continuation.yield(.availability([ordered[1].id: .volumeUnavailable(ordered[1].id.root), ordered[2].id: .available]))
+        pair.continuation.yield(.metadata(Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, ImageMetadata(pixelSize: PixelSize(width: 1000, height: 1414))) })))
+        pair.continuation.finish()
+        await opening.value
+        #expect(session.unavailablePages == Set(ordered.prefix(2).map(\.id)))
+        #expect(session.book?.pages.map(\.id) == ordered.map(\.id))
+        #expect(session.book?.pages.allSatisfy { $0.metadata != nil } == true)
+    }
+
+    @Test("C1.10 打开中的旧可用结果和快照不能覆盖删除、撤销与再次删除")
+    func openingAvailabilityDoesNotOverrideFileChanges() async throws {
+        let (_, _, store, shelf, pipeline) = setup()
+        let pair = AsyncThrowingStream<BookLoadEvent, any Error>.makeStream()
+        let session = ReaderSession(loader: EventLoader(stream: pair.stream), settings: store, bookshelf: shelf, pipeline: pipeline)
+        let ordered = pages(in: tree.location("A"), count: 2)
+        let original = ordered[0]
+        let opening = Task { await session.open(.playlist(UUID()), at: original.id) }
+        pair.continuation.yield(.sorted(ordered))
+        await wait { session.book?.pages.count == 2 }
+        session.applyFileChanges([.removed(original.id)])
+        var restored = original.entry
+        restored.identity.modificationNanos += 10
+        session.applyFileChanges([.moved(from: tree.location("trash/001.jpg"), to: restored)])
+        await wait { !session.unavailablePages.contains(original.id) }
+        pair.continuation.yield(.sorted(ordered))
+        pair.continuation.yield(.availability([original.id: .missing]))
+        await wait { session.book?.pages.first?.entry == restored }
+        session.applyFileChanges([.removed(original.id)])
+        pair.continuation.yield(.availability([original.id: .available]))
+        pair.continuation.finish()
+        await opening.value
+        #expect(session.book?.pages.first?.entry == restored)
+        #expect(session.unavailablePages.contains(original.id))
+        #expect(session.currentPage == 0)
+    }
+
+    @Test("C1.10 重新校验与删除、撤销、后续不可用检查竞态以新变更为准")
+    func refreshAvailabilityDoesNotOverrideNewerChanges() async throws {
+        let (session, loader, _, _, _) = setup()
+        await session.open(.playlist(UUID()), at: nil)
+        let ordered = try #require(session.book?.pages)
+        let original = ordered[1]
+        session.setAvailability([original.id: .missing])
+        let removedRefresh = AsyncThrowingStream<BookLoadEvent, any Error>.makeStream()
+        loader.enqueue(removedRefresh.stream)
+        session.setAvailability([original.id: .available])
+        removedRefresh.continuation.yield(.sorted(ordered))
+        removedRefresh.continuation.yield(.availability([original.id: .available]))
+        session.applyFileChanges([.removed(original.id)])
+        removedRefresh.continuation.finish()
+        for _ in 0..<20 { await Task.yield() }
+        #expect(session.unavailablePages.contains(original.id))
+
+        let undoRefresh = AsyncThrowingStream<BookLoadEvent, any Error>.makeStream()
+        loader.enqueue(undoRefresh.stream)
+        session.setAvailability([original.id: .available])
+        undoRefresh.continuation.yield(.sorted(ordered))
+        undoRefresh.continuation.yield(.availability([original.id: .available]))
+        var restored = original.entry
+        restored.identity.modificationNanos += 10
+        let undo = FileChange.moved(from: tree.location("trash/001.jpg"), to: restored)
+        session.applyFileChanges([undo])
+        undoRefresh.continuation.finish()
+        await wait { !session.unavailablePages.contains(original.id) }
+        #expect(session.book?.pages[1].entry == restored)
+
+        session.applyFileChanges([.removed(original.id), undo, .removed(original.id)])
+        for _ in 0..<20 { await Task.yield() }
+        #expect(session.unavailablePages.contains(original.id))
+        let checkerRefresh = AsyncThrowingStream<BookLoadEvent, any Error>.makeStream()
+        loader.enqueue(checkerRefresh.stream)
+        session.setAvailability([original.id: .available])
+        checkerRefresh.continuation.yield(.sorted(ordered))
+        checkerRefresh.continuation.yield(.availability([original.id: .available]))
+        session.setAvailability([original.id: .missing])
+        checkerRefresh.continuation.finish()
+        for _ in 0..<20 { await Task.yield() }
+        #expect(session.unavailablePages.contains(original.id))
+        #expect(session.book?.pages[1].entry == restored)
+    }
+
     @Test("重载保留页身份，移除当前项回退原序号，越界取末页，删除列表报找不到")
     func reloadAnchorsAndBookOpenedCallback() async throws {
         let (session, loader, _, _, _) = setup()
@@ -190,17 +281,27 @@ import Testing
 }
 
 private final class LibrarySessionLoader: BookLoader {
-    private struct State { var pages: [Page]; var loads = 0; var removed = false }
+    private struct State {
+        var pages: [Page]; var loads = 0; var removed = false
+        var streams: [AsyncThrowingStream<BookLoadEvent, any Error>] = []
+    }
     private let state: Mutex<State>
     init(pages: [Page]) { state = Mutex(State(pages: pages)) }
     var loads: Int { state.withLock { $0.loads } }
     func replace(with pages: [Page]) { state.withLock { $0.pages = pages } }
     func removeBook() { state.withLock { $0.removed = true } }
+    func enqueue(_ stream: AsyncThrowingStream<BookLoadEvent, any Error>) { state.withLock { $0.streams.append(stream) } }
     func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> {
-        let snapshot = state.withLock { current in current.loads += 1; return current }
+        let (snapshot, stream) = state.withLock { current in
+            current.loads += 1
+            let stream = current.streams.isEmpty ? nil : current.streams.removeFirst()
+            return (current, stream)
+        }
+        if let stream { return stream }
         return AsyncThrowingStream { continuation in
             guard !snapshot.removed else { continuation.finish(throwing: IOError.notFound(location)); return }
             continuation.yield(.sorted(snapshot.pages))
+            continuation.yield(.availability(Dictionary(uniqueKeysWithValues: snapshot.pages.map { ($0.id, .available) })))
             continuation.yield(.metadata(Dictionary(uniqueKeysWithValues: snapshot.pages.map { ($0.id, ImageMetadata(pixelSize: PixelSize(width: 100, height: 140))) })))
             continuation.finish()
         }

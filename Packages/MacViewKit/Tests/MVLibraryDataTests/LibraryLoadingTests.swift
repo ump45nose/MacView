@@ -156,10 +156,12 @@ struct LibraryLoadingTests {
         settings.sort = SortSpec(key: .name, ascending: false)
         settings.recursion = RecursionSpec(enabled: true, maxDepth: 10)
         var sorted: [[Page]] = [], dimensions: [Location: ImageMetadata] = [:]
+        var availability: [[Location: Availability]] = []
         for try await event in loader.load(.playlist(id), settings: settings, startingAt: fresh[2].location) {
             switch event {
             case let .sorted(pages): sorted.append(pages)
             case let .metadata(values): dimensions.merge(values, uniquingKeysWith: { _, new in new })
+            case let .availability(values): availability.append(values)
             case .appended: Issue.record("播放列表只发 sorted")
             }
         }
@@ -172,6 +174,8 @@ struct LibraryLoadingTests {
         let reopened = try SQLiteLibraryStore(databaseURL: fixture.directory.appending(path: "library.sqlite"), historyLimit: 1000)
         #expect(try await reopened.items(of: id) == fresh)
         #expect(source.requests.count == 4 && pipeline.identities.count == 4)
+        #expect(availability.count == 4 && availability.allSatisfy { $0.count == 1 && $0.values.allSatisfy { $0 == .available } })
+        #expect(Set(availability.flatMap(\.keys)) == Set(fresh.map(\.location)))
         #expect(dimensions[fresh[2].location]?.duration == 3)
         await #expect(throws: IOError.notFound(.playlist(UUID(uuidString: "00000000-0000-0000-0000-000000000001")!))) {
             for try await _ in loader.load(.playlist(UUID(uuidString: "00000000-0000-0000-0000-000000000001")!), settings: .default, startingAt: nil) {}
@@ -205,7 +209,8 @@ struct LibraryLoadingTests {
         let slow = loadingEntry(Location(root: .local, layers: [["slow", "p.jpg"]]))
         let blocked = loadingEntry(Location(root: .local, layers: [["blocked", "p.jpg"]]))
         let good = loadingEntry(Location(root: .local, layers: [["healthy", "p.jpg"]]))
-        let entries = [network, missing, slow, blocked, good]
+        let absent = loadingEntry(good.location.parent!.appending("absent.jpg"))
+        let entries = [network, missing, slow, blocked, absent, good]
         let id = try await fixture.store.createPlaylist(named: "隔离")
         _ = try await fixture.store.addItems(entries, to: id)
         let source = LoadingSource([slow.location.parent!: [slow], blocked.location.parent!: [blocked], good.location.parent!: [good]], slow: [slow.location.parent!])
@@ -214,12 +219,14 @@ struct LibraryLoadingTests {
         let start = ContinuousClock.now
         var pages: [Page] = [], values: [Location: ImageMetadata] = [:]
         var healthyArrived: Duration?
+        var availability: [[Location: Availability]] = []
         for try await event in loader.load(.playlist(id), settings: .default, startingAt: network.location) {
             switch event {
             case let .sorted(value): pages = value
             case let .metadata(batch):
                 values.merge(batch, uniquingKeysWith: { _, new in new })
                 if batch[good.location] != nil { healthyArrived = ContinuousClock.now - start }
+            case let .availability(batch): availability.append(batch)
             case .appended: Issue.record("不得改变页序")
             }
         }
@@ -230,6 +237,13 @@ struct LibraryLoadingTests {
             #expect(values[entry.location]?.pixelSize == PixelSize(width: 1000, height: 1414))
         }
         #expect(values[good.location]?.pixelSize == PixelSize(width: 600, height: 900))
+        #expect(availability.count == 5)
+        #expect(availability.contains { $0 == [good.location: .available, absent.location: .missing] })
+        let states = availability.reduce(into: [Location: Availability]()) { $0.merge($1, uniquingKeysWith: { _, new in new }) }
+        #expect(states == [network.location: .volumeUnavailable(network.location.root), missing.location: .missing,
+                           slow.location: .volumeUnavailable(slow.location.root), blocked.location: .available,
+                           absent.location: .missing, good.location: .available])
+        #expect(availability.reduce(0) { $0 + $1.count } == entries.count)
         #expect(!pipeline.identities.contains { $0.location == network.location || $0.location == missing.location })
         for index in pages.indices {
             pages[index].metadata = values[pages[index].id]

@@ -6,7 +6,7 @@ import MVCommands
 import MVFoundation
 @testable import MVFileOps
 import MVMedia
-import MVLibraryData
+@testable import MVLibraryData
 import MVPipeline
 import MVReading
 import MVSettings
@@ -444,6 +444,69 @@ import Testing
         await fixture.shutdown(services)
     }
 
+    @Test("C1.23 资料库迁移事务失败仍更新会话并广播，三表保持原样")
+    func libraryApplyFailureStillUpdatesSessionAndBroadcasts() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let library = try #require(services.library as? SQLiteLibraryStore)
+        let folder = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        var entries: [Entry] = []
+        for index in 1...3 {
+            entries.append(try await services.sources.provider(for: folder).entry(at: folder.appending("\(index).jpg")))
+        }
+        try await library.recordOpened(folder, at: Date())
+        let id = try await library.createPlaylist(named: "迁移失败")
+        _ = try await library.addItems(entries, to: id)
+        _ = try await library.addBookmarks([folder, entries[1].location], into: nil, at: nil)
+        let session = services.makeSession()
+        await session.open(.playlist(id), at: entries[1].location)
+        try await waitUntil { try await library.history().count == 2 }
+        let history = try await library.history(), bookmarks = try await library.bookmarks()
+        let snapshots = try await library.items(of: id)
+        // 在最后一张表失败，验证此前已执行的历史和书签更新一并回滚。
+        try await library.database.queue.write { database in
+            try database.execute(sql: "CREATE TRIGGER fail_relocation BEFORE UPDATE OF location ON playlist_item BEGIN SELECT RAISE(ABORT, 'C1.23 injected failure'); END")
+        }
+        let target = try #require(folder.parent).appending("apply-failure-moved")
+        let expected = entries.map { target.appending($0.name) }
+        let stream = services.appliedFileChanges()
+        var broadcast: [FileChange]?
+        let observer = Task<Void, any Error> { @MainActor in
+            for await batch in stream {
+                broadcast = batch
+                #expect(session.book?.pages.map(\.id) == expected)
+                #expect(session.currentPage == 1)
+                let observedHistory = try await library.history()
+                let observedBookmarks = try await library.bookmarks()
+                let observedItems = try await library.items(of: id)
+                #expect(observedHistory == history)
+                #expect(observedBookmarks == bookmarks)
+                #expect(observedItems == snapshots)
+                return
+            }
+        }
+        defer { observer.cancel() }
+        let result = try #require(await services.fileOperations?.perform(.rename(folder, to: target.name)))
+        #expect(result.failures.isEmpty)
+        try await waitUntil { broadcast != nil }
+        try await observer.value
+        #expect(broadcast == result.changes)
+        #expect(session.unavailablePages.isEmpty)
+        var availability: [Location: Availability] = [:]
+        for await values in try #require(services.availability).check(snapshots.map(\.location)) {
+            availability.merge(values, uniquingKeysWith: { _, new in new })
+        }
+        #expect(availability == Dictionary(uniqueKeysWithValues: snapshots.map { ($0.location, .missing) }))
+        // 去掉故障后也不自动补偿或重试，资料库继续保留原位置。
+        try await library.database.queue.write { try $0.execute(sql: "DROP TRIGGER fail_relocation") }
+        for _ in 0..<20 { await Task.yield() }
+        #expect(try await library.history() == history)
+        #expect(try await library.bookmarks() == bookmarks)
+        #expect(try await library.items(of: id) == snapshots)
+        await fixture.shutdown(services)
+    }
+
     @Test("C1.15 两会话随列表增删排序更新，移除当前项保留序号，删除列表报找不到")
     func libraryReloadsBothSessions() async throws {
         let fixture = try ServiceFixture()
@@ -572,6 +635,7 @@ import Testing
             switch event {
             case let .sorted(pages): sorted.append(pages)
             case let .metadata(values): metadata.merge(values, uniquingKeysWith: { _, new in new })
+            case .availability: break
             case .appended: Issue.record("播放列表不得按来源追加")
             }
         }
@@ -687,8 +751,7 @@ import Testing
         await fixture.shutdown(services)
     }
 
-    @Test("C1.10 来源实际仍缺失时 available 不能清除占位并暴露旧图像缓存",
-          .disabled("待定接口：BookLoadEvent 无法区分真实校验成功与失败占位；此用例已实测失败，待设计补齐校验结果后恢复，不能记为通过"))
+    @Test("C1.10 来源实际仍缺失时 available 不能清除占位并暴露旧图像缓存")
     func libraryFailedRecoveryKeepsUnavailable() async throws {
         let fixture = try ServiceFixture()
         defer { fixture.clean() }

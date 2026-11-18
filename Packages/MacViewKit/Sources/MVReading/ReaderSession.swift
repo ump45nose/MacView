@@ -240,12 +240,18 @@ public final class ReaderSession {
         for change in changes {
             switch change {
             case let .removed(location):
+                pending.removeAll { $0.location.hasPrefix(location) }
+                recovering = recovering.filter { !$0.hasPrefix(location) }
+                needsValidation = needsValidation.filter { !$0.hasPrefix(location) }
                 for page in pages where page.id.hasPrefix(location) {
                     unavailablePages.insert(page.id)
                     refreshingPages.remove(page.id)
                     entryRecoveryTokens.removeValue(forKey: page.id)
                 }
             case let .moved(from, to):
+                pending.removeAll { $0.location.hasPrefix(from) || $0.location.hasPrefix(to.location) }
+                recovering = recovering.filter { !$0.hasPrefix(from) && !$0.hasPrefix(to.location) }
+                needsValidation = needsValidation.filter { !$0.hasPrefix(from) && !$0.hasPrefix(to.location) }
                 let moving = Set(pages.filter { $0.id.hasPrefix(from) }.map(\.id))
                 let existing = Set(pages.map(\.id)).subtracting(moving)
                 pages = pages.compactMap { page in
@@ -293,6 +299,9 @@ public final class ReaderSession {
             Task { [weak self, pipeline] in
                 do {
                     let metadata = try await pipeline.metadata(for: entry.identity, priority: .visible)
+                    if recoveryToken != nil {
+                        _ = try await pipeline.thumbnail(for: entry.identity, maxPixel: 128, priority: .visible)
+                    }
                     guard let self, self.generation == current,
                           self.book?.pages.contains(where: { $0.entry.identity == entry.identity }) == true else { return }
                     if let recoveryToken {
@@ -312,7 +321,7 @@ public final class ReaderSession {
         }
     }
 
-    /// 可用性由前端检查；恢复时重新校验快照，避免继续请求旧身份的缓存。
+    /// 前端的可用结果只发起重新校验，加载器确认后才解除占位。
     public func setAvailability(_ results: [Location: Availability]) {
         guard isVirtualBook, let pages = book?.pages else { return }
         let locations = Set(pages.map(\.id))
@@ -322,6 +331,7 @@ public final class ReaderSession {
             case .available:
                 if unavailablePages.contains(location), !refreshingPages.contains(location), entryRecoveryTokens[location] == nil { recovered.insert(location) }
             case .missing, .volumeUnavailable:
+                if loadTask != nil { loadingFileChanges.append(.removed(location)) }
                 unavailablePages.insert(location)
                 refreshingPages.remove(location)
                 entryRecoveryTokens.removeValue(forKey: location)
@@ -335,26 +345,34 @@ public final class ReaderSession {
         guard !locations.isEmpty, let location = book?.location else { return }
         refreshingPages.formUnion(locations)
         let pending = refreshingPages
+        let identities = Dictionary(uniqueKeysWithValues: (book?.pages ?? []).filter { pending.contains($0.id) }.map { ($0.id, $0.entry.identity) })
         refreshTask?.cancel()
         let current = generation
         let stream = loader.load(location, settings: settings, startingAt: anchor)
         refreshTask = Task { [weak self] in
             do {
                 var refreshed: [Location: Page] = [:]
+                var availability: [Location: Availability] = [:]
                 for try await event in stream {
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled, let self, self.generation == current else { return }
                     switch event {
                     case let .appended(pages), let .sorted(pages):
                         for page in pages where pending.contains(page.id) { refreshed[page.id] = page }
                     case let .metadata(values):
                         for (location, metadata) in values { refreshed[location]?.metadata = metadata }
+                    case let .availability(values):
+                        availability.merge(values, uniquingKeysWith: { _, new in new })
+                        for (location, value) in values where value != .available && pending.contains(location) && self.refreshingPages.contains(location) {
+                            self.unavailablePages.insert(location)
+                        }
+                        self.prefetch()
                     }
                 }
                 guard !Task.isCancelled, let self, self.generation == current, var pages = self.book?.pages else { return }
-                for index in pages.indices where self.refreshingPages.contains(pages[index].id) {
+                for index in pages.indices where pending.contains(pages[index].id) && self.refreshingPages.contains(pages[index].id) && identities[pages[index].id] == pages[index].entry.identity {
                     if let page = refreshed[pages[index].id] {
                         pages[index] = page
-                        self.unavailablePages.remove(page.id)
+                        if availability[page.id] == .available { self.unavailablePages.remove(page.id) }
                     }
                 }
                 self.book?.pages = pages
@@ -497,6 +515,17 @@ public final class ReaderSession {
             guard var pages = book?.pages else { return }
             for index in pages.indices { if let value = values[pages[index].id] { pages[index].metadata = value } }
             book?.pages = pages
+        case let .availability(values):
+            guard isVirtualBook, let pages = book?.pages else { return }
+            for page in pages {
+                guard let value = values[page.id] else { continue }
+                if value == .available { unavailablePages.remove(page.id) }
+                else {
+                    unavailablePages.insert(page.id)
+                    refreshingPages.remove(page.id)
+                    entryRecoveryTokens.removeValue(forKey: page.id)
+                }
+            }
         }
         layoutFrames()
         remember()
@@ -513,7 +542,13 @@ public final class ReaderSession {
                 let moving = Set(pages.filter { $0.id.hasPrefix(from) }.map(\.id))
                 let existing = Set(pages.map(\.id)).subtracting(moving)
                 pages = pages.compactMap { page in
-                    guard moving.contains(page.id), let destination = Self.rebased(page.id, from: from, to: to.location) else { return page }
+                    guard moving.contains(page.id), let destination = Self.rebased(page.id, from: from, to: to.location) else {
+                        guard page.id == to.location else { return page }
+                        var result = page
+                        if page.entry.identity != to.identity { result.metadata = nil }
+                        result.entry = to
+                        return result
+                    }
                     guard !existing.contains(destination) else { return nil }
                     var result = page
                     result.entry.identity.location = destination
@@ -542,6 +577,16 @@ public final class ReaderSession {
                 }
             }
             apply(.metadata(values))
+        case let .availability(values):
+            apply(.availability(values.filter { location, _ in
+                !loadingFileChanges.contains { change in
+                    switch change {
+                    case let .removed(removed): location.hasPrefix(removed)
+                    case let .moved(from, to): location.hasPrefix(from) || location.hasPrefix(to.location)
+                    case .added: false
+                    }
+                }
+            }))
         case .appended: apply(event)
         }
     }
@@ -836,7 +881,7 @@ public final class ReaderSession {
             switch event {
             case let .appended(value): pages = value
             case let .sorted(value): pages = value
-            case .metadata: continue
+            case .metadata, .availability: continue
             }
             if let page = pages.first(where: { $0.id == location }) { return page.entry.identity }
         }

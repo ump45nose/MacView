@@ -662,9 +662,10 @@ extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources
 // MVReading
 public struct Page: Sendable, Identifiable, Hashable { public var entry: Entry; public var metadata: ImageMetadata?; public var id: Location { get }; public init(entry: Entry, metadata: ImageMetadata? = nil) }
 public struct Book: Sendable, Hashable { public var location: Location; public var pages: [Page]; public var isEnumerated: Bool; public init(location: Location, pages: [Page] = [], isEnumerated: Bool = false) }
-public enum BookLoadEvent: Sendable { case appended([Page]), sorted([Page]), metadata([Location: ImageMetadata]) }
+public enum BookLoadEvent: Sendable { case appended([Page]), sorted([Page]), metadata([Location: ImageMetadata]), availability([Location: Availability]) }
 // 缓存未命中时按到达顺序 appended，枚举完成后发 sorted；缓存命中时先发缓存的 sorted，不发 appended，后台刷新有差异时再发 sorted。
 // metadata 先交付缓存，再从 startingAt 开始探测；流结束表示全部完成。ReaderSession 收到 sorted 时按页身份保持当前页。
+// availability 仅由虚拟书加载器发送：每个容器校验结束（含失败、超时）发一次，覆盖容器内全部列表项；占位元数据只用于排版，不代表来源可用。
 public protocol BookLoader: Sendable { func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> }
 public final class FileBookLoader: BookLoader {
     public init(sources: any SourceRegistry, directories: DirectoryCache, metadata: MetadataIndex, pipeline: any ImagePipeline)
@@ -706,7 +707,7 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public var onBookOpened: (@MainActor (Location) -> Void)?   // 第一批非空页到达后，每次 open 调用一次
     public var isVirtualBook: Bool { get }
     public private(set) var unavailablePages: Set<Location>
-    public func setAvailability(_ results: [Location: Availability])   // 恢复可用时刷新身份并重新取图
+    public func setAvailability(_ results: [Location: Availability])   // 不可用立即占位；available 仅触发重新校验，不直接清除占位
     public func reloadBook()   // 当前页还在则保持身份，否则停在原序号，越界取最后一页
     public func go(_ move: PageMove)
     public func applyFileChanges(_ changes: [FileChange])   // 组合根转发；递归新增页按平铺顺序插入
@@ -722,6 +723,7 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public func flush() async   // 立即把最新书记忆快照写入 SettingsStore；数据库落盘由组合根负责
 }
 // 分页模式在视口回报后，对当前帧前后各 viewerDecodeFrames 个页帧（不含当前帧）按 PageFrameFit.displayTargets 预解码；连续模式仍按可见范围。相邻书与封面在排序回报后以 .adjacent 合进同一份计划。
+// 虚拟书打开时即消费加载器可用性；只有加载器明确报 available，或撤销得到真实 Entry 且成功取图，才移出 unavailablePages。文件变更或后续不可用结果使旧的在途结果失效。
 
 public struct ReadingListing: Sendable { public static func isVisible(_ entry: Entry) -> Bool }   // 以 . 开头的名字不显示
 public enum ReadingOrder { public static func sorted(_ entries: [Entry], by sort: SortSpec) -> [Entry] }   // 书架和页面列表面板自己的排序用它
@@ -730,7 +732,7 @@ public enum ReadingOrder { public static func sorted(_ entries: [Entry], by sort
 // SQLiteLibraryStore(databaseURL:historyLimit:) 实现 LibraryStore；flush() 冲刷 WAL。
 // AvailabilityChecker(sources:directories:store:).check(_:) 返回 AsyncStream<[Location: Availability]>。
 // PlaylistBookLoader(store:sources:directories:metadata:pipeline:) 符合 BookLoader，缺列表抛 IOError.notFound。
-// 快照 sorted → 容器独立校验 → 必要时原序 sorted、静默回写 → 元数据；不可用项交付占位尺寸且流结束。
+// 快照 sorted → 容器独立校验及 availability → 必要时原序 sorted、静默回写 → 元数据；不可用项交付占位尺寸且流结束。
 // apply 只迁移 moved，单事务并仅发 relocated；updateSnapshots 不改顺序、不通知；变化写成后广播给多订阅者。
 
 // MVServices
@@ -750,12 +752,13 @@ public struct CoreConfiguration: Sendable {
     public let fileOperations: FileOperationService?   // Mock 为 nil
     public let library: (any LibraryStore)?   // make 为 SQLite；makeMock 为内存 MockLibraryStore
     public let availability: AvailabilityChecker?   // Mock 为 nil
-    public func appliedFileChanges() -> AsyncStream<[FileChange]>   // 目录缓存、书记忆、资料库和活跃会话都处理完后再广播；支持多个订阅者，Mock 返回已结束的空流
+    public func appliedFileChanges() -> AsyncStream<[FileChange]>   // 目录缓存、书记忆、资料库迁移尝试和活跃会话处理后广播；资料库失败仍交付本批，支持多个订阅者，Mock 为空流
     public func interruptedTransfersReport() async -> ResumeReport?   // 等待启动恢复并返回同一份结果；Mock 为 nil
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
     public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 资料库 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
 // 组合根订阅文件变更：目录缓存 → 冲刷相关会话及待写历史 → 按每个 moved 迁移书记忆与 library.apply → 会话 → 广播。
+// library.apply 失败只记日志，其事务保持三表原样；会话照常跟随真实文件位置并广播本批，不补偿、不重试。旧资料库项由检查器显示找不到，由用户移除或重新加入。
 // makeSession 的 onBookOpened 记录历史；退出先等已排队的历史，再冲刷会话与持久化。启动时异步恢复中断传输。
 // library.items / playlistRemoved 重载所有打开对应列表的会话；relocated 不重载，快照回写不通知。
 // make 创建空 CommandRegistry，命令处理器由 App 登记。组合根统一订阅内存压力和全局设置变化：
