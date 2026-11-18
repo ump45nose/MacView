@@ -252,6 +252,8 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
     /// 标签页时列出当前面板的选项；上下分割时每个面板一个子菜单。最后是这个区的分割和隐藏。
     func optionsMenu() -> NSMenu {
         let menu = NSMenu()
+        for item in dock.coordinator.panelToggles(for: edge, in: dock) { menu.addItem(item) }
+        menu.addItem(.separator())
         let shown = area.style == .tabs ? items.filter { $0.type.id == current } : items
         for item in shown {
             guard let panel = dock.panels[item.type.id] else { continue }
