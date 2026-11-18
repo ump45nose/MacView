@@ -783,6 +783,66 @@ import Testing
         await fixture.shutdown(services)
     }
 
+    @Test("C1.10 首批 sorted 前真实删除，随后校验及目录迁移不能暴露旧缓存", arguments: [false, true])
+    func libraryDeletionBeforeFirstSortedKeepsUnavailable(moveParent: Bool) async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let trashURL = fixture.root.appending(path: "trash")
+        try FileManager.default.createDirectory(at: trashURL, withIntermediateDirectories: true)
+        let trash = Location(root: .local, layers: [Array(trashURL.pathComponents.dropFirst())])
+        let services = try await CoreServices.make(configuration: fixture.configuration, fileOperations: { fs, journal in
+            try FileOperationService(fileSystem: fs, journalURL: journal, isNetwork: { _ in false }, volumeRoot: { _ in trash }, networkRoots: { [] }, trash: { source in
+                let target = trash.appending(source.name)
+                try await fs.rename(source, to: target, exclusive: true)
+                return target
+            })
+        })
+        let library = try #require(services.library)
+        let operations = try #require(services.fileOperations)
+        let folder = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        var entries: [Entry] = []
+        for index in 1...3 { entries.append(try await services.sources.provider(for: folder).entry(at: folder.appending("\(index).jpg"))) }
+        let removed = entries[1]
+        let target = DisplayTarget(pixelSize: PixelSize(width: 96, height: 144))
+        var cached: RenderedImage?
+        for try await image in services.pipeline.image(for: removed.identity, target: target, allowOriginal: false, priority: .visible) { cached = image }
+        #expect(cached?.quality == .exact)
+        let id = try await library.createPlaylist(named: "首批页前删除")
+        _ = try await library.addItems(entries, to: id)
+        let loader = PausedLibraryLoader(base: services.loader, pauseSecondSorted: false, pauseFirstSorted: true)
+        let session = services.makeSession(loader: loader)
+        let opening = Task { await session.open(.playlist(id), at: removed.location) }
+        defer { loader.release(); opening.cancel() }
+        try await waitUntil { loader.isPaused && session.book?.pages.isEmpty == true }
+        var applied = services.appliedFileChanges().makeAsyncIterator()
+        #expect((await operations.perform(.delete([removed.location]))).failures.isEmpty)
+        _ = await applied.next()
+        var destination = folder
+        if moveParent {
+            destination = try #require(folder.parent).appending("moved-before-first-sorted")
+            #expect((await operations.perform(.rename(folder, to: destination.name))).failures.isEmpty)
+            _ = await applied.next()
+        }
+        #expect(session.book?.pages.isEmpty == true)
+        loader.release()
+        await opening.value
+        let missing = destination.appending(removed.name)
+        #expect(session.book?.pages.map(\.id) == entries.map { destination.appending($0.name) })
+        #expect(session.currentPage == 1)
+        #expect(session.unavailablePages == [missing])
+        #expect(loader.availability[removed.location] != nil, "真实加载器的在途校验事件已交付")
+        // 再做一次真实校验，明确收到删除后 missing 的结果。
+        session.setAvailability([missing: .missing])
+        session.setAvailability([missing: .available])
+        try await waitUntil { loader.completed == 2 }
+        #expect(loader.availability[missing] == .missing)
+        #expect(session.unavailablePages == [missing])
+        var stale: RenderedImage?
+        for try await image in services.pipeline.image(for: removed.identity, target: target, allowOriginal: false, priority: .visible) { stale = image }
+        #expect(stale?.quality == .exact, "原身份仍能命中旧缓存，会话必须保持占位")
+        await fixture.shutdown(services)
+    }
+
     @Test("C1.22 加载尚未结束时实际迁移当前文件，旧 sorted 不能回退位置")
     func libraryRelocationDuringLoadDoesNotRollback() async throws {
         let fixture = try ServiceFixture()
@@ -871,13 +931,20 @@ private final class CountedLibraryLoader: BookLoader {
 private final class PausedLibraryLoader: BookLoader {
     let base: any BookLoader
     let pauseSecondSorted: Bool
-    private struct State { var loads = 0; var paused = false; var completed = 0 }
+    let pauseFirstSorted: Bool
+    private struct State {
+        var loads = 0; var paused = false; var completed = 0
+        var availability: [Location: Availability] = [:]
+    }
     private let state = Mutex(State())
     private let gate = AsyncStream<Void>.makeStream()
-    init(base: any BookLoader, pauseSecondSorted: Bool = true) { self.base = base; self.pauseSecondSorted = pauseSecondSorted }
+    init(base: any BookLoader, pauseSecondSorted: Bool = true, pauseFirstSorted: Bool = false) {
+        self.base = base; self.pauseSecondSorted = pauseSecondSorted; self.pauseFirstSorted = pauseFirstSorted
+    }
     var loads: Int { state.withLock { $0.loads } }
     var isPaused: Bool { state.withLock { $0.paused } }
     var completed: Int { state.withLock { $0.completed } }
+    var availability: [Location: Availability] { state.withLock { $0.availability } }
     func release() { gate.continuation.yield(()); gate.continuation.finish() }
 
     func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> {
@@ -889,10 +956,13 @@ private final class PausedLibraryLoader: BookLoader {
                     for try await event in base.load(location, settings: settings, startingAt: page) {
                         if case .sorted = event {
                             sorted += 1
-                            if sorted == 2 && pauseSecondSorted {
+                            if sorted == 2 && pauseSecondSorted || sorted == 1 && pauseFirstSorted {
                                 state.withLock { $0.paused = true }
                                 for await _ in gate.stream { break }
                             }
+                        }
+                        if case let .availability(values) = event {
+                            state.withLock { $0.availability.merge(values, uniquingKeysWith: { _, new in new }) }
                         }
                         try Task.checkCancellation()
                         continuation.yield(event)

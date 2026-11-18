@@ -157,6 +157,32 @@ import Testing
         #expect(session.currentPage == 0)
     }
 
+    @Test("C1.10 首批页前删除再迁移，旧位置或已迁移快照均保持占位与锚点", arguments: [false, true])
+    func firstSnapshotAfterEarlyDeletionAndMove(alreadyMoved: Bool) async throws {
+        let (_, _, store, shelf, pipeline) = setup()
+        let pair = AsyncThrowingStream<BookLoadEvent, any Error>.makeStream()
+        let session = ReaderSession(loader: EventLoader(stream: pair.stream), settings: store, bookshelf: shelf, pipeline: pipeline)
+        let ordered = pages(in: tree.location("A"), count: 3)
+        let virtual = Location.playlist(UUID())
+        let opening = Task { await session.open(virtual, at: ordered[1].id) }
+        await wait { session.book?.location == virtual }
+        let destination = tree.location("renamed")
+        let directory = Entry(identity: ContentIdentity(location: destination, size: 0, modificationNanos: 10), name: destination.name, kind: .directory)
+        session.applyFileChanges([.removed(ordered[1].id), .moved(from: tree.location("A"), to: directory)])
+        let snapshots = ordered.map { page in
+            var result = page
+            if alreadyMoved { result.entry.identity.location = destination.appending(page.entry.name) }
+            return result
+        }
+        pair.continuation.yield(.sorted(snapshots))
+        pair.continuation.yield(.availability(Dictionary(uniqueKeysWithValues: snapshots.enumerated().map { ($0.element.id, $0.offset == 1 ? Availability.missing : .available) })))
+        pair.continuation.finish()
+        await opening.value
+        #expect(session.book?.pages.map(\.id) == ordered.map { destination.appending($0.entry.name) })
+        #expect(session.unavailablePages == [destination.appending(ordered[1].entry.name)])
+        #expect(session.currentPage == 1)
+    }
+
     @Test("C1.10 重新校验与删除、撤销、后续不可用检查竞态以新变更为准")
     func refreshAvailabilityDoesNotOverrideNewerChanges() async throws {
         let (session, loader, _, _, _) = setup()

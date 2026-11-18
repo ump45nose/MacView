@@ -724,6 +724,7 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
 }
 // 分页模式在视口回报后，对当前帧前后各 viewerDecodeFrames 个页帧（不含当前帧）按 PageFrameFit.displayTargets 预解码；连续模式仍按可见范围。相邻书与封面在排序回报后以 .adjacent 合进同一份计划。
 // 虚拟书打开时即消费加载器可用性；只有加载器明确报 available，或撤销得到真实 Entry 且成功取图，才移出 unavailablePages。文件变更或后续不可用结果使旧的在途结果失效。
+// 首批页前发生的变更在页面到达时重放，删除状态随位置迁移，先占位再预取；锚点在页面尚未到达时也随移动更新。
 
 public struct ReadingListing: Sendable { public static func isVisible(_ entry: Entry) -> Bool }   // 以 . 开头的名字不显示
 public enum ReadingOrder { public static func sorted(_ entries: [Entry], by sort: SortSpec) -> [Entry] }   // 书架和页面列表面板自己的排序用它
