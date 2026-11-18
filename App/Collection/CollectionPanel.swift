@@ -34,6 +34,8 @@ class CollectionPanel: DockPanel {
     private(set) weak var owner: ReaderWindowController?
     private(set) var collection: CollectionView?
     private let host = CollectionPanelView()
+    /// 表格拖出时附上位置；表格只在列表、详情样式时在视图树里，找到后装上。
+    private var tableDragSource: TableDragSource?
     /// 面板不在窗口里时不更新内容，回到窗口时一次补上。
     private var isStale = false
 
@@ -42,6 +44,8 @@ class CollectionPanel: DockPanel {
 
     /// 排序菜单是否有「跟随书」。
     var followsBook: Bool { false }
+    /// 排序不可用时的说明（虚拟书的页面列表）；非 nil 时排序按钮和菜单不可用，说明显示在信息行下面。
+    var sortNote: String? { nil }
     var secondColumnTitle: String { String(localized: "尺寸") }
     var thumbSize: CGSize { CGSize(width: 40, height: 40) }
     var defaultSort: SortSpec { SortSpec(key: .name) }
@@ -55,7 +59,7 @@ class CollectionPanel: DockPanel {
             guard let self, host.window != nil, isStale else { return }
             refresh()
         }
-        host.render(self.settings, sortTitle: sortTitle)
+        renderControls()
     }
 
     func bind(to window: ReaderWindowController?) {
@@ -71,17 +75,28 @@ class CollectionPanel: DockPanel {
             collection.onContextMenu = { [weak self] indices in
                 guard let self, let owner else { return nil }
                 let items = entries(at: indices)
-                return items.isEmpty ? nil : owner.fileOps.contextMenu(for: FileOrigin(window: owner, items: items))
+                guard !items.isEmpty else { return nil }
+                let menu = owner.fileOps.contextMenu(for: FileOrigin(window: owner, items: items))
+                let leading = libraryMenuItems(for: items)
+                for item in (leading.isEmpty ? [] : leading + [.separator()]).reversed() { menu.insertItem(item, at: 0) }
+                return menu
+            }
+            // 拖出时在文件 URL 或文件承诺之外附上位置，供书签和播放列表面板接收。
+            let fileWriters = collection.canvas.onDraggingWriters
+            collection.canvas.onDraggingWriters = { [weak self] index in
+                guard let self else { return [] }
+                return (fileWriters?(index) ?? []).map { ($0.index, withLocation($0.writer, at: $0.index)) }
             }
             collection.onVisibleRangeChange = { [weak self] in self?.visibleRangeChanged($0) }
             collection.onItemExtentChange = { [weak self] extent in
                 guard let self else { return }
                 settings.itemExtent = extent
-                host.render(settings, sortTitle: sortTitle)
+                renderControls()
                 onSettingsChange?()
             }
             self.collection = collection
             host.setCollection(collection)
+            installTableDragSource()
         }
         #if DEBUG
         collection?.onVisibleThumbnails = { [weak self] in self?.visibleThumbnailsArrived() }
@@ -99,7 +114,8 @@ class CollectionPanel: DockPanel {
         guard style != settings.style else { return }
         settings.style = style
         collection?.style = style
-        host.render(settings, sortTitle: sortTitle)
+        installTableDragSource()
+        renderControls()
         onSettingsChange?()
     }
 
@@ -108,7 +124,7 @@ class CollectionPanel: DockPanel {
         guard extent != settings.itemExtent else { return }
         settings.itemExtent = extent
         collection?.itemExtent = extent
-        host.render(settings, sortTitle: sortTitle)
+        renderControls()
         onSettingsChange?()
     }
 
@@ -116,14 +132,19 @@ class CollectionPanel: DockPanel {
     func setSort(_ sort: SortSpec?) {
         guard sort != settings.sort else { return }
         settings.sort = sort
-        host.render(settings, sortTitle: sortTitle)
+        renderControls()
         onSettingsChange?()
         sortChanged()
     }
 
+    /// 样式、尺寸与排序控件按当前设置重画；排序是否可用变化时（换书）子类也调用。
+    final func renderControls() {
+        host.render(settings, sortTitle: sortTitle, sortNote: sortNote)
+    }
+
     /// 显示在排序按钮上的文字。
     private var sortTitle: String {
-        guard let sort = settings.sort ?? (followsBook ? nil : defaultSort) else { return String(localized: "跟随书") }
+        guard sortNote == nil, let sort = settings.sort ?? (followsBook ? nil : defaultSort) else { return String(localized: "跟随书") }
         return SortMenu.title(sort.key)
     }
 
@@ -155,7 +176,15 @@ class CollectionPanel: DockPanel {
             menu.addItem(item)
         }
         let sort = NSMenuItem(title: String(localized: "排序"), action: nil, keyEquivalent: "")
-        sort.submenu = sortMenu()
+        if let sortNote {
+            // 排序不可用：子菜单只有一行不可点的说明。
+            let note = NSMenu()
+            note.autoenablesItems = false
+            note.addItem(withTitle: sortNote, action: nil, keyEquivalent: "").isEnabled = false
+            sort.submenu = note
+        } else {
+            sort.submenu = sortMenu()
+        }
         menu.addItem(sort)
     }
 
@@ -167,12 +196,58 @@ class CollectionPanel: DockPanel {
     }
 
     func entries(at indices: [Int]) -> [Entry] { [] }
+    /// 右键菜单最前面的资料库项（加入书签、加到播放列表），其后是文件操作。
+    func libraryMenuItems(for entries: [Entry]) -> [NSMenuItem] { [] }
     func windowChanged() {}
     func reload() {}
     func sortChanged() {}
     func activate(_ index: Int) {}
     func doubleClicked(_ index: Int) {}
     func visibleRangeChanged(_ range: Range<Int>) {}
+}
+
+extension CollectionPanel {
+    fileprivate func withLocation(_ writer: any NSPasteboardWriting, at index: Int) -> any NSPasteboardWriting {
+        guard let location = entries(at: [index]).first?.location else { return writer }
+        return LibraryPasteboard.writer(wrapping: writer, location: location)
+    }
+
+    private func installTableDragSource() {
+        guard tableDragSource == nil, let collection,
+              let table = collection.subviews.lazy.compactMap({ ($0 as? NSScrollView)?.documentView as? NSTableView }).first else { return }
+        let source = TableDragSource(base: collection, panel: self)
+        tableDragSource = source
+        table.dataSource = source
+    }
+}
+
+/// 表格的数据源：转给集合组件，只在拖出的写入上附加位置。
+@MainActor
+private final class TableDragSource: NSObject, NSTableViewDataSource {
+    private weak var base: CollectionView?
+    private weak var panel: CollectionPanel?
+
+    init(base: CollectionView, panel: CollectionPanel) {
+        self.base = base
+        self.panel = panel
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int {
+        base?.numberOfRows(in: tableView) ?? 0
+    }
+
+    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> (any NSPasteboardWriting)? {
+        guard let writer = base?.tableView(tableView, pasteboardWriterForRow: row), let panel else { return nil }
+        return panel.withLocation(writer, at: row)
+    }
+
+    func tableView(_ tableView: NSTableView, draggingSession session: NSDraggingSession, willBeginAt screenPoint: NSPoint, forRowIndexes rowIndexes: IndexSet) {
+        base?.tableView(tableView, draggingSession: session, willBeginAt: screenPoint, forRowIndexes: rowIndexes)
+    }
+
+    func tableView(_ tableView: NSTableView, draggingSession session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        base?.tableView(tableView, draggingSession: session, endedAt: screenPoint, operation: operation)
+    }
 }
 
 /// 排序菜单：键、方向、文件夹位置；页面列表多一项「跟随书」。
@@ -225,7 +300,7 @@ enum SortMenu {
     }
 }
 
-/// 面板的外框：样式按钮与排序、路径或信息行、尺寸滑块（网格和瀑布流），下面是集合。
+/// 面板的外框：样式按钮与排序、路径或信息行、排序不可用时的说明、尺寸滑块（网格和瀑布流），下面是集合。
 private final class CollectionPanelView: NSView {
     var onStyle: ((CollectionStyle) -> Void)?
     var onExtent: ((Double) -> Void)?
@@ -237,17 +312,21 @@ private final class CollectionPanelView: NSView {
     private let upButton = NSButton()
     private let pathLabel = NSTextField(labelWithString: "")
     private let countLabel = NSTextField(labelWithString: "")
+    private let noteBox = NSBox()
+    private let noteLabel = NSTextField(labelWithString: "")
     private let smallIcon = NSImageView()
     private let largeIcon = NSImageView()
     private let slider = NSSlider()
     private var collection: CollectionView?
     private var showsSlider = false
     private var showsUp = false
+    private var showsNote = false
     private var onUp: (() -> Void)?
 
     private static let controlHeight: CGFloat = 32
     private static let infoHeight: CGFloat = 26
     private static let sliderHeight: CGFloat = 24
+    private static let noteHeight: CGFloat = 26
 
     init() {
         super.init(frame: .zero)
@@ -286,6 +365,17 @@ private final class CollectionPanelView: NSView {
         countLabel.textColor = Theme.text2
         countLabel.alignment = .right
         addSubview(countLabel)
+        noteBox.boxType = .custom
+        noteBox.borderWidth = 0
+        noteBox.cornerRadius = 5
+        noteBox.fillColor = Theme.well
+        noteBox.isHidden = true
+        addSubview(noteBox)
+        noteLabel.font = .systemFont(ofSize: 11)
+        noteLabel.textColor = Theme.text2
+        noteLabel.lineBreakMode = .byTruncatingTail
+        noteLabel.isHidden = true
+        addSubview(noteLabel)
 
         for (icon, symbol) in [(smallIcon, "photo"), (largeIcon, "photo.fill")] {
             icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
@@ -334,7 +424,7 @@ private final class CollectionPanelView: NSView {
         needsLayout = true
     }
 
-    func render(_ settings: CollectionPanelSettings, sortTitle: String) {
+    func render(_ settings: CollectionPanelSettings, sortTitle: String, sortNote: String?) {
         for (style, button) in styleButtons {
             let isOn = style == settings.style
             button.contentTintColor = isOn ? Theme.text : Theme.text2
@@ -344,6 +434,12 @@ private final class CollectionPanelView: NSView {
             button.setAccessibilityValue(isOn ? String(localized: "已选中") : nil)
         }
         sortButton.attributedTitle = NSAttributedString(string: sortTitle + " ", attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: Theme.text2])
+        sortButton.isEnabled = sortNote == nil
+        sortButton.alphaValue = sortNote == nil ? 1 : 0.5
+        showsNote = sortNote != nil
+        noteLabel.stringValue = sortNote ?? ""
+        noteBox.isHidden = !showsNote
+        noteLabel.isHidden = !showsNote
         slider.doubleValue = settings.itemExtent
         showsSlider = settings.style.usesCanvas
         for view in [slider, smallIcon, largeIcon] { view.isHidden = !showsSlider }
@@ -378,6 +474,11 @@ private final class CollectionPanelView: NSView {
         upButton.frame = CGRect(x: 8, y: y + 1, width: 24, height: 22)
         pathLabel.frame = CGRect(x: pathX, y: y + 4, width: max(width - pathX - countWidth - 16, 0), height: 16)
         y += Self.infoHeight
+        if showsNote {
+            noteBox.frame = CGRect(x: 10, y: y + 2, width: max(width - 20, 0), height: Self.noteHeight)
+            noteLabel.frame = CGRect(x: 18, y: y + 2 + (Self.noteHeight - 15) / 2, width: max(width - 36, 0), height: 15)
+            y += Self.noteHeight + 8
+        }
         if showsSlider {
             smallIcon.frame = CGRect(x: 10, y: y + 4, width: 14, height: 14)
             largeIcon.frame = CGRect(x: width - 26, y: y + 3, width: 16, height: 16)

@@ -2,6 +2,7 @@ import AppKit
 import MVCommands
 import MVFoundation
 import MVLayout
+import MVLibraryData
 import MVReading
 
 /// App 侧登记的命令处理器：窗口、标签页、全屏、打开、关闭等界面命令，以及翻页、跳页与切书。查看器的命令见 `registerViewerCommands`。
@@ -97,12 +98,81 @@ extension AppDelegate {
 
         for (id, direction) in [(CommandID.bookNext, NavigationDirection.forward), (.bookPrevious, .backward)] {
             register(id, isEnabled: { [weak self] context in
-                self?.controller(for: context.session)?.session.book != nil
+                guard let session = self?.controller(for: context.session)?.session else { return false }
+                return session.book != nil && !session.isVirtualBook
             }) { [weak self] context in
                 self?.controller(for: context.session)?.openNeighbor(direction)
             }
         }
+        registerLibraryCommands(in: registry)
         registerViewerCommands(in: registry)
+    }
+
+    /// 书签与播放列表：⌘D 加入书签，⌘L 加到最近用的列表，从播放列表移除。资料库不可用时都不可用。
+    private func registerLibraryCommands(in registry: CommandRegistry) {
+        func register(
+            _ id: CommandID,
+            isEnabled: @escaping @MainActor (ReaderWindowController) -> Bool,
+            perform: @escaping @MainActor (ReaderWindowController, AppDelegate) async -> Void
+        ) {
+            guard let descriptor = catalog.descriptor(id) else { preconditionFailure("命令清单中没有 \(id.rawValue)") }
+            registry.register(descriptor, isEnabled: { [weak self] context in
+                guard let self, services?.library != nil, let controller = controller(for: context.session) ?? mainController else { return false }
+                return isEnabled(controller)
+            }) { [weak self] context, _ in
+                guard let self, let controller = controller(for: context.session) ?? mainController else { return }
+                await perform(controller, self)
+            }
+        }
+        if let library = services?.library { LibraryActions.observe(library) }
+
+        // 书架有焦点并选中了书时作用于选中的书，否则是当前的书；虚拟书由 LibraryActions 提示不能加入。
+        register(.bookmarkAdd, isEnabled: { [weak self] in self?.bookmarkTargets(in: $0).isEmpty == false }) { controller, app in
+            await LibraryActions.addBookmarks(app.bookmarkTargets(in: controller), app: app)
+        }
+        register(.playlistAddCurrent, isEnabled: { [weak self] in self?.pageTargets(in: $0).isEmpty == false }) { controller, app in
+            await LibraryActions.addToRecentPlaylist(app.pageTargets(in: controller), app: app)
+        }
+        register(.playlistRemoveItem, isEnabled: { [weak self] in self?.removalTargets(in: $0) != nil }) { controller, app in
+            guard let targets = app.removalTargets(in: controller) else { return }
+            await LibraryActions.removeFromPlaylist(targets.items, playlist: targets.playlist, app: app)
+        }
+    }
+
+    /// 键盘焦点所在的面板：停靠在这个窗口，或浮动着（书架、页面列表须绑定到这个窗口）。
+    private func focusedPanel(in controller: ReaderWindowController) -> (any DockPanel)? {
+        let key = NSApp.keyWindow
+        let responder = (key === controller.window || key is FloatingPanelWindow) ? key?.firstResponder : controller.window?.firstResponder
+        guard let view = responder as? NSView else { return nil }
+        let panels = Array(controller.dock.panels.values) + controller.dock.coordinator.floatingWindows.values.map(\.panel)
+        return panels.first { panel in
+            view.isDescendant(of: panel.view) && (panel as? CollectionPanel).map { $0.owner === controller } != false
+        }
+    }
+
+    private func bookmarkTargets(in controller: ReaderWindowController) -> [Location] {
+        if let shelf = focusedPanel(in: controller) as? BookshelfPanel, !shelf.targetEntries.isEmpty {
+            return shelf.targetEntries.map(\.location)
+        }
+        return controller.session.book.map { [$0.location] } ?? []
+    }
+
+    /// 页面列表有焦点并选中了页时是选中的页，否则是查看器的当前页。
+    private func pageTargets(in controller: ReaderWindowController) -> [Entry] {
+        if let pageList = focusedPanel(in: controller) as? PageListPanel, !pageList.targetEntries.isEmpty {
+            return pageList.targetEntries
+        }
+        let session = controller.session
+        guard let pages = session.book?.pages, pages.indices.contains(session.currentPage) else { return [] }
+        return [pages[session.currentPage].entry]
+    }
+
+    /// 播放列表面板有焦点时是它选中的项；否则在虚拟书里是页面列表选中的页或当前页。
+    private func removalTargets(in controller: ReaderWindowController) -> (playlist: UUID, items: [Location])? {
+        if let source = focusedPanel(in: controller) as? PlaylistSelectionSource { return source.playlistSelection }
+        guard let playlist = controller.session.book?.location.playlistID else { return nil }
+        let items = pageTargets(in: controller).map(\.location)
+        return items.isEmpty ? nil : (playlist, items)
     }
 
     func activeFileOrigin(for session: SessionID? = nil) -> FileOrigin {
