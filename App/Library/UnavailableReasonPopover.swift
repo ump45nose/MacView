@@ -168,7 +168,7 @@ extension Location {
 
 /// 资料库面板的可用性：只检查可见行，结果只在内存。
 ///
-/// 重查时机：面板显示或滚出新行（`visibleChanged`）、App 重新激活、卷挂载或卸载、卷状态变化、
+/// 重查时机：面板显示或滚出新行（`visibleChanged`；滚动经 `scrolled` 停下后才查）、App 重新激活、卷挂载或卸载、卷状态变化、
 /// `appliedFileChanges` 涉及的条目。已检查过的位置在下一次重查前不再提交。
 @MainActor
 final class LibraryAvailability {
@@ -187,10 +187,13 @@ final class LibraryAvailability {
     private var checks: [Int: Task<Void, Never>] = [:]
     private var observers: [Task<Void, Never>] = []
     private var tokens: [(NotificationCenter, NSObjectProtocol)] = []
+    /// 滚动停下后才把新出现的行交给检查器。
+    private var scrollSettle: Task<Void, Never>?
 
     deinit {
         observers.forEach { $0.cancel() }
         checks.values.forEach { $0.cancel() }
+        scrollSettle?.cancel()
     }
 
     func state(of location: Location) -> Availability? { states[location] }
@@ -247,12 +250,26 @@ final class LibraryAvailability {
         observers = []
         checks.values.forEach { $0.cancel() }
         checks = [:]
+        scrollSettle?.cancel()
+        scrollSettle = nil
         for (center, token) in tokens { center.removeObserver(token) }
         tokens = []
     }
 
+    /// 滚动：每次检查都要列出所在目录，快速滚过的行不查；停下约 0.15 秒后只查这时可见的行。
+    func scrolled() {
+        scrollSettle?.cancel()
+        scrollSettle = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            self?.visibleChanged()
+        }
+    }
+
     /// 可见行变化：只提交还没检查过的位置。
     func visibleChanged() {
+        scrollSettle?.cancel()
+        scrollSettle = nil
         guard let checker = services?.availability, let view, view.window != nil, !view.isHiddenOrHasHiddenAncestor else { return }
         var seen: Set<Location> = []
         let pending = visibleLocations().filter { !checked.contains($0) && seen.insert($0).inserted }

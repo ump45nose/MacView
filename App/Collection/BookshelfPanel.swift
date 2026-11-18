@@ -91,9 +91,14 @@ final class BookshelfPanel: CollectionPanel {
         bookChanged(book)
     }
 
+    /// 虚拟书没有所在的文件夹：书架停在原来的目录，没有目录时显示空状态。
     private func bookChanged(_ book: Location?) {
         guard book != followedBook else { return }
         followedBook = book
+        if book?.playlistID != nil {
+            refresh()
+            return
+        }
         guard let parent = book?.parent else {
             if book == nil, directory != nil {
                 directory = nil
@@ -168,7 +173,7 @@ final class BookshelfPanel: CollectionPanel {
         let items = entries.map(item)
         collection?.setItems(items, current: currentBook.flatMap { book in entries.firstIndex { $0.location == book } })
         collection?.message = loadError ?? (directory == nil
-            ? String(localized: "没有打开的书")
+            ? (currentBook?.playlistID != nil ? String(localized: "播放列表没有所在的文件夹") : String(localized: "没有打开的书"))
             : entries.isEmpty && !isListing ? String(localized: "这个目录下没有书") : nil)
         requestCovers()
         let path = directory.map { $0.description.split(separator: "/").map(String.init).joined(separator: " › ") }

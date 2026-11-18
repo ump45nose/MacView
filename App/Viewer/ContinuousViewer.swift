@@ -37,6 +37,8 @@ final class ContinuousViewer: NSView {
     var onWaterfallExtentChange: (() -> Void)?
     /// 单击瀑布流的页、条里的视频：进入分页。
     var onEnterPaged: ((Int) -> Void)?
+    /// 虚拟书里不可用的页的原因，显示在占位项的错误标记下面。
+    var unavailableReason: ((Location) -> String)?
 
     init(session: ReaderSession, pipeline: any ImagePipeline, settings: any SettingsStore, bookshelf: any Bookshelf) {
         self.session = session
@@ -96,15 +98,21 @@ final class ContinuousViewer: NSView {
             knownPage = nil
             canvas.setItems([])
             footer.reset()
+            neighborTask?.cancel()
             neighborFor = nil
         }
         canvas.direction = settings.direction
         layoutSubtreeIfNeeded()
+        // 虚拟书里不可用的页：不请求图、不显示缓存里的旧图，显示错误标记和原因。
+        let unavailable = session.isVirtualBook ? session.unavailablePages : []
         let items = current.pages.map { page -> CanvasItem in
-            CanvasItem(
+            let isUnavailable = unavailable.contains(page.id)
+            return CanvasItem(
                 identity: page.entry.identity,
                 aspectRatio: page.metadata.flatMap { $0.pixelSize.height > 0 && $0.pixelSize.width > 0 ? Double($0.pixelSize.width) / Double($0.pixelSize.height) : nil },
-                badge: page.entry.kind == .video ? page.metadata?.duration.map(Self.duration) : nil
+                badge: page.entry.kind == .video && !isUnavailable ? page.metadata?.duration.map(Self.duration) : nil,
+                isFailed: isUnavailable,
+                failureText: isUnavailable ? unavailableReason?(page.id) : nil
             )
         }
         if items != canvas.items { canvas.setItems(items) }
@@ -194,14 +202,19 @@ final class ContinuousViewer: NSView {
 
     // MARK: 条的末尾
 
+    /// 虚拟书显示列表名 · 完，没有下一本。
     private func updateFooter(_ current: Book) {
         guard session.settings.browseMode != .waterfall, current.isEnumerated, !current.pages.isEmpty else {
             canvas.footerView = nil
             return
         }
-        footer.showBook(name: current.location.name)
+        if let playlist = current.location.playlistID {
+            footer.showBook(name: LibraryActions.playlists.first { $0.id == playlist }?.name ?? String(localized: "播放列表"))
+        } else {
+            footer.showBook(name: current.location.name)
+        }
         if canvas.footerView == nil { canvas.footerView = footer }
-        guard neighborFor != current.location else { return }
+        guard current.location.playlistID == nil, neighborFor != current.location else { return }
         loadNeighbor(of: current.location)
     }
 

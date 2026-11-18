@@ -61,8 +61,6 @@ final class PlaylistPanel: NSObject, DockPanel, PlaylistSelectionSource, NSTable
     /// 窗口里当书打开的正是这个列表时，当前页对应的项。
     private var currentItem: Location?
     private var observedSession: SessionID?
-    /// 滚动停下后才把新出现的行交给检查器。
-    private var scrollSettle: Task<Void, Never>?
 
     init(settings: PlaylistPanelSettings?) {
         self.settings = settings ?? PlaylistPanelSettings()
@@ -98,7 +96,7 @@ final class PlaylistPanel: NSObject, DockPanel, PlaylistSelectionSource, NSTable
         header.field.delegate = self
         host.setInfo("", accessory: header)
         host.onShow = { [weak self] in self?.availability.recheckAll() }
-        host.onScroll = { [weak self] in self?.scrolled() }
+        host.onScroll = { [weak self] in self?.availability.scrolled() }
         availability.view = host
         availability.visibleLocations = { [weak self] in self?.visibleLocations() ?? [] }
         availability.onChange = { [weak self] in self?.availabilityChanged() }
@@ -107,7 +105,6 @@ final class PlaylistPanel: NSObject, DockPanel, PlaylistSelectionSource, NSTable
 
     deinit {
         observer?.cancel()
-        scrollSettle?.cancel()
     }
 
     func bind(to window: ReaderWindowController?) {
@@ -275,16 +272,6 @@ final class PlaylistPanel: NSObject, DockPanel, PlaylistSelectionSource, NSTable
     private func refreshVisibleCells() {
         for row in visibleRows {
             if let cell = table.view(atColumn: 0, row: row, makeIfNecessary: false) as? PlaylistCell { configure(cell, row: row) }
-        }
-    }
-
-    /// 每次检查都要列出所在目录；快速滚过的行不检查，停下约 0.15 秒后只查这时可见的行。
-    private func scrolled() {
-        scrollSettle?.cancel()
-        scrollSettle = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(150))
-            guard !Task.isCancelled else { return }
-            self?.availability.visibleChanged()
         }
     }
 

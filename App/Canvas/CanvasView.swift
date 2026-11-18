@@ -19,6 +19,8 @@ struct CanvasItem: Equatable {
     var isPending = false
     /// 项本身读取失败（例如书架封面）：显示错误标记，不请求图。
     var isFailed = false
+    /// 失败时显示在错误标记下面的原因，例如虚拟书里不可用的页。
+    var failureText: String?
 }
 
 /// 回报给预取计划的范围：可见项，以及可见区加余量内的项。砌体中可见项不一定连续，范围取最小到最大的序号。
@@ -502,6 +504,14 @@ final class CanvasView: NSScrollView {
             overlay.alignmentMode = .left
             overlay.truncationMode = .end
         }
+        setOverlay("failure", text: item.isFailed ? item.failureText : nil, on: layer) { overlay in
+            overlay.font = NSFont.systemFont(ofSize: 13)
+            overlay.fontSize = 13
+            overlay.alignmentMode = .center
+            overlay.truncationMode = .end
+            overlay.foregroundColor = NSColor.secondaryLabelColor.cgColor
+            overlay.backgroundColor = nil
+        }
         positionOverlays(in: layer)
     }
 
@@ -530,6 +540,9 @@ final class CanvasView: NSScrollView {
             guard let overlay = overlay as? CATextLayer else { continue }
             if overlay.name == "label" {
                 overlay.frame = CGRect(x: 0, y: layer.bounds.height - 18, width: layer.bounds.width, height: 18)
+            } else if overlay.name == "failure" {
+                // 错误标记居中，原因在它下面。
+                overlay.frame = CGRect(x: 8, y: layer.bounds.midY + 22, width: max(layer.bounds.width - 16, 0), height: 18)
             } else if let text = overlay.string as? String {
                 let width = ceil((text as NSString).size(withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)]).width) + 10
                 let bottom = layer.sublayers?.contains { $0.name == "label" } == true ? 18.0 : 0
@@ -811,8 +824,9 @@ private final class CanvasDocumentView: NSView, NSDraggingSource {
         canvas?.contextMenu(for: event)
     }
 
+    /// App 外复制；App 内给 `.generic`，书签和播放列表面板按它接收位置。AppKit 不按掩码拦放下，查看器等目标照旧自己决定。
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-        context == .outsideApplication ? .copy : []
+        context == .outsideApplication ? .copy : .generic
     }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {

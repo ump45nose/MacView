@@ -86,6 +86,10 @@ final class ViewerContainerView: NSView, InputScoped {
         paged.onTransformChange = { [weak self] in self?.hud.updateZoom(percent: self?.paged.displayPercent) }
         hud.onZoom = { [weak self] factor in self?.zoom(by: factor) }
         continuous.onEnterPaged = { [weak self] page in self?.enterPaged(at: page) }
+        continuous.unavailableReason = { [weak self] location in
+            if case .volumeUnavailable = self?.paged.availability[location] { return String(localized: "网络卷没有连接") }
+            return String(localized: "找不到原文件")
+        }
         continuous.canvas.onContextMenu = { [weak self] index in
             guard let self, let index, let pages = session.book?.pages, pages.indices.contains(index) else { return nil }
             return onContextMenu?(pages[index].entry)

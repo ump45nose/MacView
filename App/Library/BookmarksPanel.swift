@@ -102,7 +102,7 @@ final class BookmarksPanel: NSObject, DockPanel, NSOutlineViewDataSource, NSOutl
         addFolderButton.action = #selector(addFolderPressed(_:))
         host.setInfo(String(localized: "书签"), accessory: addFolderButton)
         host.onShow = { [weak self] in self?.availability.recheckAll() }
-        host.onScroll = { [weak self] in self?.availability.visibleChanged() }
+        host.onScroll = { [weak self] in self?.availability.scrolled() }
         availability.view = host
         availability.visibleLocations = { [weak self] in self?.visibleLocations() ?? [] }
         availability.onChange = { [weak self] in self?.refreshVisibleCells() }
