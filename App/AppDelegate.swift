@@ -152,6 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SettingsSelfTest.runIfRequested(app: self)
         SessionSelfTest.runIfRequested(app: self)
         FileOpsSelfTest.runIfRequested(app: self)
+        LibrarySelfTest.runIfRequested(app: self)
         debugSocket = DebugSocket.startIfRequested(app: self)
         #endif
     }

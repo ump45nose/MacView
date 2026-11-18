@@ -331,16 +331,17 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     | `open` | `path`、`page?`（从 0 开始） | 打开完成后返回窗口状态；打不开时 `ok: false` |
     | `resize` | `width`、`height`（点，内容区） | 调整前台窗口，返回窗口状态 |
     | `scroll` | `dx`、`dy`（点，负的 `dy` 向下）、`steps`、`intervalMs`；连续滚动另用 `durationMs` | 按 began、changed、ended 生成滚轮事件，经 `NSApp.sendEvent` 发到查看器中央；`durationMs > 0` 时持续滚动，到边界后反向。返回 `events`、`windowFront`、`responsiveScrolling`（滚动期间的值，应为假），连续滚动还返回 `scrollMovements` |
-    | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes`、`memory`、`cacheBudgets` |
+    | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes`、`memory`、`cacheBudgets`、`library` |
     | `quit` | — | 正常退出流程 |
 
   - `windows[]`：`book`、`page`、`frame`、`frameCount`、`browseMode`、`scaleMode`、`zoom`、`viewport`（点）、`visibleRange`（`[起, 止)`，分页模式是当前页帧）、`loadError`（整本书或当前分页的加载错误）、`lastDisplay`（`{page, quality, milliseconds}`，从翻页调用到目标质量图设到图层的用时，只有分页模式）。
   - `windowFront`：窗口可见、`occlusionState` 含 `.visible`、所在屏是内置屏（`CGDisplayIsBuiltin`），不要求 App 处于激活状态。另有三个只读字段：`windowScreen`（`displayID`、`name`、`builtin`、`frame`、`visibleFrame`、`maximumFramesPerSecond`）、`windowFrame`（`[x, y, 宽, 高]`，全局坐标，点）和 `appActive`。
   - 验收用只读字段：`prefetchIdle`、`prefetchInFlightCount`、`windowFront`、`windowScreen`、`windowFrame`、`appActive`、`responsiveScrolling`、`docksVisible`、`hudVisible`、`firstScreenThumbnailMilliseconds`、`itemCount`；`volumes[]` 另有 `inFlight` 和 `bulkInFlight`（bulk 通道在途读取数，nas-fault 据此确认在途后注入）；`pageSlots` 返回各页的 `page`、`hasImage` 和 `quality`，可确认初始页图层已就绪。`panels` 返回书架和页面列表的 `style`、`itemExtent`、`sort`，`tiles` 返回当前分块的 `requested`、`cancelled`、`inFlight` 计数。
   - `memory` 返回 `rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes`、`inFlightBytes` 和 `waitingTasks`；`cacheBudgets` 返回对应四项内存预算以及 `thumbnailDiskBytes`、`browseDiskBytes` 两项磁盘预算。
+  - `library` 返回 `historyCount`、按时间从新到旧的 `history`（`book`、`openedAt`）、完整 `bookmarks` 树（文件夹为 `folder`、`children`，书为 `book`、`label`）、`playlists`（`id`、`name`、`count`、`recent`）。服务没有资料库时为 `null`；读取失败时为含 `error` 的对象。
   - 合成滚动和屏幕状态有关：屏幕锁定时事件不生效。
   - 首屏计时的状态机和可见缩略图回报（`ReaderWindowController` 的 `beginFirstScreenThumbnails` 等、`CollectionView.onVisibleThumbnails`、`CanvasView.onImageApplied`）只在 Debug 编译，Release 二进制里没有这些符号。
-- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`、`-MVFileOpsSelfTest YES|net-kill|net-verify`（后两个是网络卷验收，见 S3-F2 报告）。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。自检默认不激活 App，离不开键盘焦点的项走未激活的回退或记 `SKIP`；加 `-MVSelfTestActivate YES` 才激活，留给用户键鼠空闲时跑；这时要经 LaunchServices（`open -n`）启动才拿得到前台，进不了前台的自检直接失败，汇总前打印前台采样比例。自检的临时文件放在 `-MVSupportDirectory` 下的 `selftest-tmp/`，不写持久偏好。结果行是 `SELFTEST OK|FAILED n commit=… cdhash=…`。
+- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`、`-MVFileOpsSelfTest YES|net-kill|net-verify`（后两个是网络卷验收，见 S3-F2 报告）、`-MVLibrarySelfTest YES`（真实服务，历史、书签、播放列表与虚拟书；必须加 `-MVSelfTestActivate YES`，点击、拖放、按键走真实事件，右键菜单取视图的菜单后执行其动作，弹出按钮选择后发送其动作；详见 [S3-F1 报告](reports/S3-F1.md)）。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。自检默认不激活 App，离不开键盘焦点的项走未激活的回退或记 `SKIP`；加 `-MVSelfTestActivate YES` 才激活，留给用户键鼠空闲时跑；这时要经 LaunchServices（`open -n`）启动才拿得到前台，进不了前台的自检直接失败，汇总前打印前台采样比例。自检的临时文件放在 `-MVSupportDirectory` 下的 `selftest-tmp/`，不写持久偏好。结果行是 `SELFTEST OK|FAILED n commit=… cdhash=…`。
 - 观测：用 os_signpost 标记帧时间和请求延迟，用 Instruments 的 Animation Hitches 验收。
 - 构建身份：构建阶段“记录源码提交”把 `git rev-parse HEAD`（工作树有改动时加 `-dirty`）写进 Info.plist 的 `MVSourceCommit`。验收证据和录制都记 App 的 commit 与 CDHash，`run.py --g2` 只认与被验收 App 一致的证据，见 [S2-T2 报告](reports/S2-T2.md)。
 

@@ -13,7 +13,7 @@ enum TestPresentation {
             || defaults.string(forKey: "MVSessionSelfTest") != nil
             || defaults.string(forKey: DockSelfTest.launchKey) != nil
             || FileOpsSelfTest.isRequested
-            || [SelfTest.launchKey, "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", CanvasTestWindowController.launchKey].contains { defaults.bool(forKey: $0) }
+            || [SelfTest.launchKey, "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", LibrarySelfTest.launchKey, CanvasTestWindowController.launchKey].contains { defaults.bool(forKey: $0) }
     }
 
     /// 自检的临时文件放进本次运行的隔离 support 目录（测试实例启动时已检查必须传 `-MVSupportDirectory`），不落系统临时目录。

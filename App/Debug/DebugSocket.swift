@@ -5,6 +5,7 @@ import MVCommands
 import MVFoundation
 import MVIO
 import MVLayout
+import MVLibraryData
 import MVMedia
 import MVPipeline
 import MVServices
@@ -382,7 +383,38 @@ final class DebugCommands: Sendable {
                 "thumbnailMemoryBytes": .number(Double($0.thumbnailMemoryBytes)), "preloadBytes": .number(Double($0.preloadBytes)),
                 "inFlightBytes": .number(Double($0.inFlightBytes)), "waitingTasks": .number(Double($0.waitingTasks)),
             ]) } ?? .null,
+            "library": await libraryState(),
         ])
+    }
+
+    /// 资料库：历史条数与记录、书签树、各播放列表的项数。资料库不可用时为 null，读取失败时给出错误文字。
+    private func libraryState() async -> JSONValue {
+        guard let library = app.services?.library else { return .null }
+        do {
+            let history = try await library.history().sorted { $0.openedAt > $1.openedAt }
+            let bookmarks = try await library.bookmarks()
+            let playlists = try await library.playlists()
+            let recent = try await library.recentPlaylist()
+            return .object([
+                "historyCount": .number(Double(history.count)),
+                "history": .array(history.map { .object(["book": .string($0.book.description), "openedAt": .number($0.openedAt.timeIntervalSince1970)]) }),
+                "bookmarks": .array(bookmarks.map(Self.bookmarkState)),
+                "playlists": .array(playlists.map { .object([
+                    "id": .string($0.id.uuidString), "name": .string($0.name), "count": .number(Double($0.count)), "recent": .bool($0.id == recent),
+                ]) }),
+            ])
+        } catch {
+            return .object(["error": .string(ErrorText.describe(error))])
+        }
+    }
+
+    private static func bookmarkState(_ node: BookmarkNode) -> JSONValue {
+        switch node {
+        case let .folder(_, name, children):
+            .object(["folder": .string(name), "children": .array(children.map(bookmarkState))])
+        case let .book(_, location, label):
+            .object(["book": .string(location.description), "label": label.map(JSONValue.string) ?? .null])
+        }
     }
 
     private func rect(_ rect: NSRect) -> JSONValue {

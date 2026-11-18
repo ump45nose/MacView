@@ -411,7 +411,8 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
     private func loadImage(_ item: CollectionItem, into cell: CollectionListCell) {
         cell.imageTask?.cancel()
         cell.imageTask = nil
-        guard !item.canvas.isPending else {
+        // 项本身失败（例如虚拟书里不可用的页）不显示图，缓存里的旧图也不用，与网格和查看器一致。
+        guard !item.canvas.isPending, item.failure == nil else {
             cell.setImage(nil)
             return
         }
@@ -456,6 +457,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         guard rows.location < upper else { return false }
         for row in rows.location..<upper {
             if items[row].canvas.isPending { return false }
+            if items[row].failure != nil { continue }
             guard let cell = table.view(atColumn: 0, row: row, makeIfNecessary: false) as? CollectionListCell, cell.hasThumbnail else { return false }
         }
         return true
