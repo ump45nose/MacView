@@ -45,10 +45,12 @@ public final class ReaderSession {
     @ObservationIgnored private var memory: BookMemory?
     @ObservationIgnored private var removedMetadata: [Location: ImageMetadata] = [:]
     @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var loadingFileChanges: [FileChange] = []
     @ObservationIgnored private var settingsTask: Task<Void, Never>?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var refreshingPages: Set<Location> = []
+    @ObservationIgnored private var entryRecoveryTokens: [Location: UUID] = [:]
     /// 前端回报的设备像素。切书保留，直到下一次回报。
     @ObservationIgnored private var viewport: PixelSize?
     @ObservationIgnored private var backingScale = 1.0
@@ -96,9 +98,11 @@ public final class ReaderSession {
         generation += 1
         let current = generation
         loadTask?.cancel()
+        loadingFileChanges.removeAll()
         saveTask?.cancel()
         refreshTask?.cancel()
         refreshingPages.removeAll()
+        entryRecoveryTokens.removeAll()
         cancelAdjacent()
         pipeline.cancelAll(session: id)
         if let memory { await store.saveBookMemory(memory) }
@@ -229,7 +233,9 @@ public final class ReaderSession {
     /// 虚拟书保留列表中的项，文件变更只更新其位置、身份和可用状态。
     private func applyVirtualFileChanges(_ changes: [FileChange]) {
         guard var pages = book?.pages else { return }
+        if loadTask != nil { loadingFileChanges.append(contentsOf: changes) }
         var pending: [Entry] = []
+        var recovering: Set<Location> = []
         var needsValidation: Set<Location> = []
         for change in changes {
             switch change {
@@ -237,6 +243,7 @@ public final class ReaderSession {
                 for page in pages where page.id.hasPrefix(location) {
                     unavailablePages.insert(page.id)
                     refreshingPages.remove(page.id)
+                    entryRecoveryTokens.removeValue(forKey: page.id)
                 }
             case let .moved(from, to):
                 let moving = Set(pages.filter { $0.id.hasPrefix(from) }.map(\.id))
@@ -245,19 +252,28 @@ public final class ReaderSession {
                     var result = page
                     if moving.contains(page.id), let destination = Self.rebased(page.id, from: from, to: to.location) {
                         if anchor == page.id { anchor = destination }
-                        unavailablePages.remove(page.id)
+                        let wasUnavailable = unavailablePages.remove(page.id) != nil
                         refreshingPages.remove(page.id)
+                        entryRecoveryTokens.removeValue(forKey: page.id)
                         // 存储保留目标已存在的项，会话同步去掉迁来的重复项。
                         guard !existing.contains(destination) else { return nil }
                         result.entry.identity.location = destination
-                        if page.id == from { result.entry = to }
+                        if page.id == from {
+                            result.entry = to
+                        }
+                        if wasUnavailable {
+                            unavailablePages.insert(destination)
+                            recovering.insert(destination)
+                        }
+                        if result.metadata == nil || wasUnavailable { pending.append(result.entry) }
                     } else if page.id.hasPrefix(to.location) {
                         let recovered = unavailablePages.contains(page.id)
                         if page.id == to.location {
-                            unavailablePages.remove(page.id)
+                            refreshingPages.remove(page.id)
                             result.entry = to
-                            result.metadata = nil
+                            if !recovered { result.metadata = nil }
                             pending.append(to)
+                            if recovered { recovering.insert(page.id) }
                         } else if recovered { needsValidation.insert(page.id) }
                     }
                     return result
@@ -267,16 +283,31 @@ public final class ReaderSession {
         }
         book?.pages = pages
         unavailablePages.formIntersection(Set(pages.map(\.id)))
+        let recoveryTokens = Dictionary(uniqueKeysWithValues: recovering.map { ($0, UUID()) })
+        entryRecoveryTokens.merge(recoveryTokens, uniquingKeysWith: { _, new in new })
         layoutFrames(); remember(); prefetch()
         refreshVirtualPages(needsValidation)
         let current = generation
         for entry in pending {
+            let recoveryToken = recoveryTokens[entry.location]
             Task { [weak self, pipeline] in
-                guard let metadata = try? await pipeline.metadata(for: entry.identity, priority: .visible),
-                      let self, self.generation == current,
-                      !self.unavailablePages.contains(entry.location),
-                      self.book?.pages.contains(where: { $0.entry.identity == entry.identity }) == true else { return }
-                self.apply(.metadata([entry.location: metadata]))
+                do {
+                    let metadata = try await pipeline.metadata(for: entry.identity, priority: .visible)
+                    guard let self, self.generation == current,
+                          self.book?.pages.contains(where: { $0.entry.identity == entry.identity }) == true else { return }
+                    if let recoveryToken {
+                        guard self.entryRecoveryTokens[entry.location] == recoveryToken else { return }
+                        self.entryRecoveryTokens.removeValue(forKey: entry.location)
+                        self.unavailablePages.remove(entry.location)
+                    } else if self.unavailablePages.contains(entry.location) { return }
+                    self.apply(.metadata([entry.location: metadata]))
+                } catch {
+                    guard let self, self.generation == current,
+                          self.book?.pages.contains(where: { $0.entry.identity == entry.identity }) == true else { return }
+                    if let recoveryToken, self.entryRecoveryTokens[entry.location] == recoveryToken {
+                        self.entryRecoveryTokens.removeValue(forKey: entry.location)
+                    }
+                }
             }
         }
     }
@@ -289,10 +320,11 @@ public final class ReaderSession {
         for (location, availability) in results where locations.contains(location) {
             switch availability {
             case .available:
-                if unavailablePages.contains(location), !refreshingPages.contains(location) { recovered.insert(location) }
+                if unavailablePages.contains(location), !refreshingPages.contains(location), entryRecoveryTokens[location] == nil { recovered.insert(location) }
             case .missing, .volumeUnavailable:
                 unavailablePages.insert(location)
                 refreshingPages.remove(location)
+                entryRecoveryTokens.removeValue(forKey: location)
             }
         }
         refreshVirtualPages(recovered)
@@ -471,6 +503,49 @@ public final class ReaderSession {
         prefetch()
     }
 
+    /// 首批快照之后文件可能已经迁移，后续 sorted 也必须沿同一批变更前进。
+    private func relocatedLoadingPages(_ original: [Page]) -> [Page] {
+        var pages = original
+        for change in loadingFileChanges {
+            switch change {
+            case .removed: break
+            case let .moved(from, to):
+                let moving = Set(pages.filter { $0.id.hasPrefix(from) }.map(\.id))
+                let existing = Set(pages.map(\.id)).subtracting(moving)
+                pages = pages.compactMap { page in
+                    guard moving.contains(page.id), let destination = Self.rebased(page.id, from: from, to: to.location) else { return page }
+                    guard !existing.contains(destination) else { return nil }
+                    var result = page
+                    result.entry.identity.location = destination
+                    if page.id == from { result.entry = to }
+                    return result
+                }
+            case .added: break
+            }
+        }
+        return pages
+    }
+
+    private func applyLoading(_ event: BookLoadEvent) {
+        guard isVirtualBook else { apply(event); return }
+        switch event {
+        case let .sorted(pages): apply(.sorted(relocatedLoadingPages(pages)))
+        case let .metadata(values):
+            // 实时变更已刷新身份，在途的旧位置结果不能盖过它。
+            let values = values.filter { location, _ in
+                !loadingFileChanges.contains { change in
+                    switch change {
+                    case let .removed(removed): location.hasPrefix(removed)
+                    case let .moved(from, to): location.hasPrefix(from) || location.hasPrefix(to.location)
+                    case .added: false
+                    }
+                }
+            }
+            apply(.metadata(values))
+        case .appended: apply(event)
+        }
+    }
+
     private func layoutFrames() {
         let allPages = book?.pages ?? []
         let paged = settings.browseMode == .paged
@@ -522,8 +597,10 @@ public final class ReaderSession {
         guard let location = book?.location else { return }
         generation += 1
         loadTask?.cancel()
+        loadingFileChanges.removeAll()
         refreshTask?.cancel()
         refreshingPages.removeAll()
+        entryRecoveryTokens.removeAll()
         pipeline.cancelAll(session: id)
         remember()
         book = Book(location: location)
@@ -535,10 +612,16 @@ public final class ReaderSession {
 
     private func loading(_ stream: AsyncThrowingStream<BookLoadEvent, any Error>, generation current: Int) -> Task<Void, Never> {
         Task { [weak self] in
+            defer {
+                if let self, current == self.generation {
+                    self.loadTask = nil
+                    self.loadingFileChanges.removeAll()
+                }
+            }
             do {
                 for try await event in stream {
                     guard !Task.isCancelled, let self, current == self.generation else { return }
-                    self.apply(event)
+                    self.applyLoading(event)
                     if self.pendingBookOpened, let book = self.book, !book.pages.isEmpty {
                         self.pendingBookOpened = false
                         self.onBookOpened?(book.location)

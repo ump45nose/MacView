@@ -37,6 +37,21 @@ private let allKinds: [(CollectionLayoutKind, ReadingDirection)] = [
     (.horizontalStrip, .leftToRight), (.horizontalStrip, .rightToLeft),
 ]
 
+@Test("C1.21 前两项由未知变为不可用占位尺寸后，真实连续布局排到末页")
+func c121ContinuousLayoutReachesLastPageAfterPlaceholders() throws {
+    // 与组合根真实来源检查的输出契约相同：两项占位，随后三项 480 × 720 图像。
+    for kind in [CollectionLayoutKind.verticalStrip, .horizontalStrip, .masonry] {
+        var collection = layout(kind, [nil, nil, 480.0 / 720, 480.0 / 720, 480.0 / 720])
+        #expect(collection.count == 0)
+        collection.setAspectRatios([1000.0 / 1414, 1000.0 / 1414, 480.0 / 720, 480.0 / 720, 480.0 / 720])
+        #expect(collection.count == 5)
+        let last = try #require(collection.frame(of: 4))
+        #expect(last.width > 0 && last.height > 0)
+        #expect(last.maxX <= collection.contentSize.width && last.maxY <= collection.contentSize.height)
+        #expect(collection.items(in: last).contains { $0.index == 4 })
+    }
+}
+
 // MARK: - 四种布局
 
 @Test func masonryColumnsFollowItemExtentAndEachItemGoesToTheShortestColumn() {
