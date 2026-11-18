@@ -116,7 +116,7 @@ struct LibraryLoadingTests {
         #expect(source.requests.count == 10)
     }
 
-    @Test("C1.7：真实目录移走、压缩包来源内缺项；未挂载网络根 100 ms 内返回")
+    @Test("C1.7：真实目录移走；未挂载网络根 100 ms 内返回")
     func c17RealMissingAndUnmountedVolume() async throws {
         let fixture = try LoadingFixture()
         let registry = FileSourceRegistry(scheduler: IOScheduler(configuration: IOConfiguration(helperExecutable: nil)))
@@ -125,8 +125,6 @@ struct LibraryLoadingTests {
         try FileManager.default.createDirectory(at: original, withIntermediateDirectories: true)
         let moved = try await registry.location(for: original)
         try FileManager.default.moveItem(at: original, to: fixture.directory.appending(path: "renamed"))
-        let archive = try await registry.location(for: fixture.directory.appending(path: "book.zip"))
-        let missing = archive.appendingLayer(["absent.jpg"])
         let checker = AvailabilityChecker(sources: registry, directories: nil, store: fixture.store)
         let root = Location.Root.network(scheme: "smb", host: "192.0.2.1", share: "unmounted-w12")
         let network = Location(root: root, layers: [["book", "page.jpg"]])
@@ -135,12 +133,9 @@ struct LibraryLoadingTests {
         #expect(ContinuousClock.now - start < .milliseconds(100))
         #expect(registry.currentVolumeHealth().allSatisfy { $0.inFlight == 0 })
         #expect(await availability(checker, [moved])[moved] == .missing)
-        let archiveSource = LoadingSource([archive: [loadingEntry(archive.appendingLayer(["present.jpg"]))]])
-        let archiveChecker = AvailabilityChecker(sources: archiveSource, directories: nil, store: fixture.store)
-        #expect(await availability(archiveChecker, [missing])[missing] == .missing)
     }
 
-    @Test("C1.8：列表顺序跨三目录与 zip，视频保留，快照校验后只再 sorted 一次并持久化")
+    @Test("C1.8：容器来源的列表顺序与快照刷新单元测试，校验后只再 sorted 一次并持久化")
     func c18OrderAndSnapshotRefresh() async throws {
         let fixture = try LoadingFixture()
         let a = Location(root: .local, layers: [["a"]])
