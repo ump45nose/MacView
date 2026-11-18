@@ -48,6 +48,8 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
     private lazy var progressRow = NSStackView(views: [progressLabel, progressBar, cancelProgressButton])
     private let badge = NSTextField(labelWithString: "")
     private let volume = NSTextField(labelWithString: "")
+    /// 虚拟书里当前页的原文件路径。
+    private let pagePath = NSTextField(labelWithString: "")
     private let topLine = CALayer()
     private var jumpViews: [NSView] { [jumpLabel, jumpField, jumpTotal] }
     private var messageTask: Task<Void, Never>?
@@ -61,7 +63,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(topLine)
-        for label in [position, pixelSize, jumpLabel, jumpTotal, messageLabel, progressLabel, volume, badge] {
+        for label in [position, pixelSize, jumpLabel, jumpTotal, messageLabel, progressLabel, volume, pagePath, badge] {
             label.font = .systemFont(ofSize: 11)
             label.textColor = Theme.text2
             label.lineBreakMode = .byTruncatingTail
@@ -70,6 +72,8 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
             label.textColor = Theme.text
             label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         }
+        pagePath.lineBreakMode = .byTruncatingHead
+        pagePath.setContentCompressionResistancePriority(.init(249), for: .horizontal)
         pixelSize.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         jumpField.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         jumpField.controlSize = .small
@@ -101,7 +105,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let stack = NSStackView(views: [position, jumpLabel, jumpField, jumpTotal, pixelSize, spacer, messageLabel, progressRow, volume, badgeIcon, badge])
+        let stack = NSStackView(views: [position, jumpLabel, jumpField, jumpTotal, pixelSize, spacer, messageLabel, progressRow, volume, pagePath, badgeIcon, badge])
         stack.orientation = .horizontal
         stack.spacing = 18
         stack.setCustomSpacing(6, after: jumpLabel)
@@ -121,6 +125,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         messageLabel.isHidden = true
         progressRow.isHidden = true
         volume.isHidden = true
+        pagePath.isHidden = true
     }
 
     @available(*, unavailable)
@@ -149,6 +154,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
     }
 
     var volumeStatus: String? { volume.isHidden ? nil : volume.stringValue }
+    var pagePathText: String? { pagePath.isHidden ? nil : pagePath.stringValue }
     var message: String? { messageLabel.isHidden || messageLabel.stringValue.isEmpty ? nil : messageLabel.stringValue }
     var progressText: String? { progressRow.isHidden || progressLabel.stringValue.isEmpty ? nil : progressLabel.stringValue }
     var isShowingProgress: Bool { !progressRow.isHidden }
@@ -194,6 +200,10 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
             pixelSize.stringValue = ""
         }
         jumpTotal.stringValue = String(localized: "页 / 共 \(pages.count) 页")
+        let current = session.isVirtualBook && pages.indices.contains(session.currentPage) ? pages[session.currentPage].id.displayPath : ""
+        pagePath.stringValue = current
+        pagePath.toolTip = current
+        pagePath.isHidden = current.isEmpty
     }
 
     var isJumping: Bool { !jumpField.isHidden }

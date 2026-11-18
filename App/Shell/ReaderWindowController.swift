@@ -3,6 +3,7 @@ import MVCommands
 import MVFoundation
 import MVIO
 import MVLayout
+import MVLibraryData
 import MVReading
 import MVServices
 import MVSettings
@@ -89,6 +90,44 @@ private final class DockToggleButton: NSButton {
     }
 }
 
+/// 虚拟书标题前的“播放列表”标记：accent-soft 底的小胶囊。
+@MainActor
+private final class PlaylistMarkView: NSView {
+    private let label = NSTextField(labelWithString: String(localized: "播放列表"))
+    private static let textColor = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(srgbRed: 0xD9 / 255, green: 0x77 / 255, blue: 0x57 / 255, alpha: 1)
+            : NSColor(srgbRed: 0x8A / 255, green: 0x3F / 255, blue: 0x22 / 255, alpha: 1)
+    }
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 9
+        label.font = .systemFont(ofSize: 10, weight: .semibold)
+        label.textColor = Self.textColor
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6), label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            label.topAnchor.constraint(equalTo: topAnchor, constant: 1), label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -1),
+        ])
+        setContentCompressionResistancePriority(.required, for: .horizontal)
+        setContentHuggingPriority(.required, for: .horizontal)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        layer?.backgroundColor = Theme.accentSoft.cgColor
+    }
+}
+
 /// 一个窗口或标签页：持有自己的 ReaderSession、按键路由、停靠布局、页面视图和状态栏。
 @MainActor
 final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate,
@@ -110,6 +149,11 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private let isMock: Bool
     private var openTask: Task<Void, Never>?
     private let bookTitle = NSTextField(labelWithString: "")
+    /// 虚拟书的书名前的“播放列表”标记。
+    private let playlistMark = PlaylistMarkView()
+    /// 播放列表的名称，随资料库变化更新；虚拟书的标题用它。
+    private var playlistNames: [UUID: String] = [:]
+    private var libraryTask: Task<Void, Never>?
     private let bookPath = NSTextField(labelWithString: "")
     private let browseControl = BrowseModeControl(
         labels: [String(localized: "单页"), String(localized: "双页"), String(localized: "瀑布"), String(localized: "竖条"), String(localized: "横条")]
@@ -153,7 +197,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         self.dispatcher = dispatcher
         self.isMock = isMock
         session = services.makeSession()
-        viewer = ViewerContainerView(session: session, services: ViewerServices(pipeline: services.pipeline, sources: services.sources, settings: services.settings, bookshelf: services.bookshelf))
+        viewer = ViewerContainerView(session: session, services: ViewerServices(pipeline: services.pipeline, sources: services.sources, settings: services.settings, bookshelf: services.bookshelf, availability: services.availability))
         let statusBar = StatusBarView(
             serviceBadge: isMock ? String(localized: "Mock 服务") : "",
             badgeToolTip: isMock ? String(localized: "尚未接入真实服务，书和图片来自内存中的模拟目录（/Volumes/Mock）。") : ""
@@ -208,6 +252,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         viewer.onOpen = { [weak self] in self?.run(.fileOpen) }
         viewer.onRetryBook = { [weak self] in self?.reopenBook() }
         viewer.onConnect = { [weak self] in self?.connectVolume() }
+        viewer.onContextMenu = { [weak self] entry in self?.viewerMenu(for: entry) }
         viewer.continuous.onWaterfallExtentChange = { [weak self] in
             self?.updateWaterfallControls()
             self?.onSessionChange?()
@@ -222,6 +267,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         dockCoordinator.attach(dock, to: self)
         observeSession()
         observeVolumes()
+        observePlaylists()
         normalFrame = window.frame
     }
 
@@ -246,9 +292,11 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             }
         }
         guard let book = session.book else { return FileOrigin(window: self) }
+        // 虚拟书的页就是原文件的条目；列表本身不是文件，没有当前页时没有作用对象。
         if book.pages.indices.contains(session.currentPage) {
             return FileOrigin(window: self, items: [book.pages[session.currentPage].entry])
         }
+        if session.isVirtualBook { return FileOrigin(window: self) }
         let kind: EntryKind = if case .archive = EntryKind(fileName: book.location.name) { EntryKind(fileName: book.location.name) } else { .directory }
         return FileOrigin(window: self, items: [Entry(identity: ContentIdentity(location: book.location, size: 0, modificationNanos: 0), name: book.location.name, kind: kind)])
     }
@@ -298,11 +346,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     private func render() {
-        let location = session.book?.location
-        window?.title = location?.name ?? "MacView"
-        bookTitle.stringValue = window?.title ?? ""
-        bookPath.stringValue = titleDetail(location)
-        bookPath.isHidden = bookPath.stringValue.isEmpty
+        updateTitle()
         viewer.refresh()
         updateBrowseControls()
         content.statusBar.refresh(session)
@@ -313,6 +357,51 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             floating.refreshState()
         }
         onSessionChange?()
+    }
+
+    /// 书名与下面一行；虚拟书是“播放列表”标记加列表名，下面是“N 项，来自 M 本书”。
+    private func updateTitle() {
+        let location = session.book?.location
+        if let playlist = location?.playlistID, let pages = session.book?.pages {
+            window?.title = playlistNames[playlist] ?? LibraryActions.playlists.first { $0.id == playlist }?.name ?? String(localized: "播放列表")
+            let books = Set(pages.compactMap { LibraryActions.containingBook(of: $0.id) }).count
+            bookPath.stringValue = String(localized: "\(pages.count) 项，来自 \(books) 本书")
+            playlistMark.isHidden = false
+        } else {
+            window?.title = location?.name ?? "MacView"
+            bookPath.stringValue = titleDetail(location)
+            playlistMark.isHidden = true
+        }
+        bookTitle.stringValue = window?.title ?? ""
+        bookPath.isHidden = bookPath.stringValue.isEmpty
+    }
+
+    /// 播放列表改名后标题随之更新。
+    private func observePlaylists() {
+        guard let library = services.library else { return }
+        let changes = library.changes()
+        libraryTask = Task { [weak self] in
+            await self?.loadPlaylistNames(library)
+            for await change in changes where change == .playlists {
+                guard let self else { return }
+                await loadPlaylistNames(library)
+            }
+        }
+    }
+
+    private func loadPlaylistNames(_ library: any LibraryStore) async {
+        guard let lists = try? await library.playlists() else { return }
+        playlistNames = Dictionary(lists.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+        updateTitle()
+    }
+
+    /// 查看器右键：资料库项（加到播放列表；虚拟书里另有从列表移除、打开所在的书）在前，文件操作在后。
+    private func viewerMenu(for entry: Entry) -> NSMenu? {
+        let menu = fileOps.contextMenu(for: FileOrigin(window: self, items: [entry]))
+        guard let app = NSApp.delegate as? AppDelegate else { return menu }
+        let leading = LibraryActions.pageMenuItems(for: [entry], in: session, app: app) + [.separator()]
+        for item in leading.reversed() { menu.insertItem(item, at: 0) }
+        return menu
     }
 
     #if DEBUG
@@ -363,10 +452,17 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             for await volumes in updates {
                 guard let self, !Task.isCancelled else { return }
                 let wasHealthy = currentVolume?.state ?? .healthy == .healthy
+                let previous = Dictionary(self.volumes.map { ($0.root, $0.state) }, uniquingKeysWith: { $1 })
                 self.volumes = volumes
                 updateVolumeStatus()
                 // 探测成功后自动恢复，失败项不用再点重试。
                 if !wasHealthy, currentVolume?.state ?? .healthy == .healthy { viewer.retryFailed() }
+                // 虚拟书的页来自多个卷：任一卷的状态变了就重查，并重试失败的页。
+                let current = Dictionary(volumes.map { ($0.root, $0.state) }, uniquingKeysWith: { $1 })
+                if session.isVirtualBook, Set(previous.keys).union(current.keys).contains(where: { (previous[$0] ?? .healthy) != (current[$0] ?? .healthy) }) {
+                    viewer.recheckAvailability()
+                    viewer.retryFailed()
+                }
             }
         }
     }
@@ -546,6 +642,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         dock.coordinator.detach(dock)
         openTask?.cancel()
         healthTask?.cancel()
+        libraryTask?.cancel()
         // 页码来自书记忆，关窗前落盘。
         Task { [session] in await session.flush() }
         viewer.cancelLoads()
@@ -775,7 +872,10 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             label.lineBreakMode = .byTruncatingTail
             label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         }
-        let stack = NSStackView(views: [bookTitle, bookPath])
+        playlistMark.isHidden = true
+        let titleRow = NSStackView(views: [playlistMark, bookTitle])
+        titleRow.spacing = 6
+        let stack = NSStackView(views: [titleRow, bookPath])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 0

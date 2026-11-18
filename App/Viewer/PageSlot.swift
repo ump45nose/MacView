@@ -24,6 +24,8 @@ final class PageSlot {
     private(set) var hasImage = false
     /// 当前图层内容的质量。
     private(set) var quality: RenditionQuality?
+    /// 虚拟书里不可用的页：不请求图像，图层不留旧图，由查看器盖上占位页。
+    private(set) var isUnavailable = false
     private(set) var baseTarget: DisplayTarget?
     private(set) var upgradeTarget: DisplayTarget?
     private var baseTask: Task<Void, Never>?
@@ -60,7 +62,7 @@ final class PageSlot {
     }
 
     func requestBase(_ target: DisplayTarget) {
-        guard target != baseTarget || failure != nil else { return }
+        guard !isUnavailable, target != baseTarget || failure != nil else { return }
         baseTarget = target
         failure = nil
         baseTask?.cancel()
@@ -84,7 +86,7 @@ final class PageSlot {
 
     /// `target` 为 nil 时撤销放大图请求（缩回去了）。已到达的图保留，不再换回模糊的基础图。
     func requestUpgrade(_ target: DisplayTarget?, allowOriginal: Bool = false) {
-        guard target != upgradeTarget else { return }
+        guard !isUnavailable, target != upgradeTarget else { return }
         upgradeTarget = target
         upgradeDelivered = false
         upgradeTask?.cancel()
@@ -97,6 +99,26 @@ final class PageSlot {
         onChange?()
         baseTarget = nil
         requestBase(target)
+    }
+
+    /// 变为不可用时停掉请求并清掉图层里的图（可能是缓存里的旧图）；恢复后由查看器重新请求。
+    func setUnavailable(_ unavailable: Bool) {
+        guard unavailable != isUnavailable else { return }
+        isUnavailable = unavailable
+        cancel()
+        animated = nil
+        baseTarget = nil
+        upgradeTarget = nil
+        upgradeDelivered = false
+        failure = nil
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        imageLayer.contents = nil
+        root.backgroundColor = unavailable ? nil : Theme.line.cgColor
+        CATransaction.commit()
+        hasImage = false
+        quality = nil
+        onChange?()
     }
 
     /// 窗口隐藏或页面离开时停止全部请求。
@@ -123,7 +145,7 @@ final class PageSlot {
     }
 
     private func apply(_ image: RenderedImage, isUpgrade: Bool) {
-        if !isUpgrade, upgradeDelivered { return }
+        if isUnavailable || (!isUpgrade && upgradeDelivered) { return }
         // 放大图渐进交付的占位和浏览图可能比基础图模糊。
         if isUpgrade {
             if image.quality < .exact, quality.map({ $0 >= .exact }) == true { return }
@@ -140,7 +162,7 @@ final class PageSlot {
     }
 
     func fail(_ error: any Error) {
-        if error is CancellationError { return }
+        if isUnavailable || error is CancellationError { return }
         if case IOError.cancelled = error { return }
         logger.error("读取页面失败：\(self.identity.location.description, privacy: .public) \(String(describing: error), privacy: .public)")
         failure = error

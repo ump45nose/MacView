@@ -3,6 +3,7 @@ import MVCommands
 import MVFoundation
 import MVIO
 import MVLayout
+import MVLibraryData
 import MVMedia
 import MVPipeline
 import MVReading
@@ -32,6 +33,14 @@ final class PagedViewerView: NSView {
     private static let retireDelay = 0.12
     private let shadowLayer = CALayer()
     private var errorViews: [ObjectIdentifier: ItemErrorView] = [:]
+    /// 虚拟书里不可用或取图失败的页盖上占位页。
+    private var placeholders: [ObjectIdentifier: UnavailablePageView] = [:]
+    /// 检查器给出的可用性，占位页据此说明原因（卷没有连接还是找不到）。
+    var availability: [Location: Availability] = [:] {
+        didSet { updateFailures() }
+    }
+    /// 虚拟书里某页取图失败：查看器据此重查这一页。
+    var onPageFailure: ((Location) -> Void)?
     private(set) var transform = ViewerTransform.identity
     private(set) var fit = PageFrameFit(pages: [], size: PixelSize(width: 0, height: 0))
     /// 查看器自己探测到的元数据：书的加载没探测成功（或还没轮到）时，当前页不能一直等。
@@ -39,6 +48,8 @@ final class PagedViewerView: NSView {
     private var decodeLimit = 0
     private var probes: [ContentIdentity: Task<Void, Never>] = [:]
     private var probeFailures: [ContentIdentity: any Error] = [:]
+    /// 已因取图失败交给重查的页，同一页只报一次。
+    private var reportedFailures: Set<Location> = []
     private var requestTimer: Timer?
     private var awaitingDisplay = false
     private(set) var lastDisplay: DisplayRecord?
@@ -108,6 +119,9 @@ final class PagedViewerView: NSView {
         let frame = session.frames[session.currentFrame]
         let elements = frame.elements.filter { pages.indices.contains($0.page) }
         let turned = replaceSlots(with: elements, pages: pages)
+        // 不可用的页不显示缓存里的旧图，恢复后重新请求。
+        let unavailable = session.isVirtualBook ? session.unavailablePages : []
+        for slot in slots { slot.setUnavailable(unavailable.contains(slot.identity.location)) }
         fit = PageFrameFit.fit(
             frame: PageFrame(elements: elements), pages: pages, viewport: viewportPixels, backingScale: backing, settings: session.settings
         )
@@ -118,7 +132,7 @@ final class PagedViewerView: NSView {
         } else {
             transform = transform.clamped(frame: frameSize, viewport: viewport)
         }
-        probeUnknown(pages: pages, elements: elements)
+        probeUnknown(pages: pages, elements: elements.filter { !unavailable.contains(pages[$0.page].id) })
         layoutSlots()
         requestImages(immediately: turned || slots.contains { $0.baseTarget == nil })
         updateFailures()
@@ -197,7 +211,7 @@ final class PagedViewerView: NSView {
     }
 
     private func slotChanged() {
-        if !retiring.isEmpty, slots.allSatisfy({ $0.hasImage || $0.failure != nil }) { finishRetiring() }
+        if !retiring.isEmpty, slots.allSatisfy({ $0.hasImage || $0.failure != nil || $0.isUnavailable }) { finishRetiring() }
         updateFailures()
         if awaitingDisplay, !slots.isEmpty, slots.allSatisfy({ ($0.quality ?? .placeholder) >= .exact }) {
             awaitingDisplay = false
@@ -266,6 +280,7 @@ final class PagedViewerView: NSView {
             slot.imageLayer.frame = CGRect(origin: .zero, size: rect.size)
             slot.tiled?.layout(in: slot.root.bounds, visible: slot.root.convert(bounds, from: layer), scale: scale)
             errorViews[ObjectIdentifier(slot)]?.frame = rect.intersection(bounds).isEmpty ? rect : rect.intersection(bounds)
+            placeholders[ObjectIdentifier(slot)]?.frame = Self.placeholderFrame(rect)
             if slot.isVideo { video?.frame = rect }
             x += pageWidth
         }
@@ -308,6 +323,10 @@ final class PagedViewerView: NSView {
         let limit = decodeLimit
         let targets = fit.displayTargets(settings: settings, maxDecodeLongSide: limit)
         for (index, slot) in slots.enumerated() where fit.pages.indices.contains(index) {
+            if slot.isUnavailable {
+                setTiled(false, slot: slot, source: nil)
+                continue
+            }
             guard let base = targets.first(where: { $0.element == slot.element })?.target else { continue }
             slot.requestBase(base)
             guard !slot.isVideo, frameCount(of: slot) <= 1 else { continue }
@@ -361,7 +380,7 @@ final class PagedViewerView: NSView {
 
     /// 每个窗口只有一个活动的播放器：页帧里第一个视频页。
     private func updateVideo() {
-        guard let slot = slots.first(where: \.isVideo), slot.failure == nil else {
+        guard let slot = slots.first(where: \.isVideo), slot.failure == nil, !slot.isUnavailable else {
             stopVideo()
             return
         }
@@ -384,7 +403,7 @@ final class PagedViewerView: NSView {
 
     /// 动图只在分页模式播放，帧按基础图的目标解码。
     private func updateAnimation() {
-        for slot in slots where !slot.isVideo {
+        for slot in slots where !slot.isVideo && !slot.isUnavailable {
             guard frameCount(of: slot) > 1, let target = slot.baseTarget, slot.hasImage else { continue }
             if slot.animated?.target != target {
                 slot.animated?.stop()
@@ -421,9 +440,18 @@ final class PagedViewerView: NSView {
 
     private func updateFailures() {
         var wanted = Set<ObjectIdentifier>()
+        var wantedPlaceholders = Set<ObjectIdentifier>()
         for slot in slots {
             let error = slot.failure ?? probeFailures[slot.identity]
             let key = ObjectIdentifier(slot)
+            if session.isVirtualBook, slot.isUnavailable || error != nil {
+                if error != nil, !slot.isUnavailable, reportedFailures.insert(slot.identity.location).inserted {
+                    onPageFailure?(slot.identity.location)
+                }
+                wantedPlaceholders.insert(key)
+                showPlaceholder(for: slot, error: slot.isUnavailable ? nil : error)
+                continue
+            }
             guard let error else { continue }
             wanted.insert(key)
             let view = errorViews[key] ?? {
@@ -443,9 +471,57 @@ final class PagedViewerView: NSView {
             view.removeFromSuperview()
             errorViews[key] = nil
         }
+        for (key, view) in placeholders where !wantedPlaceholders.contains(key) {
+            view.removeFromSuperview()
+            placeholders[key] = nil
+        }
+    }
+
+    /// 占位页的原因：不可用的页按检查结果（没有结果时是找不到），取图失败的页按错误。
+    private func showPlaceholder(for slot: PageSlot, error: (any Error)?) {
+        let key = ObjectIdentifier(slot)
+        let view = placeholders[key] ?? {
+            let view = UnavailablePageView()
+            addSubview(view, positioned: .below, relativeTo: navigator)
+            placeholders[key] = view
+            return view
+        }()
+        let location = slot.identity.location
+        let reason: UnavailablePageView.Reason
+        if let error {
+            switch error as? IOError {
+            case let .volumeUnavailable(root): reason = .volume(root)
+            case .notFound: reason = .missing
+            default: reason = .failed(ErrorText.describe(error))
+            }
+        } else if case let .volumeUnavailable(root) = availability[location] {
+            reason = .volume(root)
+        } else {
+            reason = .missing
+        }
+        view.show(reason)
+        view.onRemove = { [weak self] in self?.removeFromPlaylist(location) }
+        view.frame = Self.placeholderFrame(slot.root.frame)
+    }
+
+    /// 占位页盖住整页；页太小（没有放大的小图）时按最小尺寸居中，放得下原因和按钮。
+    private static func placeholderFrame(_ page: CGRect) -> CGRect {
+        let width = max(page.width, 320), height = max(page.height, 220)
+        return CGRect(x: page.midX - width / 2, y: page.midY - height / 2, width: width, height: height)
+    }
+
+    private func removeFromPlaylist(_ location: Location) {
+        guard let playlist = session.book?.location.playlistID, let app = NSApp.delegate as? AppDelegate else { return }
+        Task { await LibraryActions.removeFromPlaylist([location], playlist: playlist, app: app) }
+    }
+
+    /// 页帧里位于 `point`（视图坐标）的页序号。
+    func page(at point: CGPoint) -> Int? {
+        slots.first { $0.root.frame.contains(point) }?.element.page
     }
 
     private func retry(_ slot: PageSlot) {
+        reportedFailures.remove(slot.identity.location)
         if probeFailures.removeValue(forKey: slot.identity) != nil {
             refresh()
         } else {
@@ -686,5 +762,97 @@ final class ItemErrorView: NSView {
 
     @objc private func retry() {
         onRetry?()
+    }
+}
+
+/// 虚拟书里不可用的页：原因、“从列表移除”，卷没有连接时另有“连接”。盖住整页，不显示缓存里的旧图。
+@MainActor
+final class UnavailablePageView: NSView {
+    enum Reason: Equatable {
+        case missing
+        case volume(Location.Root)
+        case failed(String)
+    }
+
+    private let title = NSTextField(labelWithString: String(localized: "这一页不可用"))
+    private let detail = NSTextField(wrappingLabelWithString: "")
+    private let connect = UnavailablePageView.button(String(localized: "连接"))
+    private let remove = UnavailablePageView.button(String(localized: "从列表移除"))
+    private var mountURL: URL?
+    private(set) var reason: Reason?
+    var onRemove: (() -> Void)?
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.borderWidth = 1
+        title.font = Theme.serif(16)
+        title.textColor = Theme.text
+        title.alignment = .center
+        detail.font = .systemFont(ofSize: 12)
+        detail.textColor = Theme.text2
+        detail.alignment = .center
+        detail.maximumNumberOfLines = 4
+        connect.target = self
+        connect.action = #selector(connectPressed)
+        remove.target = self
+        remove.action = #selector(removePressed)
+        let buttons = NSStackView(views: [connect, remove])
+        buttons.spacing = 6
+        let stack = NSStackView(views: [title, detail, buttons])
+        stack.orientation = .vertical
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            stack.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -32),
+            detail.widthAnchor.constraint(lessThanOrEqualToConstant: 320),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private static func button(_ title: String) -> FlatButton {
+        let button = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10)
+        button.setText(title)
+        return button
+    }
+
+    override var isFlipped: Bool { true }
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        layer?.backgroundColor = Theme.well.cgColor
+        layer?.borderColor = Theme.line.cgColor
+    }
+
+    func show(_ reason: Reason) {
+        guard reason != self.reason else { return }
+        self.reason = reason
+        switch reason {
+        case .missing:
+            detail.stringValue = String(localized: "找不到原文件：可能已被删除，或在 MacView 之外被移走")
+            mountURL = nil
+        case let .volume(root):
+            detail.stringValue = String(localized: "所在的网络卷没有连接")
+            mountURL = root.mountURL
+        case let .failed(text):
+            detail.stringValue = text
+            mountURL = nil
+        }
+        connect.isHidden = mountURL == nil
+    }
+
+    @objc private func connectPressed() {
+        if let mountURL { NSWorkspace.shared.open(mountURL) }
+    }
+
+    @objc private func removePressed() {
+        onRemove?()
     }
 }
