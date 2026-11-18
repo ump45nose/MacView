@@ -538,12 +538,34 @@ final class LibrarySelfTest {
         let table = tableView(in: pageList.collection!)
         table.scrollRowToVisible(5)
         await settle()
+        func probe(_ phase: String) {
+            var state = pageList.availabilityProbe(locations.last!)
+            state["phase"] = phase
+            state["rows"] = String(describing: table.rows(in: table.visibleRect))
+            state["currentPage"] = String(controller.session.currentPage)
+            state["enumerated"] = String(controller.session.book?.isEnumerated == true)
+            state["sessionUnavailable"] = String(controller.session.unavailablePages.contains(locations.last!))
+            print("INFO 重查 \(state.sorted { $0.key < $1.key })")
+        }
+        probe("beforeMove")
         let original = shelf.appending(path: bookName), away = temporary.appending(path: "recheck-away")
         try fm.moveItem(at: original, to: away)
         defer { if exists(away) { try? fm.moveItem(at: away, to: original) } }
+        let previousGeneration = pageList.availabilityProbe(locations.last!)["generation"]
+        let recheckStart = ContinuousClock.now
         NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: NSApp)
-        log.check(await until("页面列表远处行重查") { self.pageList.collection?.items.last?.failure != nil }
-                  && controller.session.currentPage == 0, "页面列表：App 激活时重查当前页帧以外的可见行并灰显")
+        probe("afterActivation")
+        // 检查器对真实列目录保留 10 秒预算；等本次检查完成，不能把缓存首批结果当终态。
+        let finished = await until("页面列表激活检查完成", attempts: 480) {
+            let state = self.pageList.availabilityProbe(locations.last!)
+            return state["generation"] != previousGeneration && state["pending"] == "false"
+        }
+        let fresh = pageList.availabilityProbe(locations.last!)
+        print("INFO 激活检查耗时 \(recheckStart.duration(to: .now))")
+        log.check(finished && fresh["state"] == "missing" && controller.session.currentPage == 0
+                  && controller.session.unavailablePages.contains(locations.last!) && pageList.collection?.items.last?.failure != nil,
+                  "页面列表：App 激活时重查当前页帧以外的可见行并灰显")
+        probe("afterCheck")
         window.makeFirstResponder(controller.viewer)
         if interactive {
             await sendKey(kVK_End)
@@ -554,7 +576,14 @@ final class LibrarySelfTest {
         }
         let shown = await until("瀑布流占位操作") { self.placeholders().contains { $0.reason == .missing } }
         log.check(shown, "C2.15 瀑布流缺页显示原因和移除操作")
-        log.snapshot(window, "library-waterfall-placeholder")
+        let firstImage = log.snapshot(window, "library-waterfall-placeholder-first", captureImage: true)
+        let firstDrawn = firstImage.map(placeholderTextIsDrawn) ?? false
+        print("INFO 占位首帧实际文字=\(firstDrawn)")
+        let drawn = await until("占位实际绘制") {
+            guard let image = self.log.snapshot(self.window, "library-waterfall-placeholder", captureImage: true) else { return false }
+            return self.placeholderTextIsDrawn(image)
+        }
+        log.check(drawn, "C2.15 整窗截图实际绘出占位标题与移除按钮文字")
         if let view = placeholders().first, let remove = button(String(localized: "从列表移除"), in: view) {
             log.check(!remove.isHiddenOrHasHiddenAncestor, "C2.15 瀑布流占位页的移除按钮可见")
             if interactive {
@@ -568,6 +597,33 @@ final class LibrarySelfTest {
         try await library.deletePlaylist(id)
         if interactive { await choose(listA) }
         await open("alpha")
+    }
+
+    /// 在整窗真实像素里核对标题和按钮文字的前景色；灰色错误图标不能冒充控件。
+    private func placeholderTextIsDrawn(_ image: CGImage) -> Bool {
+        guard let root = window.contentView?.superview, let view = placeholders().first,
+              let title = views(NSTextField.self, in: view).first(where: { $0.stringValue == String(localized: "这一页不可用") }),
+              let action = button(String(localized: "从列表移除"), in: view) else { return false }
+        let bitmap = NSBitmapImageRep(cgImage: image)
+        var foreground: NSColor?
+        root.effectiveAppearance.performAsCurrentDrawingAppearance { foreground = Theme.text.usingColorSpace(.deviceRGB) }
+        guard let foreground else { return false }
+        let scale = CGFloat(image.width) / root.bounds.width
+        let counts = [title, action].map { control -> Int in
+            let rect = control.convert(control.bounds.insetBy(dx: 6, dy: 3), to: root).intersection(root.bounds)
+            guard !rect.isNull, !rect.isEmpty else { return 0 }
+            let top = root.isFlipped ? rect.minY : root.bounds.maxY - rect.maxY
+            var count = 0
+            for y in stride(from: max(Int(top * scale), 0), to: min(Int((top + rect.height) * scale), image.height), by: 2) {
+                for x in stride(from: max(Int(rect.minX * scale), 0), to: min(Int(rect.maxX * scale), image.width), by: 2) {
+                    guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                    if max(abs(color.redComponent - foreground.redComponent), abs(color.greenComponent - foreground.greenComponent), abs(color.blueComponent - foreground.blueComponent)) < 0.16 { count += 1 }
+                }
+            }
+            return count
+        }
+        print("INFO 占位实际像素 title=\(counts[0]) action=\(counts[1])")
+        return counts.allSatisfy { $0 >= 8 }
     }
 
     // MARK: C2.4 删除列表、C2.1 清空历史

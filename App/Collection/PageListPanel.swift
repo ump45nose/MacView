@@ -123,6 +123,15 @@ final class PageListPanel: CollectionPanel {
 
     override func shown() { availability.recheckAll() }
 
+    #if DEBUG
+    func availabilityProbe(_ location: Location) -> [String: String] {
+        var result = availability.probe(location)
+        result["inCheckedRange"] = String(entries(at: Array(visibleRange.clamped(to: 0..<order.count))).contains { $0.location == location })
+        result["range"] = String(describing: visibleRange)
+        return result
+    }
+    #endif
+
     /// 复用面板检查器的显示、滚动、激活、卷状态和文件变更重查。
     private func checkVisiblePages() {
         let pages = owner?.session.isVirtualBook == true ? owner?.session.book?.pages.map(\.id) ?? [] : []
