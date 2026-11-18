@@ -783,8 +783,8 @@ import Testing
         await fixture.shutdown(services)
     }
 
-    @Test("C1.10 首批 sorted 前真实删除，随后校验及目录迁移不能暴露旧缓存", arguments: [false, true])
-    func libraryDeletionBeforeFirstSortedKeepsUnavailable(moveParent: Bool) async throws {
+    @Test("C1.10 首批 sorted 前真实删除，目录迁移及移回原位均不能凭缓存恢复", arguments: [0, 1, 2])
+    func libraryDeletionBeforeFirstSortedKeepsUnavailable(parentMoves: Int) async throws {
         let fixture = try ServiceFixture()
         defer { fixture.clean() }
         let trashURL = fixture.root.appending(path: "trash")
@@ -807,6 +807,8 @@ import Testing
         var cached: RenderedImage?
         for try await image in services.pipeline.image(for: removed.identity, target: target, allowOriginal: false, priority: .visible) { cached = image }
         #expect(cached?.quality == .exact)
+        _ = try await services.pipeline.metadata(for: removed.identity, priority: .visible)
+        _ = try await services.pipeline.thumbnail(for: removed.identity, maxPixel: 128, priority: .visible)
         let id = try await library.createPlaylist(named: "首批页前删除")
         _ = try await library.addItems(entries, to: id)
         let loader = PausedLibraryLoader(base: services.loader, pauseSecondSorted: false, pauseFirstSorted: true)
@@ -818,23 +820,39 @@ import Testing
         #expect((await operations.perform(.delete([removed.location]))).failures.isEmpty)
         _ = await applied.next()
         var destination = folder
-        if moveParent {
+        if parentMoves > 0 {
             destination = try #require(folder.parent).appending("moved-before-first-sorted")
             #expect((await operations.perform(.rename(folder, to: destination.name))).failures.isEmpty)
             _ = await applied.next()
+        }
+        if parentMoves > 1 {
+            #expect((await operations.perform(.rename(destination, to: folder.name))).failures.isEmpty)
+            _ = await applied.next()
+            destination = folder
         }
         #expect(session.book?.pages.isEmpty == true)
         loader.release()
         await opening.value
         let missing = destination.appending(removed.name)
+        // 缓存探测有机会完成后仍须占位；父目录 Entry 不能证明其子页存在。
+        try await Task.sleep(for: .milliseconds(25))
         #expect(session.book?.pages.map(\.id) == entries.map { destination.appending($0.name) })
         #expect(session.currentPage == 1)
         #expect(session.unavailablePages == [missing])
+        if parentMoves > 0 {
+            #expect(loader.loads == 2, "移动不可用子页必须重新校验来源")
+            if loader.loads == 2 {
+                try await waitUntil { loader.completed == 2 }
+                #expect(loader.availability[missing] == .missing)
+                #expect(session.unavailablePages == [missing])
+            }
+        }
         #expect(loader.availability[removed.location] != nil, "真实加载器的在途校验事件已交付")
         // 再做一次真实校验，明确收到删除后 missing 的结果。
         session.setAvailability([missing: .missing])
+        let completed = loader.completed
         session.setAvailability([missing: .available])
-        try await waitUntil { loader.completed == 2 }
+        try await waitUntil { loader.completed == completed + 1 }
         #expect(loader.availability[missing] == .missing)
         #expect(session.unavailablePages == [missing])
         var stale: RenderedImage?

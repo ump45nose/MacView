@@ -269,9 +269,12 @@ public final class ReaderSession {
                         }
                         if wasUnavailable {
                             unavailablePages.insert(destination)
-                            recovering.insert(destination)
-                        }
-                        if result.metadata == nil || wasUnavailable { pending.append(result.entry) }
+                            // 只有移动的对象就是此页时，to 才是它的真实 Entry；目录子页仍是旧快照。
+                            if page.id == from {
+                                recovering.insert(destination)
+                                pending.append(to)
+                            } else { needsValidation.insert(destination) }
+                        } else if result.metadata == nil { pending.append(result.entry) }
                     } else if page.id.hasPrefix(to.location) {
                         let recovered = unavailablePages.contains(page.id)
                         if page.id == to.location {
