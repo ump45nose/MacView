@@ -23,7 +23,7 @@ private func page(_ name: String, size: Int64 = 20) -> Entry {
           name: name, kind: .image)
 }
 
-struct LibraryStoreTests {
+extension LibraryDataTests.LibraryStoreTests {
     @Test func c12HistoryLimitsAndPersistence() async throws {
         let fixture = LibraryFixture()
         defer { try? fixture.clean() }

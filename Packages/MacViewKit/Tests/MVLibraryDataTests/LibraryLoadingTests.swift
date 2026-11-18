@@ -93,7 +93,7 @@ private func availability(_ checker: AvailabilityChecker, _ locations: [Location
     return result
 }
 
-struct LibraryLoadingTests {
+extension LibraryDataTests.LibraryLoadingTests {
     @Test("C1.7：300 项仅列 10 次，后台优先级，虚拟书不查来源")
     func c17GroupingAndVirtualBooks() async throws {
         let fixture = try LoadingFixture()
@@ -130,7 +130,9 @@ struct LibraryLoadingTests {
         let network = Location(root: root, layers: [["book", "page.jpg"]])
         let start = ContinuousClock.now
         #expect(await availability(checker, [network])[network] == .volumeUnavailable(root))
-        #expect(ContinuousClock.now - start < .milliseconds(100))
+        let networkElapsed = ContinuousClock.now - start
+        #expect(networkElapsed < .milliseconds(100))
+        print("C1.7: 未挂载根检查=\(networkElapsed)")
         #expect(registry.currentVolumeHealth().allSatisfy { $0.inFlight == 0 })
         #expect(await availability(checker, [moved])[moved] == .missing)
     }
@@ -231,7 +233,9 @@ struct LibraryLoadingTests {
             }
         }
         #expect(ContinuousClock.now - start < .seconds(1))
-        #expect(try #require(healthyArrived) < .milliseconds(150))
+        let healthyElapsed = try #require(healthyArrived)
+        #expect(healthyElapsed < .milliseconds(150))
+        print("C1.21: 正常容器首批元数据=\(healthyElapsed)")
         #expect(pages.map(\.id) == entries.map(\.location) && values.count == entries.count)
         for entry in entries.dropLast() {
             #expect(values[entry.location]?.pixelSize == PixelSize(width: 1000, height: 1414))
