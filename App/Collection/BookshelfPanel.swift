@@ -227,6 +227,11 @@ final class BookshelfPanel: CollectionPanel {
         indices.compactMap { entries.indices.contains($0) ? entries[$0] : nil }
     }
 
+    override func libraryMenuItems(for entries: [Entry]) -> [NSMenuItem] {
+        guard let app = NSApp.delegate as? AppDelegate else { return [] }
+        return [LibraryActions.bookmarkMenuItem(for: entries.map(\.location), app: app)]
+    }
+
     // MARK: 封面
 
     /// 只解析可见项和余量内的封面。瀑布流要宽高比才能排，范围的末尾再多解析一批。

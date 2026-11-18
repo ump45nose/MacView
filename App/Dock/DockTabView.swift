@@ -6,7 +6,7 @@ extension NSPasteboard.PasteboardType {
     static let dockPanel = NSPasteboard.PasteboardType("io.github.ump45nose.MacView.dock-panel")
 }
 
-/// 面板的标签：单击选中，拖动超过几个点后开始拖放，右键弹出移动菜单。
+/// 面板的标签：单击选中，拖动超过几个点后开始拖放，右键弹出移动菜单；拖着书或页停在标签上约 0.35 秒切到这个面板。
 ///
 /// 停靠区的标签页、上下分割时每一格的标题、浮动面板的标题条都用它。
 @MainActor
@@ -24,6 +24,10 @@ final class DockTabView: NSView, NSDraggingSource {
     private let icon: NSImageView
     private let label: NSTextField
     private var mouseDownPoint: NSPoint?
+    /// 拖着书或页停在标签上：高亮，到时切到这个面板。
+    private var springTask: Task<Void, Never>? {
+        didSet { needsDisplay = true }
+    }
 
     init(type: DockPanelType) {
         panel = type.id
@@ -42,6 +46,7 @@ final class DockTabView: NSView, NSDraggingSource {
         setAccessibilityRole(.button)
         setAccessibilityLabel(type.title)
         toolTip = type.title
+        registerForDraggedTypes([.locations])
     }
 
     @available(*, unavailable)
@@ -67,7 +72,7 @@ final class DockTabView: NSView, NSDraggingSource {
     }
 
     override func updateLayer() {
-        layer?.backgroundColor = isSelected ? Theme.selected.cgColor : NSColor.clear.cgColor
+        layer?.backgroundColor = springTask != nil ? Theme.accentSoft.cgColor : isSelected ? Theme.selected.cgColor : NSColor.clear.cgColor
         label.textColor = isSelected ? Theme.text : Theme.text2
     }
 
@@ -113,6 +118,32 @@ final class DockTabView: NSView, NSDraggingSource {
         layer.backgroundColor = background
         layer.borderWidth = 0
         return image.map { NSImage(cgImage: $0, size: bounds.size) } ?? NSImage()
+    }
+
+    // MARK: 拖着书或页停留
+
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        guard !isSelected, onSelect != nil else { return [] }
+        springTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard let self, !Task.isCancelled else { return }
+            springTask = nil
+            onSelect?()
+        }
+        return []
+    }
+
+    override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+        cancelSpring()
+    }
+
+    override func draggingEnded(_ sender: any NSDraggingInfo) {
+        cancelSpring()
+    }
+
+    private func cancelSpring() {
+        springTask?.cancel()
+        springTask = nil
     }
 
     // MARK: NSDraggingSource
