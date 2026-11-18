@@ -1,6 +1,6 @@
 # MacView 架构
 
-状态：2026-10-31 定稿；2026-11-01 并入关口 G0 的决定。2026-11-14 同步 S3-T2 阶段 1 已实现接口；该阶段尚未完成或验收。
+状态：2026-10-31 定稿；2026-11-01 并入关口 G0 的决定。2026-11-17 同步 S3-T1 阶段 1 资料库接口；Core 集成验收与 App 阶段分别记录。
 
 相关文档：
 - 需求：[requirements.md](plans/requirements.md)
@@ -44,21 +44,22 @@
 | MVSettings | 设置模式、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
 | MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型 | MVFoundation |
 | MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVCache、MVPipeline、MVSettings |
-| MVServices | 组合根：创建并连接各服务，负责启动、退出和内存压力处理 | 以上全部 |
-| MVTestSupport | Mock 与夹具清单（`Fixtures/manifest.json`）的读取。App 的 Debug 构建可以用启动参数 `-MVMockServices YES` 切换到 Mock | 契约 |
-| mvbench | 基准测试与夹具生成的命令行工具；`fileops` 覆盖文件操作网络验收 | 现有 Core 模块及 MVFileOps |
+| MVLibraryData | 历史、书签、播放列表存储与变更；可用性检查；虚拟书加载 | MVFoundation、MVIO、MVCache、MVReading、GRDB.swift |
+| MVServices | 组合根：创建并连接各服务，按位置分派加载器，记录历史与迁移资料库，负责启动、退出和内存压力处理 | 以上全部 |
+| MVTestSupport | Mock、内存资料库与夹具清单（`Fixtures/manifest.json`）的读取。App 的 Debug 构建可以用启动参数 `-MVMockServices YES` 切换到 Mock | 契约 |
+| mvbench | 基准测试与夹具生成的命令行工具；`library seed-playlist` 准备列表夹具，`fileops` 覆盖文件操作网络验收 | 现有 Core 模块及 MVFileOps、MVLibraryData |
 | MVLayout | App 侧的纯计算：画布的四种布局与锚点、停靠布局及其变换。App 没有测试目标，放进包里才能用 `make test` 测 | MVFoundation、MVSettings |
 | App（`MacView` target） | 窗口与标签页、停靠面板、集合视图、查看器、输入、菜单、设置界面、本地化 | MVServices 等 |
 
 - 任务 ID 中，T 表示 Core 任务，F 表示 App 任务。
-- P1 的新模块到对应阶段再建：MVLibraryData（书签、播放列表、历史）、MVSearch、MVMetadata（评分与标签）、MVEffects、MVScripting、MVPlugins。
+- P1 的新模块到对应阶段再建：MVSearch、MVMetadata（评分与标签）、MVEffects、MVScripting、MVPlugins。
 - 依赖选型：SQLite 统一用 GRDB.swift（MIT 许可），由第一个用到它的任务引入，MVCache 与 MVSettings 共用。其余依赖由各任务按需选用。
 - 已引入的依赖（版本以 `Packages/MacViewKit/Package.resolved` 为准）：
 
   | 依赖 | 用途 | 许可证 | 引入任务 |
   |---|---|---|---|
   | swift-argument-parser 1.8.2 | mvbench 的子命令与参数解析 | Apache-2.0 | S0-T1 |
-  | GRDB.swift 7.11.1 | MVCache 的 `index.sqlite` 与 MVSettings 的 `state.sqlite`，各自使用 WAL 数据库 | MIT | S1-T4、S1-T7 |
+  | GRDB.swift 7.11.1 | MVCache 的 `index.sqlite`、MVSettings 的 `state.sqlite` 与 MVLibraryData 的 `library.sqlite`，各自使用 WAL 数据库 | MIT | S1-T4、S1-T7、S3-T1 |
   | libsmb2 6.3.1 | mvbench 的 SMB 直连原型（`io --transport smb2`）。由 `scripts/build-libsmb2.sh` 构建成动态库，运行时 dlopen，不链接、不入库 | LGPL-2.1 | S0-T2 |
 
 仓库布局：
@@ -228,8 +229,8 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     - `settings.json`：全局设置与默认书设置。
     - `path-rules.json`、`keybindings.json`。
     - `layout.json`：停靠布局和各面板的视图设置。
-  - SQLite：`state.sqlite` 存书记忆，P1 的历史也存在这里。
-  - P1 再增加 `profiles.json`、`bookmarks.json`、`playlists/`、`menus.json`。
+  - SQLite：`state.sqlite` 只存书记忆；`library.sqlite` 统一存历史、书签和播放列表，WAL、`synchronous = FULL`。
+  - P1 再增加 `profiles.json`、`menus.json`。
 - `~/Library/Caches/MacView/`：`thumbnails/`、`browse/`、`extract/`（压缩包临时解出）、`index.sqlite`。
 - JSON 文件：
   - 带版本号，原子写入，外部编辑后自动重载。
@@ -239,6 +240,14 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 各层的字段都是可选的，只有全局层必须完整。
 - 书记忆保存：页位置（页身份加序号）、单双页、方向、排序、递归、缩放和浏览方式；P1 再加显示配置的值。
 - `state.sqlite` 打开时，`PRAGMA journal_mode = WAL` 只对 SQLITE_BUSY 显式重试，间隔 20 ms，最长 5 秒。这条切换不走 `busyMode`，退出后立刻重开或两个实例并存时会遇到。
+
+资料库的 `history`、`bookmark`、`playlist`、`playlist_item` 四张表分别存打开时间、树层级与序号、列表摘要、列表顺序及 `Entry` 快照。位置按 `sortedKeys` 编码，并保存带索引的 `prefix_key`。开库沿用 `state.sqlite` 的 SQLITE_BUSY 重试。历史默认保留 1000 本，`historyLimit` 缺失时补默认且不报缺字段，非正值拒绝；缩小立即裁剪。
+
+书记忆与历史独立：清历史不丢页码与阅读设置。文件移动时按前缀迁移资料库及书记忆（含虚拟书的 `lastPage`）；撞到已有目标时保留目标，历史取较晚时间。资料库迁移为单事务，删除文件不删除条目。组合根按“目录缓存 → 冲刷相关会话 → 书记忆与资料库迁移 → 会话 → 广播”处理，广播接收时已能读到新位置。
+
+虚拟书位置使用 `playlist` 插件根，以列表顺序加载，不受书内排序或递归影响；不切相邻书，不请求书架与相邻书预取。`items(id)` 与 `playlistRemoved(id)` 才重载对应会话，`relocated` 只供面板刷新，快照回写无通知。可用性按容器合并检查，未挂载网络根只读挂载表；不可用项保留序号并交付 1:1.414 占位元数据，其他容器独立完成。
+
+公开类型及完整方法签名见 [LibraryTypes.swift](../Packages/MacViewKit/Sources/MVLibraryData/LibraryTypes.swift)；检查器与加载器接口分别见 [AvailabilityChecker.swift](../Packages/MacViewKit/Sources/MVLibraryData/AvailabilityChecker.swift)、[PlaylistBookLoader.swift](../Packages/MacViewKit/Sources/MVLibraryData/PlaylistBookLoader.swift)。§4 只保留行为契约，避免与源码重复维护声明。
 
 ### 3.7 命令与输入
 
@@ -353,6 +362,10 @@ public struct Location: Hashable, Sendable, Codable {
     public enum Root: Hashable, Sendable, Codable { case local; case network(scheme: String, host: String, share: String); case plugin(id: String) }
     public var root: Root
     public var layers: [[String]]
+    public static let playlistRootID: String
+    public static func playlist(_ id: UUID) -> Location
+    public var playlistID: UUID? { get }
+    public var prefixKey: String { get }   // 相等或以 prefix + 分隔符开头，与 hasPrefix 等价
 }
 public struct ContentIdentity: Hashable, Sendable, Codable { public var location: Location; public var size: Int64; public var modificationNanos: Int64; public var checksum: UInt32?; public var cacheKey: String { get } }
 public struct PixelSize: Hashable, Sendable, Codable { public var width: Int; public var height: Int }
@@ -362,6 +375,7 @@ public enum EntryKind: Hashable, Sendable, Codable { case directory, archive(Arc
 public struct Entry: Hashable, Sendable, Codable { public var identity: ContentIdentity; public var name: String; public var kind: EntryKind; public var created: Date? }   // location、size、modified 由 identity 计算
 public struct SessionID: Hashable, Sendable { public let raw: UUID }
 public enum JSONValue: Hashable, Sendable, Codable { case null, bool(Bool), number(Double), string(String), array([JSONValue]), object([String: JSONValue]) }
+public enum Availability: Sendable, Hashable { case available, missing, volumeUnavailable(Location.Root) }   // MVLibraryData 重新导出
 public enum FileChange: Sendable, Hashable { case added(Entry), removed(Location), moved(from: Location, to: Entry) }
 public enum ConflictPolicy: String, Sendable, Codable { case appendNumber, skip }
 public enum TransferMode: String, Sendable, Codable { case move, copy }
@@ -578,7 +592,7 @@ public struct BookSettings: Codable, Sendable, Hashable {   // 每层只写自�
 public struct ResolvedBookSettings: Codable, Sendable, Hashable { /* 与 BookSettings 字段相同，全部非可选 */ }
 public struct ClassifyTarget: Codable, Sendable, Hashable { public var location: Location; public var listsSubfolders: Bool }
 public struct FileOperationSettings: Codable, Sendable, Hashable { public var nameConflict: ConflictPolicy; public var classifyMode: TransferMode; public var classifyTargets: [ClassifyTarget] }   // 默认 appendNumber、move、空列表
-public struct GlobalSettings: Codable, Sendable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int; public var fileOperations: FileOperationSettings }   // CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
+public struct GlobalSettings: Codable, Sendable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int; public var fileOperations: FileOperationSettings; public var historyLimit: Int }   // historyLimit 默认 1000；CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
 extension PathRule { public static func matching(_ rules: [PathRule], for book: Location) -> [PathRule] }   // 越具体越靠后，相同时按原顺序；解析和设置窗口共用
 public struct PathRule: Codable, Sendable { public var id: UUID; public var name: String; public var prefix: Location; public var settings: BookSettings }
 public struct BookMemory: Codable, Sendable { public var book: Location; public var settings: BookSettings; public var lastPage: Location?; public var lastPageIndex: Int?; public var openedAt: Date }
@@ -602,11 +616,13 @@ public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
     public func changes() -> AsyncStream<DocumentChange>
 }   // 顶层 {"version": Int, "value": Value}；原子写入并监听外部修改，未来版本报 fileError；缺文件时首次 update 才写出
 public final class FileSettingsStore: SettingsStore { public init(directory: URL) throws; public func flush() async throws; public func relocateBookMemory(from: Location, to: Location) async }   // settings.json、path-rules.json 与 state.sqlite（书记忆），shutdown 调用 flush
-// relocateBookMemory 迁移单条记忆及其所属页面位置，覆盖目标已有值；Mock 也提供。
+// relocateBookMemory 按前缀迁移书位置及全部记忆中的 lastPage；目标已有记忆时保留目标。FileSettingsStore 与 Mock 一致。
 // keybindings.json 由 MVServices 用 JSONDocumentStore<KeyBindingsFile> 管理；App 可用同一存储管理 layout.json
 
 // MVCommands
 public struct CommandID: RawRepresentable, Hashable, Codable, Sendable { public var rawValue: String; public init(_ rawValue: String) }   // 例如 "page.next"，JSON 中为字符串
+// 资料库：bookmarkAdd = library.bookmark.add（⌘D）、playlistAddCurrent = library.playlist.addCurrent（⌘L），viewer/list，归“书”菜单。
+// playlistRemoveItem = library.playlist.removeItem，无默认键；historyToggle / bookmarksToggle / playlistToggle 为 global，⌥⌘4/5/6，归“窗口”菜单。
 // file.reveal 默认 ⌥⌘R（viewer、list）；viewer 的 ⇧⌘R 仍用于递归。
 public enum InputScope: String, Codable, Sendable { case global, viewer, list, textInput, classify }
 public struct KeyModifiers: OptionSet, Hashable, Codable, Sendable { public let rawValue: UInt8 /* command, option, control, shift, function */ }
@@ -687,6 +703,11 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public private(set) var book: Book?; public private(set) var frames: [PageFrame]; public private(set) var currentFrame: Int
     public private(set) var settings: ResolvedBookSettings; public private(set) var loadError: (any Error)?
     public func open(_ location: Location, at page: Location?) async
+    public var onBookOpened: (@MainActor (Location) -> Void)?   // 第一批非空页到达后，每次 open 调用一次
+    public var isVirtualBook: Bool { get }
+    public private(set) var unavailablePages: Set<Location>
+    public func setAvailability(_ results: [Location: Availability])   // 恢复可用时刷新身份并重新取图
+    public func reloadBook()   // 当前页还在则保持身份，否则停在原序号，越界取最后一页
     public func go(_ move: PageMove)
     public func applyFileChanges(_ changes: [FileChange])   // 组合根转发；递归新增页按平铺顺序插入
     public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async   // sort 是书架面板当前的排序，与书内页面的排序无关
@@ -705,7 +726,17 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
 public struct ReadingListing: Sendable { public static func isVisible(_ entry: Entry) -> Bool }   // 以 . 开头的名字不显示
 public enum ReadingOrder { public static func sorted(_ entries: [Entry], by sort: SortSpec) -> [Entry] }   // 书架和页面列表面板自己的排序用它
 
+// MVLibraryData：完整类型和方法签名以 Sources/MVLibraryData/LibraryTypes.swift 为准（见 §3.6 链接）。
+// SQLiteLibraryStore(databaseURL:historyLimit:) 实现 LibraryStore；flush() 冲刷 WAL。
+// AvailabilityChecker(sources:directories:store:).check(_:) 返回 AsyncStream<[Location: Availability]>。
+// PlaylistBookLoader(store:sources:directories:metadata:pipeline:) 符合 BookLoader，缺列表抛 IOError.notFound。
+// 快照 sorted → 容器独立校验 → 必要时原序 sorted、静默回写 → 元数据；不可用项交付占位尺寸且流结束。
+// apply 只迁移 moved，单事务并仅发 relocated；updateSnapshots 不改顺序、不通知；变化写成后广播给多订阅者。
+
 // MVServices
+public struct LibraryBookLoader: BookLoader {
+    public init(files: any BookLoader, playlists: any BookLoader)
+}   // playlistID 非 nil 时分派到列表加载器，其余走文件加载器；Mock 共用。
 public struct CoreConfiguration: Sendable {
     public var supportDirectory: URL; public var cacheDirectory: URL
     public var browseBounds: PixelSize; public var helperExecutable: URL?
@@ -713,16 +744,20 @@ public struct CoreConfiguration: Sendable {
 }   // browseBounds 由 App 提供显示器像素尺寸；helperExecutable 为辅助进程可执行文件
 @MainActor public final class CoreServices {
     public static func make(configuration: CoreConfiguration) async throws -> CoreServices
-    public convenience init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader)   // Mock 等消费方的构造入口
+    public convenience init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader, library: (any LibraryStore)? = nil)   // Mock 等消费方的构造入口
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
     public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?   // Mock 为 nil
     public let fileOperations: FileOperationService?   // Mock 为 nil
-    public func appliedFileChanges() -> AsyncStream<[FileChange]>   // 目录缓存、书记忆和活跃会话都处理完后再广播；支持多个订阅者，Mock 返回已结束的空流
+    public let library: (any LibraryStore)?   // make 为 SQLite；makeMock 为内存 MockLibraryStore
+    public let availability: AvailabilityChecker?   // Mock 为 nil
+    public func appliedFileChanges() -> AsyncStream<[FileChange]>   // 目录缓存、书记忆、资料库和活跃会话都处理完后再广播；支持多个订阅者，Mock 返回已结束的空流
     public func interruptedTransfersReport() async -> ResumeReport?   // 等待启动恢复并返回同一份结果；Mock 为 nil
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
-    public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
+    public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 资料库 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
-// 组合根订阅文件变更，依次更新已有目录缓存、迁移书或压缩包记忆并通知活跃会话；启动时异步恢复中断传输。
+// 组合根订阅文件变更：目录缓存 → 冲刷相关会话及待写历史 → 按每个 moved 迁移书记忆与 library.apply → 会话 → 广播。
+// makeSession 的 onBookOpened 记录历史；退出先等已排队的历史，再冲刷会话与持久化。启动时异步恢复中断传输。
+// library.items / playlistRemoved 重载所有打开对应列表的会话；relocated 不重载，快照回写不通知。
 // make 创建空 CommandRegistry，命令处理器由 App 登记。组合根统一订阅内存压力和全局设置变化：
 // warning/critical 将四块内存缓存收缩至预算的 50%/25% 并取消 background 预取；设置变化更新全部缓存预算，L3 开关下次启动生效。
 // MVTestSupport：extension CoreServices { static func makeMock(_ options: MockOptions = MockOptions()) -> CoreServices }

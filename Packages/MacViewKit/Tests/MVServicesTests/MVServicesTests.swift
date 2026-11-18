@@ -2,8 +2,9 @@ import Darwin
 import Foundation
 import MVCommands
 import MVFoundation
-import MVFileOps
+@testable import MVFileOps
 import MVMedia
+import MVLibraryData
 import MVPipeline
 import MVReading
 import MVSettings
@@ -378,6 +379,198 @@ import Testing
         session = nil
         #expect(weakSession == nil)
         await services.shutdown()
+    }
+
+    @Test("C1.14 历史接线及文件广播前已完成资料库迁移，删除撤销保留条目")
+    func libraryFileChanges() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let trashURL = fixture.root.appending(path: "trash")
+        try FileManager.default.createDirectory(at: trashURL, withIntermediateDirectories: true)
+        let trash = Location(root: .local, layers: [Array(trashURL.pathComponents.dropFirst())])
+        let services = try await CoreServices.make(configuration: fixture.configuration, fileOperations: { fs, journal in
+            try FileOperationService(fileSystem: fs, journalURL: journal, isNetwork: { _ in false }, volumeRoot: { _ in trash }, networkRoots: { [] }, trash: { source in
+                let target = trash.appending(source.name)
+                try await fs.rename(source, to: target, exclusive: true)
+                return target
+            })
+        })
+        let library = try #require(services.library)
+        let operations = try #require(services.fileOperations)
+        let folder = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        let zip = try await services.sources.location(for: fixture.zip)
+        let first = services.makeSession(), second = services.makeSession()
+        await first.open(folder, at: nil)
+        try await waitUntil { try await library.history().count == 1 }
+        await second.open(zip, at: nil)
+        try await waitUntil { try await library.history().map(\.book) == [zip, folder] }
+        _ = try await library.addBookmarks([folder], into: nil, at: nil)
+        let playlist = try await library.createPlaylist(named: "迁移")
+        _ = try await library.addItems([try #require(first.book?.pages[2].entry)], to: playlist)
+        let renamed = try #require(folder.parent).appending("renamed-library")
+        let stream = services.appliedFileChanges()
+        let observer = Task { @MainActor in
+            for await _ in stream {
+                #expect(try await library.history().contains { $0.book == renamed })
+                #expect(try await library.items(of: playlist).first?.location == renamed.appending("3.jpg"))
+                guard case let .book(_, location, _) = try await library.bookmarks().first else { Issue.record("书签缺失"); return }
+                #expect(location == renamed)
+                return
+            }
+        }
+        #expect((await operations.perform(.rename(folder, to: renamed.name))).failures.isEmpty)
+        try await observer.value
+        try await waitUntil { first.book?.location == renamed && first.book?.isEnumerated == true }
+        let page = renamed.appending("3.jpg")
+        // 只把系统废纸篓适配到工作区，删除、反向操作与通知均走真实服务。
+        var applied = services.appliedFileChanges().makeAsyncIterator()
+        let removed = await operations.perform(.delete([page]))
+        #expect(removed.failures.isEmpty && removed.changes == [.removed(page)])
+        #expect(!FileManager.default.fileExists(atPath: fixture.root.appending(path: "renamed-library/3.jpg").path))
+        _ = await applied.next()
+        #expect(try await library.items(of: playlist).map(\.location) == [page])
+        let inverse = try #require(removed.inverse)
+        #expect(inverse == .relocate([Relocation(source: trash.appending(page.name), target: page)]))
+        let restored = await operations.perform(inverse)
+        #expect(restored.failures.isEmpty)
+        if case let .moved(from, to) = restored.changes.first {
+            #expect(from == trash.appending(page.name) && to.location == page)
+        } else { Issue.record("撤销应广播 moved") }
+        _ = await applied.next()
+        #expect(try await library.items(of: playlist).map(\.location) == [page])
+        #expect(FileManager.default.fileExists(atPath: fixture.root.appending(path: "renamed-library/3.jpg").path))
+        await fixture.shutdown(services)
+    }
+
+    @Test("C1.15 两会话随列表增删排序更新，移除当前项保留序号，删除列表报找不到")
+    func libraryReloadsBothSessions() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let library = try #require(services.library)
+        let folder = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        var entries: [Entry] = []
+        for index in 1...5 { entries.append(try await services.sources.provider(for: folder).entry(at: folder.appending("\(index).jpg"))) }
+        // 真实压缩包内的页也经组合根分派到 PlaylistBookLoader。
+        let zip = try await services.sources.location(for: fixture.zip)
+        let zippedPage = zip.appendingLayer(["1.jpg"])
+        entries[4] = try await services.sources.provider(for: zippedPage).entry(at: zippedPage)
+        let id = try await library.createPlaylist(named: "双会话")
+        _ = try await library.addItems(Array(entries.prefix(4)), to: id)
+        let first = services.makeSession(), second = services.makeSession()
+        await first.open(.playlist(id), at: entries[2].location)
+        await second.open(.playlist(id), at: entries[2].location)
+        func settled(_ expected: [Entry], current: Location) async throws {
+            try await waitUntil {
+                [first, second].allSatisfy {
+                    $0.book?.pages.map(\.id) == expected.map(\.location) && $0.book?.isEnumerated == true &&
+                    $0.book?.pages[$0.currentPage].id == current
+                }
+            }
+        }
+        _ = try await library.addItems([entries[4]], to: id)
+        try await settled(entries, current: entries[2].location)
+        #expect(first.book?.pages.last?.metadata?.pixelSize == PixelSize(width: 480, height: 720))
+        try await library.removeItems([entries[0].location], from: id)
+        try await settled(Array(entries.dropFirst()), current: entries[2].location)
+        try await library.moveItems([entries[4].location], in: id, to: 0)
+        let reordered = [entries[4], entries[1], entries[2], entries[3]]
+        try await settled(reordered, current: entries[2].location)
+        try await library.removeItems([entries[2].location], from: id)
+        try await settled([entries[4], entries[1], entries[3]], current: entries[3].location)
+        #expect(first.currentPage == 2 && second.currentPage == 2)
+        try await library.deletePlaylist(id)
+        try await waitUntil { first.loadError as? IOError == .notFound(.playlist(id)) && second.loadError as? IOError == .notFound(.playlist(id)) }
+        await fixture.shutdown(services)
+    }
+
+    @Test("C1.22 文件迁移与快照回写不重载虚拟书，当前页跟随")
+    func libraryRelocationDoesNotReload() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let library = try #require(services.library)
+        let folder = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        let entry = try await services.sources.provider(for: folder).entry(at: folder.appending("2.jpg"))
+        let before = try await services.sources.provider(for: folder).entry(at: folder.appending("1.jpg"))
+        let after = try await services.sources.provider(for: folder).entry(at: folder.appending("3.jpg"))
+        let id = try await library.createPlaylist(named: "不重载")
+        var stale = entry
+        stale.identity.size += 1
+        _ = try await library.addItems([before, stale, after], to: id)
+        let counter = CountedLibraryLoader(base: services.loader)
+        let session = services.makeSession(loader: counter)
+        await session.open(.playlist(id), at: entry.location)
+        #expect(try await library.items(of: id) == [before, entry, after])
+
+        // 同一订阅流后面的列表变更作为屏障，证明前面的通知已处理。
+        let barrierID = try await library.createPlaylist(named: "通知屏障")
+        _ = try await library.addItems([before], to: barrierID)
+        let barrierSession = services.makeSession()
+        await barrierSession.open(.playlist(barrierID), at: nil)
+        var applied = services.appliedFileChanges().makeAsyncIterator()
+        let moved = await services.fileOperations?.perform(.rename(entry.location, to: "current.jpg"))
+        #expect(moved?.failures.isEmpty == true)
+        _ = await applied.next()
+        let target = folder.appending("current.jpg")
+        #expect(session.book?.pages.map(\.id) == [before.location, target, after.location])
+        #expect(session.currentPage == 1)
+        #expect(try await library.items(of: id).map(\.location) == [before.location, target, after.location])
+        try await library.updateSnapshots(try await library.items(of: id), in: id)
+        _ = try await library.addItems([after], to: barrierID)
+        try await waitUntil { barrierSession.book?.pages.count == 2 && barrierSession.book?.isEnumerated == true }
+        #expect(counter.count.withLock { $0 } == 1)
+        await fixture.shutdown(services)
+    }
+
+    @Test("C1.16 shutdown 落盘资料库；全局上限即时生效；Mock 内存资料库可列可加入可打开")
+    func libraryShutdownAndMock() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        #expect(services.library != nil && services.availability != nil)
+        let folder = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        let session = services.makeSession()
+        await session.open(folder, at: nil)
+        await fixture.shutdown(services)
+        let persisted = try SQLiteLibraryStore(databaseURL: fixture.configuration.supportDirectory.appending(path: "library.sqlite"), historyLimit: 1000)
+        #expect(try await persisted.history().map(\.book) == [folder])
+        let reopened = try await fixture.make()
+        let reopenedLibrary = try #require(reopened.library)
+        try await reopenedLibrary.recordOpened(folder.appending("other"), at: Date().addingTimeInterval(1))
+        try await reopened.settings.updateGlobal { $0.historyLimit = 1 }
+        try await waitUntil { try await reopenedLibrary.history().count == 1 }
+        await fixture.shutdown(reopened)
+
+        let mock = CoreServices.makeMock(MockOptions(timing: .instant))
+        #expect(mock.availability == nil)
+        let memory = try #require(mock.library as? MockLibraryStore)
+        let root = Location(root: MockTree.sample.root)
+        var books: [Entry] = []
+        for try await event in mock.bookshelf.items(in: root, sort: SortSpec(key: .name)) {
+            if case let .sorted(entries) = event { books = entries }
+        }
+        let book = try #require(books.first)
+        let regular = mock.makeSession()
+        await regular.open(book.location, at: nil)
+        let page = try #require(regular.book?.pages.first?.entry)
+        let id = try await memory.createPlaylist(named: "内存")
+        #expect(try await memory.addItems([page, page], to: id) == AddReport(added: 1, alreadyPresent: 1))
+        #expect(await memory.playlists().first?.count == 1)
+        let virtual = mock.makeSession()
+        await virtual.open(.playlist(id), at: nil)
+        #expect(virtual.loadError == nil && virtual.book?.pages.map(\.id) == [page.location])
+        await mock.shutdown()
+    }
+}
+
+private final class CountedLibraryLoader: BookLoader {
+    let base: any BookLoader
+    let count = Mutex(0)
+    init(base: any BookLoader) { self.base = base }
+    func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> {
+        count.withLock { $0 += 1 }
+        return base.load(location, settings: settings, startingAt: page)
     }
 }
 
