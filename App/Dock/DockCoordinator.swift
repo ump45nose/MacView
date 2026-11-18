@@ -289,6 +289,29 @@ final class DockCoordinator {
         }
     }
 
+    /// 区头 ⋯ 菜单里的“面板”勾选项：列出全部登记的面板，勾选 = 作为标签显示在这个区。
+    /// 勾上把面板放进这个区的末尾（原在别的区或浮动就移来）；取消即隐藏，位置保留。
+    func panelToggles(for edge: DockEdge, in dock: WindowDock) -> [NSMenuItem] {
+        DockPanels.all.map { type in
+            let isHere = dock.dockLayout.visiblePanels(in: edge).contains(type.id)
+            let item = MenuAction(type.title) { [weak self, weak dock] in
+                guard let self, let dock else { return }
+                setPanel(type.id, shownIn: edge, of: dock, !isHere)
+            }.item
+            item.state = isHere ? .on : .off
+            return item
+        }
+    }
+
+    private func setPanel(_ panel: PanelID, shownIn edge: DockEdge, of dock: WindowDock, _ shown: Bool) {
+        perform(in: dock) { layout in
+            let isHere = if case .docked(edge, _) = layout.placement(of: panel) { true } else { false }
+            // 已在这个区（只是隐藏）时原位显示，否则放到这个区的末尾。
+            if isHere { return layout.visiblePanels(in: edge).contains(panel) == shown ? layout : layout.togglingPanel(panel, defaultEdge: edge) }
+            return shown ? layout.moving(panel, to: .area(edge, index: layout.visiblePanels(in: edge).count)) : layout
+        }
+    }
+
     /// 标签的右键菜单。停靠的面板（`dock` 是所在窗口）：移到其他区、浮动、隐藏；浮动面板：停靠到活动窗口的各区、隐藏。
     func menu(for panel: PanelID, in dock: WindowDock?) -> NSMenu {
         let menu = NSMenu()

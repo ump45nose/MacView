@@ -121,6 +121,7 @@ func global<Value>(_ model: SettingsModel, _ path: WritableKeyPath<GlobalSetting
 struct BrowseSettingsPage: View {
     let model: SettingsModel
     let onEditRules: () -> Void
+    @State private var historyText = ""
 
     var body: some View {
         ScrollView {
@@ -167,9 +168,35 @@ struct BrowseSettingsPage: View {
                     .font(.system(size: 11))
                     .foregroundStyle(Color(nsColor: Theme.text2))
                     .padding(.horizontal, 12)
+                SettingsSection(title: String(localized: "历史")) {
+                    SettingsRow(title: String(localized: "保留最近"), detail: String(localized: "超过的旧记录立即删除，不影响书的阅读进度")) {
+                        HStack(spacing: 6) {
+                            TextField(String(localized: "历史保留本数"), text: $historyText)
+                                .labelsHidden()
+                                .textFieldStyle(.roundedBorder)
+                                .controlSize(.small)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 64)
+                                .onSubmit(commitHistory)
+                            Text("本")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color(nsColor: Theme.text2))
+                        }
+                    }
+                }
             }
             .padding(16)
         }
+        .onAppear { historyText = String(model.global.historyLimit) }
+        .onChange(of: model.global.historyLimit) { _, value in historyText = String(value) }
+        .onDisappear(perform: commitHistory)
+    }
+
+    private func commitHistory() {
+        if let value = Int(historyText.trimmingCharacters(in: .whitespaces)) {
+            model.setHistoryLimit(value)
+        }
+        historyText = String(model.global.historyLimit)
     }
 }
 

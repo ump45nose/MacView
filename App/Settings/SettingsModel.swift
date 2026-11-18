@@ -80,6 +80,11 @@ final class SettingsModel {
         updateGlobal { $0.maxDecodeLongSide = max(value, 1024) }
     }
 
+    /// 历史保留的本数：正整数；资料库服务在设置变化后立即按新上限裁剪。
+    func setHistoryLimit(_ value: Int) {
+        updateGlobal { $0.historyLimit = max(value, 1) }
+    }
+
     // MARK: 路径规则
 
     private func updateRules(_ change: (inout [PathRule]) -> Void) {
