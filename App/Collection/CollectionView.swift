@@ -147,7 +147,8 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         table.allowsColumnReordering = false
         table.allowsMultipleSelection = true
         table.setDraggingSourceOperationMask(.copy, forLocal: false)
-        table.setDraggingSourceOperationMask([], forLocal: true)
+        // App 内给 `.generic`，书签和播放列表面板按它接收位置（与画布一致）。
+        table.setDraggingSourceOperationMask(.generic, forLocal: true)
         table.dataSource = self
         table.delegate = self
         table.target = self

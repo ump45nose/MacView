@@ -87,6 +87,18 @@ enum DockPanels {
             id: classify, title: String(localized: "分类"), symbol: "tray.and.arrow.down",
             toggleCommand: .classifyPanelToggle, defaultEdge: .right, make: ClassifyPanel.init
         ),
+        DockPanelType(
+            id: PanelID("history"), title: String(localized: "历史"), symbol: "clock",
+            toggleCommand: .historyToggle, defaultEdge: .left, make: HistoryPanel.init
+        ),
+        DockPanelType(
+            id: PanelID("bookmarks"), title: String(localized: "书签"), symbol: "bookmark",
+            toggleCommand: .bookmarksToggle, defaultEdge: .left, make: BookmarksPanel.init
+        ),
+        DockPanelType(
+            id: PanelID("playlist"), title: String(localized: "播放列表"), symbol: "list.bullet.rectangle",
+            toggleCommand: .playlistToggle, defaultEdge: .right, make: PlaylistPanel.init
+        ),
     ]
 
     static func type(_ id: PanelID) -> DockPanelType? {

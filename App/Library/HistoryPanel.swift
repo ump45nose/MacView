@@ -72,7 +72,10 @@ final class HistoryPanel: NSObject, DockPanel, NSTableViewDataSource, NSTableVie
         countLabel.textColor = Theme.text2
         host.setInfo(String(localized: "最近打开"), accessory: countLabel)
         host.onShow = { [weak self] in self?.shown() }
-        host.onScroll = { [weak self] in self?.visibleRowsChanged() }
+        host.onScroll = { [weak self] in
+            self?.availability.scrolled()
+            self?.loadDetails()
+        }
         availability.view = host
         availability.visibleLocations = { [weak self] in self?.visibleLocations() ?? [] }
         availability.onChange = { [weak self] in self?.availabilityChanged() }
