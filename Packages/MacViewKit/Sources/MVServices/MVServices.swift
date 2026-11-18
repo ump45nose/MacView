@@ -235,7 +235,6 @@ public struct CoreConfiguration: Sendable {
                     do { try await self.library?.apply(batch) }
                     catch {
                         Self.log.error("迁移资料库失败：\(error.localizedDescription)")
-                        continue
                     }
                     guard !Task.isCancelled else { return }
                     self.sessions.removeAll { $0.value == nil }

@@ -270,11 +270,14 @@ struct MockPlaylistBookLoader: BookLoader {
                     catch LibraryError.notFound { throw IOError.notFound(location) }
                     continuation.yield(.sorted(entries.map { Page(entry: $0) }))
                     var values: [Location: ImageMetadata] = [:]
+                    var availability: [Location: Availability] = [:]
                     for entry in entries {
                         try Task.checkCancellation()
-                        values[entry.location] = (try? environment.media(at: entry.location).metadata)
-                            ?? ImageMetadata(pixelSize: PixelSize(width: 1000, height: 1414))
+                        let metadata = try? environment.media(at: entry.location).metadata
+                        values[entry.location] = metadata ?? ImageMetadata(pixelSize: PixelSize(width: 1000, height: 1414))
+                        availability[entry.location] = metadata == nil ? .missing : .available
                     }
+                    continuation.yield(.availability(availability))
                     continuation.yield(.metadata(values))
                     continuation.finish()
                 } catch { continuation.finish(throwing: error) }

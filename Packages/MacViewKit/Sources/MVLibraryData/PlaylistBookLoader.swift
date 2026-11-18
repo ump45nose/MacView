@@ -46,12 +46,13 @@ public final class PlaylistBookLoader: BookLoader {
                     for await event in containerEvents(groups) {
                         try Task.checkCancellation()
                         switch event {
-                        case let .validated(fresh):
+                        case let .validated(fresh, availability):
                             for entry in fresh {
                                 guard let index = indices[entry.location], entries[index] != entry else { continue }
                                 entries[index] = entry
                                 changed.append(entry)
                             }
+                            continuation.yield(.availability(availability))
                             validated += 1
                             if validated == groups.count, !changed.isEmpty {
                                 try await store.updateSnapshots(changed, in: id)
@@ -75,7 +76,7 @@ public final class PlaylistBookLoader: BookLoader {
     }
 
     private enum ContainerEvent: Sendable {
-        case validated([Entry])
+        case validated([Entry], [Location: Availability])
         case metadata([Location: ImageMetadata])
     }
 
@@ -118,13 +119,17 @@ public final class PlaylistBookLoader: BookLoader {
             }
         } catch {
             guard !Task.isCancelled else { return }
-            continuation.yield(.validated([]))
+            let state = libraryAvailability(error, root: container.location.root)
+            continuation.yield(.validated([], Dictionary(uniqueKeysWithValues: container.entries.map { ($0.location, state) })))
             continuation.yield(.metadata(Self.placeholders(container.entries)))
             return
         }
         let requested = Set(container.entries.map(\.location))
         let present = Dictionary(fresh.filter { requested.contains($0.location) }.map { ($0.location, $0) }, uniquingKeysWith: { _, new in new })
-        continuation.yield(.validated(Array(present.values)))
+        let availability = Dictionary(uniqueKeysWithValues: container.entries.map {
+            ($0.location, present[$0.location] == nil ? Availability.missing : .available)
+        })
+        continuation.yield(.validated(Array(present.values), availability))
         do {
             let values = try await libraryWithDeadline(deadline) { [self] in
                 let cached = (try? await metadata.values(in: container.location)) ?? [:]

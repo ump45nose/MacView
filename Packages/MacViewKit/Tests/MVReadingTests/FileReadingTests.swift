@@ -39,7 +39,7 @@ struct FileReadingTests {
                 #expect(sortedCount == 0)
                 if !sawPartial { #expect(pages.count > 0 && pages.count < 10_000); sawPartial = true }
             case let .sorted(pages): result = pages; sortedCount += 1
-            case .metadata: break
+            case .metadata, .availability: break
             }
         }
         #expect(sawPartial && sortedCount == 1)
@@ -52,6 +52,7 @@ struct FileReadingTests {
             case .appended: stages.append("appended")
             case .sorted: stages.append("sorted")
             case let .metadata(values): #expect(values.count == 10_000); stages.append("metadata")
+            case .availability: Issue.record("普通书不发可用性事件")
             }
         }
         #expect(stages == ["sorted", "metadata"])

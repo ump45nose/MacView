@@ -35,6 +35,8 @@ public enum BookLoadEvent: Sendable {
     case appended([Page])
     case sorted([Page])
     case metadata([Location: ImageMetadata])
+    /// 虚拟书按容器校验后的来源状态；占位元数据不代表来源可用。
+    case availability([Location: Availability])
 }
 
 public protocol BookLoader: Sendable {
