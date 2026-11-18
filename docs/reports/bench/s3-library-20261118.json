@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-18",
+  "configuration": "release",
+  "platform": "arm64-apple-macosx27.2.0",
+  "swift": "6.4.2",
+  "fixture": {
+    "directory_pages": 2988,
+    "zip_pages": 12,
+    "total": 3000
+  },
+  "read_ms": 43.685833,
+  "move_100_ms": 18.601209,
+  "threshold_ms": 50,
+  "samples": 1,
+  "order_verified_after_move": true
+}

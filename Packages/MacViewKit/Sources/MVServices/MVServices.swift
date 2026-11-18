@@ -6,6 +6,7 @@ import MVCommands
 import MVFoundation
 @_exported import MVFileOps
 import MVIO
+@_exported import MVLibraryData
 import MVMedia
 import MVPipeline
 import MVReading
@@ -34,13 +35,17 @@ public struct CoreConfiguration: Sendable {
     public let commands: CommandRegistry
     public let bookshelf: any Bookshelf
     public let fileOperations: FileOperationService?
+    public let library: (any LibraryStore)?
+    public let availability: AvailabilityChecker?
     public let keyBindings: JSONDocumentStore<KeyBindingsFile>?
-    private let loader: any BookLoader
+    let loader: any BookLoader
     let runtime: Runtime?
     private var sessions: [WeakSession] = []
     private var pressureSource: (any DispatchSourceMemoryPressure)?
     private var settingsTask: Task<Void, Never>?
     private var fileChangesTask: Task<Void, Never>?
+    private var libraryTask: Task<Void, Never>?
+    private var historyTasks: [UUID: Task<Void, Never>] = [:]
     private var recoveryTask: Task<ResumeReport, Never>?
     private var shutdownTask: Task<Void, Never>?
     nonisolated private let fileChangeObservers = Mutex<[UUID: AsyncStream<[FileChange]>.Continuation]>([:])
@@ -58,16 +63,19 @@ public struct CoreConfiguration: Sendable {
     /// 保留 Mock 与消费方现有的构造入口。
     public convenience init(
         sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore,
-        commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader
+        commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader,
+        library: (any LibraryStore)? = nil
     ) {
         self.init(sources: sources, pipeline: pipeline, settings: settings, commands: commands,
-                  bookshelf: bookshelf, loader: loader, keyBindings: nil, fileOperations: nil, runtime: nil)
+                  bookshelf: bookshelf, loader: loader, keyBindings: nil, fileOperations: nil,
+                  library: library, availability: nil, runtime: nil)
     }
 
     private init(
         sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore,
         commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader,
-        keyBindings: JSONDocumentStore<KeyBindingsFile>?, fileOperations: FileOperationService?, runtime: Runtime?
+        keyBindings: JSONDocumentStore<KeyBindingsFile>?, fileOperations: FileOperationService?,
+        library: (any LibraryStore)?, availability: AvailabilityChecker?, runtime: Runtime?
     ) {
         self.sources = sources
         self.pipeline = pipeline
@@ -77,10 +85,24 @@ public struct CoreConfiguration: Sendable {
         self.loader = loader
         self.keyBindings = keyBindings
         self.fileOperations = fileOperations
+        self.library = library
+        self.availability = availability
         self.runtime = runtime
+        subscribeLibrary()
+        let changes = settings.changes()
+        settingsTask = Task { [weak self] in
+            for await change in changes {
+                guard !Task.isCancelled else { return }
+                if change == .global { await self?.updateBudgets() }
+            }
+        }
     }
 
     public static func make(configuration: CoreConfiguration) async throws -> CoreServices {
+        try await make(configuration: configuration, fileOperations: nil)
+    }
+
+    static func make(configuration: CoreConfiguration, fileOperations factory: ((FileSystemProvider, URL) throws -> FileOperationService)?) async throws -> CoreServices {
         try FileManager.default.createDirectory(at: configuration.supportDirectory, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: configuration.cacheDirectory, withIntermediateDirectories: true)
         let settings = try FileSettingsStore(directory: configuration.supportDirectory)
@@ -102,11 +124,17 @@ public struct CoreConfiguration: Sendable {
                                          configuration: PipelineConfiguration(browseBounds: configuration.browseBounds, maxDecodeLongSide: global.maxDecodeLongSide))
         let keyBindings = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "keybindings.json"),
                                                version: 1, defaultValue: KeyBindingsFile())
-        let fileOperations = try FileOperationService(fileSystem: sources.fileSystem, journalURL: configuration.supportDirectory.appending(path: "transfers.json"))
+        let journal = configuration.supportDirectory.appending(path: "transfers.json")
+        let fileOperations = try factory?(sources.fileSystem, journal) ?? FileOperationService(fileSystem: sources.fileSystem, journalURL: journal)
+        let library = try SQLiteLibraryStore(databaseURL: configuration.supportDirectory.appending(path: "library.sqlite"), historyLimit: global.historyLimit)
+        let loader = LibraryBookLoader(
+            files: FileBookLoader(sources: sources, directories: directories, metadata: caches.metadata, pipeline: pipeline),
+            playlists: PlaylistBookLoader(store: library, sources: sources, directories: directories, metadata: caches.metadata, pipeline: pipeline))
         let services = CoreServices(sources: sources, pipeline: pipeline, settings: settings, commands: CommandRegistry(),
                                     bookshelf: FileBookshelf(sources: sources, directories: directories),
-                                    loader: FileBookLoader(sources: sources, directories: directories, metadata: caches.metadata, pipeline: pipeline),
-                                    keyBindings: keyBindings, fileOperations: fileOperations, runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches))
+                                    loader: loader, keyBindings: keyBindings, fileOperations: fileOperations,
+                                    library: library, availability: AvailabilityChecker(sources: sources, directories: directories, store: library),
+                                    runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches))
         services.subscribe(directories: directories)
         services.recoveryTask = Task { await fileOperations.resumeInterruptedTransfers() }
         return services
@@ -116,6 +144,8 @@ public struct CoreConfiguration: Sendable {
         pressureSource?.cancel()
         settingsTask?.cancel()
         fileChangesTask?.cancel()
+        libraryTask?.cancel()
+        historyTasks.values.forEach { $0.cancel() }
         recoveryTask?.cancel()
         let continuations = fileChangeObservers.withLock {
             let values = Array($0.values)
@@ -141,10 +171,43 @@ public struct CoreConfiguration: Sendable {
     }
 
     public func makeSession() -> ReaderSession {
+        makeSession(loader: loader)
+    }
+
+    func makeSession(loader: any BookLoader) -> ReaderSession {
         let session = ReaderSession(loader: loader, settings: settings, bookshelf: bookshelf, pipeline: pipeline)
+        session.onBookOpened = { [weak self] book in
+            guard let self, let library = self.library, self.shutdownTask == nil else { return }
+            let id = UUID(), date = Date()
+            self.historyTasks[id] = Task { [weak self] in
+                defer { self?.historyTasks.removeValue(forKey: id) }
+                guard !Task.isCancelled else { return }
+                do { try await library.recordOpened(book, at: date) }
+                catch { Self.log.error("记录历史失败：\(error.localizedDescription)") }
+            }
+        }
         sessions.removeAll { $0.value == nil }
         sessions.append(WeakSession(value: session))
         return session
+    }
+
+    private func subscribeLibrary() {
+        guard let library else { return }
+        let changes = library.changes()
+        libraryTask = Task { [weak self] in
+            for await change in changes {
+                guard !Task.isCancelled, let self else { return }
+                let id: UUID
+                switch change {
+                case let .items(value), let .playlistRemoved(value): id = value
+                default: continue
+                }
+                self.sessions.removeAll { $0.value == nil }
+                for session in self.sessions.compactMap(\.value) where session.book?.location.playlistID == id {
+                    session.reloadBook()
+                }
+            }
+        }
     }
 
     private func subscribe(directories: DirectoryCache) {
@@ -156,19 +219,25 @@ public struct CoreConfiguration: Sendable {
                     do { try await directories.apply(batch) }
                     catch { Self.log.error("更新目录缓存失败：\(error.localizedDescription)") }
                     let active = self.sessions.compactMap(\.value)
+                    for task in Array(self.historyTasks.values) { await task.value }
                     // 把会话中的最新页先写入旧位置，再迁移书记忆。
                     for session in active where batch.contains(where: { change in
-                        if case let .moved(from, _) = change { return session.book?.location == from }
+                        if case let .moved(from, _) = change {
+                            return session.book?.location.hasPrefix(from) == true || session.book?.pages.contains { $0.id.hasPrefix(from) } == true
+                        }
                         return false
                     }) { await session.flush() }
                     for change in batch {
                         if case let .moved(from, to) = change {
-                            switch to.kind {
-                            case .directory, .archive: await self.settings.relocateBookMemory(from: from, to: to.location)
-                            default: break
-                            }
+                            await self.settings.relocateBookMemory(from: from, to: to.location)
                         }
                     }
+                    do { try await self.library?.apply(batch) }
+                    catch {
+                        Self.log.error("迁移资料库失败：\(error.localizedDescription)")
+                        continue
+                    }
+                    guard !Task.isCancelled else { return }
                     self.sessions.removeAll { $0.value == nil }
                     for session in active { session.applyFileChanges(batch) }
                     let continuations = self.fileChangeObservers.withLock { Array($0.values) }
@@ -183,13 +252,6 @@ public struct CoreConfiguration: Sendable {
         }
         pressureSource = source
         source.resume()
-        let changes = settings.changes()
-        settingsTask = Task { [weak self] in
-            for await change in changes {
-                guard !Task.isCancelled else { return }
-                if change == .global { await self?.updateBudgets() }
-            }
-        }
     }
 
     func handleMemoryPressure(_ event: DispatchSource.MemoryPressureEvent) {
@@ -203,8 +265,10 @@ public struct CoreConfiguration: Sendable {
     }
 
     private func updateBudgets() async {
-        guard let runtime else { return }
         let global = await settings.global()
+        do { try await library?.setHistoryLimit(global.historyLimit) }
+        catch { Self.log.error("更新历史上限失败：\(error.localizedDescription)") }
+        guard let runtime else { return }
         let budget = global.cache
         guard !Task.isCancelled else { return }
         (pipeline as? FileImagePipeline)?.setMaxDecodeLongSide(global.maxDecodeLongSide)
@@ -225,6 +289,7 @@ public struct CoreConfiguration: Sendable {
         pressureSource?.cancel()
         settingsTask?.cancel()
         fileChangesTask?.cancel()
+        libraryTask?.cancel()
         recoveryTask?.cancel()
         let continuations = fileChangeObservers.withLock {
             let values = Array($0.values)
@@ -235,10 +300,16 @@ public struct CoreConfiguration: Sendable {
         let sessions = sessions.compactMap(\.value)
         let runtime = runtime
         let pipeline = pipeline
+        let library = library as? SQLiteLibraryStore
+        let historyTasks = Array(historyTasks.values)
         let task = Task {
             await withCheckedContinuation { continuation in
                 let completion = ShutdownCompletion(continuation)
                 let work = Task {
+                    for task in historyTasks {
+                        guard !Task.isCancelled else { return }
+                        await task.value
+                    }
                     for session in sessions {
                         guard !Task.isCancelled else { return }
                         await session.flush()
@@ -252,6 +323,9 @@ public struct CoreConfiguration: Sendable {
                         do { try await runtime.settings.flush() }
                         catch { Self.log.error("书记忆落盘失败：\(error.localizedDescription)") }
                         guard !Task.isCancelled else { return }
+                        do { try await library?.flush() }
+                        catch { Self.log.error("资料库落盘失败：\(error.localizedDescription)") }
+                        guard !Task.isCancelled else { return }
                         do { try await runtime.index.flush() }
                         catch { Self.log.error("缓存访问时间落盘失败：\(error.localizedDescription)") }
                         guard !Task.isCancelled else { return }
@@ -263,6 +337,7 @@ public struct CoreConfiguration: Sendable {
                     // 这是关闭期限，禁止计时器合并占用留给取消与返回的一百毫秒余量。
                     do { try await Task.sleep(for: .milliseconds(900), tolerance: .zero) } catch { return }
                     work.cancel()
+                    historyTasks.forEach { $0.cancel() }
                     (pipeline as? FileImagePipeline)?.beginShutdown()
                     runtime?.scheduler.shutdown()
                     completion.finish()
@@ -272,6 +347,16 @@ public struct CoreConfiguration: Sendable {
         }
         shutdownTask = task
         await task.value
+    }
+}
+
+/// 保持普通书与虚拟书共用同一会话入口。
+public struct LibraryBookLoader: BookLoader {
+    private let files: any BookLoader
+    private let playlists: any BookLoader
+    public init(files: any BookLoader, playlists: any BookLoader) { self.files = files; self.playlists = playlists }
+    public func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> {
+        (location.playlistID == nil ? files : playlists).load(location, settings: settings, startingAt: page)
     }
 }
 
