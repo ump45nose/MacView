@@ -175,7 +175,16 @@ private func deadlineUntil(timeout: Duration = .seconds(2), _ predicate: () -> B
     return predicate()
 }
 
-struct AvailabilityDeadlineTests {
+// C1.24 会故意占住真实数据库连接；与 100/150 ms 的时限测量互相隔离。
+// 每个检查项内部的多容器、重叠重查与读写并发仍照常运行。
+@Suite(.serialized)
+struct LibraryDataTests {
+    @Suite struct AvailabilityDeadlineTests {}
+    @Suite struct LibraryLoadingTests {}
+    @Suite struct LibraryStoreTests {}
+}
+
+extension LibraryDataTests.AvailabilityDeadlineTests {
     @Test("C1.24：真实数据库预读阻塞不阻挡其他容器，来源返回即交付并结束整批")
     func c124BlockedCacheDoesNotDelaySourceOrStream() async throws {
         let fixture = try DeadlineFixture()
