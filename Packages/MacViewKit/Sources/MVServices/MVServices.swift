@@ -285,6 +285,7 @@ public struct CoreConfiguration: Sendable {
     /// 留出调度余量；超时后取消剩余落盘步骤，并立即弃用辅助进程。
     public func shutdown() async {
         if let shutdownTask { await shutdownTask.value; return }
+        let timeoutAt = DispatchTime.now() + .milliseconds(900)
         pressureSource?.cancel()
         settingsTask?.cancel()
         fileChangesTask?.cancel()
@@ -332,15 +333,17 @@ public struct CoreConfiguration: Sendable {
                     }
                     completion.finish()
                 }
-                let deadline = Task.detached {
-                    // 这是关闭期限，禁止计时器合并占用留给取消与返回的一百毫秒余量。
-                    do { try await Task.sleep(for: .milliseconds(900), tolerance: .zero) } catch { return }
+                // 从 shutdown 入口计时；任务晚获调度不能把一秒总期限向后推。
+                let deadline = DispatchSource.makeTimerSource(flags: .strict, queue: .global(qos: .userInteractive))
+                deadline.schedule(deadline: timeoutAt, leeway: .nanoseconds(0))
+                deadline.setEventHandler { @Sendable in
                     work.cancel()
                     historyTasks.forEach { $0.cancel() }
                     (pipeline as? FileImagePipeline)?.beginShutdown()
                     runtime?.scheduler.shutdown()
                     completion.finish()
                 }
+                deadline.resume()
                 Task { await work.value; deadline.cancel() }
             }
         }
