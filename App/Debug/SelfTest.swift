@@ -507,12 +507,14 @@ final class SelfTestLog {
         print("\(condition ? "PASS" : "FAIL") \(message)")
     }
 
-    func snapshot(_ window: NSWindow, _ name: String) {
-        guard let output, let view = window.contentView?.superview else { return }
+    @discardableResult
+    func snapshot(_ window: NSWindow, _ name: String, captureImage: Bool = false) -> CGImage? {
+        guard output != nil || captureImage, let view = window.contentView?.superview else { return nil }
         view.layoutSubtreeIfNeeded()
         view.displayIfNeeded()
-        guard let image = view.renderedImage() else { return }
-        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: output.appendingPathComponent("\(name).png"))
+        guard let image = view.renderedImage() else { return nil }
+        if let output { try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: output.appendingPathComponent("\(name).png")) }
+        return image
     }
 
     /// 打印汇总行，返回失败数（用作退出码）。汇总行带上被测构建的源码提交和 cdhash，结果和构建绑定。

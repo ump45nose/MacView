@@ -198,6 +198,14 @@ final class LibraryAvailability {
 
     func state(of location: Location) -> Availability? { states[location] }
 
+    #if DEBUG
+    func probe(_ location: Location) -> [String: String] {
+        let token = generation[location]
+        return ["generation": token.map(String.init) ?? "none", "pending": String(token.flatMap { checks[$0] } != nil),
+                "state": states[location].map { String(describing: $0) } ?? "none"]
+    }
+    #endif
+
     /// 换服务（窗口）时重新订阅；同一个服务不重复订阅。
     func attach(_ services: CoreServices?) {
         guard services !== self.services else { return }
