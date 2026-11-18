@@ -231,9 +231,9 @@ public final class ReaderSession {
     }
 
     /// 虚拟书保留列表中的项，文件变更只更新其位置、身份和可用状态。
-    private func applyVirtualFileChanges(_ changes: [FileChange]) {
+    private func applyVirtualFileChanges(_ changes: [FileChange], recordLoadingChanges: Bool = true) {
         guard var pages = book?.pages else { return }
-        if loadTask != nil { loadingFileChanges.append(contentsOf: changes) }
+        if recordLoadingChanges, loadTask != nil { loadingFileChanges.append(contentsOf: changes) }
         var pending: [Entry] = []
         var recovering: Set<Location> = []
         var needsValidation: Set<Location> = []
@@ -249,6 +249,7 @@ public final class ReaderSession {
                     entryRecoveryTokens.removeValue(forKey: page.id)
                 }
             case let .moved(from, to):
+                if let anchor, let destination = Self.rebased(anchor, from: from, to: to.location) { self.anchor = destination }
                 pending.removeAll { $0.location.hasPrefix(from) || $0.location.hasPrefix(to.location) }
                 recovering = recovering.filter { !$0.hasPrefix(from) && !$0.hasPrefix(to.location) }
                 needsValidation = needsValidation.filter { !$0.hasPrefix(from) && !$0.hasPrefix(to.location) }
@@ -257,7 +258,6 @@ public final class ReaderSession {
                 pages = pages.compactMap { page in
                     var result = page
                     if moving.contains(page.id), let destination = Self.rebased(page.id, from: from, to: to.location) {
-                        if anchor == page.id { anchor = destination }
                         let wasUnavailable = unavailablePages.remove(page.id) != nil
                         refreshingPages.remove(page.id)
                         entryRecoveryTokens.removeValue(forKey: page.id)
@@ -564,7 +564,23 @@ public final class ReaderSession {
     private func applyLoading(_ event: BookLoadEvent) {
         guard isVirtualBook else { apply(event); return }
         switch event {
-        case let .sorted(pages): apply(.sorted(relocatedLoadingPages(pages)))
+        case let .sorted(pages):
+            if book?.pages.isEmpty == true, !loadingFileChanges.isEmpty {
+                // 首批页前到达的变更尚未作用于任何页；快照到达后重放，先占位再生成取图计划。
+                // 读库可能已看到迁移后的位置，删除前缀也要跟随同批后续的移动。
+                var removed: [Location] = []
+                for change in loadingFileChanges {
+                    switch change {
+                    case let .removed(location): removed.append(location)
+                    case let .moved(from, to): removed = removed.map { Self.rebased($0, from: from, to: to.location) ?? $0 }
+                    case .added: break
+                    }
+                }
+                unavailablePages.formUnion(pages.filter { page in removed.contains { page.id.hasPrefix($0) } }.map(\.id))
+                book?.pages = pages
+                applyVirtualFileChanges(loadingFileChanges, recordLoadingChanges: false)
+                apply(.sorted(book?.pages ?? []))
+            } else { apply(.sorted(relocatedLoadingPages(pages))) }
         case let .metadata(values):
             // 实时变更已刷新身份，在途的旧位置结果不能盖过它。
             let values = values.filter { location, _ in
