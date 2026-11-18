@@ -681,16 +681,17 @@ final class PlaylistPanel: NSObject, DockPanel, PlaylistSelectionSource, NSTable
         }
         let locations = LibraryPasteboard.locations(from: info.draggingPasteboard)
         guard !locations.isEmpty, let app = NSApp.delegate as? AppDelegate else { return false }
-        let entries = LibraryActions.entries(for: locations, app: app)
         var present = Set(items.map(\.location))
         let added = locations.filter { present.insert($0).inserted }
         let insertAt = row
         let atEnd = row >= items.count
         Task {
-            await LibraryActions.addToPlaylist(entries, playlist: id, app: app)
-            // 存储只能加在末尾，放下的位置不在末尾时再把新加的项移过去。
-            guard !atEnd, !added.isEmpty else { return }
-            try? await library.moveItems(added, in: id, to: insertAt)
+            do {
+                let entries = try await LibraryActions.entries(for: locations, app: app)
+                guard await LibraryActions.addToPlaylist(entries, playlist: id, app: app) else { return }
+                // 存储只能加在末尾；放到中间时再移动，失败明确提示。
+                if !atEnd, !added.isEmpty { try await library.moveItems(added, in: id, to: insertAt) }
+            } catch { LibraryActions.showMessage(ErrorText.describe(error), app: app) }
         }
         return true
     }

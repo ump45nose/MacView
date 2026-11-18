@@ -509,8 +509,12 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
 
     func pasteboardWriter(forItemAt index: Int) -> (any NSPasteboardWriting)? {
         guard items.indices.contains(index) else { return nil }
-        return (NSApp.delegate as? AppDelegate)?.fileOps?.pasteboardWriter(forItemAt: index, in: self)
+        guard let writer = (NSApp.delegate as? AppDelegate)?.fileOps?.pasteboardWriter(forItemAt: index, in: self) else { return nil }
+        return wrapDragWriter?(index, writer) ?? writer
     }
+
+    /// 表格与画布共用同一条拖出路径，保留原文件 URL 或文件承诺并附加 App 内数据。
+    var wrapDragWriter: ((Int, any NSPasteboardWriting) -> any NSPasteboardWriting)?
 
     func draggingWriters(forItemAt index: Int) -> [(index: Int, writer: any NSPasteboardWriting)] {
         guard items.indices.contains(index) else { return [] }

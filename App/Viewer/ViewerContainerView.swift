@@ -87,8 +87,14 @@ final class ViewerContainerView: NSView, InputScoped {
         hud.onZoom = { [weak self] factor in self?.zoom(by: factor) }
         continuous.onEnterPaged = { [weak self] page in self?.enterPaged(at: page) }
         continuous.unavailableReason = { [weak self] location in
-            if case .volumeUnavailable = self?.paged.availability[location] { return String(localized: "网络卷没有连接") }
-            return String(localized: "找不到原文件")
+            if case let .volumeUnavailable(root) = self?.paged.availability[location] { return .volume(root) }
+            if self?.session.unavailablePages.contains(location) == true { return .missing }
+            return .failed(String(localized: "无法读取原文件"))
+        }
+        continuous.onPageFailure = { [weak self] location in self?.recheckAvailability { $0 == location } }
+        continuous.onRemoveUnavailable = { [weak self] location in
+            guard let id = self?.session.book?.location.playlistID, let app = NSApp.delegate as? AppDelegate else { return }
+            Task { await LibraryActions.removeFromPlaylist([location], playlist: id, app: app) }
         }
         continuous.canvas.onContextMenu = { [weak self] index in
             guard let self, let index, let pages = session.book?.pages, pages.indices.contains(index) else { return nil }

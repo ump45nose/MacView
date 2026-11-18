@@ -123,13 +123,16 @@ enum LibraryActions {
 
     // MARK: 播放列表
 
-    static func addToPlaylist(_ entries: [Entry], playlist: UUID, app: AppDelegate) async {
-        guard !entries.isEmpty, let library = app.services?.library else { return }
+    @discardableResult
+    static func addToPlaylist(_ entries: [Entry], playlist: UUID, app: AppDelegate) async -> Bool {
+        guard !entries.isEmpty, let library = app.services?.library else { return false }
         do {
             let name = try await library.playlists().first { $0.id == playlist }?.name ?? ""
             try await add(entries, to: playlist, named: name, library: library, app: app)
+            return true
         } catch {
             showMessage(ErrorText.describe(error), app: app)
+            return false
         }
     }
 
@@ -189,18 +192,18 @@ enum LibraryActions {
         }
     }
 
-    /// 拖进播放列表的位置换成条目：从打开的书里取（拖动来源是页面列表），取不到的按位置补一个，加载列表时会重新校验。
-    static func entries(for locations: [Location], app: AppDelegate) -> [Entry] {
+    /// 拖进播放列表的位置换成真实条目；拖动期间来源窗口换书时，向来源重新读取，不伪造身份。
+    static func entries(for locations: [Location], app: AppDelegate) async throws -> [Entry] {
         var known: [Location: Entry] = [:]
         for controller in app.controllers {
             for page in controller.session.book?.pages ?? [] { known[page.id] = page.entry }
         }
-        return locations.map { location in
-            known[location] ?? Entry(
-                identity: ContentIdentity(location: location, size: 0, modificationNanos: 0),
-                name: location.name, kind: EntryKind(fileName: location.name)
-            )
+        var result: [Entry] = []
+        for location in locations {
+            if let entry = known[location] { result.append(entry) }
+            else if let sources = app.services?.sources { result.append(try await sources.provider(for: location).entry(at: location)) }
         }
+        return result
     }
 
     // MARK: 打开所在的书

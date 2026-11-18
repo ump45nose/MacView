@@ -64,6 +64,8 @@ final class LibrarySelfTest {
         do {
             try await makeBooks()
             try await layoutChecks()
+            try await dragPayloadChecks()
+            try await pageRecheckChecks(interactive: false)
             guard TestPresentation.activationAllowed, await until("App 进入前台", attempts: 1200, condition: { NSApp.isActive }) else {
                 throw Failure(description: "资料库自检需要前台；请解锁屏幕并加 -\(TestPresentation.activateKey) YES，经 open -n 启动")
             }
@@ -76,6 +78,7 @@ final class LibrarySelfTest {
             try await playlistEditChecks()
             try await deleteChecks()
             try await relocateChecks()
+            try await pageRecheckChecks(interactive: true)
             try await clearChecks()
         } catch { log.check(false, "资料库自检中断：\(error)") }
         skip("C2.1、C2.2、C2.12 重启后保持：要重启 App；历史、书签、列表的持久化由 MVLibraryData 单元测试 c12–c14 覆盖，布局由 -MVDockSelfTest restore 覆盖")
@@ -123,6 +126,29 @@ final class LibrarySelfTest {
         shelfView = shelf.collection
         await settle()
         log.snapshot(window, "library-empty")
+    }
+
+    /// 先验证生产拖出路径写出的类型；这一步不冒充跨面板真实放下。
+    private func dragPayloadChecks() async throws {
+        await open("alpha")
+        let board = NSPasteboard.withUniqueName()
+        defer { board.releaseGlobally() }
+        guard let shelf = controller.dock.panels[DockPanels.bookshelf] as? BookshelfPanel else { throw Failure(description: "没有书架") }
+        for style in CollectionStyle.allCases {
+            shelf.setStyle(style)
+            await settle()
+            guard let index = shelfView.items.firstIndex(where: { $0.name == "bravo" }), let writer = shelfView.pasteboardWriter(forItemAt: index) else { throw Failure(description: "没有书架拖出写入器") }
+            board.clearContents(); board.writeObjects([writer])
+            log.check(LibraryPasteboard.locations(from: board) == [book("bravo")] && board.availableType(from: [.fileURL]) != nil,
+                      "C2.7 \(style) 的生产拖出保留文件 URL 与内部位置")
+        }
+        shelf.setStyle(.list)
+        await open("charlie.zip")
+        guard let writer = pageList.collection?.pasteboardWriter(forItemAt: 0) else { throw Failure(description: "没有 ZIP 页拖出写入器") }
+        board.clearContents(); board.writeObjects([writer])
+        log.check(writer is NSFilePromiseProvider && LibraryPasteboard.locations(from: board) == [controller.session.book!.pages[0].id], "ZIP 页生产拖出保留文件承诺与内部位置")
+        app.fileOps?.dragSessionEnded(operation: [])
+        await open("alpha")
     }
 
     // MARK: C2.1 历史、C2.13 上限
@@ -173,6 +199,7 @@ final class LibrarySelfTest {
         await drag(from: start, to: outline.convert(NSPoint(x: outline.bounds.midX, y: 30), to: nil))
         let dropped = await until("拖进书签") { await self.tree() == "bravo" }
         log.check(dropped, "C2.7 从书架拖一本书进书签面板：\(await tree())")
+        guard dropped else { throw Failure(description: "书架拖入书签失败，停止依赖该书签的后续断言") }
         log.check(await message(String(localized: "已加入书签：\("bravo")")), "C2.7 加入后状态栏提示“已加入书签”")
 
         window.makeFirstResponder(controller.viewer)
@@ -495,6 +522,54 @@ final class LibrarySelfTest {
         log.check(playable && session.unavailablePages.isEmpty, "C2.11 移动后的页在虚拟书里能打开")
     }
 
+    /// 当前页帧之外的可见行必须独立重查；同一批缺页在瀑布流里必须有可点的操作。
+    private func pageRecheckChecks(interactive: Bool) async throws {
+        let bookName = interactive ? "bravo-2" : "bravo"
+        let id = try await library.createPlaylist(named: "recheck")
+        let locations = (1...4).map { book("alpha").appending(String(format: "%03d.png", $0)) }
+            + (1...2).map { book(bookName).appending(String(format: "%03d.png", $0)) }
+        let entries = try await LibraryActions.entries(for: locations, app: app)
+        _ = try await library.addItems(entries, to: id)
+        _ = await until("重查列表出现") { self.playlist.lists.contains { $0.id == id } }
+        await choose(id)
+        guard let play = button(String(localized: "▶ 当书打开"), in: playlist.view) else { throw Failure(description: "找不到当书打开") }
+        if interactive { await click(center(of: play)) } else { controller.openBook(.playlist(id)) }
+        _ = await until("打开重查列表") { self.controller.session.book?.pages.count == 6 && self.pageList.collection?.items.count == 6 && self.controller.session.book?.pages.allSatisfy { $0.metadata != nil } == true }
+        let table = tableView(in: pageList.collection!)
+        table.scrollRowToVisible(5)
+        await settle()
+        let original = shelf.appending(path: bookName), away = temporary.appending(path: "recheck-away")
+        try fm.moveItem(at: original, to: away)
+        defer { if exists(away) { try? fm.moveItem(at: away, to: original) } }
+        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: NSApp)
+        log.check(await until("页面列表远处行重查") { self.pageList.collection?.items.last?.failure != nil }
+                  && controller.session.currentPage == 0, "页面列表：App 激活时重查当前页帧以外的可见行并灰显")
+        window.makeFirstResponder(controller.viewer)
+        if interactive {
+            await sendKey(kVK_End)
+            await sendKey(kVK_ANSI_2, [.command])
+        } else {
+            controller.session.go(.index(5))
+            controller.session.update { $0.browseMode = .waterfall }
+        }
+        let shown = await until("瀑布流占位操作") { self.placeholders().contains { $0.reason == .missing } }
+        log.check(shown, "C2.15 瀑布流缺页显示原因和移除操作")
+        log.snapshot(window, "library-waterfall-placeholder")
+        if let view = placeholders().first, let remove = button(String(localized: "从列表移除"), in: view) {
+            log.check(!remove.isHiddenOrHasHiddenAncestor, "C2.15 瀑布流占位页的移除按钮可见")
+            if interactive {
+                await click(center(of: remove))
+                log.check(await until("瀑布流移除") { (try? await self.library.items(of: id).count) == 5 }, "C2.15 瀑布流占位页可直接从列表移除")
+            }
+        } else { log.check(false, "瀑布流占位页没有移除按钮") }
+        try fm.moveItem(at: away, to: original)
+        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: NSApp)
+        log.check(await until("页面列表恢复") { self.pageList.collection?.items.allSatisfy { $0.failure == nil } == true }, "页面列表：App 激活重查后缺页恢复")
+        try await library.deletePlaylist(id)
+        if interactive { await choose(listA) }
+        await open("alpha")
+    }
+
     // MARK: C2.4 删除列表、C2.1 清空历史
 
     private func clearChecks() async throws {
@@ -519,6 +594,14 @@ final class LibrarySelfTest {
         let cleared = await until("清空历史") { self.history.entries.isEmpty }
         let memory = await services.settings.bookMemory(for: book("alpha"))?.lastPageIndex
         log.check(cleared && memory == 2 && texts(in: history.view).contains(String(localized: "还没有历史")), "C2.1 清空后历史为空，alpha 的上次看到的页仍是第 \((memory ?? -1) + 1) 页")
+        guard let restored = app.newWindow() else { throw Failure(description: "打不开恢复窗口") }
+        restored.openBook(book("alpha"), restoring: true)
+        _ = await until("恢复打开 alpha") { restored.session.book?.isEnumerated == true && restored.session.currentPage == 2 }
+        await settle()
+        log.check((try await library.history()).isEmpty, "C2.1 恢复会话不重新写回已清空的历史")
+        restored.openBook(book("echo"))
+        log.check(await until("主动打开仍记历史") { (try? await self.library.history().map(\.book.name)) == ["echo"] }, "C2.1 恢复之后主动打开别的书仍记录历史")
+        restored.window?.close()
     }
 
     // MARK: 测试书
@@ -716,13 +799,19 @@ final class LibrarySelfTest {
     /// 拖放：mouseDown 的跟踪循环取到排队的拖动事件后发起真实拖动会话，会话再从队列里取后面的拖动和 mouseUp。
     private func drag(from start: NSPoint, to end: NSPoint) async {
         window.displayIfNeeded()
+        // AppKit 拖放管理器读取全局指针位置；合成事件本身不会移动指针。
+        let cursor = NSEvent.mouseLocation
+        defer { movePointer(toScreen: cursor) }
+        movePointer(toScreen: window.convertPoint(toScreen: start))
         eventNumber += 1
         let number = eventNumber
         NSApp.postEvent(mouse(.leftMouseDragged, at: NSPoint(x: start.x + 8, y: start.y - 8), in: window, number: number), atStart: false)
         NSApp.sendEvent(mouse(.leftMouseDown, at: start, in: window, number: number))
         for step in 1...8 {
             let t = CGFloat(step) / 8
-            NSApp.postEvent(mouse(.leftMouseDragged, at: NSPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t), in: window, number: number), atStart: false)
+            let point = NSPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t)
+            movePointer(toScreen: window.convertPoint(toScreen: point))
+            NSApp.postEvent(mouse(.leftMouseDragged, at: point, in: window, number: number), atStart: false)
             try? await Task.sleep(for: .milliseconds(50))
         }
         try? await Task.sleep(for: .milliseconds(150))
@@ -731,6 +820,10 @@ final class LibrarySelfTest {
         // 拖动会话结束后窗口吞掉下一次 mouseDown：在信息行上补一次空点击。
         sendClick(history.view.convert(NSPoint(x: 20, y: 14), to: nil), in: window)
         try? await Task.sleep(for: .milliseconds(100))
+    }
+
+    private func movePointer(toScreen point: NSPoint) {
+        CGWarpMouseCursorPosition(CGPoint(x: point.x, y: (NSScreen.screens.first?.frame.maxY ?? 0) - point.y))
     }
 
     private func sendKey(_ keyCode: Int, _ flags: NSEvent.ModifierFlags = []) async {
@@ -780,7 +873,8 @@ final class LibrarySelfTest {
     /// 等条件成立，最多 6 秒；超时只打印，结果由随后的检查判定。
     @discardableResult
     private func until(_ description: String, attempts: Int = 240, condition: () async -> Bool) async -> Bool {
-        for _ in 0..<attempts {
+        let deadline = ContinuousClock.now + .milliseconds(25 * attempts)
+        while ContinuousClock.now < deadline {
             if await condition() { return true }
             try? await Task.sleep(for: .milliseconds(25))
         }

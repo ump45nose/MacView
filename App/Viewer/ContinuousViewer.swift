@@ -37,8 +37,11 @@ final class ContinuousViewer: NSView {
     var onWaterfallExtentChange: (() -> Void)?
     /// 单击瀑布流的页、条里的视频：进入分页。
     var onEnterPaged: ((Int) -> Void)?
-    /// 虚拟书里不可用的页的原因，显示在占位项的错误标记下面。
-    var unavailableReason: ((Location) -> String)?
+    /// 虚拟书的占位页与分页模式共用原因和操作。
+    var unavailableReason: ((Location) -> UnavailablePageView.Reason)?
+    var onPageFailure: ((Location) -> Void)?
+    var onRemoveUnavailable: ((Location) -> Void)?
+    private var placeholders: [Location: UnavailablePageView] = [:]
 
     init(session: ReaderSession, pipeline: any ImagePipeline, settings: any SettingsStore, bookshelf: any Bookshelf) {
         self.session = session
@@ -63,6 +66,10 @@ final class ContinuousViewer: NSView {
         progress.isHidden = true
         canvas.onVisibleRangeChange = { [weak self] range in self?.visibleChanged(range.visible) }
         canvas.onActivate = { [weak self] index in self?.activate(index) }
+        canvas.onImageFailure = { [weak self] location in
+            self?.onPageFailure?(location)
+            self?.updatePlaceholders()
+        }
         canvas.onItemExtentChange = { [weak self] extent in
             if self?.mode == .waterfall { self?.waterfallExtent = extent }
         }
@@ -81,6 +88,12 @@ final class ContinuousViewer: NSView {
     }
 
     override var isFlipped: Bool { true }
+
+    override func layout() {
+        super.layout()
+        canvas.layoutSubtreeIfNeeded()
+        updatePlaceholders()
+    }
 
     /// 会话状态变化后调用。
     func refresh() {
@@ -112,10 +125,11 @@ final class ContinuousViewer: NSView {
                 aspectRatio: page.metadata.flatMap { $0.pixelSize.height > 0 && $0.pixelSize.width > 0 ? Double($0.pixelSize.width) / Double($0.pixelSize.height) : nil },
                 badge: page.entry.kind == .video && !isUnavailable ? page.metadata?.duration.map(Self.duration) : nil,
                 isFailed: isUnavailable,
-                failureText: isUnavailable ? unavailableReason?(page.id) : nil
+                failureText: nil
             )
         }
         if items != canvas.items { canvas.setItems(items) }
+        updatePlaceholders()
         updateFooter(current)
         position(current)
         scaleLabel.isHidden = settings.browseMode == .waterfall
@@ -135,6 +149,8 @@ final class ContinuousViewer: NSView {
         knownPage = nil
         canvas.footerView = nil
         canvas.setItems([])
+        placeholders.values.forEach { $0.removeFromSuperview() }
+        placeholders = [:]
         neighborTask?.cancel()
     }
 
@@ -185,6 +201,7 @@ final class ContinuousViewer: NSView {
     }
 
     private func visibleChanged(_ visible: Range<Int>) {
+        updatePlaceholders()
         guard targetPage == nil, !visible.isEmpty else { return }
         if let pin = pinned, pin.visible == visible { return }
         pinned = nil
@@ -197,6 +214,31 @@ final class ContinuousViewer: NSView {
         guard let pages = session.book?.pages, pages.indices.contains(index) else { return }
         if session.settings.browseMode == .waterfall || pages[index].entry.kind == .video {
             onEnterPaged?(index)
+        }
+    }
+
+    /// 只给可见的失败页放真实控件；瀑布流和长条均能直接移除或连接。
+    private func updatePlaceholders() {
+        guard session.isVirtualBook, let pages = session.book?.pages, let document = canvas.documentView else {
+            placeholders.values.forEach { $0.removeFromSuperview() }
+            placeholders = [:]
+            return
+        }
+        var wanted: Set<Location> = []
+        for index in canvas.visibleRange.visible where pages.indices.contains(index) && canvas.isFailed(at: index) {
+            guard let frame = canvas.frame(of: index) else { continue }
+            let location = pages[index].id
+            wanted.insert(location)
+            let view = placeholders[location] ?? UnavailablePageView()
+            if view.superview == nil { document.addSubview(view) }
+            view.show(unavailableReason?(location) ?? .failed(String(localized: "无法读取原文件")))
+            view.onRemove = { [weak self] in self?.onRemoveUnavailable?(location) }
+            view.frame = frame
+            placeholders[location] = view
+        }
+        for (location, view) in placeholders where !wanted.contains(location) {
+            view.removeFromSuperview()
+            placeholders[location] = nil
         }
     }
 

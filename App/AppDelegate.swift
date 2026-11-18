@@ -293,7 +293,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func restore(_ tab: SessionSnapshot.Tab, in controller: ReaderWindowController) {
         if let layout = tab.dock { dock?.restore(controller.dock, layout: layout) }
         if let extent = tab.waterfallExtent { controller.viewer.continuous.waterfallExtent = extent }
-        if let book = tab.book { controller.openBook(book) }
+        if let book = tab.book { controller.openBook(book, restoring: true) }
     }
 
     func scheduleSessionSave() {

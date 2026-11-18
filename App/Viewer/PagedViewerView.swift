@@ -778,6 +778,7 @@ final class UnavailablePageView: NSView {
     private let detail = NSTextField(wrappingLabelWithString: "")
     private let connect = UnavailablePageView.button(String(localized: "连接"))
     private let remove = UnavailablePageView.button(String(localized: "从列表移除"))
+    private let buttons = NSStackView()
     private var mountURL: URL?
     private(set) var reason: Reason?
     var onRemove: (() -> Void)?
@@ -797,7 +798,8 @@ final class UnavailablePageView: NSView {
         connect.action = #selector(connectPressed)
         remove.target = self
         remove.action = #selector(removePressed)
-        let buttons = NSStackView(views: [connect, remove])
+        buttons.addArrangedSubview(connect)
+        buttons.addArrangedSubview(remove)
         buttons.spacing = 6
         let stack = NSStackView(views: [title, detail, buttons])
         stack.orientation = .vertical
@@ -825,6 +827,12 @@ final class UnavailablePageView: NSView {
 
     override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
+
+    override func layout() {
+        let orientation: NSUserInterfaceLayoutOrientation = bounds.width < 320 ? .vertical : .horizontal
+        if buttons.orientation != orientation { buttons.orientation = orientation }
+        super.layout()
+    }
 
     override func updateLayer() {
         layer?.backgroundColor = Theme.well.cgColor

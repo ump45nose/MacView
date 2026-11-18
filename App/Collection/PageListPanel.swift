@@ -11,9 +11,7 @@ final class PageListPanel: CollectionPanel {
     /// 显示顺序到书内页码。
     private var order: [Int] = []
     private var observedSession: SessionID?
-    /// 虚拟书里已交给检查器的页；换书时清空，只查新出现在可见区的页。
-    private var checkedPages: Set<Location> = []
-    private var checkedBook: Location?
+    private let availability = LibraryAvailability()
     private var visibleRange = 0..<0
 
     override var followsBook: Bool { true }
@@ -22,6 +20,16 @@ final class PageListPanel: CollectionPanel {
     }
 
     override func windowChanged() {
+        availability.view = view
+        availability.visibleLocations = { [weak self] in
+            guard let self, owner?.session.isVirtualBook == true else { return [] }
+            return entries(at: Array(visibleRange.clamped(to: 0..<order.count))).map(\.location)
+        }
+        availability.onChange = { [weak self] in
+            guard let self, owner?.session.isVirtualBook == true else { return }
+            owner?.session.setAvailability(availability.states)
+        }
+        availability.attach(owner?.services)
         observedSession = boundSession
         observeBook()
         observeCurrent()
@@ -110,24 +118,16 @@ final class PageListPanel: CollectionPanel {
 
     override func visibleRangeChanged(_ range: Range<Int>) {
         visibleRange = range
-        checkVisiblePages()
+        availability.scrolled()
     }
 
-    /// 虚拟书：把可见区里还没查过的页交给检查器，结果交回会话，不可用的页随之变灰。
+    override func shown() { availability.recheckAll() }
+
+    /// 复用面板检查器的显示、滚动、激活、卷状态和文件变更重查。
     private func checkVisiblePages() {
-        guard let session = owner?.session, session.isVirtualBook, let book = session.book,
-              let checker = owner?.services.availability else { return }
-        if checkedBook != book.location {
-            checkedBook = book.location
-            checkedPages = []
-        }
-        let range = visibleRange.clamped(to: 0..<order.count)
-        let pages = entries(at: Array(range)).map(\.location).filter { !checkedPages.contains($0) }
-        guard !pages.isEmpty else { return }
-        checkedPages.formUnion(pages)
-        Task { [weak session] in
-            for await results in checker.check(pages) { session?.setAvailability(results) }
-        }
+        let pages = owner?.session.isVirtualBook == true ? owner?.session.book?.pages.map(\.id) ?? [] : []
+        availability.retain(Set(pages))
+        availability.visibleChanged()
     }
 
     override func activate(_ index: Int) {

@@ -109,6 +109,7 @@ final class CanvasView: NSScrollView {
     var onSelectionChange: ((Set<Int>) -> Void)?
     /// 双击或回车。
     var onActivate: ((Int) -> Void)?
+    var onImageFailure: ((Location) -> Void)?
     /// 双击；没有设置时走 `onActivate`。
     var onDoubleClick: ((Int) -> Void)?
     var onContextMenu: ((Int?) -> NSMenu?)?
@@ -166,6 +167,7 @@ final class CanvasView: NSScrollView {
         }
         loader.onFailure = { [unowned self] identity in
             if let index = tileIndex[identity], let tile = tiles[index] { showError(on: tile.layer) }
+            onImageFailure?(identity.location)
         }
 
         content.canvas = self
@@ -195,6 +197,13 @@ final class CanvasView: NSScrollView {
         counters.loadedImages = loader.loadedImages
         counters.inFlight = loader.inFlight
         return counters
+    }
+
+    func isFailed(at index: Int) -> Bool {
+        guard items.indices.contains(index) else { return false }
+        if items[index].isFailed { return true }
+        if case .failed = loader.state(of: items[index].identity) { return true }
+        return false
     }
 
     // MARK: - 数据
