@@ -2,6 +2,7 @@ import Foundation
 import MVCache
 import MVFoundation
 import MVIO
+import Synchronization
 
 public final class AvailabilityChecker: Sendable {
     private let sources: any SourceRegistry
@@ -40,18 +41,24 @@ public final class AvailabilityChecker: Sendable {
                     for (container, requested) in groups {
                         guard let provider = providers[container] else { continue }
                         group.addTask {
-                            if let cached = try? await self.directories?.cachedChildren(of: container) {
-                                continuation.yield(Self.results(requested, in: container, entries: cached.entries))
+                            let results = ContainerResults(continuation)
+                            let cached = Task.detached(priority: .background) {
+                                if let cached = try? await self.directories?.cachedChildren(of: container), !Task.isCancelled {
+                                    results.yield(Self.results(requested, in: container, entries: cached.entries))
+                                }
                             }
+                            defer { results.finish(); cached.cancel() }
                             do {
                                 let entries = try await libraryWithDeadline(.seconds(10)) {
-                                    try await libraryChildren(of: container, provider: provider, directories: self.directories, priority: .background)
+                                    // 检查器只借用缓存提前报结果；目录写回由加载器和文件变更链负责。
+                                    try await libraryChildren(of: container, provider: provider, directories: nil, priority: .background)
                                 }
-                                continuation.yield(Self.results(requested, in: container, entries: entries))
+                                guard !Task.isCancelled else { return }
+                                results.yield(Self.results(requested, in: container, entries: entries), final: true)
                             } catch {
                                 guard !Task.isCancelled else { return }
                                 let state = libraryAvailability(error, root: container.root)
-                                continuation.yield(Dictionary(uniqueKeysWithValues: requested.map { ($0, state) }))
+                                results.yield(Dictionary(uniqueKeysWithValues: requested.map { ($0, state) }), final: true)
                             }
                         }
                     }
@@ -60,6 +67,26 @@ public final class AvailabilityChecker: Sendable {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// 缓存只能先报；来源终态与关闭在同一把锁下，避免晚到缓存覆盖来源。
+    private final class ContainerResults: Sendable {
+        private let completed = Mutex(false)
+        private let continuation: AsyncStream<[Location: Availability]>.Continuation
+
+        init(_ continuation: AsyncStream<[Location: Availability]>.Continuation) {
+            self.continuation = continuation
+        }
+
+        func yield(_ values: [Location: Availability], final: Bool = false) {
+            completed.withLock { completed in
+                guard !completed else { return }
+                completed = final
+                continuation.yield(values)
+            }
+        }
+
+        func finish() { completed.withLock { $0 = true } }
     }
 
     private static func results(_ locations: [Location], in container: Location, entries: [Entry]) -> [Location: Availability] {
