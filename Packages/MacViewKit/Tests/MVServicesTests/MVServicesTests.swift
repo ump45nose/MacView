@@ -7,7 +7,7 @@ import MVFoundation
 @testable import MVFileOps
 import MVMedia
 @testable import MVLibraryData
-import MVPipeline
+@testable import MVPipeline
 import MVReading
 import MVSettings
 import MVTestSupport
@@ -245,7 +245,7 @@ import Testing
         catch { #expect(error as? IOError == .cancelled) }
     }
 
-    @Test("缓存落盘队列卡住也在一秒内返回，取消后不开始后续步骤")
+    @Test("缓存索引落盘队列卡住时仍在一秒内返回")
     func shutdownDeadlineDoesNotWaitForStorage() async throws {
         let fixture = try ServiceFixture()
         defer { fixture.clean() }
@@ -255,6 +255,7 @@ import Testing
         let pending = Task {
             try await index.diskOperations.perform { started.store(true, ordering: .relaxed); gate.wait() }
         }
+        defer { gate.signal() }
         try await waitUntil { started.load(ordering: .relaxed) }
         await fixture.shutdown(services)
         let location = try await services.sources.location(for: fixture.sourceImage)
@@ -263,6 +264,95 @@ import Testing
         gate.signal()
         try await pending.value
     }
+
+#if DEBUG
+    @Test("C1.16 退出入口同步取消耗时也计入一秒期限")
+    func shutdownDeadlineIncludesCancellationSetup() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let real = try await fixture.make()
+        let pipeline = try #require(real.pipeline as? FileImagePipeline)
+        let settings = ShutdownDelaySettings(base: real.settings)
+        let services = CoreServices(sources: real.sources, pipeline: pipeline, settings: settings,
+                                    commands: real.commands, bookshelf: real.bookshelf, loader: real.loader)
+        try await waitUntil { settings.waiting.load(ordering: .relaxed) }
+        let release = AsyncStream<Void>.makeStream(), entered = Atomic(false)
+        let held = Task { for await _ in release.stream { break } }
+        defer { release.continuation.finish() }
+        pipeline.bundleContentLoaded.withLock { $0 = {
+            entered.store(true, ordering: .relaxed)
+            await held.value
+        } }
+        let location = try await real.sources.location(for: fixture.sourceImage)
+        let identity = try await real.sources.provider(for: location).entry(at: location).identity
+        let request = Task { try await pipeline.thumbnail(for: identity, maxPixel: 96, priority: .visible) }
+        try await waitUntil { entered.load(ordering: .relaxed) }
+        let started = ContinuousClock.now
+        await fixture.shutdown(services)
+        let interval = try #require(settings.cancellationInterval.withLock { $0 })
+        #expect(interval.lowerBound >= started)
+        #expect(interval.lowerBound.duration(to: interval.upperBound) >= .milliseconds(250))
+        release.continuation.finish()
+        await held.value
+        await #expect(throws: CancellationError.self) { try await request.value }
+        pipeline.bundleContentLoaded.withLock { $0 = nil }
+        await fixture.shutdown(real)
+    }
+
+    @Test("C1.16 取图排空超时后跳过资料库与缓存落盘")
+    func shutdownTimeoutSkipsFollowingFlushes() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        var services: CoreServices? = try await fixture.make()
+        weak let settings = services?.runtime?.settings
+        let pipeline = try #require(services?.pipeline as? FileImagePipeline)
+        let index = try #require(services?.runtime?.index)
+        let library = try #require(services?.library as? SQLiteLibraryStore)
+        let checkpoints = Atomic(0)
+        try await library.database.queue.write { database in
+            database.trace { event in
+                if case let .statement(statement) = event, statement.sql.contains("wal_checkpoint") {
+                    checkpoints.wrappingAdd(1, ordering: .relaxed)
+                }
+            }
+        }
+        let release = AsyncStream<Void>.makeStream(), entered = Atomic(false)
+        let held = Task { for await _ in release.stream { break } }
+        defer { release.continuation.finish() }
+        pipeline.bundleContentLoaded.withLock { $0 = {
+            entered.store(true, ordering: .relaxed)
+            await held.value
+        } }
+        let location = try await services!.sources.location(for: fixture.sourceImage)
+        let identity = try await services!.sources.provider(for: location).entry(at: location).identity
+        let request = Task { try await pipeline.thumbnail(for: identity, maxPixel: 96, priority: .visible) }
+        try await waitUntil { entered.load(ordering: .relaxed) }
+        // 保持缓存队列占用：若取消后仍调 index.flush，关闭工作就无法结束。
+        let diskGate = DispatchSemaphore(value: 0), diskEntered = Atomic(false)
+        let disk = Task {
+            try await index.diskOperations.perform { diskEntered.store(true, ordering: .relaxed); diskGate.wait() }
+        }
+        defer { diskGate.signal() }
+        try await waitUntil { diskEntered.load(ordering: .relaxed) }
+        await fixture.shutdown(services!)
+        services = nil
+        #expect(settings != nil) // 尚未结束的关闭工作仍持有 runtime。
+        #expect(checkpoints.load(ordering: .relaxed) == 0)
+        release.continuation.finish()
+        await held.value
+        await #expect(throws: CancellationError.self) { try await request.value }
+        pipeline.bundleContentLoaded.withLock { $0 = nil }
+        // 等真实关闭工作释放 runtime，之后再检查没有启动后续落盘。
+        try await waitUntil { settings == nil || index.diskOperations.pendingCount > 1 }
+        let workFinished = settings == nil
+        #expect(workFinished)
+        #expect(checkpoints.load(ordering: .relaxed) == 0)
+        #expect(index.diskOperations.pendingCount == 1)
+        diskGate.signal()
+        try await disk.value
+        try await waitUntil { settings == nil }
+    }
+#endif
 
     @Test("文件操作传播到两个会话、目录缓存和书记忆")
     func propagatesFileChanges() async throws {
@@ -939,6 +1029,39 @@ import Testing
         await mock.shutdown()
     }
 }
+
+#if DEBUG
+/// 取消设置订阅是 shutdown 入口的同步步骤，必定先于内部关闭任务的创建。
+private final class ShutdownDelaySettings: SettingsStore {
+    let base: any SettingsStore
+    let waiting = Atomic(false)
+    let cancellationInterval = Mutex<ClosedRange<ContinuousClock.Instant>?>(nil)
+    private let next = Mutex<CheckedContinuation<SettingsChange?, Never>?>(nil)
+
+    init(base: any SettingsStore) { self.base = base }
+    func resolve(for book: Location) async -> ResolvedBookSettings { await base.resolve(for: book) }
+    func bookMemory(for book: Location) async -> BookMemory? { await base.bookMemory(for: book) }
+    func saveBookMemory(_ memory: BookMemory) async { await base.saveBookMemory(memory) }
+    func relocateBookMemory(from source: Location, to target: Location) async { await base.relocateBookMemory(from: source, to: target) }
+    func global() async -> GlobalSettings { await base.global() }
+    func updateGlobal(_ change: @Sendable (inout GlobalSettings) -> Void) async throws { try await base.updateGlobal(change) }
+    func pathRules() async -> [PathRule] { await base.pathRules() }
+    func updatePathRules(_ change: @Sendable (inout [PathRule]) -> Void) async throws { try await base.updatePathRules(change) }
+    func changes() -> AsyncStream<SettingsChange> {
+        AsyncStream(unfolding: { [self] in
+            await withCheckedContinuation { continuation in
+                next.withLock { $0 = continuation }
+                waiting.store(true, ordering: .relaxed)
+            }
+        }, onCancel: { [self] in
+            let start = ContinuousClock.now
+            Thread.sleep(forTimeInterval: 0.25)
+            cancellationInterval.withLock { $0 = start ... .now }
+            next.withLock { $0.take() }?.resume(returning: nil)
+        })
+    }
+}
+#endif
 
 private final class CountedLibraryLoader: BookLoader {
     let base: any BookLoader
