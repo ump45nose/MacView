@@ -34,8 +34,6 @@ class CollectionPanel: DockPanel {
     private(set) weak var owner: ReaderWindowController?
     private(set) var collection: CollectionView?
     private let host = CollectionPanelView()
-    /// 表格拖出时附上位置；表格只在列表、详情样式时在视图树里，找到后装上。
-    private var tableDragSource: TableDragSource?
     /// 面板不在窗口里时不更新内容，回到窗口时一次补上。
     private var isStale = false
 
@@ -56,8 +54,9 @@ class CollectionPanel: DockPanel {
         host.onExtent = { [weak self] in self?.setItemExtent($0) }
         host.onSortMenu = { [weak self] in self?.sortMenu() }
         host.onWindowChange = { [weak self] in
-            guard let self, host.window != nil, isStale else { return }
-            refresh()
+            guard let self, host.window != nil else { return }
+            shown()
+            if isStale { refresh() }
         }
         renderControls()
     }
@@ -82,10 +81,9 @@ class CollectionPanel: DockPanel {
                 return menu
             }
             // 拖出时在文件 URL 或文件承诺之外附上位置，供书签和播放列表面板接收。
-            let fileWriters = collection.canvas.onDraggingWriters
-            collection.canvas.onDraggingWriters = { [weak self] index in
-                guard let self else { return [] }
-                return (fileWriters?(index) ?? []).map { ($0.index, withLocation($0.writer, at: $0.index)) }
+            collection.wrapDragWriter = { [weak self] index, writer in
+                guard let location = self?.entries(at: [index]).first?.location else { return writer }
+                return LibraryPasteboard.writer(wrapping: writer, location: location)
             }
             collection.onVisibleRangeChange = { [weak self] in self?.visibleRangeChanged($0) }
             collection.onItemExtentChange = { [weak self] extent in
@@ -96,7 +94,6 @@ class CollectionPanel: DockPanel {
             }
             self.collection = collection
             host.setCollection(collection)
-            installTableDragSource()
         }
         #if DEBUG
         collection?.onVisibleThumbnails = { [weak self] in self?.visibleThumbnailsArrived() }
@@ -114,7 +111,6 @@ class CollectionPanel: DockPanel {
         guard style != settings.style else { return }
         settings.style = style
         collection?.style = style
-        installTableDragSource()
         renderControls()
         onSettingsChange?()
     }
@@ -204,50 +200,7 @@ class CollectionPanel: DockPanel {
     func activate(_ index: Int) {}
     func doubleClicked(_ index: Int) {}
     func visibleRangeChanged(_ range: Range<Int>) {}
-}
-
-extension CollectionPanel {
-    fileprivate func withLocation(_ writer: any NSPasteboardWriting, at index: Int) -> any NSPasteboardWriting {
-        guard let location = entries(at: [index]).first?.location else { return writer }
-        return LibraryPasteboard.writer(wrapping: writer, location: location)
-    }
-
-    private func installTableDragSource() {
-        guard tableDragSource == nil, let collection,
-              let table = collection.subviews.lazy.compactMap({ ($0 as? NSScrollView)?.documentView as? NSTableView }).first else { return }
-        let source = TableDragSource(base: collection, panel: self)
-        tableDragSource = source
-        table.dataSource = source
-    }
-}
-
-/// 表格的数据源：转给集合组件，只在拖出的写入上附加位置。
-@MainActor
-private final class TableDragSource: NSObject, NSTableViewDataSource {
-    private weak var base: CollectionView?
-    private weak var panel: CollectionPanel?
-
-    init(base: CollectionView, panel: CollectionPanel) {
-        self.base = base
-        self.panel = panel
-    }
-
-    func numberOfRows(in tableView: NSTableView) -> Int {
-        base?.numberOfRows(in: tableView) ?? 0
-    }
-
-    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> (any NSPasteboardWriting)? {
-        guard let writer = base?.tableView(tableView, pasteboardWriterForRow: row), let panel else { return nil }
-        return panel.withLocation(writer, at: row)
-    }
-
-    func tableView(_ tableView: NSTableView, draggingSession session: NSDraggingSession, willBeginAt screenPoint: NSPoint, forRowIndexes rowIndexes: IndexSet) {
-        base?.tableView(tableView, draggingSession: session, willBeginAt: screenPoint, forRowIndexes: rowIndexes)
-    }
-
-    func tableView(_ tableView: NSTableView, draggingSession session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
-        base?.tableView(tableView, draggingSession: session, endedAt: screenPoint, operation: operation)
-    }
+    func shown() {}
 }
 
 /// 排序菜单：键、方向、文件夹位置；页面列表多一项「跟随书」。

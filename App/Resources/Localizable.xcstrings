@@ -4405,7 +4405,9 @@
     "显示或隐藏书签": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Show or Hide Bookmarks"}}}},
     "显示或隐藏播放列表": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Show or Hide Playlist"}}}},
     "加入播放列表…": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Add to Recent Playlist…"}}}},
-    "从播放列表移除": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Remove from Playlist"}}}}
+    "从播放列表移除": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Remove from Playlist"}}}},
+    "播放列表没有所在的文件夹": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Playlists have no enclosing folder"}}}},
+    "无法读取原文件": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Unable to Read Original File"}}}}
   },
   "version": "1.0"
 }

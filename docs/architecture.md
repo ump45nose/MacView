@@ -270,6 +270,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - `tabbingMode = .preferred`。
   - 恢复：`SessionStore` 写 `session.json`（带版本号，原子写入，去抖 500 ms），按窗口存 frame、选中的标签和各标签的书、停靠布局、瀑布流尺寸。页码来自书记忆，关窗和退出前 `flush`。窗口的 `isRestorable` 不用系统恢复。
     - 启动时恢复；同时有要打开的 URL 时，恢复后另开标签。Mock 和其他自检不读不写。
+    - 恢复打开由 App 跳过该次历史写入，避免清空或移除的历史在启动后复现；书记忆照常恢复，用户主动打开仍记录历史。Core 的打开回调及资料库接口不变。历史重启自检用 `-MVSessionSelfTest history-write|history-verify` 和同一隔离目录分次启动。
     - 书不在时窗口仍恢复，`session.book` 保留位置，显示错误和重试或连接；书记忆不被覆盖。
     - 文件解析失败时开一个空窗口并显示错误条，不覆盖坏文件，直到用户修好或关掉错误条。
     - 同一本书开在两个标签时，两者共用一份书记忆，恢复到最后保存的页。全屏不进会话，恢复成全屏前的 frame。

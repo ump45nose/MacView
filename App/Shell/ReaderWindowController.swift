@@ -190,6 +190,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     /// 从这次打开到首屏可见项都有缩略图的毫秒。还没到是 nil。
     private(set) var firstScreenThumbnailMilliseconds: Double?
     #endif
+    /// 窗口恢复只是继续上次会话，不把用户已清空或移除的历史重新写回。
+    private var restoringBook = false
 
     init(services: CoreServices, catalog: CommandCatalog, dispatcher: CommandDispatcher, dock dockCoordinator: DockCoordinator, fileOps: FileOperationController, isMock: Bool) {
         self.services = services
@@ -231,6 +233,11 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window.fileOps = fileOps
         window.statusBar = statusBar
         super.init(window: window)
+        let recordOpened = session.onBookOpened
+        session.onBookOpened = { [weak self] location in
+            guard let self else { return }
+            if restoringBook { restoringBook = false } else { recordOpened?(location) }
+        }
         router.onCommand = { [weak self] id, arguments, scope in
             self?.dispatcher.run(id, arguments: arguments, in: self, scope: scope)
         }
@@ -502,6 +509,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             onOpenExtra?(Array(urls.dropFirst()))
         }
         openTask?.cancel()
+        restoringBook = false
         openTask = Task { [weak self] in
             guard let self else { return }
             let location: Location
@@ -518,8 +526,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     /// 打开书架上的一本书。
-    func openBook(_ location: Location) {
+    func openBook(_ location: Location, restoring: Bool = false) {
         guard location != session.book?.location else { return }
+        restoringBook = restoring
         openTask?.cancel()
         openTask = Task { [weak self] in await self?.session.open(location, at: nil) }
     }
@@ -539,6 +548,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     func openNeighbor(_ direction: NavigationDirection) {
+        restoringBook = false
         openTask?.cancel()
         openTask = Task { [weak self] in
             guard let self else { return }
@@ -548,6 +558,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     /// 重新打开这本书：书的位置不丢。
     func reopenBook() {
+        restoringBook = false
         guard let location = session.book?.location else { return }
         openTask?.cancel()
         openTask = Task { [weak self] in await self?.session.open(location, at: nil) }

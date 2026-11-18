@@ -38,6 +38,8 @@ final class SessionSelfTest {
             switch phase {
             case "write": try await write()
             case "verify": await verify()
+            case "history-write": try await historyWrite()
+            case "history-verify": try await historyVerify()
             case "missing": await missing()
             case "corrupt": try await corrupt()
             case "settings": try await settingsErrors()
@@ -226,6 +228,35 @@ final class SessionSelfTest {
             try? await Task.sleep(for: .milliseconds(25))
         }
         return false
+    }
+
+    /// C2.1 的真实进程重启检查：写入会话并清空历史；另一次启动由 AppDelegate 正常恢复。
+    private func historyWrite() async throws {
+        guard let books, let services = app.services, let library = services.library, let controller = app.controllers.first else { throw Failure.setup }
+        try makeBook("one"); try makeBook("two")
+        controller.open([books.appending(path: "one")])
+        await until("打开历史测试书") { controller.session.book?.isEnumerated == true }
+        controller.session.go(.index(2))
+        try await Task.sleep(for: .seconds(2.5))
+        log.check(!(try await library.history()).isEmpty, "主动打开的书已记入历史")
+        try await library.clearHistory()
+        log.check((try await library.history()).isEmpty, "重启前历史已清空")
+        await services.shutdown()
+    }
+
+    private func historyVerify() async throws {
+        guard let books, let services = app.services, let library = services.library, let controller = app.controllers.first else { throw Failure.setup }
+        await until("恢复历史测试会话") { controller.session.book?.isEnumerated == true && controller.session.currentPage == 2 }
+        log.check(controller.session.book?.location.name == "one" && controller.session.currentPage == 2, "重启恢复同一本书的第 3 页")
+        log.check((try await library.history()).isEmpty, "C2.1 实际重启恢复不写回已清空的历史")
+        controller.open([books.appending(path: "two")])
+        await until("主动打开另一本书") { controller.session.book?.location.name == "two" && controller.session.book?.isEnumerated == true }
+        for _ in 0..<100 {
+            if try await library.history().map(\.book.name) == ["two"] { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        log.check(try await library.history().map(\.book.name) == ["two"], "恢复后主动打开仍记录新的历史")
+        await services.shutdown()
     }
 
     private func makeBook(_ name: String) throws {
