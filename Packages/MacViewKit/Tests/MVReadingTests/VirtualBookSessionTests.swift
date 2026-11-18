@@ -111,6 +111,33 @@ import Testing
         #expect(shelf.calls == 0)
     }
 
+    @Test("C1.10 移动不可用页，仅直接得到页 Entry 时取图恢复，目录子页须重新校验", arguments: [false, true])
+    func unavailableMoveUsesSourceValidationForDescendants(moveContainer: Bool) async throws {
+        let (session, loader, _, _, _) = setup()
+        await session.open(.playlist(UUID()), at: nil)
+        var fresh = try #require(session.book?.pages)
+        let original = fresh[1]
+        session.setAvailability([original.id: .missing])
+        let from = moveContainer ? tree.location("A") : original.id
+        let destination = moveContainer ? tree.location("renamed") : tree.location("B/002.jpg")
+        let entry = moveContainer
+            ? Entry(identity: ContentIdentity(location: destination, size: 0, modificationNanos: 10), name: destination.name, kind: .directory)
+            : pages(in: tree.location("B"), count: 4)[1].entry
+        for index in fresh.indices where fresh[index].id.hasPrefix(from) {
+            if moveContainer {
+                fresh[index].entry.identity.location = destination.appending(fresh[index].entry.name)
+                fresh[index].entry.identity.modificationNanos = 10
+            } else { fresh[index].entry = entry }
+        }
+        loader.replace(with: fresh)
+        session.applyFileChanges([.moved(from: from, to: entry)])
+        let moved = moveContainer ? destination.appending(original.entry.name) : destination
+        #expect(session.unavailablePages.contains(moved))
+        await wait { !session.unavailablePages.contains(moved) }
+        #expect(session.book?.pages[1].entry.identity == fresh[1].entry.identity)
+        #expect(loader.loads == (moveContainer ? 2 : 1))
+    }
+
     @Test("C1.10 打开即接收逐容器状态，占位元数据不能清除不可用页")
     func openingConsumesExplicitAvailability() async throws {
         let (_, _, store, shelf, pipeline) = setup()
@@ -161,12 +188,20 @@ import Testing
     func firstSnapshotAfterEarlyDeletionAndMove(alreadyMoved: Bool) async throws {
         let (_, _, store, shelf, pipeline) = setup()
         let pair = AsyncThrowingStream<BookLoadEvent, any Error>.makeStream()
-        let session = ReaderSession(loader: EventLoader(stream: pair.stream), settings: store, bookshelf: shelf, pipeline: pipeline)
         let ordered = pages(in: tree.location("A"), count: 3)
+        let destination = tree.location("renamed")
+        let loader = LibrarySessionLoader(pages: ordered)
+        loader.enqueue(pair.stream)
+        loader.enqueue(AsyncThrowingStream { continuation in
+            let pages = ordered.map { page in var result = page; result.entry.identity.location = destination.appending(page.entry.name); return result }
+            continuation.yield(.sorted(pages))
+            continuation.yield(.availability(Dictionary(uniqueKeysWithValues: pages.enumerated().map { ($0.element.id, $0.offset == 1 ? Availability.missing : .available) })))
+            continuation.finish()
+        })
+        let session = ReaderSession(loader: loader, settings: store, bookshelf: shelf, pipeline: pipeline)
         let virtual = Location.playlist(UUID())
         let opening = Task { await session.open(virtual, at: ordered[1].id) }
         await wait { session.book?.location == virtual }
-        let destination = tree.location("renamed")
         let directory = Entry(identity: ContentIdentity(location: destination, size: 0, modificationNanos: 10), name: destination.name, kind: .directory)
         session.applyFileChanges([.removed(ordered[1].id), .moved(from: tree.location("A"), to: directory)])
         let snapshots = ordered.map { page in
@@ -178,6 +213,7 @@ import Testing
         pair.continuation.yield(.availability(Dictionary(uniqueKeysWithValues: snapshots.enumerated().map { ($0.element.id, $0.offset == 1 ? Availability.missing : .available) })))
         pair.continuation.finish()
         await opening.value
+        #expect(loader.loads == 2)
         #expect(session.book?.pages.map(\.id) == ordered.map { destination.appending($0.entry.name) })
         #expect(session.unavailablePages == [destination.appending(ordered[1].entry.name)])
         #expect(session.currentPage == 1)
