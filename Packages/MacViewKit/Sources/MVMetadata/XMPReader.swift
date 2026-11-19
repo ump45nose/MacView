@@ -226,12 +226,20 @@ public enum XMPReader {
     }
 
     private static func parseCapturedAt(_ exif: [CFString: Any]) -> Date? {
-        guard let text = exif[kCGImagePropertyExifDateTimeOriginal] as? String
-            ?? exif[kCGImagePropertyExifDateTimeDigitized] as? String
-        else { return nil }
+        let text: String
+        let offsetKey: CFString
+        if let original = exif[kCGImagePropertyExifDateTimeOriginal] as? String {
+            text = original
+            offsetKey = kCGImagePropertyExifOffsetTimeOriginal
+        } else if let digitized = exif[kCGImagePropertyExifDateTimeDigitized] as? String {
+            text = digitized
+            offsetKey = kCGImagePropertyExifOffsetTimeDigitized
+        } else {
+            return nil
+        }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        if let offset = exif[kCGImagePropertyExifOffsetTimeOriginal] as? String {
+        if let offset = exif[offsetKey] as? String {
             formatter.dateFormat = "yyyy:MM:dd HH:mm:ssXXXXX"
             return formatter.date(from: text + offset)
         }

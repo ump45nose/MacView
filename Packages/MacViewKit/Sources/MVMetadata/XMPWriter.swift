@@ -104,27 +104,73 @@ public enum XMPWriter {
             }
         }
 
-        let output = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(output, uti as CFString, 1, nil) else {
-            throw .encodeFailed
+        let result: Data
+        if uti == "public.tiff" {
+            // macOS ImageIO 的 CGImageDestinationCopyImageSource 在改写 TIFF 时会丢弃 EXIF OffsetTimeOriginal；
+            // 改用 CGImageDestinationAddImageAndMetadata 保留完整 EXIF/TIFF/GPS 属性，同时清理被改写字段对应的旧 IPTC 键值。
+            result = try writeTIFF(source: source, metadata: mutableMetadata, change: change)
+        } else {
+            let output = NSMutableData()
+            guard let destination = CGImageDestinationCreateWithData(output, uti as CFString, 1, nil) else {
+                throw .encodeFailed
+            }
+
+            // 删除标签时关闭 MergeMetadata，避免 ImageIO 把原文件的旧标签重新合回；
+            // mutableMetadata 本身已从原文件完整拷贝，故原有 EXIF/TIFF/GPS 等依然完整保留。
+            let options: [CFString: Any] = [
+                kCGImageDestinationMetadata: mutableMetadata,
+                kCGImageDestinationMergeMetadata: !removesTags,
+            ]
+            var copyError: Unmanaged<CFError>?
+            let copied = CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, &copyError)
+            copyError?.release()
+            guard copied else {
+                throw .encodeFailed
+            }
+            result = output as Data
         }
 
-        // 删除标签时关闭 MergeMetadata，避免 ImageIO 把原文件的旧标签重新合回；
-        // mutableMetadata 本身已从原文件完整拷贝，故原有 EXIF/TIFF/GPS 等依然完整保留。
-        let options: [CFString: Any] = [
-            kCGImageDestinationMetadata: mutableMetadata,
-            kCGImageDestinationMergeMetadata: !removesTags,
-        ]
-        var copyError: Unmanaged<CFError>?
-        let copied = CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, &copyError)
-        copyError?.release()
-        guard copied else {
-            throw .encodeFailed
-        }
-
-        let result = output as Data
         try verify(original: original, rewritten: result, uti: uti)
         return result
+    }
+
+    private static func writeTIFF(
+        source: CGImageSource,
+        metadata: CGImageMetadata,
+        change: XMPFields
+    ) throws(MetadataError) -> Data {
+        let count = CGImageSourceGetCount(source)
+        guard count > 0, let firstImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            throw .encodeFailed
+        }
+
+        var properties = (CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]) ?? [:]
+        if var iptc = properties[kCGImagePropertyIPTCDictionary] as? [CFString: Any] {
+            if change.rating != nil {
+                iptc.removeValue(forKey: kCGImagePropertyIPTCStarRating)
+            }
+            if change.tags != nil {
+                iptc.removeValue(forKey: kCGImagePropertyIPTCKeywords)
+            }
+            if iptc.isEmpty {
+                properties.removeValue(forKey: kCGImagePropertyIPTCDictionary)
+            } else {
+                properties[kCGImagePropertyIPTCDictionary] = iptc
+            }
+        }
+
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(output, "public.tiff" as CFString, count, nil) else {
+            throw .encodeFailed
+        }
+        CGImageDestinationAddImageAndMetadata(destination, firstImage, metadata, properties as CFDictionary)
+        for index in 1..<count {
+            CGImageDestinationAddImageFromSource(destination, source, index, nil)
+        }
+        guard CGImageDestinationFinalize(destination) else {
+            throw .encodeFailed
+        }
+        return output as Data
     }
 
     // MARK: - Verification
