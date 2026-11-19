@@ -606,7 +606,7 @@ private final class BookmarkCell: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
 
     /// 改名时输入框接收点击；不改名时只有标记接收，其余交给大纲（它接受第一次点击）。
     override func hitTest(_ point: NSPoint) -> NSView? {

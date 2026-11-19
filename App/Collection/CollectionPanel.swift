@@ -363,7 +363,7 @@ private final class CollectionPanelView: NSView {
         return button
     }
 
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()

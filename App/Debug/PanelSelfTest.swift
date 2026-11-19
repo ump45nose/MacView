@@ -323,7 +323,7 @@ final class PanelSelfTest {
         try? await Task.sleep(for: .milliseconds(250))
     }
 
-    /// 经 `NSApp.sendEvent` 点击一行。App 无法激活（屏幕锁定或别的 App 占着前台）时第一下点击只会激活窗口，改为直接触发行的动作。
+    /// 事件按顺序进入队列，再由 `NSApp.sendEvent` 点击一行。App 无法激活（屏幕锁定或别的 App 占着前台）时第一下点击只会激活窗口，改为直接触发行的动作。
     private func click(row: Int, in view: CollectionView, window: NSWindow) async {
         TestPresentation.activateIfAllowed()
         window.makeKeyAndOrderFront(nil)
@@ -334,10 +334,10 @@ final class PanelSelfTest {
             return
         }
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-            NSApp.sendEvent(NSEvent.mouseEvent(
+            NSApp.postEvent(NSEvent.mouseEvent(
                 with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1
-            )!)
+                windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1
+            )!, atStart: false)
         }
     }
 }
