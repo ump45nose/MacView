@@ -42,4 +42,10 @@ public protocol ImagePipeline: Sendable {
     /// 整体替换会话的预取计划：移除的取消，保留的重排，新增的入队。
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID)
     func cancelAll(session: SessionID)
+    /// 像素没变时把磁盘缓存改挂到新 key、丢掉内存里旧 key 的条目；key 规则留在管线内部。
+    func carryOver(from old: ContentIdentity, to new: ContentIdentity) async
+}
+
+public extension ImagePipeline {
+    func carryOver(from old: ContentIdentity, to new: ContentIdentity) async {}
 }

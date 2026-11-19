@@ -1,0 +1,108 @@
+{
+  "environment" : {
+    "collectedAt" : "2026-11-19T12:26:30Z",
+    "machine" : {
+      "chip" : "Apple M1 Pro",
+      "efficiencyCores" : 2,
+      "memoryBytes" : 34359738368,
+      "model" : "MacBookPro18,1",
+      "performanceCores" : 8
+    },
+    "network" : [
+      {
+        "linkSpeedMbps" : 720,
+        "name" : "en0",
+        "type" : "IEEE80211",
+        "wifiPHYMode" : "802.11ax"
+      },
+      {
+        "name" : "utun4"
+      }
+    ],
+    "system" : {
+      "build" : "26B123",
+      "version" : "27.2.0"
+    },
+    "volumes" : [
+      {
+        "fileSystem" : "apfs",
+        "mountPoint" : "/System/Volumes/Data",
+        "path" : "/Users/yuwk/Developer/Repos/Personal/MacView.worktrees/s3-search/build/s3-search-bench-tmp",
+        "source" : "/dev/disk3s5"
+      }
+    ]
+  },
+  "indexedCount" : 100000,
+  "queries" : [
+    {
+      "elapsedMs" : 165.336208,
+      "hitCount" : 5000,
+      "indexedCount" : 100000,
+      "kinds" : [
+
+      ],
+      "name" : "C1.7-first-query-keywords",
+      "pass" : true,
+      "tags" : [
+
+      ],
+      "terms" : [
+        "写真",
+        "2024"
+      ],
+      "truncated" : true
+    },
+    {
+      "elapsedMs" : 160.091125,
+      "hitCount" : 4975,
+      "indexedCount" : 100000,
+      "kinds" : [
+
+      ],
+      "minimumRating" : 4,
+      "name" : "C1.17-tag-and-rating",
+      "pass" : true,
+      "tags" : [
+        "精选"
+      ],
+      "terms" : [
+
+      ],
+      "truncated" : false
+    }
+  ],
+  "tagSuggestions" : [
+    {
+      "elapsedMs" : 8.513834,
+      "limit" : 20,
+      "name" : "C1.17-tag-suggestions-all",
+      "pass" : true,
+      "prefix" : "",
+      "suggestions" : [
+        "精选",
+        "风景",
+        "人像",
+        "2024",
+        "城市",
+        "夜景",
+        "建筑",
+        "黑白",
+        "东京",
+        "旅行",
+        "山川",
+        "自然"
+      ]
+    },
+    {
+      "elapsedMs" : 6.240375,
+      "limit" : 20,
+      "name" : "C1.17-tag-suggestions-prefix",
+      "pass" : true,
+      "prefix" : "精",
+      "suggestions" : [
+        "精选"
+      ]
+    }
+  ],
+  "thresholdMs" : 300
+}
