@@ -82,6 +82,8 @@ final class InfoPanel: DockPanel {
     private func observeSession() {
         guard let owner, let id = observedSession else { updateCurrentEntry(nil, pagePixelSize: nil); return }
         let (entry, pixelSize) = withObservationTracking { () -> (Entry?, PixelSize?) in
+            // `currentPage` 本身不被观察；页变化时 `currentFrame` 随之变化。
+            _ = owner.session.currentFrame
             guard let pages = owner.session.book?.pages, pages.indices.contains(owner.session.currentPage) else { return (nil, nil) }
             let page = pages[owner.session.currentPage]
             return (page.entry, page.metadata?.pixelSize)
