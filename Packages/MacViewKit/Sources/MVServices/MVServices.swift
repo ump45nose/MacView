@@ -323,7 +323,8 @@ public struct CoreConfiguration: Sendable {
             let fallbackOldIdentity = ContentIdentity(
                 location: from,
                 size: to.identity.size,
-                modificationNanos: to.identity.modificationNanos
+                modificationNanos: to.identity.modificationNanos,
+                checksum: to.identity.checksum
             )
             pairs.append((from: fallbackOldIdentity.cacheKey, to: to.identity.cacheKey, container: targetContainer))
             if let fromParent = from.parent,
@@ -332,11 +333,16 @@ public struct CoreConfiguration: Sendable {
                cached.identity.cacheKey != fallbackOldIdentity.cacheKey {
                 pairs.append((from: cached.identity.cacheKey, to: to.identity.cacheKey, container: targetContainer))
             }
-            if let search,
+            let isContainer: Bool = switch to.kind {
+            case .directory, .archive: true
+            case .image, .video, .other: false
+            }
+            if isContainer,
+               let search,
                let descendants = try? await search.query(SearchQuery(scope: from, limit: 1_000_000)) {
                 for hit in descendants.hits {
                     let oldEntry = hit.entry
-                    let newLocation = Self.rebased(oldEntry.location, from: from, to: to.location)
+                    let newLocation = oldEntry.location.replacingPrefix(from, with: to.location) ?? oldEntry.location
                     var newIdentity = oldEntry.identity
                     newIdentity.location = newLocation
                     let newContainer = newLocation.parent ?? to.location
@@ -345,21 +351,6 @@ public struct CoreConfiguration: Sendable {
             }
         }
         return pairs
-    }
-
-    private static func rebased(_ location: Location, from oldPrefix: Location, to newPrefix: Location) -> Location {
-        guard location.hasPrefix(oldPrefix) else { return location }
-        let locLayers = location.layers.isEmpty ? [[]] : location.layers
-        let oldLayers = oldPrefix.layers.isEmpty ? [[]] : oldPrefix.layers
-        let newLayers = newPrefix.layers.isEmpty ? [[]] : newPrefix.layers
-        let lastIndex = oldLayers.count - 1
-        let suffixInLast = Array(locLayers[lastIndex].dropFirst(oldLayers[lastIndex].count))
-        var resultLayers = newLayers
-        resultLayers[resultLayers.count - 1].append(contentsOf: suffixInLast)
-        if lastIndex + 1 < locLayers.count {
-            resultLayers.append(contentsOf: locLayers[(lastIndex + 1)...])
-        }
-        return Location(root: newPrefix.root, layers: resultLayers)
     }
 
     func handleMemoryPressure(_ event: DispatchSource.MemoryPressureEvent) {

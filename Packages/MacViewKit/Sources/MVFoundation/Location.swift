@@ -57,6 +57,20 @@ public struct Location: Hashable, Sendable, Codable {
         guard root == prefix.root, let last = prefixLayers.indices.last, last < layers.count else { return false }
         return layers[..<last] == prefixLayers[..<last] && layers[last].starts(with: prefixLayers[last])
     }
+
+    /// 若当前位置以 `old` 为前缀，将其替换为 `new`，保留后缀与更深层路径；否则返回 `nil`。
+    public func replacingPrefix(_ old: Location, with new: Location) -> Location? {
+        guard hasPrefix(old) else { return nil }
+        let locLayers = layers.isEmpty ? [[]] : layers
+        let oldLayers = old.layers.isEmpty ? [[]] : old.layers
+        var resultLayers = new.layers.isEmpty ? [[]] : new.layers
+        let lastIndex = oldLayers.count - 1
+        resultLayers[resultLayers.count - 1].append(contentsOf: locLayers[lastIndex].dropFirst(oldLayers[lastIndex].count))
+        if lastIndex + 1 < locLayers.count {
+            resultLayers.append(contentsOf: locLayers[(lastIndex + 1)...])
+        }
+        return Location(root: new.root, layers: resultLayers)
+    }
 }
 
 extension Location {
