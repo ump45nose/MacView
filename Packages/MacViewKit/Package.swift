@@ -5,9 +5,10 @@ import PackageDescription
 let modules: [(name: String, dependencies: [String])] = [
     ("MVFoundation", []),
     ("MVIO", ["MVFoundation"]),
-    ("MVFileOps", ["MVFoundation", "MVIO"]),
+    ("MVMetadata", ["MVFoundation"]),
+    ("MVMedia", ["MVFoundation", "MVMetadata"]),
+    ("MVFileOps", ["MVFoundation", "MVIO", "MVMetadata", "MVMedia"]),
     ("MVArchive", ["MVFoundation", "MVIO"]),
-    ("MVMedia", ["MVFoundation"]),
     ("MVCache", ["MVFoundation", "GRDB"]),
     ("MVPipeline", ["MVFoundation", "MVIO", "MVMedia", "MVCache"]),
     ("MVSettings", ["MVFoundation", "GRDB"]),
@@ -15,14 +16,15 @@ let modules: [(name: String, dependencies: [String])] = [
     ("MVLayout", ["MVFoundation", "MVSettings"]),
     ("MVReading", ["MVFoundation", "MVIO", "MVMedia", "MVCache", "MVPipeline", "MVSettings"]),
     ("MVLibraryData", ["MVFoundation", "MVIO", "MVCache", "MVReading", "GRDB"]),
-    ("MVServices", ["MVFoundation", "MVIO", "MVFileOps", "MVArchive", "MVMedia", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVLibraryData"]),
+    ("MVSearch", ["MVFoundation", "MVIO", "MVMedia", "MVCache"]),
+    ("MVServices", ["MVFoundation", "MVIO", "MVFileOps", "MVArchive", "MVMedia", "MVMetadata", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVLibraryData", "MVSearch"]),
     ("MVTestSupport", ["MVFoundation", "MVIO", "MVMedia", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVServices", "MVLibraryData"]),
 ]
 
 /// 测试另外需要的目标：MVIO 的测试要启动辅助进程，MVMedia 的测试要读夹具。
 let testExtras: [String: [Target.Dependency]] = [
     "MVIO": ["mvio-helper"],
-    "MVMedia": ["MVTestSupport"],
+    "MVMedia": ["MVTestSupport", "MVMetadata"],
     "MVCache": ["mvtest-writer"],
     "MVSettings": ["mvtest-writer"],
     "MVArchive": ["MVTestSupport"],

@@ -210,6 +210,7 @@ public final class ReaderSession {
                     removedMetadata.removeValue(forKey: page.id)
                     if previousAnchor == page.id { desiredAnchor = destination }
                 }
+            case .rewritten: break
             }
         }
         guard changed else { return }
@@ -287,7 +288,7 @@ public final class ReaderSession {
                     }
                     return result
                 }
-            case .added: break
+            case .added, .rewritten: break
             }
         }
         book?.pages = pages
@@ -558,7 +559,7 @@ public final class ReaderSession {
                     if page.id == from { result.entry = to }
                     return result
                 }
-            case .added: break
+            case .added, .rewritten: break
             }
         }
         return pages
@@ -576,7 +577,7 @@ public final class ReaderSession {
                     switch change {
                     case let .removed(location): removed.append(location)
                     case let .moved(from, to): removed = removed.map { Self.rebased($0, from: from, to: to.location) ?? $0 }
-                    case .added: break
+                    case .added, .rewritten: break
                     }
                 }
                 unavailablePages.formUnion(pages.filter { page in removed.contains { page.id.hasPrefix($0) } }.map(\.id))
@@ -591,7 +592,7 @@ public final class ReaderSession {
                     switch change {
                     case let .removed(removed): location.hasPrefix(removed)
                     case let .moved(from, to): location.hasPrefix(from) || location.hasPrefix(to.location)
-                    case .added: false
+                    case .added, .rewritten: false
                     }
                 }
             }
@@ -602,7 +603,7 @@ public final class ReaderSession {
                     switch change {
                     case let .removed(removed): location.hasPrefix(removed)
                     case let .moved(from, to): location.hasPrefix(from) || location.hasPrefix(to.location)
-                    case .added: false
+                    case .added, .rewritten: false
                     }
                 }
             }))

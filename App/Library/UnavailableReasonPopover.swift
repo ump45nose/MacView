@@ -235,6 +235,7 @@ final class LibraryAvailability {
                         case let .removed(location): [location]
                         case let .added(entry): [entry.location]
                         case let .moved(from, to): [from, to.location]
+                        case let .rewritten(entry, _, _): [entry.location]
                         }
                     }
                     guard let self else { return }

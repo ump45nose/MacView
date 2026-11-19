@@ -4,6 +4,7 @@ import Foundation
 import ImageIO
 import IOSurface
 import MVFoundation
+import MVMetadata
 import MVTestSupport
 import Synchronization
 import Testing
@@ -52,6 +53,19 @@ func everyImageFixtureProbesAndDecodes(_ fixture: Fixture) async throws {
     }
     #expect(try MediaProbe.image(Data(count: 10), isComplete: false) == .needsMoreData(MediaProbe.initialHeaderLength))
     #expect(throws: MediaError.unsupported) { try MediaProbe.image(Data(repeating: 7, count: 100), isComplete: true) }
+}
+
+@Test func mediaProbeExtractsRatingAndTagsFromHeader() throws {
+    let original = try Data(contentsOf: Fixtures.url("image/size/3600x5400.jpg"))
+    let tagged = try XMPWriter.write(XMPFields(rating: 4, tags: ["精选", "写真"]), into: original)
+    let result = try MediaProbe.image(Data(tagged.prefix(MediaProbe.initialHeaderLength)), isComplete: false)
+    guard case let .metadata(metadata) = result else {
+        Issue.record("预期得到 ImageMetadata")
+        return
+    }
+    #expect(metadata.pixelSize == PixelSize(width: 3600, height: 5400))
+    #expect(metadata.rating == 4)
+    #expect(metadata.tags == ["精选", "写真"])
 }
 
 // MARK: 方向

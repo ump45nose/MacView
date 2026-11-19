@@ -68,6 +68,7 @@ final class BookshelfPanel: CollectionPanel {
                     case let .removed(loc): loc.parent == directory
                     case let .added(entry): entry.location.parent == directory
                     case let .moved(from, to): from.parent == directory || to.location.parent == directory
+                    case .rewritten: false
                     }
                 }) { startListing() }
             }

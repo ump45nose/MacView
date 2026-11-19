@@ -66,6 +66,8 @@ public final class DirectoryCache: Sendable {
             case let .moved(from, to):
                 if let parent = from.parent { groups[parent, default: []].append(.remove(from)) }
                 if let parent = to.location.parent { groups[parent, default: []].append(.add(to)) }
+            case let .rewritten(entry, _, _):
+                if let parent = entry.location.parent { groups[parent, default: []].append(.add(entry)) }
             }
         }
         let items = try groups.map { (try locationKey($0.key), $0.value) }
