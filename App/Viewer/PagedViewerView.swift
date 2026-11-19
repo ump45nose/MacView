@@ -162,11 +162,11 @@ final class PagedViewerView: NSView {
         return ViewerTransform(zoom: 1, offset: CGPoint(x: session.settings.direction == .leftToRight ? room.width : -room.width, y: room.height))
     }
 
-    /// 返回页帧是否换了。保留身份和部分相同的页。
+    /// 返回页帧是否换了。页码、拆分部分和文件身份相同才复用。
     @discardableResult
     private func replaceSlots(with elements: [PageFrameElement], pages: [Page]) -> Bool {
         let same = elements.count == slots.count && zip(elements, slots).allSatisfy { element, slot in
-            element.part == slot.element.part && pages[element.page].entry.identity == slot.identity
+            element == slot.element && pages[element.page].entry.identity == slot.identity
         }
         if same { return false }
         let hadImages = slots.contains { $0.hasImage }
