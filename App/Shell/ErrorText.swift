@@ -24,6 +24,7 @@ enum ErrorText {
         case let .recycleUnavailable(reason): String(localized: "无法创建回收目录：\(reason)")
         case .verificationFailed: String(localized: "读回校验不一致，源文件保留")
         case .intoItself: String(localized: "不能把文件夹移进它自己或子文件夹")
+        case let .metadataUnsupported(format): String(localized: "不支持写入 \(format) 格式的评分和标签")
         }
     }
 

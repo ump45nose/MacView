@@ -111,3 +111,44 @@ func libraryCommandsHaveBindingsAndMenuPositions() throws {
     #expect(CommandID.playlistAddCurrent.rawValue == "library.playlist.addCurrent")
     #expect(CommandID.playlistRemoveItem.rawValue == "library.playlist.removeItem")
 }
+
+@Test("C1.19 评分、标签、搜索、建立索引与信息面板命令进 CoreCommands.all 且无快捷键冲突")
+func searchAndMetadataCommandsHaveNoConflicts() throws {
+    let expected: [(CommandID, String)] = [
+        (.ratingSet0, "rating.set.0"),
+        (.ratingSet1, "rating.set.1"),
+        (.ratingSet2, "rating.set.2"),
+        (.ratingSet3, "rating.set.3"),
+        (.ratingSet4, "rating.set.4"),
+        (.ratingSet5, "rating.set.5"),
+        (.metadataTagsEdit, "metadata.tags.edit"),
+        (.searchFocus, "search.focus"),
+        (.searchIndexFolder, "search.indexFolder"),
+        (.infoPanelToggle, "panel.info.toggle"),
+    ]
+    for (id, raw) in expected {
+        #expect(id.rawValue == raw)
+        #expect(CoreCommands.all.contains { $0.id == id })
+    }
+    let bindings = CoreCommands.all.flatMap(\.defaultBindings)
+    #expect(BindingResolver.conflicts(in: bindings).isEmpty)
+
+    var resolver = BindingResolver(bindings: bindings)
+    let now = ContinuousClock.now
+    for scope in [InputScope.viewer, .list] {
+        for (key, command) in [
+            ("0", CommandID.ratingSet0), ("1", .ratingSet1), ("2", .ratingSet2),
+            ("3", .ratingSet3), ("4", .ratingSet4), ("5", .ratingSet5),
+        ] {
+            #expect(resolver.feed(KeyChord(key, modifiers: .option), scope: scope, at: now) == .command(command, nil))
+        }
+        #expect(resolver.feed(KeyChord("t", modifiers: .option), scope: scope, at: now) == .command(.metadataTagsEdit, nil))
+        #expect(resolver.feed(KeyChord("f", modifiers: .command), scope: scope, at: now) == .command(.searchFocus, nil))
+        #expect(resolver.feed(KeyChord("i", modifiers: [.command, .option]), scope: scope, at: now) == .command(.infoPanelToggle, nil))
+    }
+    #expect(CoreCommands.all.first { $0.id == .searchIndexFolder }?.defaultBindings.isEmpty == true)
+    let menu = Set(menuCommands(CoreCommands.defaultMenu.roots))
+    for (id, _) in expected {
+        #expect(menu.contains(id))
+    }
+}

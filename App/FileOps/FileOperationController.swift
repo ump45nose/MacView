@@ -239,7 +239,7 @@ final class FileOperationController {
         var set = Set(origin.items.map(\.location))
         func collect(_ op: FileOperation) {
             switch op {
-            case let .delete(locs), let .deletePermanently(locs), let .transfer(locs, _, _, _): set.formUnion(locs)
+            case let .delete(locs), let .deletePermanently(locs), let .transfer(locs, _, _, _), let .setMetadata(locs, _): set.formUnion(locs)
             case let .rename(loc, _), let .removeEmptyDirectory(loc): set.insert(loc)
             case let .relocate(items): set.formUnion(items.map(\.source))
             case .makeDirectory: break

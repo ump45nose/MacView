@@ -274,26 +274,33 @@ final class FileReader: Sendable {
         }
     }
 
-    /// 改名或删除前释放源路径及其后代的缓存引用，修改完成前不重新缓存；读取本身照常进行。
+    /// 改名或删除前释放源路径（覆盖改名时含目标路径）及其后代的缓存引用，修改完成前不重新缓存；读取本身照常进行。
     func withInvalidatedCache<T>(for request: HelperRequest, operation: () throws(FileOperationError) -> T) throws(FileOperationError) -> T {
-        let path: String
+        let paths: [String]
         switch request {
-        case let .rename(source, _, _): path = source
-        case let .remove(source), let .trash(source): path = source
-        default: return try operation()
+        case let .rename(source, target, exclusive):
+            paths = exclusive || source == target ? [source] : [source, target]
+        case let .remove(source), let .trash(source):
+            paths = [source]
+        default:
+            return try operation()
         }
         cache.withLock { cache in
             cache.generation &+= 1
-            cache.mutations[path, default: 0] += 1
-            let paths = cache.order.filter { Self.includes($0, under: path) }
-            for path in paths { cache.files[path] = nil }
-            cache.order.removeAll { Self.includes($0, under: path) }
+            for path in paths {
+                cache.mutations[path, default: 0] += 1
+                let matched = cache.order.filter { Self.includes($0, under: path) }
+                for item in matched { cache.files[item] = nil }
+                cache.order.removeAll { Self.includes($0, under: path) }
+            }
         }
         defer {
             cache.withLock { cache in
                 cache.generation &+= 1
-                if cache.mutations[path] == 1 { cache.mutations[path] = nil }
-                else { cache.mutations[path, default: 0] -= 1 }
+                for path in paths {
+                    if cache.mutations[path] == 1 { cache.mutations[path] = nil }
+                    else { cache.mutations[path, default: 0] -= 1 }
+                }
             }
         }
         return try operation()

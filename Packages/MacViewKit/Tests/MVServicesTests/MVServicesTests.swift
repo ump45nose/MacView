@@ -6,6 +6,7 @@ import MVCommands
 import MVFoundation
 @testable import MVFileOps
 import MVMedia
+import MVMetadata
 @testable import MVLibraryData
 @testable import MVPipeline
 import MVReading
@@ -1027,6 +1028,176 @@ import Testing
         await virtual.open(.playlist(id), at: nil)
         #expect(virtual.loadError == nil && virtual.book?.pages.map(\.id) == [page.location])
         await mock.shutdown()
+    }
+
+    @Test("C1.12 真实组合根写评分后广播 rewritten、缩略图不重解码、搜索可筛、会话当前页不变")
+    func setMetadataChangeChainAndCarryOver() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let pagesDir = fixture.root.appending(path: "pages")
+        let folderLocation = try await services.sources.location(for: pagesDir)
+
+        let session = services.makeSession()
+        await session.open(folderLocation, at: nil)
+        #expect(session.loadError == nil)
+        session.go(.index(2))
+        let targetPage = try #require(session.book?.pages[2])
+        let oldIdentity = targetPage.entry.identity
+
+        // 先生成缩略图并记录管线解码次数
+        let initialThumb = try await services.pipeline.thumbnail(for: oldIdentity, maxPixel: 96, priority: .visible)
+        #expect(initialThumb.image.height == 96)
+        let pipeline = try #require(services.pipeline as? FileImagePipeline)
+        let sessionID = session.id
+        try await waitUntil { pipeline.prefetchInFlightCount(session: sessionID) == 0 }
+        let decodeCountBefore = pipeline.sourceDecodeCount
+
+        let appliedStream = services.appliedFileChanges()
+        let receivedTask = Task {
+            for await batch in appliedStream { return batch }
+            return [FileChange]()
+        }
+
+        let fileOps = try #require(services.fileOperations)
+        let opResult = await fileOps.perform(.setMetadata([targetPage.id], XMPFields(rating: 5, tags: ["精选"])))
+        #expect(opResult.failures.isEmpty)
+        let appliedBatch = await receivedTask.value
+        guard case let .rewritten(newEntry, previous, newMeta) = try #require(appliedBatch.first) else {
+            Issue.record("appliedFileChanges 应收到 .rewritten")
+            await fixture.shutdown(services)
+            return
+        }
+        #expect(previous == oldIdentity)
+        #expect(newEntry.identity != oldIdentity)
+        #expect(newMeta.rating == 5)
+        #expect(newMeta.tags == ["精选"])
+
+        // 缩略图已改挂到新 key，取新 identity 缩略图不重新解码
+        let carriedThumb = try await services.pipeline.thumbnail(for: newEntry.identity, maxPixel: 96, priority: .visible)
+        #expect(carriedThumb.image.height == 96)
+        #expect(pipeline.sourceDecodeCount == decodeCountBefore)
+
+        // SearchCatalog 按新评分与标签可筛到
+        let search = try #require(services.search)
+        let searchResult = try await search.query(SearchQuery(scope: folderLocation, minimumRating: 5, tags: ["精选"]))
+        #expect(searchResult.hits.map(\.entry.location) == [targetPage.id])
+        #expect(searchResult.hits.first?.rating == 5)
+        #expect(searchResult.hits.first?.tags == ["精选"])
+
+        // 会话保持当前页不变、不重载，页的 identity 与 metadata 已更新
+        #expect(session.currentFrame == 2)
+        #expect(session.book?.pages.count == 12)
+        #expect(session.book?.pages[2].entry.identity == newEntry.identity)
+        #expect(session.book?.pages[2].metadata?.rating == 5)
+        #expect(session.book?.pages[2].metadata?.tags == ["精选"])
+
+        await fixture.shutdown(services)
+    }
+
+    @Test("C1.13 metadataDetails 对本机 JPEG 与压缩包内 JPEG 都返回字段")
+    func metadataDetailsForLocalAndArchiveJPEG() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+
+        // 写一张带评分与标签的本机 JPEG，并打包进独立 zip
+        let localURL = fixture.root.appending(path: "detail-sample.jpg")
+        let baseData = try Data(contentsOf: fixture.sourceImage)
+        let taggedData = try XMPWriter.write(XMPFields(rating: 4, tags: ["样张", "精选"]), into: baseData)
+        try taggedData.write(to: localURL)
+
+        let archiveDir = fixture.root.appending(path: "detail-archive-src", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: archiveDir, withIntermediateDirectories: true)
+        try taggedData.write(to: archiveDir.appending(path: "inside.jpg"))
+        let zipURL = fixture.root.appending(path: "detail-sample.zip")
+        try run("/usr/bin/zip", ["-q", zipURL.path, "inside.jpg"], in: archiveDir)
+
+        let localLocation = try await services.sources.location(for: localURL)
+        let localEntry = try await services.sources.provider(for: localLocation).entry(at: localLocation)
+        let localDetails = try await services.metadataDetails(for: localEntry)
+        #expect(localDetails.format == "JPEG")
+        #expect(localDetails.pixelSize == PixelSize(width: 480, height: 720))
+        #expect(localDetails.fields?.rating == 4)
+        #expect(localDetails.fields?.tags == ["样张", "精选"])
+
+        let archiveLocation = try await services.sources.location(for: zipURL).appendingLayer(["inside.jpg"])
+        let archiveEntry = try await services.sources.provider(for: archiveLocation).entry(at: archiveLocation)
+        let archiveDetails = try await services.metadataDetails(for: archiveEntry)
+        #expect(archiveDetails.format == "JPEG")
+        #expect(archiveDetails.pixelSize == PixelSize(width: 480, height: 720))
+        #expect(archiveDetails.fields?.rating == 4)
+        #expect(archiveDetails.fields?.tags == ["样张", "精选"])
+
+        await fixture.shutdown(services)
+    }
+
+    @Test("C1.18 改名、同卷移动打过分的图和所在文件夹后，搜索按评分仍能筛到新位置")
+    func ratedFileMetadataFollowsRenameAndFolderMove() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let fileOps = try #require(services.fileOperations)
+        let search = try #require(services.search)
+
+        let workRoot = fixture.root.appending(path: "s9-move", directoryHint: .isDirectory)
+        let folderA = workRoot.appending(path: "folderA", directoryHint: .isDirectory)
+        let destDir = workRoot.appending(path: "dest", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folderA, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: destDir, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: fixture.sourceImage, to: folderA.appending(path: "hero.jpg"))
+
+        let rootLocation = try await services.sources.location(for: workRoot)
+        let folderALocation = try await services.sources.location(for: folderA)
+        let destLocation = try await services.sources.location(for: destDir)
+        let heroLocation = folderALocation.appending("hero.jpg")
+
+        // 先通过书架与会话加载，填充 DirectoryCache 与 search_entries
+        for try await _ in services.bookshelf.items(in: rootLocation, sort: SortSpec(key: .name)) {}
+        for try await _ in services.bookshelf.items(in: destLocation, sort: SortSpec(key: .name)) {}
+        let session = services.makeSession()
+        await session.open(folderALocation, at: nil)
+        #expect(session.book?.pages.count == 1)
+
+        func waitNextApplied(_ operation: FileOperation) async throws {
+            let stream = services.appliedFileChanges()
+            let waiter = Task {
+                for await batch in stream { return batch }
+                return [FileChange]()
+            }
+            let result = await fileOps.perform(operation)
+            #expect(result.failures.isEmpty)
+            let batch = await waiter.value
+            #expect(!batch.isEmpty)
+        }
+
+        // 1. 打 4 星与标签
+        try await waitNextApplied(.setMetadata([heroLocation], XMPFields(rating: 4, tags: ["迁移测试"])))
+        var hits = try await search.query(SearchQuery(scope: rootLocation, minimumRating: 4, tags: ["迁移测试"])).hits
+        #expect(hits.map(\.entry.location) == [heroLocation])
+
+        // 2. 改名文件 hero.jpg -> renamed.jpg
+        try await waitNextApplied(.rename(heroLocation, to: "renamed.jpg"))
+        let renamedLocation = folderALocation.appending("renamed.jpg")
+        hits = try await search.query(SearchQuery(scope: rootLocation, minimumRating: 4, tags: ["迁移测试"])).hits
+        #expect(hits.map(\.entry.location) == [renamedLocation])
+
+        // 3. 改名所在文件夹 folderA -> folderB
+        try await waitNextApplied(.rename(folderALocation, to: "folderB"))
+        let folderBLocation = rootLocation.appending("folderB")
+        let afterFolderRename = folderBLocation.appending("renamed.jpg")
+        hits = try await search.query(SearchQuery(scope: rootLocation, minimumRating: 4, tags: ["迁移测试"])).hits
+        #expect(hits.map(\.entry.location) == [afterFolderRename])
+
+        // 4. 同卷移动文件夹 folderB -> dest/folderB
+        try await waitNextApplied(.transfer([folderBLocation], into: destLocation, mode: .move, conflict: .skip))
+        let finalLocation = destLocation.appending("folderB").appending("renamed.jpg")
+        hits = try await search.query(SearchQuery(scope: rootLocation, minimumRating: 4, tags: ["迁移测试"])).hits
+        #expect(hits.map(\.entry.location) == [finalLocation])
+        #expect(hits.first?.rating == 4)
+        #expect(hits.first?.tags == ["迁移测试"])
+
+        await fixture.shutdown(services)
     }
 }
 

@@ -1,5 +1,6 @@
 import Foundation
 import MVFoundation
+import MVMetadata
 
 public struct Relocation: Sendable, Hashable {
     public var source: Location
@@ -14,6 +15,7 @@ public indirect enum FileOperation: Sendable, Hashable {
     case relocate([Relocation])
     case makeDirectory(in: Location, name: String)
     case removeEmptyDirectory(Location)
+    case setMetadata([Location], XMPFields)
     case sequence([FileOperation])
 }
 public enum FileOpsError: Error, Sendable, Equatable {
@@ -22,6 +24,7 @@ public enum FileOpsError: Error, Sendable, Equatable {
     case recycleUnavailable(String)
     case verificationFailed
     case intoItself
+    case metadataUnsupported(String)
 }
 public struct FileFailure: Sendable {
     public var location: Location

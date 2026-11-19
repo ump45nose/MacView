@@ -170,6 +170,7 @@ public final class ReaderSession {
         var desiredAnchor = anchor
         var pending: [Entry] = []
         var changed = false
+        var rewritten = false
         func remove(_ location: Location) {
             for page in pages where page.id.hasPrefix(location) {
                 changed = true
@@ -210,10 +211,19 @@ public final class ReaderSession {
                     removedMetadata.removeValue(forKey: page.id)
                     if previousAnchor == page.id { desiredAnchor = destination }
                 }
-            case .rewritten: break
+            case let .rewritten(entry, _, metadata):
+                if let index = pages.firstIndex(where: { $0.id == entry.location }) {
+                    pages[index].entry = entry
+                    pages[index].metadata = metadata
+                    rewritten = true
+                }
             }
         }
-        guard changed else { return }
+        guard changed || rewritten else { return }
+        if !changed {
+            book?.pages = pages
+            return
+        }
         pages.sort { ReadingOrder.compare($0.entry, $1.entry, by: settings.sort) == .orderedAscending }
         book?.pages = pages
         anchor = desiredAnchor
@@ -238,9 +248,12 @@ public final class ReaderSession {
         var pending: [Entry] = []
         var recovering: Set<Location> = []
         var needsValidation: Set<Location> = []
+        var structuralChange = false
+        var rewritten = false
         for change in changes {
             switch change {
             case let .removed(location):
+                structuralChange = true
                 pending.removeAll { $0.location.hasPrefix(location) }
                 recovering = recovering.filter { !$0.hasPrefix(location) }
                 needsValidation = needsValidation.filter { !$0.hasPrefix(location) }
@@ -250,6 +263,7 @@ public final class ReaderSession {
                     entryRecoveryTokens.removeValue(forKey: page.id)
                 }
             case let .moved(from, to):
+                structuralChange = true
                 if let anchor, let destination = Self.rebased(anchor, from: from, to: to.location) { self.anchor = destination }
                 pending.removeAll { $0.location.hasPrefix(from) || $0.location.hasPrefix(to.location) }
                 recovering = recovering.filter { !$0.hasPrefix(from) && !$0.hasPrefix(to.location) }
@@ -288,10 +302,18 @@ public final class ReaderSession {
                     }
                     return result
                 }
-            case .added, .rewritten: break
+            case let .rewritten(entry, _, metadata):
+                for index in pages.indices where pages[index].id == entry.location {
+                    pages[index].entry = entry
+                    pages[index].metadata = metadata
+                    rewritten = true
+                }
+            case .added: break
             }
         }
+        guard structuralChange || rewritten else { return }
         book?.pages = pages
+        if !structuralChange { return }
         unavailablePages.formIntersection(Set(pages.map(\.id)))
         let recoveryTokens = Dictionary(uniqueKeysWithValues: recovering.map { ($0, UUID()) })
         entryRecoveryTokens.merge(recoveryTokens, uniquingKeysWith: { _, new in new })
@@ -559,7 +581,12 @@ public final class ReaderSession {
                     if page.id == from { result.entry = to }
                     return result
                 }
-            case .added, .rewritten: break
+            case let .rewritten(entry, _, metadata):
+                for index in pages.indices where pages[index].id == entry.location {
+                    pages[index].entry = entry
+                    pages[index].metadata = metadata
+                }
+            case .added: break
             }
         }
         return pages
@@ -592,7 +619,8 @@ public final class ReaderSession {
                     switch change {
                     case let .removed(removed): location.hasPrefix(removed)
                     case let .moved(from, to): location.hasPrefix(from) || location.hasPrefix(to.location)
-                    case .added, .rewritten: false
+                    case let .rewritten(entry, _, _): location == entry.location
+                    case .added: false
                     }
                 }
             }
