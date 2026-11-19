@@ -126,6 +126,20 @@ S3-T1 / S3-F1 留给关口 G3 的验收（要用户在场，或要改动网络�
 - 拖动停在未选中的面板标签上约 0.35 秒，松手前切换（`DockTabView.draggingEntered` 返回 `[]`，若不切换先查这里）。
 - S11：3000 项列表滚动、拖动排序和虚拟书翻页的手感（实测翻页约 104 ms/页）。
 
+S3-T3 / S3-F3 / S3-T4 留给关口 G3 的验收：
+
+- NFS 读写挂载的真实图库上 S1–S10（requirements：建立索引约 1.5 万项、多词搜索与筛选、打开结果定位、⌥4 写入后重启与 ⌘Z、批量 20 张、信息面板、不能评分的说明、改名移动后评分跟随、卷没挂上时的结果）。
+- Windows 资源管理器“属性 › 详细信息”看 `\\192.168.31.201\Picture\macview-fileops-test\a\评分样图.jpg`（4 星，精选、写真）和 MacView 写过的图；Windows 上改评分后 MacView 重新浏览能读到。
+- `-MVSearchSelfTest` 中英文、浅深色四组合；`-MVFileOpsSelfTest`、`-MVLibrarySelfTest` 前台项。
+- 日常写评分要把图库改成读写 NFS 挂载：`sudo mount_nfs -o rw,resvport,vers=4 192.168.31.201:/srv/Adult/Picture ~/MacViewBench/nfs`。
+
+S3-T3 / S3-F3 / S3-T4 遗留：
+
+- NFS 上改一张 20–47 MB 的 JPEG 要 6–10 秒（整文件读写加校验），批量评分大图会慢；界面先显示新值、后台排队写入。
+- 只支持 JPEG、TIFF、HEIC；PNG（系统接口会静默丢掉 XMP）、GIF、WebP、AVIF、视频和压缩包不能评分。
+- 建立索引第二步读文件头 NFS 约 30 个/秒，10 万张约 1 小时。
+- `zoomDevicePixel` 默认键由 ⌥1 改为 ⌥⇧1，让给 1 星评分。
+
 S3-T1 / S3-F1 遗留：
 
 - 管线慢操作占着生命周期锁时，`shutdown` 的超时回调同步等锁，注入 1.2 秒持锁时退出 1.231 秒，超过 1 秒时限；MVPipeline 既有问题，另立任务。
