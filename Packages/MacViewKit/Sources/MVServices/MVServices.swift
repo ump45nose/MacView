@@ -8,6 +8,7 @@ import MVFoundation
 import MVIO
 @_exported import MVLibraryData
 import MVMedia
+import MVMetadata
 import MVPipeline
 import MVReading
 import MVSettings
@@ -37,6 +38,7 @@ public struct CoreConfiguration: Sendable {
     public let fileOperations: FileOperationService?
     public let library: (any LibraryStore)?
     public let availability: AvailabilityChecker?
+    public let search: SearchCatalog?
     public let keyBindings: JSONDocumentStore<KeyBindingsFile>?
     let loader: any BookLoader
     let runtime: Runtime?
@@ -64,18 +66,18 @@ public struct CoreConfiguration: Sendable {
     public convenience init(
         sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore,
         commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader,
-        library: (any LibraryStore)? = nil
+        library: (any LibraryStore)? = nil, search: SearchCatalog? = nil
     ) {
         self.init(sources: sources, pipeline: pipeline, settings: settings, commands: commands,
                   bookshelf: bookshelf, loader: loader, keyBindings: nil, fileOperations: nil,
-                  library: library, availability: nil, runtime: nil)
+                  library: library, availability: nil, search: search, runtime: nil)
     }
 
     private init(
         sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore,
         commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader,
         keyBindings: JSONDocumentStore<KeyBindingsFile>?, fileOperations: FileOperationService?,
-        library: (any LibraryStore)?, availability: AvailabilityChecker?, runtime: Runtime?
+        library: (any LibraryStore)?, availability: AvailabilityChecker?, search: SearchCatalog?, runtime: Runtime?
     ) {
         self.sources = sources
         self.pipeline = pipeline
@@ -87,6 +89,7 @@ public struct CoreConfiguration: Sendable {
         self.fileOperations = fileOperations
         self.library = library
         self.availability = availability
+        self.search = search
         self.runtime = runtime
         subscribeLibrary()
         let changes = settings.changes()
@@ -130,10 +133,12 @@ public struct CoreConfiguration: Sendable {
         let loader = LibraryBookLoader(
             files: FileBookLoader(sources: sources, directories: directories, metadata: caches.metadata, pipeline: pipeline),
             playlists: PlaylistBookLoader(store: library, sources: sources, directories: directories, metadata: caches.metadata, pipeline: pipeline))
+        let search = SearchCatalog(index: index)
         let services = CoreServices(sources: sources, pipeline: pipeline, settings: settings, commands: CommandRegistry(),
                                     bookshelf: FileBookshelf(sources: sources, directories: directories),
                                     loader: loader, keyBindings: keyBindings, fileOperations: fileOperations,
                                     library: library, availability: AvailabilityChecker(sources: sources, directories: directories, store: library),
+                                    search: search,
                                     runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches))
         services.subscribe(directories: directories)
         services.recoveryTask = Task { await fileOperations.resumeInterruptedTransfers() }
@@ -168,6 +173,34 @@ public struct CoreConfiguration: Sendable {
 
     public func interruptedTransfersReport() async -> ResumeReport? {
         await recoveryTask?.value
+    }
+
+    /// 经 SourceRegistry 增量读取前 64 KB（最高扩至 MediaProbe.headerLimit），解析 EXIF/XMP 详情；压缩包内条目同样可读。
+    public nonisolated func metadataDetails(for entry: Entry) async throws -> ImageDetails {
+        let provider = try sources.provider(for: entry.location)
+        let byteSource = try await provider.open(entry.location)
+        let totalSize = max(0, byteSource.identity.size)
+        let limit = min(totalSize, Int64(MediaProbe.headerLimit))
+        var targetLength = min(limit, Int64(MediaProbe.initialHeaderLength))
+        var data = Data()
+        while true {
+            if Int64(data.count) < targetLength {
+                let part = try await byteSource.read(Int64(data.count)..<targetLength, priority: .visible, group: nil)
+                data.append(part)
+                if part.isEmpty { break }
+            }
+            if let details = XMPReader.details(fromHeader: data) {
+                if details.pixelSize != nil || Int64(data.count) >= limit {
+                    return details
+                }
+            }
+            guard Int64(data.count) < limit else { break }
+            targetLength = min(limit, max(Int64(MediaProbe.initialHeaderLength), Int64(data.count) * 2))
+        }
+        if let details = XMPReader.details(fromHeader: data) {
+            return details
+        }
+        throw MediaError.unsupported
     }
 
     public func makeSession() -> ReaderSession {
@@ -216,8 +249,29 @@ public struct CoreConfiguration: Sendable {
             fileChangesTask = Task { [weak self] in
                 for await batch in changes {
                     guard !Task.isCancelled, let self else { return }
+                    let metadataMoves = await self.collectMetadataMoves(for: batch, directories: directories)
                     do { try await directories.apply(batch) }
                     catch { Self.log.error("更新目录缓存失败：\(error.localizedDescription)") }
+                    if let metadataIndex = self.runtime?.caches.metadata {
+                        if !metadataMoves.isEmpty {
+                            do { try await metadataIndex.move(metadataMoves) }
+                            catch { Self.log.error("迁移元数据缓存失败：\(error.localizedDescription)") }
+                        }
+                        for change in batch {
+                            if case let .rewritten(newEntry, previous, metadata) = change {
+                                let container = newEntry.location.parent ?? newEntry.location
+                                do {
+                                    try await metadataIndex.store([newEntry.identity.cacheKey: metadata], in: container)
+                                    if previous.cacheKey != newEntry.identity.cacheKey {
+                                        try await metadataIndex.remove(for: [previous.cacheKey])
+                                    }
+                                } catch {
+                                    Self.log.error("更新重写元数据缓存失败：\(error.localizedDescription)")
+                                }
+                                await self.pipeline.carryOver(from: previous, to: newEntry.identity)
+                            }
+                        }
+                    }
                     let active = self.sessions.compactMap(\.value)
                     for task in Array(self.historyTasks.values) { await task.value }
                     // 把会话中的最新页先写入旧位置，再迁移书记忆。
@@ -251,6 +305,56 @@ public struct CoreConfiguration: Sendable {
         }
         pressureSource = source
         source.resume()
+    }
+
+    private func collectMetadataMoves(
+        for batch: [FileChange],
+        directories: DirectoryCache
+    ) async -> [(from: String, to: String, container: Location)] {
+        var pairs: [(from: String, to: String, container: Location)] = []
+        for change in batch {
+            guard case let .moved(from, to) = change else { continue }
+            let targetContainer = to.location.parent ?? to.location
+            let fallbackOldIdentity = ContentIdentity(
+                location: from,
+                size: to.identity.size,
+                modificationNanos: to.identity.modificationNanos
+            )
+            pairs.append((from: fallbackOldIdentity.cacheKey, to: to.identity.cacheKey, container: targetContainer))
+            if let fromParent = from.parent,
+               let listing = try? await directories.cachedChildren(of: fromParent),
+               let cached = listing.entries.first(where: { $0.location == from }),
+               cached.identity.cacheKey != fallbackOldIdentity.cacheKey {
+                pairs.append((from: cached.identity.cacheKey, to: to.identity.cacheKey, container: targetContainer))
+            }
+            if let search,
+               let descendants = try? await search.query(SearchQuery(scope: from, limit: 1_000_000)) {
+                for hit in descendants.hits {
+                    let oldEntry = hit.entry
+                    let newLocation = Self.rebased(oldEntry.location, from: from, to: to.location)
+                    var newIdentity = oldEntry.identity
+                    newIdentity.location = newLocation
+                    let newContainer = newLocation.parent ?? to.location
+                    pairs.append((from: oldEntry.identity.cacheKey, to: newIdentity.cacheKey, container: newContainer))
+                }
+            }
+        }
+        return pairs
+    }
+
+    private static func rebased(_ location: Location, from oldPrefix: Location, to newPrefix: Location) -> Location {
+        guard location.hasPrefix(oldPrefix) else { return location }
+        let locLayers = location.layers.isEmpty ? [[]] : location.layers
+        let oldLayers = oldPrefix.layers.isEmpty ? [[]] : oldPrefix.layers
+        let newLayers = newPrefix.layers.isEmpty ? [[]] : newPrefix.layers
+        let lastIndex = oldLayers.count - 1
+        let suffixInLast = Array(locLayers[lastIndex].dropFirst(oldLayers[lastIndex].count))
+        var resultLayers = newLayers
+        resultLayers[resultLayers.count - 1].append(contentsOf: suffixInLast)
+        if lastIndex + 1 < locLayers.count {
+            resultLayers.append(contentsOf: locLayers[(lastIndex + 1)...])
+        }
+        return Location(root: newPrefix.root, layers: resultLayers)
     }
 
     func handleMemoryPressure(_ event: DispatchSource.MemoryPressureEvent) {

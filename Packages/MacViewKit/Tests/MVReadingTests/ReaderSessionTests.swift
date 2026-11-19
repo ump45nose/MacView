@@ -761,4 +761,32 @@ struct FailingBookLoader: BookLoader {
             #expect(!ReadingListing.isVisible(entry))
         }
     }
+
+    @Test("rewritten 只更新页的 identity 与 metadata，保持当前页不变、不重载")
+    func rewrittenUpdatesPageWithoutReload() async throws {
+        let session = makeSession()
+        await session.open(tree.location("A"), at: nil)
+        let pageCount = try #require(session.book?.pages.count)
+        let targetIndex = min(1, pageCount - 1)
+        session.go(.index(targetIndex))
+        let originalPage = try #require(session.book?.pages[targetIndex])
+        let newIdentity = ContentIdentity(
+            location: originalPage.id,
+            size: originalPage.entry.identity.size + 512,
+            modificationNanos: originalPage.entry.identity.modificationNanos + 1_000
+        )
+        var newEntry = originalPage.entry
+        newEntry.identity = newIdentity
+        var newMetadata = originalPage.metadata ?? ImageMetadata(pixelSize: PixelSize(width: 800, height: 1200))
+        newMetadata.rating = 5
+        newMetadata.tags = ["精选", "封面"]
+
+        session.applyFileChanges([.rewritten(newEntry, previous: originalPage.entry.identity, metadata: newMetadata)])
+
+        #expect(session.currentFrame == targetIndex)
+        #expect(session.book?.pages.count == pageCount)
+        #expect(session.book?.pages[targetIndex].entry.identity == newIdentity)
+        #expect(session.book?.pages[targetIndex].metadata?.rating == 5)
+        #expect(session.book?.pages[targetIndex].metadata?.tags == ["精选", "封面"])
+    }
 }

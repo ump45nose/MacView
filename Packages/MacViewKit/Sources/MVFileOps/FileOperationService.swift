@@ -2,6 +2,8 @@ import Foundation
 import CryptoKit
 import MVFoundation
 import MVIO
+import MVMedia
+import MVMetadata
 import Synchronization
 
 private actor OperationGate {
@@ -29,6 +31,7 @@ public final class FileOperationService: Sendable {
     private let transferID: @Sendable () -> UUID
     private let createTemporary: @Sendable (Location) async throws -> Void
     private let removeTemporary: @Sendable (Location) async throws -> Void
+    private let renameFile: @Sendable (Location, Location, Bool) async throws -> Void
     private let observers = Mutex<[UUID: AsyncStream<[FileChange]>.Continuation]>([:])
     private let stepDelay = Mutex<Duration?>(nil)
 
@@ -39,12 +42,13 @@ public final class FileOperationService: Sendable {
     public convenience init(fileSystem: FileSystemProvider, journalURL: URL) throws {
         try self.init(fileSystem: fileSystem, journalURL: journalURL, isNetwork: { try fileSystem.isNetworkVolume($0) }, volumeRoot: { try fileSystem.volumeRoot(of: $0) }, networkRoots: { fileSystem.mountedNetworkRoots() }, trash: { try await fileSystem.moveToTrash($0) })
     }
-    init(fileSystem: FileSystemProvider, journalURL: URL, forceCrossVolume: Bool = false, corruptCopy: Bool = false, transferID: @escaping @Sendable () -> UUID = { UUID() }, createTemporary: (@Sendable (Location) async throws -> Void)? = nil, removeTemporary: (@Sendable (Location) async throws -> Void)? = nil, isNetwork: @escaping @Sendable (Location) throws -> Bool, volumeRoot: @escaping @Sendable (Location) throws -> Location, networkRoots: @escaping @Sendable () -> [Location], trash: @escaping @Sendable (Location) async throws -> Location) throws {
+    init(fileSystem: FileSystemProvider, journalURL: URL, forceCrossVolume: Bool = false, corruptCopy: Bool = false, transferID: @escaping @Sendable () -> UUID = { UUID() }, createTemporary: (@Sendable (Location) async throws -> Void)? = nil, removeTemporary: (@Sendable (Location) async throws -> Void)? = nil, renameFile: (@Sendable (Location, Location, Bool) async throws -> Void)? = nil, isNetwork: @escaping @Sendable (Location) throws -> Bool, volumeRoot: @escaping @Sendable (Location) throws -> Location, networkRoots: @escaping @Sendable () -> [Location], trash: @escaping @Sendable (Location) async throws -> Location) throws {
         self.fileSystem = fileSystem; self.journalURL = journalURL; self.isNetwork = isNetwork
         self.forceCrossVolume = forceCrossVolume; self.corruptCopy = corruptCopy
         self.transferID = transferID
         self.createTemporary = createTemporary ?? { try await fileSystem.createFile(at: $0) }
         self.removeTemporary = removeTemporary ?? { try await fileSystem.remove($0) }
+        self.renameFile = renameFile ?? { try await fileSystem.rename($0, to: $1, exclusive: $2) }
         self.volumeRoot = volumeRoot; self.networkRoots = networkRoots; self.trash = trash
     }
     public func changes() -> AsyncStream<[FileChange]> {
@@ -230,6 +234,12 @@ public final class FileOperationService: Sendable {
             }
             if !result.failures.isEmpty { result.retry = .removeEmptyDirectory(location) }
             return result
+        case let .setMetadata(locations, fields):
+            var result = await batch(locations, measureTree: false, progress: progress) { entry, type, context in
+                try await self.rewriteMetadata(entry: entry, type: type, fields: fields, progress: context.advance)
+            }
+            if !result.failures.isEmpty { result.retry = .setMetadata(result.failures.map(\.location), fields) }
+            return result
         }
     }
 
@@ -258,7 +268,7 @@ public final class FileOperationService: Sendable {
     }
     private struct Skipped: Error {}
     private struct TemporaryCollision: Error { let error: IOError }
-    private func batch(_ locations: [Location], progress: (@Sendable (FileProgress) -> Void)?, body: (Entry, FileSystemItemType, BatchContext) async throws -> (FileChange, FileOperation?)) async -> FileOperationResult {
+    private func batch(_ locations: [Location], measureTree: Bool = true, progress: (@Sendable (FileProgress) -> Void)?, body: (Entry, FileSystemItemType, BatchContext) async throws -> (FileChange, FileOperation?)) async -> FileOperationResult {
         var outcome = Outcome()
         var entries: [(Location, Result<(Entry, FileSystemItemType, Int64), any Error>)] = []
         for location in locations {
@@ -268,7 +278,8 @@ public final class FileOperationService: Sendable {
                 guard location.parent != nil else { throw IOError.unsupported(location) }
                 let (entry, type) = try await fileSystem.itemWithoutFollowingLinks(at: location)
                 guard type != .other else { throw IOError.unsupported(location) }
-                entries.append((location, .success((entry, type, try await treeBytes(entry)))))
+                let size = measureTree ? try await treeBytes(entry) : (type == .regular ? max(0, entry.size) : 0)
+                entries.append((location, .success((entry, type, size))))
             } catch { entries.append((location, .failure(error))) }
         }
         let total = entries.reduce(Int64(0)) { sum, pair in
@@ -602,5 +613,138 @@ public final class FileOperationService: Sendable {
             catch { report.failed += 1 }
         }
         return (report, changes)
+    }
+
+    /// 读取整文件、在内存中改写内嵌 XMP、写入同目录临时文件、读回校验哈希后覆盖原文件。
+    private func rewriteMetadata(
+        entry: Entry,
+        type: FileSystemItemType,
+        fields: XMPFields,
+        progress: ((Int64) -> Void)?
+    ) async throws -> (FileChange, FileOperation?) {
+        guard type == .regular else {
+            throw FileOpsError.metadataUnsupported(type == .directory ? "directory" : "other")
+        }
+        switch MetadataFormat.writability(fileName: entry.name, header: nil) {
+        case .writable: break
+        case let .unsupportedFormat(format): throw FileOpsError.metadataUnsupported(format)
+        case .insideArchive: throw FileOpsError.readOnly
+        }
+
+        var original = Data()
+        if entry.size > 0 { original.reserveCapacity(Int(entry.size)) }
+        var offset: Int64 = 0
+        while offset < entry.size {
+            if Task.isCancelled { throw IOError.cancelled }
+            let end = min(entry.size, offset + Int64(4 << 20))
+            let chunk = try await fileSystem.readUncached(entry.location, range: offset..<end, priority: .background)
+            guard !chunk.isEmpty else { throw IOError.corrupted(entry.location, "读取元数据时读到文件末尾") }
+            original.append(chunk)
+            offset += Int64(chunk.count)
+        }
+
+        switch MetadataFormat.writability(fileName: entry.name, header: original) {
+        case .writable: break
+        case let .unsupportedFormat(format): throw FileOpsError.metadataUnsupported(format)
+        case .insideArchive: throw FileOpsError.readOnly
+        }
+
+        let previous = XMPReader.fields(fromHeader: original)
+        let inverseFields = XMPFields(
+            rating: fields.rating != nil ? (previous?.rating ?? 0) : nil,
+            tags: fields.tags != nil ? (previous?.tags ?? []) : nil
+        )
+
+        let rewritten: Data
+        do {
+            rewritten = try XMPWriter.write(fields, into: original)
+        } catch {
+            switch error {
+            case let .unsupportedFormat(format): throw FileOpsError.metadataUnsupported(format)
+            case .verificationFailed: throw FileOpsError.verificationFailed
+            case .encodeFailed: throw error
+            }
+        }
+
+        let newMetadata: ImageMetadata
+        switch try MediaProbe.image(rewritten, isComplete: true) {
+        case let .metadata(metadata): newMetadata = metadata
+        case .needsMoreData: throw MediaError.decodeFailed("无法解析重写后的图片元数据")
+        }
+
+        guard let parent = entry.location.parent else { throw FileOpsError.readOnly }
+        let id = transferID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        let temp = parent.appending(".\(entry.name).mvtmp-\(id)")
+        var temporaryMayExist = false
+        var published = false
+        do {
+            temporaryMayExist = true
+            do {
+                try await createTemporary(temp)
+            } catch let error as IOError {
+                if case .alreadyExists = error {
+                    temporaryMayExist = false
+                    throw TemporaryCollision(error: error)
+                }
+                throw error
+            }
+
+            var expectedHash = SHA256()
+            expectedHash.update(data: rewritten)
+            let expectedDigest = expectedHash.finalize()
+
+            var writeOffset: Int64 = 0
+            let totalCount = Int64(rewritten.count)
+            while writeOffset < totalCount {
+                if Task.isCancelled { throw IOError.cancelled }
+                let end = min(totalCount, writeOffset + Int64(4 << 20))
+                let startIndex = rewritten.index(rewritten.startIndex, offsetBy: Int(writeOffset))
+                let endIndex = rewritten.index(rewritten.startIndex, offsetBy: Int(end))
+                var output = Data(rewritten[startIndex..<endIndex])
+                if corruptCopy && writeOffset == 0 && !output.isEmpty { output[output.startIndex] ^= 0xff }
+                try await fileSystem.write(output, at: writeOffset, to: temp, priority: .background)
+                writeOffset = end
+                progress?(Int64(output.count))
+                if let delay = stepDelay.withLock({ $0 }) { try? await Task.sleep(for: delay) }
+            }
+            try await fileSystem.finishFile(at: temp, modificationNanos: nil)
+
+            let written = try await fileSystem.itemWithoutFollowingLinks(at: temp)
+            guard written.type == .regular, written.entry.size == totalCount else {
+                throw FileOpsError.verificationFailed
+            }
+
+            var actualHash = SHA256()
+            var readOffset: Int64 = 0
+            while readOffset < totalCount {
+                if Task.isCancelled { throw IOError.cancelled }
+                let end = min(totalCount, readOffset + Int64(4 << 20))
+                let part = try await fileSystem.readUncached(temp, range: readOffset..<end, priority: .background)
+                guard !part.isEmpty else { throw FileOpsError.verificationFailed }
+                actualHash.update(data: part)
+                readOffset += Int64(part.count)
+            }
+            guard actualHash.finalize() == expectedDigest else {
+                throw FileOpsError.verificationFailed
+            }
+            if Task.isCancelled { throw IOError.cancelled }
+            try await renameFile(temp, entry.location, false)
+            published = true
+        } catch {
+            if !published && temporaryMayExist {
+                let temporary = temp
+                await Task.detached {
+                    do { try await self.removeTemporary(temporary) }
+                    catch {}
+                }.value
+            }
+            throw error
+        }
+
+        let newEntry = try await fileSystem.entry(at: entry.location)
+        return (
+            .rewritten(newEntry, previous: entry.identity, metadata: newMetadata),
+            .setMetadata([entry.location], inverseFields)
+        )
     }
 }

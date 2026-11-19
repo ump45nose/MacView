@@ -72,6 +72,16 @@ extension CommandID {
     public static let docksToggle = CommandID("panel.docks.toggle")
     public static let retryFailed = CommandID("item.retryFailed")
     public static let settingsOpen = CommandID("app.settings")
+    public static let ratingSet0 = CommandID("rating.set.0")
+    public static let ratingSet1 = CommandID("rating.set.1")
+    public static let ratingSet2 = CommandID("rating.set.2")
+    public static let ratingSet3 = CommandID("rating.set.3")
+    public static let ratingSet4 = CommandID("rating.set.4")
+    public static let ratingSet5 = CommandID("rating.set.5")
+    public static let metadataTagsEdit = CommandID("metadata.tags.edit")
+    public static let searchFocus = CommandID("search.focus")
+    public static let searchIndexFolder = CommandID("search.indexFolder")
+    public static let infoPanelToggle = CommandID("panel.info.toggle")
 }
 
 /// P0 的命令元数据与默认菜单。处理器由 MVServices 和 App 注册。
@@ -150,6 +160,17 @@ public enum CoreCommands {
                 command(.fileOpenWith, .init("用指定应用打开", bundle: .main), "file"),
                 command(.recycleEmpty, .init("清空回收目录…", bundle: .main), "file"),
             ]),
+            Section("评分", [
+                commandMany(.ratingSet0, .init("清除评分", bundle: .main), "metadata", key: KeyChord("0", modifiers: .option), scopes: [.viewer, .list]),
+                commandMany(.ratingSet1, .init("1 星", bundle: .main), "metadata", key: KeyChord("1", modifiers: .option), scopes: [.viewer, .list]),
+                commandMany(.ratingSet2, .init("2 星", bundle: .main), "metadata", key: KeyChord("2", modifiers: .option), scopes: [.viewer, .list]),
+                commandMany(.ratingSet3, .init("3 星", bundle: .main), "metadata", key: KeyChord("3", modifiers: .option), scopes: [.viewer, .list]),
+                commandMany(.ratingSet4, .init("4 星", bundle: .main), "metadata", key: KeyChord("4", modifiers: .option), scopes: [.viewer, .list]),
+                commandMany(.ratingSet5, .init("5 星", bundle: .main), "metadata", key: KeyChord("5", modifiers: .option), scopes: [.viewer, .list]),
+            ]),
+            Section([
+                commandMany(.metadataTagsEdit, .init("编辑标签…", bundle: .main), "metadata", key: KeyChord("t", modifiers: .option), scopes: [.viewer, .list]),
+            ]),
             Section([
                 command(.editUndo, .init("撤销", bundle: .main), "edit", scope: .global, keys: [KeyChord("z", modifiers: .command)]),
                 command(.editRedo, .init("重做", bundle: .main), "edit", scope: .global, keys: [KeyChord("z", modifiers: [.command, .shift])]),
@@ -195,7 +216,7 @@ public enum CoreCommands {
                 command(.zoomFill, .init("填满裁切", bundle: .main), "zoom", keys: [KeyChord("4")]),
                 command(.zoomOriginal, .init("实际像素", bundle: .main), "zoom", keys: [KeyChord("1")]),
                 command(.zoomDevicePixel, .init("设备像素 1:1", bundle: .main), "zoom",
-                        keys: [KeyChord("1", modifiers: .option)]),
+                        keys: [KeyChord("1", modifiers: [.option, .shift])]),
                 command(.zoomFixed, .init("固定百分比…", bundle: .main), "zoom"),
                 command(.zoomIn, .init("放大", bundle: .main), "zoom", keys: [KeyChord("=", modifiers: .command)]),
                 command(.zoomOut, .init("缩小", bundle: .main), "zoom", keys: [KeyChord("-", modifiers: .command)]),
@@ -253,6 +274,9 @@ public enum CoreCommands {
             Section([
                 command(.recursionToggle, .init("递归展开子文件夹", bundle: .main), "sort",
                         keys: [KeyChord("r", modifiers: [.command, .shift])]),
+                command(.searchFocus, .init("搜索", bundle: .main), "search", scope: .global,
+                        keys: [KeyChord("f", modifiers: .command)]),
+                command(.searchIndexFolder, .init("建立索引", bundle: .main), "search"),
             ]),
         ]),
         Group(title: "窗口", sections: [
@@ -273,6 +297,8 @@ public enum CoreCommands {
                         keys: [KeyChord("5", modifiers: [.command, .option])]),
                 command(.playlistToggle, .init("显示或隐藏播放列表", bundle: .main), "window", scope: .global,
                         keys: [KeyChord("6", modifiers: [.command, .option])]),
+                command(.infoPanelToggle, .init("显示或隐藏信息面板", bundle: .main), "window", scope: .global,
+                        keys: [KeyChord("i", modifiers: [.command, .option])]),
                 command(.docksToggle, .init("显示或隐藏停靠区", bundle: .main), "window", keys: [KeyChord("Tab")]),
             ]),
         ]),
