@@ -106,7 +106,35 @@ extension AppDelegate {
         }
         registerLibraryCommands(in: registry)
         registerSearchCommands(in: registry)
+        registerMetadataCommands(in: registry)
         registerViewerCommands(in: registry)
+    }
+
+    /// 评分 0–5（⌥0–⌥5）与编辑标签…（⌥T）：作用于查看器当前页，列表有焦点时为选中项；不可评分对象菜单灰掉。
+    private func registerMetadataCommands(in registry: CommandRegistry) {
+        let ratings: [(CommandID, Int)] = [
+            (.ratingSet0, 0), (.ratingSet1, 1), (.ratingSet2, 2),
+            (.ratingSet3, 3), (.ratingSet4, 4), (.ratingSet5, 5),
+        ]
+        for (id, value) in ratings {
+            guard let descriptor = catalog.descriptor(id) else { continue }
+            registry.register(descriptor, isEnabled: { [weak self] context in
+                guard let self, let writer = metadataWriter else { return false }
+                return writer.canEdit(activeFileOrigin(for: context.session))
+            }) { [weak self] context, _ in
+                guard let self, let writer = metadataWriter else { return }
+                writer.setRating(value, origin: activeFileOrigin(for: context.session))
+            }
+        }
+        if let descriptor = catalog.descriptor(.metadataTagsEdit) {
+            registry.register(descriptor, isEnabled: { [weak self] context in
+                guard let self, let writer = metadataWriter else { return false }
+                return writer.canEdit(activeFileOrigin(for: context.session))
+            }) { [weak self] context, _ in
+                guard let self, let writer = metadataWriter else { return }
+                writer.presentTagEditor(origin: activeFileOrigin(for: context.session))
+            }
+        }
     }
 
     /// 搜索与建立索引：⌘F 聚焦书架搜索框（隐藏时先显示），“为此文件夹建立索引”作用于书架当前或选中的文件夹。

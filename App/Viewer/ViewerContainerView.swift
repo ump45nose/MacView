@@ -17,6 +17,9 @@ final class ViewerContainerView: NSView, InputScoped {
     private let message = ViewerMessageView()
     /// 虚拟书顶部的来源胶囊：“来自 《书名》 · 文件名”。
     private let sourcePill = SourcePillView()
+    /// 评分、标签写入状态或不可评分原因的底部浮层提示。
+    private let metadataToast = MetadataToastView()
+    private var metadataToastTask: Task<Void, Never>?
     private let checker: AvailabilityChecker?
     /// 虚拟书里已交给检查器的页；重查时清空。
     private var checkedPages: Set<Location> = []
@@ -67,6 +70,9 @@ final class ViewerContainerView: NSView, InputScoped {
         sourcePill.translatesAutoresizingMaskIntoConstraints = false
         sourcePill.isHidden = true
         addSubview(sourcePill)
+        metadataToast.translatesAutoresizingMaskIntoConstraints = false
+        metadataToast.isHidden = true
+        addSubview(metadataToast)
         let hudWidth = hud.widthAnchor.constraint(equalToConstant: 880)
         hudWidth.priority = .defaultHigh
         NSLayoutConstraint.activate([
@@ -80,6 +86,8 @@ final class ViewerContainerView: NSView, InputScoped {
             sourcePill.centerXAnchor.constraint(equalTo: centerXAnchor),
             sourcePill.topAnchor.constraint(equalTo: topAnchor, constant: 12),
             sourcePill.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -48),
+            metadataToast.centerXAnchor.constraint(equalTo: centerXAnchor),
+            metadataToast.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -24),
         ])
         message.onAction = { [weak self] in self?.messageAction() }
         message.onSecondary = { [weak self] in self?.onConnect?() }
@@ -168,6 +176,7 @@ final class ViewerContainerView: NSView, InputScoped {
         for (center, token) in activationTokens { center.removeObserver(token) }
         activationTokens = []
         viewportTimer?.invalidate()
+        metadataToastTask?.cancel()
         paged.cancelLoads()
         continuous.leave()
         hud.cancel()
@@ -197,6 +206,31 @@ final class ViewerContainerView: NSView, InputScoped {
         } else {
             continuous.canvas.retryFailed()
         }
+    }
+
+    /// 显示评分/标签写入状态或不可写原因的短提示；`autoHideAfter` 为 nil 时持续显示直到下次更新或隐藏。
+    func showMetadataToast(stars: Int? = nil, text: String, isSpinning: Bool = false, autoHideAfter: Duration? = .seconds(2)) {
+        metadataToastTask?.cancel()
+        metadataToast.show(stars: stars, text: text, isSpinning: isSpinning)
+        metadataToast.alphaValue = 1
+        metadataToast.isHidden = false
+        guard let autoHideAfter else { return }
+        metadataToastTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: autoHideAfter)
+            guard let self, !Task.isCancelled else { return }
+            self.hideMetadataToast()
+        }
+    }
+
+    func hideMetadataToast() {
+        metadataToastTask?.cancel()
+        metadataToastTask = nil
+        metadataToast.stopSpinner()
+        metadataToast.isHidden = true
+    }
+
+    var metadataToastText: String? {
+        metadataToast.isHidden ? nil : metadataToast.displayText
     }
 
     // MARK: 虚拟书
@@ -462,5 +496,65 @@ private final class ViewerMessageView: NSStackView {
 
     @objc private func actSecondary() {
         onSecondary?()
+    }
+}
+
+/// 查看器底部的评分与元数据状态提示胶囊。
+@MainActor
+private final class MetadataToastView: NSView {
+    private let spinner = NSProgressIndicator()
+    private let label = NSTextField(labelWithString: "")
+
+    var displayText: String { label.stringValue }
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 14
+        spinner.style = .spinning
+        spinner.controlSize = .mini
+        spinner.isHidden = true
+        label.font = .systemFont(ofSize: 12)
+        let stack = NSStackView(views: [spinner, label])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 6
+        stack.edgeInsets = NSEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
+    override var wantsUpdateLayer: Bool { true }
+    override func updateLayer() { layer?.backgroundColor = NSColor(srgbRed: 20 / 255, green: 20 / 255, blue: 19 / 255, alpha: 0.86).cgColor }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    func show(stars: Int?, text: String, isSpinning: Bool) {
+        spinner.isHidden = !isSpinning
+        if isSpinning { spinner.startAnimation(nil) } else { spinner.stopAnimation(nil) }
+        let out = NSMutableAttributedString()
+        let font = NSFont.systemFont(ofSize: 12)
+        if let stars {
+            let filled = min(max(stars, 0), 5)
+            if filled > 0 {
+                out.append(NSAttributedString(string: String(repeating: "★", count: filled), attributes: [.font: font, .foregroundColor: NSColor(srgbRed: 0xE3 / 255, green: 0x9A / 255, blue: 0x77 / 255, alpha: 1)]))
+            }
+            if filled < 5 {
+                out.append(NSAttributedString(string: String(repeating: "☆", count: 5 - filled), attributes: [.font: font, .foregroundColor: NSColor(white: 0.72, alpha: 1)]))
+            }
+            out.append(NSAttributedString(string: " ", attributes: [.font: font]))
+        }
+        out.append(NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: NSColor(srgbRed: 0xF5 / 255, green: 0xF4 / 255, blue: 0xEE / 255, alpha: 1)]))
+        label.attributedStringValue = out
+    }
+
+    func stopSpinner() {
+        spinner.stopAnimation(nil)
     }
 }

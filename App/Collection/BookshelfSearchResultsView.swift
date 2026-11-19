@@ -21,6 +21,8 @@ final class BookshelfSearchResultsView: NSView, NSTableViewDataSource, NSTableVi
     var onStatusMessage: ((String) -> Void)?
 
     private weak var services: CoreServices?
+    private weak var writer: MetadataWriteController?
+    private var writerObserverID: UUID?
     private let scroll = NSScrollView()
     private let emptyContainer = NSStackView()
     private let emptyTitle = NSTextField(labelWithString: "")
@@ -70,13 +72,23 @@ final class BookshelfSearchResultsView: NSView, NSTableViewDataSource, NSTableVi
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
-    deinit { thumbTasks.values.forEach { $0.cancel() } }
+    deinit {
+        thumbTasks.values.forEach { $0.cancel() }
+        if let id = writerObserverID, let writer { Task { @MainActor in writer.removeObserver(id) } }
+    }
     nonisolated override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
     override func updateLayer() { layer?.backgroundColor = Theme.ground.cgColor }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); if window != nil { availability.recheckAll(); loadVisibleThumbnails() } }
 
-    func attach(_ services: CoreServices?) {
+    func attach(_ services: CoreServices?, writer: MetadataWriteController? = nil) {
+        if writer !== self.writer {
+            if let id = writerObserverID, let prev = self.writer { prev.removeObserver(id); writerObserverID = nil }
+            self.writer = writer
+            if let writer {
+                writerObserverID = writer.addObserver { [weak self] in self?.refreshVisibleCells() }
+            }
+        }
         guard services !== self.services else { return }
         self.services = services; availability.attach(services)
         if let settings = services?.settings { followThumbnailMemoryBudget(thumbCache, settings: settings) }
@@ -164,7 +176,11 @@ final class BookshelfSearchResultsView: NSView, NSTableViewDataSource, NSTableVi
     private func configure(_ cell: SearchResultCell, row: Int) {
         guard hits.indices.contains(row) else { return }
         let hit = hits[row], state = availability.state(of: hit.entry.location)
-        cell.show(hit: hit, terms: terms, relativeFolder: Self.relativeParentPath(of: hit.entry.location, under: scope),
+        let overlay = writer?.overlay(for: hit.entry.location)
+        let effectiveRating = overlay?.rating ?? hit.rating
+        let effectiveTags = overlay?.tags ?? (hit.tags ?? [])
+        cell.show(hit: hit, terms: terms, rating: effectiveRating, tags: effectiveTags, isWriting: overlay?.isWriting == true,
+                  relativeFolder: Self.relativeParentPath(of: hit.entry.location, under: scope),
                   thumbnail: thumbCache.object(forKey: hit.entry.identity.cacheKey as NSString)?.image, availability: state)
         cell.badge.onPress = { [weak self] in self?.presentUnavailable(for: hit) }
     }
@@ -264,9 +280,9 @@ private final class SearchResultCell: NSView {
         nameLabel.frame = CGRect(x: x, y: 7, width: w, height: 18); metaLabel.frame = CGRect(x: x, y: 27, width: w, height: 16)
     }
 
-    func show(hit: SearchHit, terms: [String], relativeFolder: String, thumbnail: CGImage?, availability: Availability?) {
+    func show(hit: SearchHit, terms: [String], rating: Int?, tags: [String], isWriting: Bool, relativeFolder: String, thumbnail: CGImage?, availability: Availability?) {
         nameLabel.attributedStringValue = Self.highlightedName(hit.entry.name, terms: terms)
-        metaLabel.attributedStringValue = Self.metaString(rating: hit.rating, tags: hit.tags ?? [], relativeFolder: relativeFolder, availability: availability)
+        metaLabel.attributedStringValue = Self.metaString(rating: rating, tags: tags, isWriting: isWriting, relativeFolder: relativeFolder, availability: availability)
         thumb.contents = thumbnail; icon.isHidden = thumbnail != nil
         if thumbnail == nil {
             let sym = switch hit.entry.kind { case .directory: "folder.fill"; case .archive: "doc.zipper"; case .video: "film"; case .image: "photo"; case .other: "doc" }
@@ -293,13 +309,16 @@ private final class SearchResultCell: NSView {
         return out
     }
 
-    private static func metaString(rating: Int?, tags: [String], relativeFolder: String, availability: Availability?) -> NSAttributedString {
+    private static func metaString(rating: Int?, tags: [String], isWriting: Bool, relativeFolder: String, availability: Availability?) -> NSAttributedString {
         let out = NSMutableAttributedString(), font = NSFont.systemFont(ofSize: 11)
         func sep() { if out.length > 0 { out.append(NSAttributedString(string: "  ", attributes: [.font: font])) } }
         if let r = rating, r > 0 {
             let c = min(max(r, 1), 5)
             out.append(NSAttributedString(string: String(repeating: "★", count: c), attributes: [.font: font, .foregroundColor: starColor]))
             if c < 5 { out.append(NSAttributedString(string: String(repeating: "★", count: 5 - c), attributes: [.font: font, .foregroundColor: Theme.lineStrong])) }
+        }
+        if isWriting {
+            sep(); out.append(NSAttributedString(string: String(localized: "正在写入…"), attributes: [.font: font, .foregroundColor: Theme.text2]))
         }
         for tag in tags.prefix(3) {
             sep(); out.append(NSAttributedString(string: " \(tag) ", attributes: [.font: NSFont.systemFont(ofSize: 10.5), .foregroundColor: Theme.text2, .backgroundColor: Theme.well]))

@@ -37,6 +37,15 @@ struct CommandCatalog {
         .command(.windowClose),
     ]
 
+    /// “图像”菜单：评分 0–5 子菜单与标签编辑。
+    static let imageMenu: [MenuNode] = [
+        .submenu(titleKey: "评分", children: [
+            .command(.ratingSet0), .command(.ratingSet1), .command(.ratingSet2),
+            .command(.ratingSet3), .command(.ratingSet4), .command(.ratingSet5),
+        ]),
+        .command(.metadataTagsEdit),
+    ]
+
     /// 停靠区与面板的显示命令：从 Core 默认菜单的“窗口”移到“显示”的末尾，加上三个停靠区。
     @MainActor
     static var dockMenu: [MenuNode] {
@@ -57,15 +66,15 @@ struct CommandCatalog {
         let dockCommands = Set(Self.dockMenu.compactMap { node -> CommandID? in
             if case let .command(id) = node { id } else { nil }
         })
-        menu = MenuModel(roots: CoreCommands.defaultMenu.roots.map { root in
-            guard case let .submenu(titleKey, children) = root else { return root }
+        menu = MenuModel(roots: CoreCommands.defaultMenu.roots.flatMap { root -> [MenuNode] in
+            guard case let .submenu(titleKey, children) = root else { return [root] }
             switch titleKey {
             // 撤销与重做在“编辑”菜单；“文件”按文件操作规范排布。
-            case "文件": return .submenu(titleKey: titleKey, children: Self.fileMenu)
-            case "显示": return .submenu(titleKey: titleKey, children: children + [.separator] + Self.dockMenu)
-            case "书": return .submenu(titleKey: titleKey, children: Self.removing([.searchFocus, .searchIndexFolder], from: children))
-            case "窗口": return .submenu(titleKey: titleKey, children: Self.removing(dockCommands, from: children))
-            default: return root
+            case "文件": return [.submenu(titleKey: titleKey, children: Self.fileMenu)]
+            case "显示": return [.submenu(titleKey: titleKey, children: children + [.separator] + Self.dockMenu), .submenu(titleKey: "图像", children: Self.imageMenu)]
+            case "书": return [.submenu(titleKey: titleKey, children: Self.removing([.searchFocus, .searchIndexFolder], from: children))]
+            case "窗口": return [.submenu(titleKey: titleKey, children: Self.removing(dockCommands, from: children))]
+            default: return [root]
             }
         })
     }

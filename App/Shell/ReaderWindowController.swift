@@ -402,12 +402,20 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         updateTitle()
     }
 
-    /// 查看器右键：资料库项（加到播放列表；虚拟书里另有从列表移除、打开所在的书）在前，文件操作在后。
+    /// 查看器右键：资料库项（加到播放列表；虚拟书里另有从列表移除、打开所在的书）在前，评分标签居中，文件操作在后。
     private func viewerMenu(for entry: Entry) -> NSMenu? {
-        let menu = fileOps.contextMenu(for: FileOrigin(window: self, items: [entry]))
+        let origin = FileOrigin(window: self, items: [entry])
+        let menu = fileOps.contextMenu(for: origin)
         guard let app = NSApp.delegate as? AppDelegate else { return menu }
-        let leading = LibraryActions.pageMenuItems(for: [entry], in: session, app: app) + [.separator()]
-        for item in leading.reversed() { menu.insertItem(item, at: 0) }
+        var leading = LibraryActions.pageMenuItems(for: [entry], in: session, app: app)
+        if let writer = app.metadataWriter {
+            if !leading.isEmpty { leading.append(.separator()) }
+            leading.append(contentsOf: writer.contextMenuItems(for: origin))
+        }
+        if !leading.isEmpty {
+            leading.append(.separator())
+            for item in leading.reversed() { menu.insertItem(item, at: 0) }
+        }
         return menu
     }
 
@@ -538,6 +546,23 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         restoringBook = restoring
         openTask?.cancel()
         openTask = Task { [weak self] in await self?.session.open(location, at: page) }
+    }
+
+    /// 本窗口关联的元数据写入控制器。
+    var metadataWriter: MetadataWriteController? {
+        (NSApp.delegate as? AppDelegate)?.metadataWriter
+    }
+
+    /// 本窗口当前关联的信息面板（停靠或浮动）。
+    var infoPanel: InfoPanel? {
+        if let docked = dock.panels[DockPanels.info] as? InfoPanel {
+            return docked
+        }
+        if let floating = dock.coordinator.floatingWindows[DockPanels.info]?.panel as? InfoPanel,
+           floating.owner === self {
+            return floating
+        }
+        return nil
     }
 
     /// 本窗口当前关联的书架面板（停靠或浮动）。

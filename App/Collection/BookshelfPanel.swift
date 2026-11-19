@@ -138,8 +138,13 @@ final class BookshelfPanel: CollectionPanel {
     private func searchContextMenu(for hits: [SearchHit]) -> NSMenu? {
         guard let owner, !hits.isEmpty else { return nil }
         let items = hits.map(\.entry)
-        let menu = owner.fileOps.contextMenu(for: FileOrigin(window: owner, items: items))
-        let leading = libraryMenuItems(for: items)
+        let origin = FileOrigin(window: owner, items: items)
+        let menu = owner.fileOps.contextMenu(for: origin)
+        var leading = libraryMenuItems(for: items)
+        if let writer = owner.metadataWriter {
+            if !leading.isEmpty { leading.append(.separator()) }
+            leading.append(contentsOf: writer.contextMenuItems(for: origin))
+        }
         for item in (leading.isEmpty ? [] : leading + [.separator()]).reversed() { menu.insertItem(item, at: 0) }
         return menu
     }
@@ -160,7 +165,7 @@ final class BookshelfPanel: CollectionPanel {
     override func windowChanged() {
         observedSession = boundSession
         searchController.attach(owner?.services)
-        searchResultsView.attach(owner?.services)
+        searchResultsView.attach(owner?.services, writer: owner?.metadataWriter)
         owner?.session.shelfSortChanged(sort)
         followedBook = nil
         observeFileChanges()

@@ -75,8 +75,13 @@ class CollectionPanel: DockPanel {
                 guard let self, let owner else { return nil }
                 let items = entries(at: indices)
                 guard !items.isEmpty else { return nil }
-                let menu = owner.fileOps.contextMenu(for: FileOrigin(window: owner, items: items))
-                let leading = libraryMenuItems(for: items)
+                let origin = FileOrigin(window: owner, items: items)
+                let menu = owner.fileOps.contextMenu(for: origin)
+                var leading = libraryMenuItems(for: items)
+                if let writer = owner.metadataWriter {
+                    if !leading.isEmpty { leading.append(.separator()) }
+                    leading.append(contentsOf: writer.contextMenuItems(for: origin))
+                }
                 for item in (leading.isEmpty ? [] : leading + [.separator()]).reversed() { menu.insertItem(item, at: 0) }
                 return menu
             }

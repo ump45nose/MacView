@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var dispatcher: CommandDispatcher?
     private(set) var dock: DockCoordinator?
     private(set) var fileOps: FileOperationController?
+    private(set) var metadataWriter: MetadataWriteController?
     var isMock: Bool {
         #if DEBUG
         UserDefaults.standard.bool(forKey: "MVMockServices")
@@ -105,9 +106,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let services = try await makeServices()
             self.services = services
             fileOps = FileOperationController(app: self)
+            metadataWriter = MetadataWriteController(app: self)
             reloadBindings()
             observeBindings()
             let dispatcher = CommandDispatcher(registry: services.commands)
+            dispatcher.onDisabledCommand = { [weak self] id, controller in
+                self?.metadataWriter?.handleDisabledCommand(id, in: controller) ?? false
+            }
             self.dispatcher = dispatcher
             dock = DockCoordinator(fileURL: DockCoordinator.defaultFileURL())
             registerCommands(in: services.commands)
