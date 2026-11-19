@@ -105,7 +105,31 @@ extension AppDelegate {
             }
         }
         registerLibraryCommands(in: registry)
+        registerSearchCommands(in: registry)
         registerViewerCommands(in: registry)
+    }
+
+    /// 搜索与建立索引：⌘F 聚焦书架搜索框（隐藏时先显示），“为此文件夹建立索引”作用于书架当前或选中的文件夹。
+    private func registerSearchCommands(in registry: CommandRegistry) {
+        if let descriptor = catalog.descriptor(.searchFocus) {
+            registry.register(descriptor, isEnabled: { [weak self] context in
+                guard let self else { return false }
+                return (controller(for: context.session) ?? mainController ?? controllers.first) != nil
+            }) { [weak self] context, _ in
+                guard let self, let target = controller(for: context.session) ?? mainController ?? controllers.first else { return }
+                target.focusBookshelfSearch()
+            }
+        }
+        if let descriptor = catalog.descriptor(.searchIndexFolder) {
+            registry.register(descriptor, isEnabled: { [weak self] context in
+                guard let self, services?.indexer != nil, !IndexController.shared.isIndexing,
+                      let target = controller(for: context.session) ?? mainController ?? controllers.first else { return false }
+                return target.folderForIndexing != nil
+            }) { [weak self] context, _ in
+                guard let self, let target = controller(for: context.session) ?? mainController ?? controllers.first else { return }
+                target.indexCurrentFolder()
+            }
+        }
     }
 
     /// 书签与播放列表：⌘D 加入书签，⌘L 加到最近用的列表，从播放列表移除。资料库不可用时都不可用。

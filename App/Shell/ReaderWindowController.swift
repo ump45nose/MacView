@@ -525,12 +525,71 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         }
     }
 
-    /// 打开书架上的一本书。
-    func openBook(_ location: Location, restoring: Bool = false) {
-        guard location != session.book?.location else { return }
+    /// 打开书架上的一本书；传入 `page` 时打开后定位到该页（同一本书直接跳转）。
+    func openBook(_ location: Location, at page: Location? = nil, restoring: Bool = false) {
+        if let page, location == session.book?.location {
+            if let index = session.book?.pages.firstIndex(where: { $0.id == page }) {
+                session.go(.index(index))
+                return
+            }
+        } else if page == nil, location == session.book?.location {
+            return
+        }
         restoringBook = restoring
         openTask?.cancel()
-        openTask = Task { [weak self] in await self?.session.open(location, at: nil) }
+        openTask = Task { [weak self] in await self?.session.open(location, at: page) }
+    }
+
+    /// 本窗口当前关联的书架面板（停靠或浮动）。
+    var bookshelfPanel: BookshelfPanel? {
+        if let docked = dock.panels[DockPanels.bookshelf] as? BookshelfPanel {
+            return docked
+        }
+        if let floating = dock.coordinator.floatingWindows[DockPanels.bookshelf]?.panel as? BookshelfPanel,
+           floating.owner === self {
+            return floating
+        }
+        return nil
+    }
+
+    /// ⌘F：显示书架（若隐藏）并聚焦搜索框。
+    func focusBookshelfSearch() {
+        let id = DockPanels.bookshelf
+        if case .floating = dock.coordinator.current.placement(of: id) {
+            if !dock.coordinator.current.isPanelVisible(id) {
+                dock.coordinator.perform(in: nil) { $0.togglingPanel(id, defaultEdge: .left) }
+            }
+            if let floating = dock.coordinator.floatingWindows[id], let shelf = floating.panel as? BookshelfPanel {
+                floating.makeKeyAndOrderFront(nil)
+                shelf.focusSearch()
+            }
+        } else {
+            dock.perform { layout in
+                var next = layout
+                if !next.isPanelVisible(id) {
+                    next = next.togglingPanel(id, defaultEdge: .left)
+                }
+                return next.selecting(id)
+            }
+            if let shelf = dock.panels[id] as? BookshelfPanel {
+                window?.makeKeyAndOrderFront(nil)
+                shelf.focusSearch()
+            }
+        }
+    }
+
+    /// “为此文件夹建立索引”的作用目标：书架选中的单个文件夹，或书架当前文件夹，否则当前书所在文件夹。
+    var folderForIndexing: Location? {
+        if let folder = bookshelfPanel?.folderForIndexing {
+            return folder
+        }
+        guard let book = session.book?.location, book.playlistID == nil else { return nil }
+        return book.parent
+    }
+
+    func indexCurrentFolder() {
+        guard let folder = folderForIndexing else { return }
+        IndexController.shared.startIndexing(folder, services: services)
     }
 
     /// 在 Finder 中显示这本书。

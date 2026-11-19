@@ -25,13 +25,13 @@ struct CommandCatalog {
         CommandDescriptor(id: .dockBottomToggle, title: LocalizedStringResource("显示或隐藏底部停靠区"), category: "window"),
     ]
 
-    /// “文件”菜单结构：包含打开、剪贴板、用指定应用打开、移动到、复制到、重命名、删除、回收目录、窗口、设置与关闭。
+    /// “文件”菜单结构：包含打开、剪贴板、用指定应用打开、移动到、复制到、重命名、删除、建立索引、回收目录、窗口、设置与关闭。
     static let fileMenu: [MenuNode] = [
         .command(.fileOpen), .separator,
         .command(.fileCopy), .command(.fileCopyPath), .command(.fileReveal), .submenu(titleKey: "用指定应用打开", children: []), .separator,
         .submenu(titleKey: "移动到", children: []), .submenu(titleKey: "复制到", children: []),
         .command(.fileRename), .command(.fileDelete), .separator,
-        .command(.recycleEmpty), .separator,
+        .command(.searchIndexFolder), .command(.recycleEmpty), .separator,
         .command(.windowNew), .command(.windowNewTab), .separator,
         .command(.retryFailed), .command(.settingsOpen), .separator,
         .command(.windowClose),
@@ -63,6 +63,7 @@ struct CommandCatalog {
             // 撤销与重做在“编辑”菜单；“文件”按文件操作规范排布。
             case "文件": return .submenu(titleKey: titleKey, children: Self.fileMenu)
             case "显示": return .submenu(titleKey: titleKey, children: children + [.separator] + Self.dockMenu)
+            case "书": return .submenu(titleKey: titleKey, children: Self.removing([.searchFocus, .searchIndexFolder], from: children))
             case "窗口": return .submenu(titleKey: titleKey, children: Self.removing(dockCommands, from: children))
             default: return root
             }
@@ -87,6 +88,7 @@ struct CommandCatalog {
 
     func title(of id: CommandID) -> String {
         if id == .fileRename { return String(localized: "重命名…") }
+        if id == .searchIndexFolder { return String(localized: "为此文件夹建立索引") }
         return descriptors[id].map { String(localized: $0.title) } ?? id.rawValue
     }
 

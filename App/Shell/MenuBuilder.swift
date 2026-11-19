@@ -186,9 +186,11 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         ])
     }
 
-    /// 文本框的撤销与剪贴板命令走响应链。
+    /// 文本框的撤销与剪贴板命令走响应链；“查找”聚焦书架搜索框。
     private func editMenu() -> NSMenu {
-        menu(String(localized: "编辑"), [
+        let findItem = commandItem(.searchFocus)
+        findItem.title = String(localized: "查找")
+        let edit = menu(String(localized: "编辑"), [
             item(String(localized: "撤销"), Selector(("undo:")), "z"),
             item(String(localized: "重做"), Selector(("redo:")), "z", [.command, .shift]),
             .separator(),
@@ -196,7 +198,11 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
             item(String(localized: "拷贝"), #selector(NSText.copy(_:)), "c"),
             item(String(localized: "粘贴"), #selector(NSText.paste(_:)), "v"),
             item(String(localized: "全选"), #selector(NSText.selectAll(_:)), "a"),
+            .separator(),
+            findItem,
         ])
+        edit.delegate = self
+        return edit
     }
 
     private func holder(for submenu: NSMenu) -> NSMenuItem {
