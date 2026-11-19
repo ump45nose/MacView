@@ -3,6 +3,7 @@ import CoreGraphics
 import Foundation
 import ImageIO
 import MVFoundation
+import MVMetadata
 
 /// 从内存中的文件头得到元数据。不做 I/O：调用方先读 `initialHeaderLength` 字节，
 /// 结果为 `needsMoreData` 时按要求再读，直到得到元数据。
@@ -31,10 +32,13 @@ public enum MediaProbe {
             return .needsMoreData(nextLength(after: data.count))
         }
         let orientation = properties[kCGImagePropertyOrientation] as? Int ?? 1
+        let xmp = XMPReader.fields(fromHeader: data)
         var metadata = ImageMetadata(
             pixelSize: orientation >= 5 ? PixelSize(width: height, height: width) : PixelSize(width: width, height: height),
             capturedAt: capturedAt(properties),
-            colorSpace: properties[kCGImagePropertyProfileName] as? String ?? properties[kCGImagePropertyColorModel] as? String
+            colorSpace: properties[kCGImagePropertyProfileName] as? String ?? properties[kCGImagePropertyColorModel] as? String,
+            rating: xmp?.rating,
+            tags: xmp?.tags
         )
         let count = CGImageSourceGetCount(source)
         if isComplete, count > 1 {

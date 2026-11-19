@@ -142,6 +142,7 @@ final class ClassifyPanel: NSObject, DockPanel, NSTextFieldDelegate {
             case let .moved(from, toEntry):
                 if let p = from.parent { changedParents.insert(p) }
                 if let p = toEntry.location.parent { changedParents.insert(p) }
+            case .rewritten: break
             }
         }
         var needsRefresh = false
