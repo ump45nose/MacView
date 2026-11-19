@@ -414,7 +414,7 @@ public final class IOScheduler: Sendable {
     public func cancel(_ group: IORequestGroup)                       // 排队中的出队，之后的新请求立即失败
     public func setPriority(_ priority: IOPriority, for group: IORequestGroup)
     public func currentVolumeHealth() -> [VolumeHealth]               // 当下快照，不订阅或发布流
-    public func volumeHealth() -> AsyncStream<[VolumeHealth]>
+    public func volumeHealth() -> AsyncStream<[VolumeHealth]>   // 锁内只改订阅表并复制要发的值，锁外再 yield/finish；持锁发布会和订阅方取消时的任务锁反转（S3-F1 关窗口卡死）
     public func shutdown()                                            // 杀掉辅助进程，不等卡住的调用
 }
 public enum FileSystemItemType: Sendable, Equatable { case regular, directory, symbolicLink, other }
