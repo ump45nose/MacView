@@ -1,6 +1,6 @@
 # MacView 架构
 
-状态：2026-10-31 定稿；2026-11-01 并入关口 G0 的决定。2026-11-17 同步 S3-T1 阶段 1 资料库接口；Core 集成验收与 App 阶段分别记录。
+状态：2026-10-31 定稿；2026-11-01 并入关口 G0 的决定。2026-11-17 同步 S3-T1 阶段 1 资料库接口；2026-11-19 同步 S3-T3/S3-T4 阶段 1 搜索索引、评分标签与变更链接口；Core 集成验收与 App 阶段分别记录。
 
 相关文档：
 - 需求：[requirements.md](plans/requirements.md)
@@ -36,23 +36,25 @@
 |---|---|---|
 | MVFoundation | Location、ContentIdentity、Entry、PixelSize、JSONValue、错误类型、日志与 signpost、名称比较器 | — |
 | MVIO | IOScheduler、卷通道与健康状态、FileSystemProvider 读写原语、SourceRegistry、ByteSource，以及 URL 与 Location 的互转 | MVFoundation |
-| MVFileOps | 文件操作、反向操作、跨卷复制校验和传输记录；已接入组合根，网络验收待执行 | MVFoundation、MVIO |
+| MVMetadata | XMP 评分与标签读写（JPEG/TIFF/HEIC）、EXIF/XMP 详情解析、格式可写性判定 | MVFoundation |
+| MVFileOps | 文件操作、评分与标签写入、反向操作、跨卷复制校验和传输记录；已接入组合根 | MVFoundation、MVIO、MVMetadata、MVMedia |
 | MVArchive | zip/cbz、tar、tar.gz/gz，嵌套，ArchiveProvider，临时解出目录 | MVIO |
-| MVMedia | 探测、显示尺寸解码与重采样、原图与分块、动图帧、视频封面与元数据、渲染件编码 | MVFoundation |
-| MVCache | 泛型内存缓存 L0/L1、字节磁盘缓存 L2/L3、按容器查询的图像元数据索引、目录缓存 | MVFoundation、GRDB.swift |
+| MVMedia | 探测（含 XMP 评分与标签）、显示尺寸解码与重采样、原图与分块、动图帧、视频封面与元数据、渲染件编码 | MVFoundation、MVMetadata |
+| MVCache | 泛型内存缓存 L0/L1、字节磁盘缓存 L2/L3（含改挂）、按容器查询的图像元数据与标签索引、目录缓存与搜索查询（SearchCatalog） | MVFoundation、GRDB.swift |
 | MVPipeline | ImagePipeline：串联各缓存层，一次读取产出多种渲染件，渐进交付，按会话管理预取计划 | MVIO、MVMedia、MVCache |
 | MVSettings | 设置模式、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
 | MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型 | MVFoundation |
 | MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVCache、MVPipeline、MVSettings |
 | MVLibraryData | 历史、书签、播放列表存储与变更；可用性检查；虚拟书加载 | MVFoundation、MVIO、MVCache、MVReading、GRDB.swift |
+| MVSearch | 目录树递归建立搜索索引与增量元数据探测（FolderIndexer） | MVFoundation、MVIO、MVMedia、MVCache |
 | MVServices | 组合根：创建并连接各服务，按位置分派加载器，记录历史与迁移资料库，负责启动、退出和内存压力处理 | 以上全部 |
 | MVTestSupport | Mock、内存资料库与夹具清单（`Fixtures/manifest.json`）的读取。App 的 Debug 构建可以用启动参数 `-MVMockServices YES` 切换到 Mock | 契约 |
-| mvbench | 基准测试与夹具生成的命令行工具；`library seed-playlist` 准备列表夹具，`fileops` 覆盖文件操作网络验收 | 现有 Core 模块及 MVFileOps、MVLibraryData |
+| mvbench | 基准测试与夹具生成的命令行工具；`library seed-playlist` 准备列表夹具，`fileops` 覆盖文件操作网络验收，`search seed/query` 覆盖搜索索引基准 | 现有 Core 模块及 MVFileOps、MVLibraryData |
 | MVLayout | App 侧的纯计算：画布的四种布局与锚点、停靠布局及其变换。App 没有测试目标，放进包里才能用 `make test` 测 | MVFoundation、MVSettings |
 | App（`MacView` target） | 窗口与标签页、停靠面板、集合视图、查看器、输入、菜单、设置界面、本地化 | MVServices 等 |
 
 - 任务 ID 中，T 表示 Core 任务，F 表示 App 任务。
-- P1 的新模块到对应阶段再建：MVSearch、MVMetadata（评分与标签）、MVEffects、MVScripting、MVPlugins。
+- P1 的新模块到对应阶段再建：MVEffects、MVScripting、MVPlugins。
 - 依赖选型：SQLite 统一用 GRDB.swift（MIT 许可），由第一个用到它的任务引入，MVCache 与 MVSettings 共用。其余依赖由各任务按需选用。
 - 已引入的依赖（版本以 `Packages/MacViewKit/Package.resolved` 为准）：
 
@@ -118,7 +120,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 视频也要隔离：用 AVAssetResourceLoader 从辅助进程按范围取数据，不让 AVFoundation 在进程内读网络卷。
   - 辅助进程由 posix_spawn 起宿主自己的可执行文件（环境变量 `MVIO_HELPER=1`），经 socketpair 收发二进制帧，读到 EOF 即退出（S1-T1）。不用 launchd 托管的 XPC 服务：同一 App 域内只有一个实例，卡住的实例活着时无法换新的。
   - 卡住的辅助进程被弃用时发 SIGKILL 并关闭 socket，下一个请求起新的辅助进程。
-  - 辅助进程按路径缓存最多 32 个只读描述符，免得网络卷上每读一块都重新打开。读写同一个辅助进程；执行改名（源路径）、删除、移入废纸篓前，先释放该路径及其下所有路径的缓存描述符，操作期间不让并发读取重新缓存。否则 NFS 会把仍打开的文件改名为 `.nfs.*` 保留，目录删不掉（S3 阶段 2b）。
+  - 辅助进程按路径缓存最多 32 个只读描述符，免得网络卷上每读一块都重新打开。读写同一个辅助进程；执行改名（源路径及覆盖目标路径）、删除、移入废纸篓前，先释放该路径及其下所有路径的缓存描述符，操作期间不让并发读取重新缓存。否则 NFS 会把仍打开的文件改名为 `.nfs.*` 保留，目录删不掉（S3 阶段 2b / S3-T3）。
 - 文件写入与移动（S3-T2）：创建、写入、完成、改名、建目录、删除和本机废纸篓经调度器及现有期限；网络卷由辅助进程执行。排他改名在 NFS 返回 ENOTSUP/EINVAL 时回退普通改名，存在检查与改名之间的竞态。
 - 跨卷移动先原子写入本机传输记录，记录源、目标、临时位置和冲突策略；临时名为 `.<原名>.<完整传输 ID（32 位十六进制）>.macview-part`，排他创建遇到重名时先删除记录再报错，删除记录失败也报错。复制逐文件读回 SHA-256，排他发布后删除源；复制操作也使用带 ID 的临时名，但不写移动记录。创建后的失败和取消会清理临时项，清理失败时保留移动记录供恢复。
 - 组合根启动时恢复中断的移动：临时项存在时删除后重做；没有临时项且目标、源均存在时，逐项比较类型、大小和 SHA-256，匹配才删除源；不匹配或无法读取则保留源，按记录中的冲突策略重做。临时项和源均不存在、目标存在时，删除记录并计入 completed；三者均不存在时，删除记录并计入 failed。该功能尚未发布，不保留旧式临时项迁移逻辑。
@@ -371,14 +373,14 @@ public struct Location: Hashable, Sendable, Codable {
 }
 public struct ContentIdentity: Hashable, Sendable, Codable { public var location: Location; public var size: Int64; public var modificationNanos: Int64; public var checksum: UInt32?; public var cacheKey: String { get } }
 public struct PixelSize: Hashable, Sendable, Codable { public var width: Int; public var height: Int }
-public struct ImageMetadata: Sendable, Codable, Hashable { public var pixelSize: PixelSize; public var frameCount: Int; public var duration: Double?; public var capturedAt: Date?; public var colorSpace: String? }   // pixelSize 已按 EXIF 方向换算
+public struct ImageMetadata: Sendable, Codable, Hashable { public var pixelSize: PixelSize; public var frameCount: Int; public var duration: Double?; public var capturedAt: Date?; public var colorSpace: String?; public var rating: Int?; public var tags: [String]? }   // pixelSize 已按 EXIF 方向换算；rating 0–5（nil 表示无）；tags nil 表示未读到，[] 表示为空
 public enum ArchiveFormat: String, Sendable, Codable { case zip, tar, tarGzip, gzip }
 public enum EntryKind: Hashable, Sendable, Codable { case directory, archive(ArchiveFormat), image, video, other; public init(fileName: String) }   // init 按扩展名判断，不读内容
 public struct Entry: Hashable, Sendable, Codable { public var identity: ContentIdentity; public var name: String; public var kind: EntryKind; public var created: Date? }   // location、size、modified 由 identity 计算
 public struct SessionID: Hashable, Sendable { public let raw: UUID }
 public enum JSONValue: Hashable, Sendable, Codable { case null, bool(Bool), number(Double), string(String), array([JSONValue]), object([String: JSONValue]) }
 public enum Availability: Sendable, Hashable { case available, missing, volumeUnavailable(Location.Root) }   // MVLibraryData 重新导出
-public enum FileChange: Sendable, Hashable { case added(Entry), removed(Location), moved(from: Location, to: Entry) }
+public enum FileChange: Sendable, Hashable { case added(Entry), removed(Location), moved(from: Location, to: Entry), rewritten(Entry, previous: ContentIdentity, metadata: ImageMetadata) }   // rewritten：仅改写元数据，metadata 由写入时内存字节探测得到
 public enum ConflictPolicy: String, Sendable, Codable { case appendNumber, skip }
 public enum TransferMode: String, Sendable, Codable { case move, copy }
 public enum ResampleFilter: String, Sendable, Codable { case lanczos, nearest }   // MVSettings 也要用，所以放在这里
@@ -437,14 +439,33 @@ public final class FileSourceRegistry: SourceRegistry { public init(scheduler: I
 public enum IOHelper { public static func runIfRequested() }   // 宿主 main 开头调用：作为辅助进程启动时进入请求循环，不返回
 public final class ByteSourceAsset: Sendable { public let asset: AVURLAsset; public init(source: any ByteSource, priority: IOPriority = .visible) }   // 网络卷视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
 
+// MVMetadata
+public struct XMPFields: Sendable, Hashable, Codable { public var rating: Int?; public var tags: [String]? }   // nil 表示不改；写入时 rating=0 清除评分，tags=[] 清除 dc:subject
+public enum MetadataWritability: Sendable, Equatable { case writable, unsupportedFormat(String), insideArchive }
+public enum MetadataError: Error, Sendable, Equatable { case unsupportedFormat(String), verificationFailed, encodeFailed }
+public struct ImageDetails: Sendable, Hashable {
+    public var pixelSize: PixelSize?; public var format: String?; public var colorSpace: String?
+    public var cameraMake, cameraModel, lens: String?; public var focalLength, aperture, exposureTime: Double?; public var iso: Int?
+    public var capturedAt: Date?; public var latitude, longitude: Double?; public var fields: XMPFields?
+}
+public enum MetadataFormat { public static func writability(fileName: String, header: Data?) -> MetadataWritability }   // 按文件头识别 JPEG/TIFF/HEIC；无头按扩展名
+public enum XMPReader {
+    public static func fields(fromHeader data: Data) -> XMPFields?   // 前 64 KB；xmp:Rating 优先，回退 MicrosoftPhoto:Rating（1/25/50/75/99→1–5，0→nil）；dc:subject
+    public static func details(fromHeader data: Data) -> ImageDetails?
+}
+public enum XMPWriter {
+    public static func write(_ change: XMPFields, into original: Data) throws(MetadataError) -> Data   // 内存改写并逐字节校验扫描段（JPEG）或首帧像素（TIFF/HEIC），失败抛 verificationFailed
+}
+
 // MVFileOps
 public struct Relocation: Sendable, Hashable { public var source: Location; public var target: Location }
 public indirect enum FileOperation: Sendable, Hashable {
     case delete([Location]), deletePermanently([Location]), rename(Location, to: String)
     case transfer([Location], into: Location, mode: TransferMode, conflict: ConflictPolicy)
-    case relocate([Relocation]), makeDirectory(in: Location, name: String), removeEmptyDirectory(Location), sequence([FileOperation])
-}
-public enum FileOpsError: Error, Sendable, Equatable { case readOnly, invalidName(String), recycleUnavailable(String), verificationFailed, intoItself }
+    case relocate([Relocation]), makeDirectory(in: Location, name: String), removeEmptyDirectory(Location)
+    case setMetadata([Location], XMPFields), sequence([FileOperation])
+}   // setMetadata：原子写同目录临时文件、无缓存读回 SHA-256 校验、覆盖 rename（释放目标描述符）；inverse 为各文件原值组成的 .sequence
+public enum FileOpsError: Error, Sendable, Equatable { case readOnly, invalidName(String), recycleUnavailable(String), verificationFailed, intoItself, metadataUnsupported(String) }
 public struct FileFailure: Sendable { public var location: Location; public var error: any Error }
 public struct FileProgress: Sendable, Hashable { public var completedItems, totalItems: Int; public var completedBytes, totalBytes: Int64 }
 public struct FileOperationResult: Sendable { public var changes: [FileChange]; public var inverse: FileOperation?; public var skipped: [Location]; public var failures: [FileFailure]; public var retry: FileOperation? }   // retry 只含失败项，不含 skip；sequence 遇失败即停，重试从该步未完成的项接续后续步骤；跨卷已发布目标只核对并删源
@@ -484,20 +505,36 @@ public final class DiskCache: Sendable {
     public func data(for keys: [String]) async throws -> [String: Data]   // 先查索引，并发读文件
     public func store(_ data: Data, for key: String) async throws       // 临时文件 → 改名 → 索引，超预算按访问时间淘汰
     public func setBudget(_ budget: Int64) async throws
+    public func rekey(prefix old: String, to new: String) async throws  // 以 old 开头的 key（各尺寸后缀）改挂到 new 开头，旧的不在时跳过
 }   // 文件位于 cacheDirectory/<tier>/<键前两位>/；启动只清 tmp/，不扫描其余分目录；淘汰时抽查孤儿
 public final class MetadataIndex: Sendable {
     public init(index: CacheIndex)
     public func values(in container: Location) async throws -> [String: ImageMetadata]   // 一次按容器的索引范围查询，取回该容器内全部条目
     public func values(for keys: [String]) async throws -> [String: ImageMetadata]
-    public func store(_ values: [String: ImageMetadata], in container: Location) async throws   // container 为条目所在的容器，即 location.parent
+    public func store(_ values: [String: ImageMetadata], in container: Location) async throws   // container 为条目所在的容器，即 location.parent；同事务维护 metadata_tags
+    public func remove(for keys: [String]) async throws
+    public func move(_ pairs: [(from: String, to: String, container: Location)]) async throws   // 文件改名、移动后元数据（含评分、标签）跟到新 key
 }
 public struct DirectoryListing: Codable, Sendable, Hashable { public var entries: [Entry]; public var directoryModificationNanos: Int64?; public init(entries: [Entry], directoryModificationNanos: Int64? = nil) }
 public struct ListingDiff: Sendable, Hashable { public var added: [Entry]; public var removed: [Location]; public var changed: [Entry]; public init(added: [Entry], removed: [Location], changed: [Entry]) }   // changed：同一位置的 identity 变了
 public final class DirectoryCache: Sendable {
     public init(index: CacheIndex)
     public func cachedChildren(of container: Location) async throws -> DirectoryListing?
-    public func update(_ container: Location, listing: DirectoryListing) async throws -> ListingDiff
-    public func apply(_ changes: [FileChange]) async throws           // 只更新已有缓存
+    public func update(_ container: Location, listing: DirectoryListing) async throws -> ListingDiff   // 同事务维护 search_entries
+    public func apply(_ changes: [FileChange]) async throws           // 只更新已有缓存；同事务维护 search_entries（含目录删除/移动按前缀处理与 .rewritten）
+}
+public enum SearchKind: String, Sendable, Codable { case image, video, archive, directory }
+public struct SearchQuery: Sendable, Hashable {
+    public var terms: [String]; public var scope: Location; public var minimumRating: Int?   // minimumRating：1–5；0 表示“未评分”
+    public var tags: [String]; public var kinds: Set<SearchKind>; public var limit: Int      // 默认 5000；tags 全部命中；kinds 空表示全部
+}
+public struct SearchHit: Sendable, Hashable { public var entry: Entry; public var rating: Int?; public var tags: [String]? }
+public struct SearchResult: Sendable { public var hits: [SearchHit]; public var truncated: Bool; public var indexedCount: Int }
+public final class SearchCatalog: Sendable {
+    public init(index: CacheIndex)
+    public func query(_ query: SearchQuery) async throws -> SearchResult
+    public func tagSuggestions(prefix: String, limit: Int) async throws -> [String]   // 按出现次数降序
+    public func indexedCount(under scope: Location) async throws -> Int
 }
 
 // MVMedia
@@ -511,7 +548,7 @@ public enum ProbeResult: Sendable, Equatable { case metadata(ImageMetadata), nee
 public enum MediaProbe {
     public static let initialHeaderLength: Int   // 64 KB
     public static let headerLimit: Int           // 1 MB，超过后改要整个文件
-    public static func image(_ data: Data, isComplete: Bool) throws(MediaError) -> ProbeResult
+    public static func image(_ data: Data, isComplete: Bool) throws(MediaError) -> ProbeResult   // 同时解析 XMP 评分与标签（XMPReader.fields）
     public static func video(_ asset: AVAsset) async throws -> ImageMetadata
 }
 public final class ImageDecoder: Sendable {   // 不做 I/O；解码在并发上限为性能核心数的专用队列上，等待中的按调用方任务的优先级出队
@@ -541,6 +578,7 @@ public protocol ImagePipeline: Sendable {
     func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID)
     func cancelAll(session: SessionID)
+    func carryOver(from old: ContentIdentity, to new: ContentIdentity) async   // 协议扩展有默认空实现；像素未变时改挂磁盘缓存并清理旧内存条目
 }
 public struct PipelineCaches: Sendable {
     public var raw: MemoryCache<String, Data>; public var decoded: MemoryCache<String, RenderedImage>
@@ -626,6 +664,7 @@ public struct CommandID: RawRepresentable, Hashable, Codable, Sendable { public 
 // 资料库：bookmarkAdd = library.bookmark.add（⌘D）、playlistAddCurrent = library.playlist.addCurrent（⌘L），viewer/list，归“书”菜单。
 // playlistRemoveItem = library.playlist.removeItem，无默认键；historyToggle / bookmarksToggle / playlistToggle 为 global，⌥⌘4/5/6，归“窗口”菜单。
 // file.reveal 默认 ⌥⌘R（viewer、list）；viewer 的 ⇧⌘R 仍用于递归。
+// 搜索与评分标签：rating.set.0–5（⌥0–⌥5）、metadata.tags.edit（⌥T）、search.focus（⌘F）、search.indexFolder、panel.info.toggle（⌥⌘I）；zoomDevicePixel 默认绑定调整为 ⌥⇧1 以避免与 rating.set.1（⌥1）冲突。
 public enum InputScope: String, Codable, Sendable { case global, viewer, list, textInput, classify }
 public struct KeyModifiers: OptionSet, Hashable, Codable, Sendable { public let rawValue: UInt8 /* command, option, control, shift, function */ }
 public struct KeyChord: Hashable, Codable, Sendable { public var key: String; public var modifiers: KeyModifiers }   // key 为逻辑键名，如 "Right"、"a"
@@ -659,6 +698,7 @@ extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources
     public static let zoomAllowUpscaleToggle, magnifierToggle, keepZoomOnPageTurnToggle: CommandID
     public static let sortName, sortModified, sortCreated, sortSize, sortType, sortRandom, sortAscending, sortDescending, sortFoldersFirstToggle, recursionToggle: CommandID
     public static let windowNew, windowNewTab, fullScreenToggle, bookshelfToggle, pageListToggle, docksToggle, retryFailed, settingsOpen: CommandID
+    public static let ratingSet0, ratingSet1, ratingSet2, ratingSet3, ratingSet4, ratingSet5, metadataTagsEdit, searchFocus, searchIndexFolder, infoPanelToggle: CommandID
 }
 
 // MVReading
@@ -739,6 +779,16 @@ public enum ReadingOrder { public static func sorted(_ entries: [Entry], by sort
 // 快照 sorted → 容器独立校验及 availability → 必要时原序 sorted、静默回写 → 元数据；不可用项交付占位尺寸且流结束。
 // apply 只迁移 moved，单事务并仅发 relocated；updateSnapshots 不改顺序、不通知；变化写成后广播给多订阅者。
 
+// MVSearch
+public struct IndexProgress: Sendable, Hashable {
+    public var phase: Phase; public var listed: Int; public var probed: Int; public var toProbe: Int; public var failures: Int
+    public enum Phase: Sendable, Hashable { case listing, probing, finished }
+}
+public final class FolderIndexer: Sendable {
+    public init(sources: any SourceRegistry, directories: DirectoryCache, metadata: MetadataIndex)
+    public func index(_ folder: Location) -> AsyncThrowingStream<IndexProgress, any Error>   // 两步索引（递归枚举 + 低优先级增量探测）；取消即停；同卷串行排队；卷降级时整步报错、已写入部分保留
+}
+
 // MVServices
 public struct LibraryBookLoader: BookLoader {
     public init(files: any BookLoader, playlists: any BookLoader)
@@ -750,18 +800,21 @@ public struct CoreConfiguration: Sendable {
 }   // browseBounds 由 App 提供显示器像素尺寸；helperExecutable 为辅助进程可执行文件
 @MainActor public final class CoreServices {
     public static func make(configuration: CoreConfiguration) async throws -> CoreServices
-    public convenience init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader, library: (any LibraryStore)? = nil)   // Mock 等消费方的构造入口
+    public convenience init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader, library: (any LibraryStore)? = nil, search: SearchCatalog? = nil, indexer: FolderIndexer? = nil)   // Mock 等消费方的构造入口
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
     public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?   // Mock 为 nil
     public let fileOperations: FileOperationService?   // Mock 为 nil
     public let library: (any LibraryStore)?   // make 为 SQLite；makeMock 为内存 MockLibraryStore
     public let availability: AvailabilityChecker?   // Mock 为 nil
-    public func appliedFileChanges() -> AsyncStream<[FileChange]>   // 目录缓存、书记忆、资料库迁移尝试和活跃会话处理后广播；资料库失败仍交付本批，支持多个订阅者，Mock 为空流
+    public let search: SearchCatalog?   // make 为真实 SearchCatalog；makeMock 使用临时目录的 CacheIndex 接入真实 SearchCatalog
+    public let indexer: FolderIndexer?  // make 与 makeMock 均接入真实 FolderIndexer
+    public func appliedFileChanges() -> AsyncStream<[FileChange]>   // 目录缓存、元数据迁移/改挂、书记忆、资料库迁移尝试和活跃会话处理后广播；资料库失败仍交付本批，支持多个订阅者，Mock 为空流
     public func interruptedTransfersReport() async -> ResumeReport?   // 等待启动恢复并返回同一份结果；Mock 为 nil
+    public nonisolated func metadataDetails(for entry: Entry) async throws -> ImageDetails   // 经 SourceRegistry 增量读前 64 KB（上限 MediaProbe.headerLimit），压缩包内条目同样可读
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
     public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 资料库 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
-// 组合根订阅文件变更：目录缓存 → 冲刷相关会话及待写历史 → 按每个 moved 迁移书记忆与 library.apply → 会话 → 广播。
+// 组合根订阅文件变更：先收集 moved 涉及的元数据迁移对（含目录后代）→ 目录缓存 → MetadataIndex.move 与 .rewritten 的 store/remove + pipeline.carryOver → 冲刷相关会话及待写历史 → 按每个 moved 迁移书记忆与 library.apply → 会话（.rewritten 仅原位更新 identity 与 metadata，不重载）→ 广播。
 // library.apply 失败只记日志，其事务保持三表原样；会话照常跟随真实文件位置并广播本批，不补偿、不重试。旧资料库项由检查器显示找不到，由用户移除或重新加入。
 // makeSession 的 onBookOpened 记录历史；退出先等已排队的历史，再冲刷会话与持久化。启动时异步恢复中断传输。
 // library.items / playlistRemoved 重载所有打开对应列表的会话；relocated 不重载，快照回写不通知。
