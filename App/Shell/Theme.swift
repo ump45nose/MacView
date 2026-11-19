@@ -21,6 +21,7 @@ enum Theme {
     /// Clay：只作强调色（放置指示、焦点），浅色模式下不用作文字。
     static let accent = color(light: 0xD97757, dark: 0xD97757)
     static let accentSoft = color(light: 0xD97757, lightAlpha: 0.14, dark: 0xD97757, darkAlpha: 0.2)
+    static let star = color(light: 0xC2643F, dark: 0xE39A77)
 
     /// 衬线字体（New York / 宋体），用于标题和空状态。
     static func serif(_ size: CGFloat, weight: NSFont.Weight = .medium) -> NSFont {

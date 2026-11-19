@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    " · 最近用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · Recent"
+          }
+        }
+      }
+    },
     " · 等 %lld 项操作": {
       "localizations": {
         "en": {
@@ -41,6 +51,26 @@
         }
       }
     },
+    "%@ / %@ 张": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ / %2$@ images"
+          }
+        }
+      }
+    },
+    "%@ 0 / %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 0 / %2$lld"
+          }
+        }
+      }
+    },
     "%@ · 响应缓慢 · 正在探测": {
       "localizations": {
         "en": {
@@ -71,12 +101,52 @@
         }
       }
     },
+    "%@ 不能评分和加标签。当前只支持 JPEG、TIFF、HEIC。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ files cannot be rated or tagged. Only JPEG, TIFF, and HEIC are supported."
+          }
+        }
+      }
+    },
+    "%@ 内": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inside %@"
+          }
+        }
+      }
+    },
     "%@ 响应缓慢": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ is slow to respond"
+          }
+        }
+      }
+    },
+    "%@ 张 · %lld 项失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ images · %2$lld failed"
+          }
+        }
+      }
+    },
+    "%@ 张 · 完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ images · Done"
           }
         }
       }
@@ -113,12 +183,92 @@
         }
       }
     },
+    "%@ 格式不能评分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ files cannot be rated"
+          }
+        }
+      }
+    },
+    "%@ 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ items"
+          }
+        }
+      }
+    },
+    "%@ 项 · 只显示已索引的文件 · Esc 回到文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ items · Indexed files only · Esc to return"
+          }
+        }
+      }
+    },
+    "%@ 项 · 完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ items · Done"
+          }
+        }
+      }
+    },
+    "%@ 项 · 完成，已可搜索": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ items · Done, searchable now"
+          }
+        }
+      }
+    },
+    "%@失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ failed"
+          }
+        }
+      }
+    },
+    "%@（%lld）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (%2$lld)"
+          }
+        }
+      }
+    },
     "%@（默认）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ (Default)"
+          }
+        }
+      }
+    },
+    "%@：%lld 项中 %lld 项写入失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %3$lld of %2$lld failed"
           }
         }
       }
@@ -197,6 +347,16 @@
         }
       }
     },
+    "%lld 星": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Stars"
+          }
+        }
+      }
+    },
     "%lld 本": {
       "localizations": {
         "en": {
@@ -237,6 +397,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "%lld 次删除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld deletions"
           }
         }
       }
@@ -311,6 +481,16 @@
         }
       }
     },
+    "%lld 项，来自 %lld 本书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Items: %lld · Source books: %lld"
+          }
+        }
+      }
+    },
     "+ 新建目标并复制进去": {
       "localizations": {
         "en": {
@@ -327,6 +507,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "+ New Target & Move In"
+          }
+        }
+      }
+    },
+    "+ 标签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ Tag"
+          }
+        }
+      }
+    },
+    "GPS": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPS"
+          }
+        }
+      }
+    },
+    "ISO": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISO"
           }
         }
       }
@@ -401,6 +611,66 @@
         }
       }
     },
+    "① 文件名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "① Filenames"
+          }
+        }
+      }
+    },
+    "② 评分与标签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "② Ratings & Tags"
+          }
+        }
+      }
+    },
+    "▶ 当书打开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "▶ Read as Book"
+          }
+        }
+      }
+    },
+    "★ %lld 以上": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "★ %lld & up"
+          }
+        }
+      }
+    },
+    "★ 5": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "★ 5"
+          }
+        }
+      }
+    },
+    "⚠ 网络卷没有连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⚠ Network Volume Disconnected"
+          }
+        }
+      }
+    },
     "。已改动，下次启动时生效": {
       "localizations": {
         "en": {
@@ -417,6 +687,16 @@
           "stringUnit": {
             "state": "translated",
             "value": ". The switch takes effect at next launch"
+          }
+        }
+      }
+    },
+    "《%@》已在书签里": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” is already bookmarked"
           }
         }
       }
@@ -533,6 +813,16 @@
         }
       }
     },
+    "不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        }
+      }
+    },
     "不支持 %@ 格式：“%@”": {
       "localizations": {
         "en": {
@@ -573,6 +863,16 @@
         }
       }
     },
+    "不限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any"
+          }
+        }
+      }
+    },
     "与文件混排": {
       "localizations": {
         "en": {
@@ -583,12 +883,42 @@
         }
       }
     },
+    "两种方式都不覆盖目标里的文件。跳过的项会在结果里注明。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neither option overwrites existing files in the destination. Skipped items are noted in the result."
+          }
+        }
+      }
+    },
+    "为“%@”建立索引失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to Index “%@”"
+          }
+        }
+      }
+    },
     "为一个文件夹里的所有书设默认值。多条规则同时匹配时，路径越具体越优先；书自己的设置仍优先于规则。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Set defaults for all books in a folder. When several rules match, the most specific path wins; a book’s own settings still take priority."
+          }
+        }
+      }
+    },
+    "为此文件夹建立索引": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Index This Folder"
           }
         }
       }
@@ -645,6 +975,16 @@
         }
       }
     },
+    "书签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bookmarks"
+          }
+        }
+      }
+    },
     "仅缩小": {
       "localizations": {
         "en": {
@@ -675,6 +1015,36 @@
         }
       }
     },
+    "从书签中移除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Bookmark"
+          }
+        }
+      }
+    },
+    "从列表移除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from Playlist"
+          }
+        }
+      }
+    },
+    "从历史中删除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from History"
+          }
+        }
+      }
+    },
     "从右到左": {
       "localizations": {
         "en": {
@@ -695,12 +1065,62 @@
         }
       }
     },
+    "从播放列表移除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from Playlist"
+          }
+        }
+      }
+    },
+    "位置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location"
+          }
+        }
+      }
+    },
     "保持缩放": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Keep Zoom"
+          }
+        }
+      }
+    },
+    "保留最近": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep the Latest"
+          }
+        }
+      }
+    },
+    "保留目标里的文件，不放入这一项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep the existing file in the destination and skip this item"
+          }
+        }
+      }
+    },
+    "信息": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Info"
           }
         }
       }
@@ -777,6 +1197,16 @@
         }
       }
     },
+    "光圈": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperture"
+          }
+        }
+      }
+    },
     "全局：%@": {
       "localizations": {
         "en": {
@@ -807,12 +1237,32 @@
         }
       }
     },
+    "全部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
     "全部显示": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Show All"
+          }
+        }
+      }
+    },
+    "共 %lld 次删除。清空后不能撤销。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld deletions in total. You can’t undo this action."
           }
         }
       }
@@ -1009,12 +1459,32 @@
         }
       }
     },
+    "列表是空的": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Playlist Is Empty"
+          }
+        }
+      }
+    },
     "创建时间": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Date Created"
+          }
+        }
+      }
+    },
+    "删到回收目录的项在清空前都能手动找回。只列出当前已连接的卷。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Items deleted to recycle folders can be recovered manually until emptied. Only connected volumes are listed."
           }
         }
       }
@@ -1029,12 +1499,32 @@
         }
       }
     },
+    "删除当前列表…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Current Playlist…"
+          }
+        }
+      }
+    },
     "删除所选规则": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Delete Selected Rule"
+          }
+        }
+      }
+    },
+    "删除播放列表「%@」（%lld 项）？只删除列表，原文件不动。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete playlist “%1$@” (%2$lld items)? Original files will be kept."
           }
         }
       }
@@ -1065,6 +1555,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cut"
+          }
+        }
+      }
+    },
+    "加入书签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Bookmark"
+          }
+        }
+      }
+    },
+    "加入播放列表…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Recent Playlist…"
+          }
+        }
+      }
+    },
+    "加到播放列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Playlist"
+          }
+        }
+      }
+    },
+    "加序号": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Both"
           }
         }
       }
@@ -1131,6 +1661,76 @@
         }
       }
     },
+    "历史": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History"
+          }
+        }
+      }
+    },
+    "历史保留本数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History Limit"
+          }
+        }
+      }
+    },
+    "压缩包": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archives"
+          }
+        }
+      }
+    },
+    "压缩包不能评分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archives cannot be rated"
+          }
+        }
+      }
+    },
+    "压缩包不能评分和加标签。当前只支持 JPEG、TIFF、HEIC。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archives cannot be rated or tagged. Only JPEG, TIFF, and HEIC are supported."
+          }
+        }
+      }
+    },
+    "压缩包内的文件只读": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Files inside an archive are read-only"
+          }
+        }
+      }
+    },
+    "压缩包内的文件只读，不能评分和加标签。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Files inside an archive are read-only and cannot be rated or tagged."
+          }
+        }
+      }
+    },
     "压缩包内的项不能移动": {
       "localizations": {
         "en": {
@@ -1147,6 +1747,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Items in an archive cannot be moved or copied to targets"
+          }
+        }
+      }
+    },
+    "原名：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original name: %@"
           }
         }
       }
@@ -1177,6 +1787,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Raw data memory limit"
+          }
+        }
+      }
+    },
+    "原文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original File"
           }
         }
       }
@@ -1217,6 +1837,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "A folder with only one subfolder and no images is entered automatically."
+          }
+        }
+      }
+    },
+    "只搜索已索引的文件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only indexed files are searched."
+          }
+        }
+      }
+    },
+    "只显示前 5000 条 · Esc 回到文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing first 5,000 results · Esc to return"
+          }
+        }
+      }
+    },
+    "可能已被删除或移走，重新建立索引后会更新列表。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It may have been deleted or moved. Re-index to update the list."
+          }
+        }
+      }
+    },
+    "可能已被删除，或在 MacView 之外被移走。放回原处后这一条会自动恢复。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It may have been deleted or moved outside MacView. Put it back to make this item available again."
           }
         }
       }
@@ -1311,6 +1971,16 @@
         }
       }
     },
+    "回车新建“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press Return to create “%@”"
+          }
+        }
+      }
+    },
     "固定比例": {
       "localizations": {
         "en": {
@@ -1343,6 +2013,26 @@
         }
       }
     },
+    "图像": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image"
+          }
+        }
+      }
+    },
+    "图片": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Images"
+          }
+        }
+      }
+    },
     "图片太大，无法整张解码": {
       "localizations": {
         "en": {
@@ -1365,6 +2055,16 @@
         }
       }
     },
+    "在“%@”及子文件夹中 · 已索引 %@ 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In “%1$@” and subfolders · %2$@ indexed"
+          }
+        }
+      }
+    },
     "在书架中显示当前书": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1373,6 +2073,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reveal Current Book in Bookshelf"
+          }
+        }
+      }
+    },
+    "在名字后加序号，例如 IMG_0012 (2).jpg": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Append a number to the name, e.g. IMG_0012 (2).jpg"
           }
         }
       }
@@ -1387,12 +2097,42 @@
         }
       }
     },
+    "在虚拟书中打开这一项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read from This Item"
+          }
+        }
+      }
+    },
     "在访达中显示": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Show in Finder"
+          }
+        }
+      }
+    },
+    "在页面列表里多选后右键“加到播放列表”，或点上方的“新建播放列表”。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select pages and choose “Add to Playlist” from the context menu, or click “New Playlist” above."
+          }
+        }
+      }
+    },
+    "在页面列表里多选后右键“加到播放列表”，或直接拖进来。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select pages and choose “Add to Playlist” from the context menu, or drag them here."
           }
         }
       }
@@ -1425,6 +2165,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copy To"
+          }
+        }
+      }
+    },
+    "复制和移动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy and Move"
           }
         }
       }
@@ -1477,6 +2227,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Subfolders"
+          }
+        }
+      }
+    },
+    "它所在的网络卷现在没有挂载。连接后即可打开。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Its network volume is currently not mounted. Connect to open it."
+          }
+        }
+      }
+    },
+    "它所在的网络卷现在没有挂载。连接后这一条会自动恢复。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Its network volume is not mounted. This item will become available after you connect."
+          }
+        }
+      }
+    },
+    "完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
           }
         }
       }
@@ -1641,6 +2421,106 @@
         }
       }
     },
+    "已从「%@」移除 %lld 项，原文件不动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed %2$lld items from “%1$@”; original files kept"
+          }
+        }
+      }
+    },
+    "已写入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        }
+      }
+    },
+    "已写入标签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags saved"
+          }
+        }
+      }
+    },
+    "已写入（%lld 项）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved (%lld items)"
+          }
+        }
+      }
+    },
+    "已删除「%@」，原文件不动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted “%@”; original files kept"
+          }
+        }
+      }
+    },
+    "已加 %lld 项到「%@」": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added %1$lld items to “%2$@”"
+          }
+        }
+      }
+    },
+    "已加 %lld 项到「%@」，%lld 项已在列表中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added %1$lld items to “%2$@”; %3$lld were already in the playlist"
+          }
+        }
+      }
+    },
+    "已加入书签 %lld 本，%lld 本已在书签里": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bookmarked %lld books; %lld were already bookmarked"
+          }
+        }
+      }
+    },
+    "已加入书签：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bookmarked: %@"
+          }
+        }
+      }
+    },
+    "已加入书签：%lld 本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bookmarked %lld books"
+          }
+        }
+      }
+    },
     "已取消": {
       "localizations": {
         "en": {
@@ -1657,6 +2537,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copied"
+          }
+        }
+      }
+    },
+    "已完成“%@”的索引": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finished Indexing “%@”"
           }
         }
       }
@@ -1713,6 +2603,26 @@
         }
       }
     },
+    "已选 %lld 页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Pages Selected"
+          }
+        }
+      }
+    },
+    "已选 %lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Items Selected"
+          }
+        }
+      }
+    },
     "已选中": {
       "localizations": {
         "en": {
@@ -1739,6 +2649,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bottom Dock"
+          }
+        }
+      }
+    },
+    "建立索引": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Index Folder"
           }
         }
       }
@@ -1773,6 +2693,16 @@
         }
       }
     },
+    "当前文件格式不能评分和加标签。只支持 JPEG、TIFF、HEIC。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file format cannot be rated or tagged. Only JPEG, TIFF, and HEIC are supported."
+          }
+        }
+      }
+    },
     "当前服务不支持文件操作": {
       "localizations": {
         "en": {
@@ -1793,6 +2723,26 @@
         }
       }
     },
+    "快门": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shutter"
+          }
+        }
+      }
+    },
+    "恢复原名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Original Name"
+          }
+        }
+      }
+    },
     "所在的卷不可用": {
       "localizations": {
         "en": {
@@ -1809,6 +2759,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The volume is responding slowly; access is paused"
+          }
+        }
+      }
+    },
+    "所在的网络卷没有连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The network volume is disconnected"
           }
         }
       }
@@ -1843,6 +2803,16 @@
         }
       }
     },
+    "打开所在的书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Source Book"
+          }
+        }
+      }
+    },
     "打开文件": {
       "localizations": {
         "en": {
@@ -1865,12 +2835,72 @@
         }
       }
     },
+    "打开过的书会按时间从新到旧列在这里。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Books you open appear here, newest first."
+          }
+        }
+      }
+    },
+    "找不到": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not Found"
+          }
+        }
+      }
+    },
+    "找不到%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot Find %@"
+          }
+        }
+      }
+    },
     "找不到“%@”": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Can’t find “%@”"
+          }
+        }
+      }
+    },
+    "找不到原文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original File Not Found"
+          }
+        }
+      }
+    },
+    "找不到原文件：可能已被删除，或在 MacView 之外被移走": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The original file may have been deleted or moved outside MacView"
+          }
+        }
+      }
+    },
+    "找不到这个文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File Not Found"
           }
         }
       }
@@ -1895,6 +2925,26 @@
         }
       }
     },
+    "拍摄": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera"
+          }
+        }
+      }
+    },
+    "拍摄时间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captured"
+          }
+        }
+      }
+    },
     "拷贝": {
       "localizations": {
         "en": {
@@ -1911,6 +2961,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Press 1–0 to %@ the current page to a target"
+          }
+        }
+      }
+    },
+    "按 ⌘D 收藏当前书，或从书架拖进来。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press ⌘D to bookmark the current book, or drag one here from the bookshelf."
           }
         }
       }
@@ -2017,6 +3077,46 @@
         }
       }
     },
+    "搜索": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
+          }
+        }
+      }
+    },
+    "搜索失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Failed"
+          }
+        }
+      }
+    },
+    "搜索文件名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search filenames"
+          }
+        }
+      }
+    },
+    "搜索文件名…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search filenames…"
+          }
+        }
+      }
+    },
     "撤销": {
       "localizations": {
         "en": {
@@ -2043,6 +3143,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Play"
+          }
+        }
+      }
+    },
+    "播放列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playlist"
+          }
+        }
+      }
+    },
+    "播放列表不能加入书签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playlists cannot be bookmarked"
+          }
+        }
+      }
+    },
+    "播放列表没有所在的文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playlists have no enclosing folder"
           }
         }
       }
@@ -2153,6 +3283,26 @@
         }
       }
     },
+    "文件夹不能评分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folders cannot be rated"
+          }
+        }
+      }
+    },
+    "文件夹不能评分和加标签。当前只支持 JPEG、TIFF、HEIC。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folders cannot be rated or tagged. Only JPEG, TIFF, and HEIC are supported."
+          }
+        }
+      }
+    },
     "文件夹在前": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2207,6 +3357,36 @@
         }
       }
     },
+    "新建播放列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Playlist"
+          }
+        }
+      }
+    },
+    "新建播放列表…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Playlist…"
+          }
+        }
+      }
+    },
+    "新建文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Folder"
+          }
+        }
+      }
+    },
     "新建标签页": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2249,6 +3429,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Newly opened books use these defaults. A book’s settings override path rules, and path rules override these."
+          }
+        }
+      }
+    },
+    "新播放列表 %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Playlist %lld"
+          }
+        }
+      }
+    },
+    "新文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Folder"
           }
         }
       }
@@ -2383,6 +3583,26 @@
         }
       }
     },
+    "无法读取原文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to Read Original File"
+          }
+        }
+      }
+    },
+    "无需更新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up to date"
+          }
+        }
+      }
+    },
     "显示": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2407,6 +3627,16 @@
         }
       }
     },
+    "显示或隐藏书签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide Bookmarks"
+          }
+        }
+      }
+    },
     "显示或隐藏停靠区": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2427,6 +3657,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show or Hide Classify Panel"
+          }
+        }
+      }
+    },
+    "显示或隐藏历史": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide History"
           }
         }
       }
@@ -2457,6 +3697,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show or Hide Bottom Dock"
+          }
+        }
+      }
+    },
+    "显示或隐藏播放列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide Playlist"
           }
         }
       }
@@ -2503,12 +3753,52 @@
         }
       }
     },
+    "暂无已索引标签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Indexed Tags"
+          }
+        }
+      }
+    },
     "最小化": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Minimize"
+          }
+        }
+      }
+    },
+    "最近打开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recently Opened"
+          }
+        }
+      }
+    },
+    "最近搜索": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent Searches"
+          }
+        }
+      }
+    },
+    "最近用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent"
           }
         }
       }
@@ -2543,6 +3833,26 @@
         }
       }
     },
+    "未打开文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No folder open"
+          }
+        }
+      }
+    },
+    "未评分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unrated"
+          }
+        }
+      }
+    },
     "末页": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2555,12 +3865,42 @@
         }
       }
     },
+    "本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "books"
+          }
+        }
+      }
+    },
     "本机": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "This Mac"
+          }
+        }
+      }
+    },
+    "来自 ": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From "
+          }
+        }
+      }
+    },
+    "查找": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find"
           }
         }
       }
@@ -2581,6 +3921,66 @@
           "stringUnit": {
             "state": "translated",
             "value": "Before and after the current frame in the viewer"
+          }
+        }
+      }
+    },
+    "标签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags"
+          }
+        }
+      }
+    },
+    "标签 · %lld 张": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags · %lld items"
+          }
+        }
+      }
+    },
+    "标签：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag: %@"
+          }
+        }
+      }
+    },
+    "标签：%@ +%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags: %1$@ +%2$lld"
+          }
+        }
+      }
+    },
+    "标签：全部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags: All"
+          }
+        }
+      }
+    },
+    "格式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format"
           }
         }
       }
@@ -2607,6 +4007,56 @@
         }
       }
     },
+    "正在%@（%lld 项）…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (%2$lld items)…"
+          }
+        }
+      }
+    },
+    "正在为“%@”建立索引": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indexing “%@”"
+          }
+        }
+      }
+    },
+    "正在写入 %lld 星…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving %lld stars…"
+          }
+        }
+      }
+    },
+    "正在写入…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving…"
+          }
+        }
+      }
+    },
+    "正在写入标签…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving tags…"
+          }
+        }
+      }
+    },
     "正在定位到第 %lld 页 · 已读取 %lld / %lld 页的尺寸": {
       "localizations": {
         "en": {
@@ -2619,6 +4069,26 @@
           "stringUnit": {
             "state": "new",
             "value": "正在定位到第 %1$lld 页 · 已读取 %2$lld / %3$lld 页的尺寸"
+          }
+        }
+      }
+    },
+    "正在搜索…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searching…"
+          }
+        }
+      }
+    },
+    "正在清除评分…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clearing rating…"
           }
         }
       }
@@ -2643,6 +4113,16 @@
         }
       }
     },
+    "永久删除 %lld 个卷回收目录里的内容？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanently delete items in the recycle folders on %lld volumes?"
+          }
+        }
+      }
+    },
     "永久删除 %lld 项": {
       "localizations": {
         "en": {
@@ -2659,6 +4139,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete “%@” Permanently"
+          }
+        }
+      }
+    },
+    "永久删除“%@”回收目录里的内容？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanently delete items in the recycle folder on “%@”?"
           }
         }
       }
@@ -2693,6 +4183,16 @@
         }
       }
     },
+    "没有回收目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Recycle Folders"
+          }
+        }
+      }
+    },
     "没有打开的书": {
       "localizations": {
         "en": {
@@ -2703,12 +4203,52 @@
         }
       }
     },
+    "没有找到“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Results for “%@”"
+          }
+        }
+      }
+    },
+    "没有最近搜索": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Recent Searches"
+          }
+        }
+      }
+    },
+    "没有符合条件的项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Matching Items"
+          }
+        }
+      }
+    },
     "没有覆盖项。这条规则下的书沿用上一层的设置。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No overrides. Books under this rule follow the level above."
+          }
+        }
+      }
+    },
+    "没有选中的图片": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No image selected"
           }
         }
       }
@@ -2815,6 +4355,16 @@
         }
       }
     },
+    "添加标签“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Tag “%@”"
+          }
+        }
+      }
+    },
     "添加目标…": {
       "localizations": {
         "en": {
@@ -2845,6 +4395,56 @@
         }
       }
     },
+    "清空": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear"
+          }
+        }
+      }
+    },
+    "清空…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empty…"
+          }
+        }
+      }
+    },
+    "清空全部 %lld 条历史？书的“上次看到的页”不受影响。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear all %lld history entries? Saved reading positions will be kept."
+          }
+        }
+      }
+    },
+    "清空历史…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear History…"
+          }
+        }
+      }
+    },
+    "清空回收目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empty Recycle Folders"
+          }
+        }
+      }
+    },
     "清空回收目录…": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2853,6 +4453,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Empty Recycle Folder…"
+          }
+        }
+      }
+    },
+    "清除最近搜索": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Recent Searches"
+          }
+        }
+      }
+    },
+    "清除标签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Tags"
           }
         }
       }
@@ -2889,6 +4509,26 @@
         }
       }
     },
+    "点击移除“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to remove “%@”"
+          }
+        }
+      }
+    },
+    "焦距": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Focal Length"
+          }
+        }
+      }
+    },
     "照常配对": {
       "localizations": {
         "en": {
@@ -2915,6 +4555,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Canvas Test"
+          }
+        }
+      }
+    },
+    "目标中已有同名项时": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When an item with the same name exists"
+          }
+        }
+      }
+    },
+    "相机": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera"
           }
         }
       }
@@ -2999,6 +4659,36 @@
         }
       }
     },
+    "移除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        }
+      }
+    },
+    "移除文件夹（含 %lld 条）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Folder (%lld bookmarks)"
+          }
+        }
+      }
+    },
+    "移除标签“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Tag “%@”"
+          }
+        }
+      }
+    },
     "移除目标": {
       "localizations": {
         "en": {
@@ -3015,6 +4705,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remove Override: %@"
+          }
+        }
+      }
+    },
+    "移除选中的 %lld 项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %lld Selected Items"
           }
         }
       }
@@ -3109,6 +4809,16 @@
         }
       }
     },
+    "等待中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting"
+          }
+        }
+      }
+    },
     "算法": {
       "localizations": {
         "en": {
@@ -3129,6 +4839,56 @@
         }
       }
     },
+    "类型：全部": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type: All"
+          }
+        }
+      }
+    },
+    "类型：压缩包": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type: Archives"
+          }
+        }
+      }
+    },
+    "类型：图片": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type: Images"
+          }
+        }
+      }
+    },
+    "类型：已选": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type: Selected"
+          }
+        }
+      }
+    },
+    "类型：视频": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type: Videos"
+          }
+        }
+      }
+    },
     "粘贴": {
       "localizations": {
         "en": {
@@ -3145,6 +4905,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "When system memory is tight, all four caches shrink temporarily to 50% or 25% of the limit."
+          }
+        }
+      }
+    },
+    "约剩 %lld 分钟": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld min left"
+          }
+        }
+      }
+    },
+    "约剩 %lld 秒": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld s left"
           }
         }
       }
@@ -3187,6 +4967,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Edit"
+          }
+        }
+      }
+    },
+    "编辑标签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Tags"
           }
         }
       }
@@ -3339,6 +5129,16 @@
         }
       }
     },
+    "网络卷没有连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network Volume Disconnected"
+          }
+        }
+      }
+    },
     "翻页": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -3383,6 +5183,16 @@
         }
       }
     },
+    "虚拟书：页序就是列表顺序": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Virtual book: pages follow playlist order"
+          }
+        }
+      }
+    },
     "覆盖的设置": {
       "localizations": {
         "en": {
@@ -3415,6 +5225,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rules are stored in path-rules.json. You can edit it directly; it reloads when saved."
+          }
+        }
+      }
+    },
+    "视频": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videos"
+          }
+        }
+      }
+    },
+    "视频不能评分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videos cannot be rated"
+          }
+        }
+      }
+    },
+    "视频不能评分和加标签。当前只支持 JPEG、TIFF、HEIC。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videos cannot be rated or tagged. Only JPEG, TIFF, and HEIC are supported."
           }
         }
       }
@@ -3483,6 +5323,46 @@
         }
       }
     },
+    "评分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rating"
+          }
+        }
+      }
+    },
+    "评分 %lld 星": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate %lld Stars"
+          }
+        }
+      }
+    },
+    "评分与标签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rating & Tags"
+          }
+        }
+      }
+    },
+    "评分：不限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rating: Any"
+          }
+        }
+      }
+    },
     "详情表格": {
       "localizations": {
         "en": {
@@ -3493,12 +5373,52 @@
         }
       }
     },
+    "读不出书签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to Load Bookmarks"
+          }
+        }
+      }
+    },
+    "读不出历史": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to Load History"
+          }
+        }
+      }
+    },
+    "读不出播放列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to Load Playlists"
+          }
+        }
+      }
+    },
     "读到 %lld": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Read to %lld"
+          }
+        }
+      }
+    },
+    "读到第 %lld 页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read to page %lld"
           }
         }
       }
@@ -3553,6 +5473,16 @@
         }
       }
     },
+    "超过的旧记录立即删除，不影响书的阅读进度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Older entries are removed immediately. Saved reading positions are kept."
+          }
+        }
+      }
+    },
     "跟随书": {
       "localizations": {
         "en": {
@@ -3595,6 +5525,26 @@
         }
       }
     },
+    "跳过": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        }
+      }
+    },
+    "输入标签，回车新建或切换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type a tag, press Return to add or toggle"
+          }
+        }
+      }
+    },
     "还有 %lld 项": {
       "localizations": {
         "en": {
@@ -3605,12 +5555,52 @@
         }
       }
     },
+    "还没有书签": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Bookmarks Yet"
+          }
+        }
+      }
+    },
+    "还没有历史": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No History Yet"
+          }
+        }
+      }
+    },
+    "还没有播放列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Playlists Yet"
+          }
+        }
+      }
+    },
     "还没有目标文件夹": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No Target Folders Yet"
+          }
+        }
+      }
+    },
+    "这一页不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Page Is Unavailable"
           }
         }
       }
@@ -3645,12 +5635,32 @@
         }
       }
     },
+    "这本书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "this book"
+          }
+        }
+      }
+    },
     "这本书没有页": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "This Book Has No Pages"
+          }
+        }
+      }
+    },
+    "这种文件不能评分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file cannot be rated"
           }
         }
       }
@@ -3671,6 +5681,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Images or Videos Here"
+          }
+        }
+      }
+    },
+    "连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect"
           }
         }
       }
@@ -3823,6 +5843,26 @@
         }
       }
     },
+    "都已在「%@」里": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All items are already in “%@”"
+          }
+        }
+      }
+    },
+    "都已在书签里": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All books are already bookmarked"
+          }
+        }
+      }
+    },
     "重做": {
       "localizations": {
         "en": {
@@ -3869,6 +5909,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rename…"
+          }
+        }
+      }
+    },
+    "重命名当前列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename Current Playlist"
           }
         }
       }
@@ -3921,6 +5971,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sharpening"
+          }
+        }
+      }
+    },
+    "镜头": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lens"
           }
         }
       }
@@ -4163,936 +6223,6 @@
         }
       }
     },
-    "，跳过 %lld 项（目标里已有同名项）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": ", skipped %lld (already exists in destination)"
-          }
-        }
-      }
-    },
-    "没有回收目录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Recycle Folders"
-          }
-        }
-      }
-    },
-    "清空回收目录": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Empty Recycle Folders"
-          }
-        }
-      }
-    },
-    "删到回收目录的项在清空前都能手动找回。只列出当前已连接的卷。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Items deleted to recycle folders can be recovered manually until emptied. Only connected volumes are listed."
-          }
-        }
-      }
-    },
-    "%lld 次删除": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld deletions"
-          }
-        }
-      }
-    },
-    "清空…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Empty…"
-          }
-        }
-      }
-    },
-    "永久删除“%@”回收目录里的内容？": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Permanently delete items in the recycle folder on “%@”?"
-          }
-        }
-      }
-    },
-    "永久删除 %lld 个卷回收目录里的内容？": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Permanently delete items in the recycle folders on %lld volumes?"
-          }
-        }
-      }
-    },
-    "共 %lld 次删除。清空后不能撤销。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld deletions in total. You can’t undo this action."
-          }
-        }
-      }
-    },
-    "复制和移动": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy and Move"
-          }
-        }
-      }
-    },
-    "目标中已有同名项时": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "When an item with the same name exists"
-          }
-        }
-      }
-    },
-    "加序号": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keep Both"
-          }
-        }
-      }
-    },
-    "跳过": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Skip"
-          }
-        }
-      }
-    },
-    "在名字后加序号，例如 IMG_0012 (2).jpg": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Append a number to the name, e.g. IMG_0012 (2).jpg"
-          }
-        }
-      }
-    },
-    "保留目标里的文件，不放入这一项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keep the existing file in the destination and skip this item"
-          }
-        }
-      }
-    },
-    "两种方式都不覆盖目标里的文件。跳过的项会在结果里注明。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neither option overwrites existing files in the destination. Skipped items are noted in the result."
-          }
-        }
-      }
-    },
-    " · 最近用": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " · Recent"
-          }
-        }
-      }
-    },
-    "%@ 内": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inside %@"
-          }
-        }
-      }
-    },
-    "%@（%lld）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ (%2$lld)"
-          }
-        }
-      }
-    },
-    "%lld 项，来自 %lld 本书": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Items: %lld · Source books: %lld"
-          }
-        }
-      }
-    },
-    "▶ 当书打开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "▶ Read as Book"
-          }
-        }
-      }
-    },
-    "《%@》已在书签里": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "“%@” is already bookmarked"
-          }
-        }
-      }
-    },
-    "不可用": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unavailable"
-          }
-        }
-      }
-    },
-    "书签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bookmarks"
-          }
-        }
-      }
-    },
-    "从书签中移除": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove Bookmark"
-          }
-        }
-      }
-    },
-    "从列表移除": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove from Playlist"
-          }
-        }
-      }
-    },
-    "从历史中删除": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove from History"
-          }
-        }
-      }
-    },
-    "保留最近": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keep the Latest"
-          }
-        }
-      }
-    },
-    "列表是空的": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Playlist Is Empty"
-          }
-        }
-      }
-    },
-    "删除当前列表…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete Current Playlist…"
-          }
-        }
-      }
-    },
-    "删除播放列表「%@」（%lld 项）？只删除列表，原文件不动。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete playlist “%1$@” (%2$lld items)? Original files will be kept."
-          }
-        }
-      }
-    },
-    "加入书签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add Bookmark"
-          }
-        }
-      }
-    },
-    "加到播放列表": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add to Playlist"
-          }
-        }
-      }
-    },
-    "历史": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "History"
-          }
-        }
-      }
-    },
-    "历史保留本数": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "History Limit"
-          }
-        }
-      }
-    },
-    "原名：%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Original name: %@"
-          }
-        }
-      }
-    },
-    "原文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Original File"
-          }
-        }
-      }
-    },
-    "可能已被删除，或在 MacView 之外被移走。放回原处后这一条会自动恢复。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "It may have been deleted or moved outside MacView. Put it back to make this item available again."
-          }
-        }
-      }
-    },
-    "在虚拟书中打开这一项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Read from This Item"
-          }
-        }
-      }
-    },
-    "在页面列表里多选后右键“加到播放列表”，或点上方的“新建播放列表”。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select pages and choose “Add to Playlist” from the context menu, or click “New Playlist” above."
-          }
-        }
-      }
-    },
-    "在页面列表里多选后右键“加到播放列表”，或直接拖进来。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select pages and choose “Add to Playlist” from the context menu, or drag them here."
-          }
-        }
-      }
-    },
-    "它所在的网络卷现在没有挂载。连接后这一条会自动恢复。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Its network volume is not mounted. This item will become available after you connect."
-          }
-        }
-      }
-    },
-    "已从「%@」移除 %lld 项，原文件不动": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Removed %2$lld items from “%1$@”; original files kept"
-          }
-        }
-      }
-    },
-    "已删除「%@」，原文件不动": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deleted “%@”; original files kept"
-          }
-        }
-      }
-    },
-    "已加 %lld 项到「%@」": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Added %1$lld items to “%2$@”"
-          }
-        }
-      }
-    },
-    "已加 %lld 项到「%@」，%lld 项已在列表中": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Added %1$lld items to “%2$@”; %3$lld were already in the playlist"
-          }
-        }
-      }
-    },
-    "已加入书签 %lld 本，%lld 本已在书签里": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bookmarked %lld books; %lld were already bookmarked"
-          }
-        }
-      }
-    },
-    "已加入书签：%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bookmarked: %@"
-          }
-        }
-      }
-    },
-    "已加入书签：%lld 本": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bookmarked %lld books"
-          }
-        }
-      }
-    },
-    "已选 %lld 页": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Pages Selected"
-          }
-        }
-      }
-    },
-    "已选 %lld 项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Items Selected"
-          }
-        }
-      }
-    },
-    "恢复原名": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore Original Name"
-          }
-        }
-      }
-    },
-    "所在的网络卷没有连接": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The network volume is disconnected"
-          }
-        }
-      }
-    },
-    "打开所在的书": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Source Book"
-          }
-        }
-      }
-    },
-    "打开过的书会按时间从新到旧列在这里。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Books you open appear here, newest first."
-          }
-        }
-      }
-    },
-    "找不到": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not Found"
-          }
-        }
-      }
-    },
-    "找不到%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cannot Find %@"
-          }
-        }
-      }
-    },
-    "找不到原文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Original File Not Found"
-          }
-        }
-      }
-    },
-    "找不到原文件：可能已被删除，或在 MacView 之外被移走": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The original file may have been deleted or moved outside MacView"
-          }
-        }
-      }
-    },
-    "按 ⌘D 收藏当前书，或从书架拖进来。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Press ⌘D to bookmark the current book, or drag one here from the bookshelf."
-          }
-        }
-      }
-    },
-    "播放列表": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Playlist"
-          }
-        }
-      }
-    },
-    "播放列表不能加入书签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Playlists cannot be bookmarked"
-          }
-        }
-      }
-    },
-    "新建播放列表": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Playlist"
-          }
-        }
-      }
-    },
-    "新建播放列表…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Playlist…"
-          }
-        }
-      }
-    },
-    "新建文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Folder"
-          }
-        }
-      }
-    },
-    "新播放列表 %lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Playlist %lld"
-          }
-        }
-      }
-    },
-    "新文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Folder"
-          }
-        }
-      }
-    },
-    "最近打开": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recently Opened"
-          }
-        }
-      }
-    },
-    "最近用": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recent"
-          }
-        }
-      }
-    },
-    "本": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "books"
-          }
-        }
-      }
-    },
-    "来自 ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "From "
-          }
-        }
-      }
-    },
-    "清空": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear"
-          }
-        }
-      }
-    },
-    "清空全部 %lld 条历史？书的“上次看到的页”不受影响。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear all %lld history entries? Saved reading positions will be kept."
-          }
-        }
-      }
-    },
-    "清空历史…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear History…"
-          }
-        }
-      }
-    },
-    "移除": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove"
-          }
-        }
-      }
-    },
-    "移除文件夹（含 %lld 条）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove Folder (%lld bookmarks)"
-          }
-        }
-      }
-    },
-    "移除选中的 %lld 项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove %lld Selected Items"
-          }
-        }
-      }
-    },
-    "网络卷没有连接": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Network Volume Disconnected"
-          }
-        }
-      }
-    },
-    "虚拟书：页序就是列表顺序": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Virtual book: pages follow playlist order"
-          }
-        }
-      }
-    },
-    "读不出书签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unable to Load Bookmarks"
-          }
-        }
-      }
-    },
-    "读不出历史": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unable to Load History"
-          }
-        }
-      }
-    },
-    "读不出播放列表": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unable to Load Playlists"
-          }
-        }
-      }
-    },
-    "读到第 %lld 页": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Read to page %lld"
-          }
-        }
-      }
-    },
-    "超过的旧记录立即删除，不影响书的阅读进度": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Older entries are removed immediately. Saved reading positions are kept."
-          }
-        }
-      }
-    },
-    "还没有书签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Bookmarks Yet"
-          }
-        }
-      }
-    },
-    "还没有历史": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No History Yet"
-          }
-        }
-      }
-    },
-    "还没有播放列表": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Playlists Yet"
-          }
-        }
-      }
-    },
-    "这一页不可用": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Page Is Unavailable"
-          }
-        }
-      }
-    },
-    "这本书": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "this book"
-          }
-        }
-      }
-    },
-    "连接": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connect"
-          }
-        }
-      }
-    },
-    "都已在「%@」里": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All items are already in “%@”"
-          }
-        }
-      }
-    },
-    "都已在书签里": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All books are already bookmarked"
-          }
-        }
-      }
-    },
-    "重命名当前列表": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename Current Playlist"
-          }
-        }
-      }
-    },
     "＋ 文件夹": {
       "localizations": {
         "en": {
@@ -5103,642 +6233,12 @@
         }
       }
     },
-    "显示或隐藏历史": {
+    "，跳过 %lld 项（目标里已有同名项）": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Show or Hide History"
-          }
-        }
-      }
-    },
-    "显示或隐藏书签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Show or Hide Bookmarks"
-          }
-        }
-      }
-    },
-    "显示或隐藏播放列表": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Show or Hide Playlist"
-          }
-        }
-      }
-    },
-    "加入播放列表…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add to Recent Playlist…"
-          }
-        }
-      }
-    },
-    "从播放列表移除": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove from Playlist"
-          }
-        }
-      }
-    },
-    "播放列表没有所在的文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Playlists have no enclosing folder"
-          }
-        }
-      }
-    },
-    "无法读取原文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unable to Read Original File"
-          }
-        }
-      }
-    },
-    "评分：不限": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rating: Any"
-          }
-        }
-      }
-    },
-    "标签：全部": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tags: All"
-          }
-        }
-      }
-    },
-    "类型：全部": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type: All"
-          }
-        }
-      }
-    },
-    "搜索文件名…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search filenames…"
-          }
-        }
-      }
-    },
-    "搜索文件名": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search filenames"
-          }
-        }
-      }
-    },
-    "最近搜索": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recent Searches"
-          }
-        }
-      }
-    },
-    "清除最近搜索": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear Recent Searches"
-          }
-        }
-      }
-    },
-    "没有最近搜索": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Recent Searches"
-          }
-        }
-      }
-    },
-    "未评分": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unrated"
-          }
-        }
-      }
-    },
-    "★ 5": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "★ 5"
-          }
-        }
-      }
-    },
-    "★ %lld 以上": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "★ %lld & up"
-          }
-        }
-      }
-    },
-    "标签：%@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag: %@"
-          }
-        }
-      }
-    },
-    "标签：%@ +%lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tags: %1$@ +%2$lld"
-          }
-        }
-      }
-    },
-    "类型：图片": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type: Images"
-          }
-        }
-      }
-    },
-    "类型：视频": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type: Videos"
-          }
-        }
-      }
-    },
-    "类型：压缩包": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type: Archives"
-          }
-        }
-      }
-    },
-    "类型：已选": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type: Selected"
-          }
-        }
-      }
-    },
-    "不限": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Any"
-          }
-        }
-      }
-    },
-    "清除标签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clear Tags"
-          }
-        }
-      }
-    },
-    "暂无已索引标签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Indexed Tags"
-          }
-        }
-      }
-    },
-    "全部": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All"
-          }
-        }
-      }
-    },
-    "图片": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Images"
-          }
-        }
-      }
-    },
-    "视频": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Videos"
-          }
-        }
-      }
-    },
-    "压缩包": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Archives"
-          }
-        }
-      }
-    },
-    "① 文件名": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "① Filenames"
-          }
-        }
-      }
-    },
-    "② 评分与标签": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "② Ratings & Tags"
-          }
-        }
-      }
-    },
-    "为“%@”建立索引失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Failed to Index “%@”"
-          }
-        }
-      }
-    },
-    "已完成“%@”的索引": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Finished Indexing “%@”"
-          }
-        }
-      }
-    },
-    "正在为“%@”建立索引": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Indexing “%@”"
-          }
-        }
-      }
-    },
-    "%@ 项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ items"
-          }
-        }
-      }
-    },
-    "等待中": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Waiting"
-          }
-        }
-      }
-    },
-    "%@ 项 · 完成，已可搜索": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ items · Done, searchable now"
-          }
-        }
-      }
-    },
-    "%@ / %@ 张": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ / %2$@ images"
-          }
-        }
-      }
-    },
-    "无需更新": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Up to date"
-          }
-        }
-      }
-    },
-    "%@ 项 · 完成": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ items · Done"
-          }
-        }
-      }
-    },
-    "%@ 张 · %lld 项失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ images · %2$lld failed"
-          }
-        }
-      }
-    },
-    "%@ 张 · 完成": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ images · Done"
-          }
-        }
-      }
-    },
-    "完成": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Done"
-          }
-        }
-      }
-    },
-    "约剩 %lld 秒": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "About %lld s left"
-          }
-        }
-      }
-    },
-    "约剩 %lld 分钟": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "About %lld min left"
-          }
-        }
-      }
-    },
-    "为此文件夹建立索引": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Index This Folder"
-          }
-        }
-      }
-    },
-    "在“%@”及子文件夹中 · 已索引 %@ 项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In “%1$@” and subfolders · %2$@ indexed"
-          }
-        }
-      }
-    },
-    "未打开文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No folder open"
-          }
-        }
-      }
-    },
-    "搜索失败": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search Failed"
-          }
-        }
-      }
-    },
-    "没有符合条件的项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Matching Items"
-          }
-        }
-      }
-    },
-    "没有找到“%@”": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Results for “%@”"
-          }
-        }
-      }
-    },
-    "只搜索已索引的文件。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Only indexed files are searched."
-          }
-        }
-      }
-    },
-    "正在搜索…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Searching…"
-          }
-        }
-      }
-    },
-    "只显示前 5000 条 · Esc 回到文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Showing first 5,000 results · Esc to return"
-          }
-        }
-      }
-    },
-    "%@ 项 · 只显示已索引的文件 · Esc 回到文件夹": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ items · Indexed files only · Esc to return"
-          }
-        }
-      }
-    },
-    "找不到这个文件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "File Not Found"
-          }
-        }
-      }
-    },
-    "⚠ 网络卷没有连接": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "⚠ Network Volume Disconnected"
-          }
-        }
-      }
-    },
-    "它所在的网络卷现在没有挂载。连接后即可打开。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Its network volume is currently not mounted. Connect to open it."
-          }
-        }
-      }
-    },
-    "可能已被删除或移走，重新建立索引后会更新列表。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "It may have been deleted or moved. Re-index to update the list."
-          }
-        }
-      }
-    },
-    "查找": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Find"
-          }
-        }
-      }
-    },
-    "搜索": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Search"
-          }
-        }
-      }
-    },
-    "建立索引": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Index Folder"
+            "value": ", skipped %lld (already exists in destination)"
           }
         }
       }

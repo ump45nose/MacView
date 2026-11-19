@@ -8,6 +8,8 @@ import os
 final class CommandDispatcher {
     private let registry: CommandRegistry
     private let logger = Logger(category: "commands")
+    /// 命令被禁用时调用（例如对不可评分对象按 ⌥4），返回 true 表示已向用户给出原因提示。
+    var onDisabledCommand: ((CommandID, ReaderWindowController?) -> Bool)?
 
     init(registry: CommandRegistry) {
         self.registry = registry
@@ -29,6 +31,7 @@ final class CommandDispatcher {
                 try await registry.perform(id, arguments: arguments, context: context)
             } catch let error as CommandError {
                 logger.debug("命令未执行：\(id.rawValue, privacy: .public) \(String(describing: error), privacy: .public)")
+                if case .disabled = error, onDisabledCommand?(id, controller) == true { return }
                 NSSound.beep()
             } catch {
                 logger.error("命令失败：\(id.rawValue, privacy: .public) \(String(describing: error), privacy: .public)")
