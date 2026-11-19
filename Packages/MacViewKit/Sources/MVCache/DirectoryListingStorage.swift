@@ -56,6 +56,70 @@ enum DirectoryListingStorage {
         }
     }
 
+    /// 只解码位置落在 `targets` 中的条目，跳过其余条目的字符串与对象分配。
+    static func decodeMatching(_ data: Data, targets: Set<Location>) throws -> [Location: Entry] {
+        guard !targets.isEmpty else { return [:] }
+        var buckets: [UInt64: [[UInt8]]] = [:]
+        buckets.reserveCapacity(targets.count)
+        for target in targets {
+            let utf8 = Array(target.name.utf8)
+            let hash = utf8.withUnsafeBytes { fnv1a($0) }
+            buckets[hash, default: []].append(utf8)
+        }
+        return try data.withUnsafeBytes { bytes in
+            guard data.starts(with: header) else { throw malformed("目录缓存格式版本不受支持") }
+            var reader = Reader(bytes: bytes, offset: header.count)
+            if try reader.present() { try reader.skip(8) }
+            let count = try reader.count()
+            guard count <= reader.remaining / 8 else { throw malformed() }
+            var result: [Location: Entry] = [:]
+            result.reserveCapacity(targets.count)
+            for _ in 0..<count {
+                let entryStart = reader.offset
+                let lastPartRange = try reader.skipLocationCapturingLastPart()
+                let slice = UnsafeRawBufferPointer(rebasing: bytes[lastPartRange])
+                let hash = fnv1a(slice)
+                let mayMatch: Bool
+                if let candidates = buckets[hash] {
+                    mayMatch = matchesAny(slice, in: candidates)
+                } else {
+                    mayMatch = false
+                }
+                if mayMatch {
+                    reader.offset = entryStart
+                    let entry = try reader.entry()
+                    if targets.contains(entry.location) {
+                        result[entry.location] = entry
+                        if result.count == targets.count { break }
+                    }
+                } else {
+                    try reader.skipEntryAfterLocation()
+                }
+            }
+            return result
+        }
+    }
+
+    private static func fnv1a(_ bytes: UnsafeRawBufferPointer) -> UInt64 {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in bytes {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return hash
+    }
+
+    private static func matchesAny(_ slice: UnsafeRawBufferPointer, in candidates: [[UInt8]]) -> Bool {
+        let count = slice.count
+        guard let base = slice.baseAddress else { return candidates.contains { $0.isEmpty } }
+        for candidate in candidates where candidate.count == count {
+            if candidate.withUnsafeBytes({ memcmp(base, $0.baseAddress, count) == 0 }) {
+                return true
+            }
+        }
+        return false
+    }
+
     private struct Writer {
         var data = Data()
         mutating func entry(_ entry: Entry) throws {
@@ -163,6 +227,72 @@ enum DirectoryListingStorage {
                 layers.append(layer)
             }
             return Location(root: root, layers: layers)
+        }
+        mutating func skip(_ count: Int) throws {
+            guard count >= 0, count <= remaining else { throw malformed() }
+            offset += count
+        }
+        mutating func skipString() throws {
+            let length = try count()
+            try skip(length)
+        }
+        mutating func skipLocationCapturingLastPart() throws -> Range<Int> {
+            switch try byte() {
+            case 0: break
+            case 1: try skipString(); try skipString(); try skipString()
+            case 2: try skipString()
+            default: throw malformed()
+            }
+            let layerCount = try count()
+            guard layerCount <= remaining / 4 else { throw malformed() }
+            var lastRange = offset..<offset
+            for layerIndex in 0..<layerCount {
+                let partCount = try count()
+                guard partCount <= remaining / 4 else { throw malformed() }
+                for partIndex in 0..<partCount {
+                    let length = try count()
+                    guard length <= remaining else { throw malformed() }
+                    if layerIndex == layerCount - 1 && partIndex == partCount - 1 {
+                        lastRange = offset..<(offset + length)
+                    }
+                    offset += length
+                }
+            }
+            return lastRange
+        }
+        mutating func skipEntryAfterLocation() throws {
+            try skip(16) // size + modified
+            if try present() { try skip(4) } // checksum
+            if try present() { try skipString() } // name
+            let kindByte = try byte()
+            if kindByte == 1 { _ = try byte() } // archive format
+            else if kindByte > 4 { throw malformed() }
+            if try present() { try skip(8) } // created
+        }
+        mutating func entry() throws -> Entry {
+            let location = try self.location()
+            let size = Int64(bitPattern: try integer() as UInt64)
+            let modified = Int64(bitPattern: try integer() as UInt64)
+            let checksum: UInt32? = try present() ? integer() : nil
+            let name = try present() ? string() : location.name
+            let kind: EntryKind
+            switch try byte() {
+            case 0: kind = .directory
+            case 1:
+                switch try byte() {
+                case 0: kind = .archive(.zip)
+                case 1: kind = .archive(.tar)
+                case 2: kind = .archive(.tarGzip)
+                case 3: kind = .archive(.gzip)
+                default: throw malformed()
+                }
+            case 2: kind = .image
+            case 3: kind = .video
+            case 4: kind = .other
+            default: throw malformed()
+            }
+            let created = try present() ? Date(timeIntervalSinceReferenceDate: Double(bitPattern: integer())) : nil
+            return Entry(identity: ContentIdentity(location: location, size: size, modificationNanos: modified, checksum: checksum), name: name, kind: kind, created: created)
         }
     }
 

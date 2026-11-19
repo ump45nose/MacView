@@ -1018,3 +1018,54 @@ private struct MirroredBytes: ByteSource {
         try await base.read(range, priority: priority, group: group)
     }
 }
+
+@Test func carryOverRekeysDiskCachesAndDropsOldMemoryEntries() async throws {
+    let environment = try PipelineEnvironment(browseBounds: PixelSize(width: 640, height: 480))
+    defer { environment.clean() }
+
+    // 拷贝一份夹具到临时目录，以便模拟改名/重写后新旧 identity 切换。
+    let sourceURL = Fixtures.url("image/size/3600x5400.jpg")
+    let oldURL = environment.root.appendingPathComponent("old.jpg")
+    let newURL = environment.root.appendingPathComponent("new.jpg")
+    try FileManager.default.copyItem(at: sourceURL, to: oldURL)
+
+    let oldLocation = try await environment.registry.location(for: oldURL)
+    let oldIdentity = try await environment.registry.base.provider(for: oldLocation).entry(at: oldLocation).identity
+
+    let initialThumb = try await environment.pipeline.thumbnail(for: oldIdentity, maxPixel: 128, priority: .visible)
+    #expect(initialThumb.image.width > 0)
+    #expect(environment.pipeline.sourceDecodeCount == 1)
+    try await eventually { try await environment.caches.thumbnails.contains(oldIdentity.cacheKey) }
+    try await eventually { try await environment.caches.browse?.contains(oldIdentity.cacheKey) == true }
+    #expect(environment.caches.thumbnailMemory.value(for: oldIdentity.cacheKey + "|thumb|128") != nil)
+
+    // 移动文件得到新 identity，然后 carryOver。
+    try FileManager.default.moveItem(at: oldURL, to: newURL)
+    let newLocation = try await environment.registry.location(for: newURL)
+    let newIdentity = try await environment.registry.base.provider(for: newLocation).entry(at: newLocation).identity
+    #expect(oldIdentity.cacheKey != newIdentity.cacheKey)
+
+    await environment.pipeline.carryOver(from: oldIdentity, to: newIdentity)
+
+    // 旧 key 从内存和磁盘缓存均移除，新 key 在磁盘缓存命中。
+    #expect(environment.caches.thumbnailMemory.value(for: oldIdentity.cacheKey + "|thumb|128") == nil)
+    #expect(try await environment.caches.thumbnails.contains(oldIdentity.cacheKey) == false)
+    #expect(try await environment.caches.thumbnails.contains(newIdentity.cacheKey) == true)
+    #expect(try await environment.caches.browse?.contains(oldIdentity.cacheKey) == false)
+    #expect(try await environment.caches.browse?.contains(newIdentity.cacheKey) == true)
+
+    // 新 identity 取缩略图命中磁盘缓存，不再解码原文件（sourceDecodeCount 保持为 1）。
+    let carriedThumb = try await environment.pipeline.thumbnail(for: newIdentity, maxPixel: 128, priority: .visible)
+    #expect(carriedThumb.image.width == initialThumb.image.width)
+    #expect(environment.pipeline.sourceDecodeCount == 1)
+
+    // 旧 identity 已不在缓存且原文件已移走，取不到缩略图。
+    await #expect(throws: (any Error).self) {
+        _ = try await environment.pipeline.thumbnail(for: oldIdentity, maxPixel: 128, priority: .visible)
+    }
+
+    // 对不存在的旧 key 调用 carryOver 不报错。
+    let missingIdentity = ContentIdentity(location: oldLocation.parent!.appending("missing.jpg"), size: 1, modificationNanos: 1)
+    await environment.pipeline.carryOver(from: missingIdentity, to: newIdentity)
+    await environment.pipeline.shutdown()
+}

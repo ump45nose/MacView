@@ -118,6 +118,67 @@ public final class DiskCache: Sendable {
         }
     }
 
+    /// 以 `old` 开头的 key（含各尺寸后缀）改挂到 `new` 开头，旧的不在时跳过。
+    public func rekey(prefix old: String, to new: String) async throws {
+        guard !old.isEmpty, old != new else { return }
+        try await index.diskOperations.perform { [self] in
+            let tierValue = tier.rawValue
+            let rows: [(key: String, filename: String, size: Int64, accessed: Double)] = try index.pool.read { database in
+                let fetched: [Row]
+                if let upper = prefixUpperBound(old) {
+                    fetched = try Row.fetchAll(
+                        database,
+                        sql: "SELECT key, filename, size, accessed FROM disk_entries WHERE tier = ? AND key >= ? AND key < ?",
+                        arguments: [tierValue, old, upper]
+                    )
+                } else {
+                    fetched = try Row.fetchAll(
+                        database,
+                        sql: "SELECT key, filename, size, accessed FROM disk_entries WHERE tier = ? AND key >= ?",
+                        arguments: [tierValue, old]
+                    )
+                }
+                return fetched.map { ($0["key"], $0["filename"], $0["size"], $0["accessed"]) }
+            }
+            guard !rows.isEmpty else { return }
+
+            var moved: [(oldKey: String, newKey: String, newFilename: String, size: Int64, accessed: Double)] = []
+            var missingOldKeys: [String] = []
+            for row in rows {
+                let newKey = new + String(row.key.dropFirst(old.count))
+                let newFilename = Self.filename(for: newKey)
+                let source = root.appendingPathComponent(row.filename)
+                let destination = root.appendingPathComponent(newFilename)
+                guard FileManager.default.fileExists(atPath: source.path) else {
+                    missingOldKeys.append(row.key)
+                    continue
+                }
+                if source != destination {
+                    try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    guard rename(source.path, destination.path) == 0 else {
+                        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+                    }
+                }
+                moved.append((row.key, newKey, newFilename, row.size, row.accessed))
+            }
+
+            try index.pool.write { database in
+                let deleteStatement = try database.makeStatement(sql: "DELETE FROM disk_entries WHERE tier = ? AND key = ?")
+                let upsertStatement = try database.makeStatement(sql: """
+                    INSERT INTO disk_entries(tier, key, filename, size, accessed) VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(tier, key) DO UPDATE SET filename = excluded.filename, size = excluded.size, accessed = excluded.accessed
+                    """)
+                for oldKey in missingOldKeys {
+                    try deleteStatement.execute(arguments: [tierValue, oldKey])
+                }
+                for item in moved {
+                    try deleteStatement.execute(arguments: [tierValue, item.oldKey])
+                    try upsertStatement.execute(arguments: [tierValue, item.newKey, item.newFilename, item.size, item.accessed])
+                }
+            }
+        }
+    }
+
     private func evict(to budget: Int64) throws {
         try index.flushAccesses()
         let tier = tier.rawValue

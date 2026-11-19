@@ -112,6 +112,25 @@ public final class FileImagePipeline: ImagePipeline {
         }
     }
 
+    public func carryOver(from old: ContentIdentity, to new: ContentIdentity) async {
+        let oldKey = old.cacheKey
+        let newKey = new.cacheKey
+        guard oldKey != newKey else { return }
+        let prefix = oldKey + "|"
+        caches.raw.removeValue(for: oldKey)
+        caches.decoded.removeValues { $0 == oldKey || $0.hasPrefix(prefix) }
+        caches.thumbnailMemory.removeValues { $0 == oldKey || $0.hasPrefix(prefix) }
+        caches.preload.removeValues { $0 == oldKey || $0.hasPrefix(prefix) }
+        state.withLock { state in
+            state.deferredDerivatives.remove(oldKey)
+            state.repairingDerivatives.remove(oldKey)
+        }
+        try? await caches.thumbnails.rekey(prefix: oldKey, to: newKey)
+        if let browse = caches.browse {
+            try? await browse.rekey(prefix: oldKey, to: newKey)
+        }
+    }
+
     private func metadata(_ identity: ContentIdentity, context: RequestContext) async throws -> ImageMetadata {
         if let value = try await lifetime.value(operation: { [self] in try await caches.metadata.values(for: [identity.cacheKey])[identity.cacheKey] }) { return value }
         if EntryKind(fileName: identity.location.name) == .video {

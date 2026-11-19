@@ -83,6 +83,13 @@ public final class MemoryCache<Key: Hashable & Sendable, Value: Sendable>: Senda
         }
     }
 
+    public func removeValues(where shouldRemove: (Key) -> Bool) {
+        state.withLock { state in
+            let victims = state.nodes.values.filter { shouldRemove($0.key) }
+            for node in victims { state.remove(node) }
+        }
+    }
+
     public func setBudget(_ budget: Int64) {
         state.withLock { state in
             state.budget = max(0, budget)

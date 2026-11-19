@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import GRDB
+import MVFoundation
 import Synchronization
 
 /// 所有持久缓存共享一个 WAL 数据库；数据库写入由 GRDB 串行执行。
@@ -47,6 +48,27 @@ public final class CacheIndex: Sendable {
                 ) WITHOUT ROWID;
                 CREATE INDEX metadata_container ON metadata(container);
                 CREATE TABLE directory_listings (location BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL) WITHOUT ROWID;
+                """)
+        }
+        migrator.registerMigration("cache-v3") { database in
+            try database.execute(sql: """
+                ALTER TABLE metadata ADD COLUMN rating INTEGER;
+                CREATE TABLE metadata_tags (
+                    key TEXT NOT NULL,
+                    tag TEXT NOT NULL,
+                    PRIMARY KEY (key, tag)
+                ) WITHOUT ROWID;
+                CREATE INDEX metadata_tags_tag ON metadata_tags(tag);
+                CREATE TABLE search_entries (
+                    location BLOB PRIMARY KEY NOT NULL,
+                    container BLOB NOT NULL,
+                    prefix TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    cacheKey TEXT NOT NULL
+                );
+                CREATE INDEX search_entries_prefix ON search_entries(prefix);
+                CREATE INDEX search_entries_cacheKey ON search_entries(cacheKey);
                 """)
         }
         try migrator.migrate(pool)
@@ -139,6 +161,67 @@ func cacheChunks<Element>(_ elements: [Element], size: Int = 500) -> [ArraySlice
 }
 
 func cachePlaceholders(_ count: Int) -> String { Array(repeating: "?", count: count).joined(separator: ",") }
+
+func encodeLocationKey(_ location: Location) throws -> Data {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+    return try encoder.encode(location)
+}
+
+func decodeLocationKey(_ data: Data) throws -> Location {
+    try JSONDecoder().decode(Location.self, from: data)
+}
+
+/// 严格位于 `scope` 之下的 `prefixKey` 区间：`prefix >= lower AND prefix < upper`。
+/// `'/'` (0x2F) 的下一个 ASCII 字节是 `'0'` (0x30)，可避免兄弟目录 `a` 与 `ab` 混入。
+func prefixRange(under scope: Location) -> (lower: String, upper: String) {
+    let base = scope.prefixKey
+    return (base + "/", base + "0")
+}
+
+/// 任意 UTF-8 字符串在二进制字典序下的最小严格上界，用于 `>= prefix AND < upper` 范围查询。
+func prefixUpperBound(_ prefix: String) -> String? {
+    var scalars = Array(prefix.unicodeScalars)
+    while let last = scalars.popLast() {
+        if last.value == 0x10FFFF { continue }
+        var next = last.value + 1
+        if (0xD800...0xDFFF).contains(next) { next = 0xE000 }
+        guard let scalar = UnicodeScalar(next) else { continue }
+        scalars.append(scalar)
+        return String(String.UnicodeScalarView(scalars))
+    }
+    return nil
+}
+
+func normalizedSearchText(_ text: String) -> String {
+    text.precomposedStringWithCompatibilityMapping.lowercased()
+}
+
+func likePattern(for text: String, leadingWildcard: Bool = true) -> String {
+    var result = leadingWildcard ? "%" : ""
+    result.reserveCapacity(text.count + 4)
+    for character in text {
+        switch character {
+        case "\\", "%", "_":
+            result.append("\\")
+            result.append(character)
+        default:
+            result.append(character)
+        }
+    }
+    result.append("%")
+    return result
+}
+
+func searchKindValue(for kind: EntryKind) -> String {
+    switch kind {
+    case .image: SearchKind.image.rawValue
+    case .video: SearchKind.video.rawValue
+    case .archive: SearchKind.archive.rawValue
+    case .directory: SearchKind.directory.rawValue
+    case .other: "other"
+    }
+}
 
 private func cacheProcessStartDate() throws -> Date {
     var process = kinfo_proc()
