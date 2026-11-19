@@ -521,6 +521,56 @@
         }
       }
     },
+    "1 星": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 Star"
+          }
+        }
+      }
+    },
+    "2 星": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 Stars"
+          }
+        }
+      }
+    },
+    "3 星": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 Stars"
+          }
+        }
+      }
+    },
+    "4 星": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 Stars"
+          }
+        }
+      }
+    },
+    "5 星": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 Stars"
+          }
+        }
+      }
+    },
     "GPS": {
       "localizations": {
         "en": {
@@ -3637,6 +3687,16 @@
         }
       }
     },
+    "显示或隐藏信息面板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide Info Panel"
+          }
+        }
+      }
+    },
     "显示或隐藏停靠区": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -4477,6 +4537,16 @@
         }
       }
     },
+    "清除评分": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Rating"
+          }
+        }
+      }
+    },
     "瀑布": {
       "localizations": {
         "en": {
@@ -4977,6 +5047,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Edit Tags"
+          }
+        }
+      }
+    },
+    "编辑标签…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Tags…"
           }
         }
       }
