@@ -1,12 +1,14 @@
 #if DEBUG
 import AppKit
 import Darwin
+import MVCache
 import MVCommands
 import MVFoundation
 import MVIO
 import MVLayout
 import MVLibraryData
 import MVMedia
+import MVMetadata
 import MVPipeline
 import MVServices
 import MVSettings
@@ -384,6 +386,58 @@ final class DebugCommands: Sendable {
                 "inFlightBytes": .number(Double($0.inFlightBytes)), "waitingTasks": .number(Double($0.waitingTasks)),
             ]) } ?? .null,
             "library": await libraryState(),
+            "search": searchState(),
+            "metadata": await metadataState(),
+        ])
+    }
+
+    /// 搜索状态：当前查询与结果数。
+    private func searchState() -> JSONValue {
+        guard let controller = try? frontController(), let shelf = controller.bookshelfPanel else { return .null }
+        let sc = shelf.searchController
+        return .object([
+            "isSearching": .bool(sc.isSearching),
+            "isLoading": .bool(sc.isLoading),
+            "queryText": .string(sc.queryText),
+            "terms": .array(sc.currentTerms.map(JSONValue.string)),
+            "filters": .object([
+                "minimumRating": sc.minimumRating.map { .number(Double($0)) } ?? .null,
+                "tags": .array(sc.selectedTags.map(JSONValue.string)),
+                "kinds": .array(sc.selectedKinds.map(\.rawValue).sorted().map(JSONValue.string)),
+            ]),
+            "resultCount": .number(Double(sc.resultCount)),
+            "indexedCount": sc.lastResult.map { .number(Double($0.indexedCount)) } ?? .null,
+        ])
+    }
+
+    /// 元数据状态：当前页评分与标签、写入中数量。
+    private func metadataState() async -> JSONValue {
+        let pending = app.metadataWriter?.pendingCount ?? 0
+        guard let controller = try? frontController(),
+              let pages = controller.session.book?.pages,
+              pages.indices.contains(controller.session.currentPage) else {
+            return .object([
+                "location": .null,
+                "rating": .null,
+                "tags": .array([]),
+                "pendingCount": .number(Double(pending)),
+            ])
+        }
+        let entry = pages[controller.session.currentPage].entry
+        let overlay = app.metadataWriter?.overlay(for: entry.location)
+        let details: ImageDetails?
+        if let info = controller.infoPanel, info.currentEntry?.location == entry.location, let loaded = info.details {
+            details = loaded
+        } else {
+            details = try? await app.services?.metadataDetails(for: entry)
+        }
+        let rating = overlay?.rating ?? details?.fields?.rating
+        let tags = overlay?.tags ?? details?.fields?.tags ?? []
+        return .object([
+            "location": .string(entry.location.description),
+            "rating": rating.map { .number(Double($0)) } ?? .null,
+            "tags": .array(tags.map(JSONValue.string)),
+            "pendingCount": .number(Double(pending)),
         ])
     }
 
