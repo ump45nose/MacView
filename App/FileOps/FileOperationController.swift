@@ -25,7 +25,7 @@ private final class UndoStep: NSObject {
 final class FileOperationController {
     private struct QueueItem {
         var operation: FileOperation, title: String, origin: FileOrigin, locations: Set<Location>
-        var reportsFailures: Bool, undoStep: UndoStep? = nil, isUndo: Bool? = nil
+        var reportsFailures: Bool, immediateProgress: Bool = false, undoStep: UndoStep? = nil, isUndo: Bool? = nil
         var continuation: CheckedContinuation<FileOperationResult?, Never>? = nil
     }
 
@@ -54,7 +54,7 @@ final class FileOperationController {
         registerClassifyCommands()
     }
 
-    func perform(_ operation: FileOperation, title: String, origin: FileOrigin, reportsFailures: Bool = true) async -> FileOperationResult? {
+    func perform(_ operation: FileOperation, title: String, origin: FileOrigin, reportsFailures: Bool = true, immediateProgress: Bool = false) async -> FileOperationResult? {
         guard app?.services?.fileOperations != nil else { return nil }
         let locations = Self.locations(of: operation, origin: origin)
         if !locations.isDisjoint(with: activeLocations) {
@@ -63,7 +63,7 @@ final class FileOperationController {
         }
         activeLocations.formUnion(locations)
         return await withCheckedContinuation { continuation in
-            enqueue(QueueItem(operation: operation, title: title, origin: origin, locations: locations, reportsFailures: reportsFailures, continuation: continuation))
+            enqueue(QueueItem(operation: operation, title: title, origin: origin, locations: locations, reportsFailures: reportsFailures, immediateProgress: immediateProgress, continuation: continuation))
         }
     }
 
@@ -97,7 +97,7 @@ final class FileOperationController {
             activeLocations.subtract(item.locations); item.continuation?.resume(returning: nil); return
         }
         latestProgress = FileProgress(totalItems: max(1, item.locations.count))
-        showingProgress = false; progressController = targetController(for: item.origin)
+        showingProgress = item.immediateProgress; progressController = targetController(for: item.origin)
         refreshProgressDisplay = { [weak self] in
             guard let self, self.showingProgress else { return }
             let controller = self.progressController ?? self.targetController(for: item.origin)
@@ -105,7 +105,8 @@ final class FileOperationController {
             let (text, fraction) = self.progressSummary(title: item.title, operation: item.operation, progress: self.latestProgress)
             controller?.content.statusBar.showProgress(text, fraction: fraction) { [weak self] in self?.cancelCurrentOperation() }
         }
-        let delayTask = Task { @MainActor [weak self] in
+        if showingProgress { refreshProgressDisplay?() }
+        let delayTask: Task<Void, Never>? = showingProgress ? nil : Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
             guard let self, !Task.isCancelled else { return }
             self.showingProgress = true; self.refreshProgressDisplay?()
@@ -120,7 +121,7 @@ final class FileOperationController {
         }
         currentTask = task
         let result = await task.value
-        delayTask.cancel(); currentTask = nil; refreshProgressDisplay = nil
+        delayTask?.cancel(); currentTask = nil; refreshProgressDisplay = nil
         if showingProgress { progressController?.content.statusBar.hideProgress(); showingProgress = false }
         progressController = nil; activeLocations.subtract(item.locations)
 
@@ -151,11 +152,11 @@ final class FileOperationController {
             window.beginSheet(sheet)
         }
         if !otherFailures.isEmpty {
+            guard reportsFailures else { return }
             if otherFailures.allSatisfy({ if case FileOpsError.readOnly = $0.error { true } else { false } }) {
                 controller.content.statusBar.showMessage(String(localized: "压缩包内的项不能移动"))
                 return
             }
-            guard reportsFailures else { return }
             let total = result.changes.count + result.skipped.count + result.failures.count
             let bannerTitle = total > otherFailures.count
                 ? String(localized: "\(title)：\(total) 项中 \(otherFailures.count) 项没有完成")

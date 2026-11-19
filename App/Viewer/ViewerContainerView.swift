@@ -229,10 +229,6 @@ final class ViewerContainerView: NSView, InputScoped {
         metadataToast.isHidden = true
     }
 
-    var metadataToastText: String? {
-        metadataToast.isHidden ? nil : metadataToast.displayText
-    }
-
     // MARK: 虚拟书
 
     /// 来源胶囊：当前页所在的书和文件名。
@@ -504,8 +500,6 @@ private final class ViewerMessageView: NSStackView {
 private final class MetadataToastView: NSView {
     private let spinner = NSProgressIndicator()
     private let label = NSTextField(labelWithString: "")
-
-    var displayText: String { label.stringValue }
 
     init() {
         super.init(frame: .zero)

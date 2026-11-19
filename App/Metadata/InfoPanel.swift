@@ -230,6 +230,7 @@ final class InfoPanelView: NSView {
     private let retryButton = FlatButton(font: .systemFont(ofSize: 11.5), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 5, height: 22, padding: 10)
     private var fieldViews: [FieldKey: NSTextField] = [:]
     private var currentTags: [String] = []
+    private var lastTagsWidth: CGFloat = 0
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -245,6 +246,10 @@ final class InfoPanelView: NSView {
         errorBox.layer?.backgroundColor = Theme.dangerSoft.cgColor
     }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); onWindowChange?() }
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        if abs(max(newSize.width - 94, 80) - lastTagsWidth) > 1, !currentTags.isEmpty { rebuildTags(currentTags) }
+    }
 
     private func buildUI() {
         emptyLabel.font = .systemFont(ofSize: 12); emptyLabel.textColor = Theme.text2; emptyLabel.alignment = .center
@@ -352,16 +357,21 @@ final class InfoPanelView: NSView {
 
     private func rebuildTags(_ tags: [String]) {
         currentTags = tags
+        let maxW = max(bounds.width - 94, 80)
+        lastTagsWidth = maxW
         tagsContainer.arrangedSubviews.forEach { tagsContainer.removeArrangedSubview($0); $0.removeFromSuperview() }
-        if !tags.isEmpty {
-            let chipRow = NSStackView(); chipRow.orientation = .horizontal; chipRow.spacing = 4; chipRow.alignment = .centerY
-            for (index, tag) in tags.enumerated() {
-                let chip = FlatButton(font: .systemFont(ofSize: 11), fill: Theme.well, foreground: Theme.text2, border: Theme.line, radius: 4, height: 20, padding: 6)
-                chip.setText("\(tag) ×"); chip.tag = index; chip.toolTip = String(localized: "点击移除“\(tag)”")
-                chip.target = self; chip.action = #selector(tagChipClicked(_:))
-                chipRow.addArrangedSubview(chip)
+        var row: NSStackView?, rowWidth: CGFloat = 0
+        for (index, tag) in tags.enumerated() {
+            let chip = FlatButton(font: .systemFont(ofSize: 11), fill: Theme.well, foreground: Theme.text2, border: Theme.line, radius: 4, height: 20, padding: 6)
+            chip.setText("\(tag) ×"); chip.tag = index; chip.toolTip = String(localized: "点击移除“\(tag)”")
+            chip.target = self; chip.action = #selector(tagChipClicked(_:))
+            let chipW = chip.fittingSize.width
+            if row == nil || (rowWidth > 0 && rowWidth + 4 + chipW > maxW) {
+                let next = NSStackView(); next.orientation = .horizontal; next.spacing = 4; next.alignment = .centerY
+                tagsContainer.addArrangedSubview(next); row = next; rowWidth = 0
             }
-            tagsContainer.addArrangedSubview(chipRow)
+            row?.addArrangedSubview(chip)
+            rowWidth += (rowWidth > 0 ? 4 : 0) + chipW
         }
         tagsContainer.addArrangedSubview(addTagButton)
     }

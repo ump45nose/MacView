@@ -49,8 +49,6 @@ final class BookshelfPanel: CollectionPanel {
     private var indexObserverID: UUID?
     private var lastIndexPhase: IndexProgress.Phase?
 
-    var currentDirectory: Location? { directory }
-
     var folderForIndexing: Location? {
         let selected = targetEntries
         if selected.count == 1, selected[0].kind == .directory { return selected[0].location }
