@@ -1199,6 +1199,48 @@ import Testing
 
         await fixture.shutdown(services)
     }
+
+    @Test("W1.4 真实组合根与 makeMock 均暴露 SearchCatalog 与 FolderIndexer 并能端到端索引搜索")
+    func servicesExposeIndexerAndMockUsesRealSearch() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let search = try #require(services.search)
+        let indexer = try #require(services.indexer)
+        let rootLocation = try await services.sources.location(for: fixture.root)
+
+        var realFinal: IndexProgress?
+        for try await progress in indexer.index(rootLocation) {
+            realFinal = progress
+        }
+        #expect(realFinal?.phase == .finished)
+        #expect((realFinal?.probed ?? 0) >= 12)
+        let realHits = try await search.query(SearchQuery(terms: ["12.jpg"], scope: rootLocation))
+        #expect(realHits.hits.contains { $0.entry.name == "12.jpg" })
+        await fixture.shutdown(services)
+
+        // makeMock 也接上临时目录 CacheIndex 支撑的真实 SearchCatalog 与 FolderIndexer
+        let mockTree = MockTree(nodes: [
+            .directory("画集", [
+                .image("cover.jpg", PixelSize(width: 640, height: 480)),
+                .image("page1.jpg", PixelSize(width: 640, height: 480)),
+            ]),
+        ])
+        let mock = CoreServices.makeMock(MockOptions(tree: mockTree, timing: .instant))
+        let mockSearch = try #require(mock.search)
+        let mockIndexer = try #require(mock.indexer)
+        let mockRoot = Location(root: mockTree.root)
+        var mockFinal: IndexProgress?
+        for try await progress in mockIndexer.index(mockRoot) {
+            mockFinal = progress
+        }
+        #expect(mockFinal?.phase == .finished)
+        #expect(mockFinal?.listed == 3)
+        let mockResult = try await mockSearch.query(SearchQuery(terms: ["cover"], scope: mockRoot))
+        #expect(mockResult.indexedCount == 3)
+        #expect(mockResult.hits.map(\.entry.name) == ["cover.jpg"])
+        await mock.shutdown()
+    }
 }
 
 #if DEBUG
