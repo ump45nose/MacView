@@ -72,6 +72,16 @@ struct MockByteSource: ByteSource {
         let lower = max(range.lowerBound, 0)
         let upper = min(range.upperBound, identity.size)
         guard lower < upper else { return Data() }
-        return Data((lower..<upper).map { UInt8(truncatingIfNeeded: $0) })
+        let count = Int(upper - lower)
+        var data = Data(count: count)
+        data.withUnsafeMutableBytes { raw in
+            guard let ptr = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+            var value = UInt8(truncatingIfNeeded: lower)
+            for index in 0..<count {
+                ptr[index] = value
+                value &+= 1
+            }
+        }
+        return data
     }
 }
