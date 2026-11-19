@@ -16,7 +16,6 @@ final class MetadataWriteController {
     }
 
     struct FailureRecord {
-        let location: Location
         let reason: String
         let retry: @MainActor () -> Void
     }
@@ -25,6 +24,7 @@ final class MetadataWriteController {
         var fields: XMPFields
         var origin: FileOrigin
         var title: String
+        var previous: OptimisticOverlay?
     }
 
     private weak var app: AppDelegate?
@@ -92,33 +92,22 @@ final class MetadataWriteController {
         }
     }
 
-    static func shortReason(for writability: MetadataWritability) -> String {
-        switch writability {
-        case .writable: ""
-        case .insideArchive: String(localized: "压缩包内的文件只读")
-        case let .unsupportedFormat(f):
-            switch f.lowercased() {
-            case "video", "mp4", "mov", "mkv", "avi", "webm": String(localized: "视频不能评分")
-            case "directory": String(localized: "文件夹不能评分")
-            case "archive", "zip", "rar", "7z", "cbz", "cbr": String(localized: "压缩包不能评分")
-            case "unknown", "": String(localized: "这种文件不能评分")
-            default: String(localized: "\(f.uppercased()) 格式不能评分")
-            }
-        }
-    }
+    static func shortReason(for writability: MetadataWritability) -> String { reason(for: writability, detailed: false) }
+    static func detailReason(for writability: MetadataWritability) -> String { reason(for: writability, detailed: true) }
 
-    static func detailReason(for writability: MetadataWritability) -> String {
+    private static func reason(for writability: MetadataWritability, detailed: Bool) -> String {
         switch writability {
-        case .writable: ""
-        case .insideArchive: String(localized: "压缩包内的文件只读，不能评分和加标签。")
+        case .writable: return ""
+        case .insideArchive: return detailed ? String(localized: "压缩包内的文件只读，不能评分和加标签。") : String(localized: "压缩包内的文件只读")
         case let .unsupportedFormat(f):
-            switch f.lowercased() {
-            case "video", "mp4", "mov", "mkv", "avi", "webm": String(localized: "视频不能评分和加标签。当前只支持 JPEG、TIFF、HEIC。")
-            case "directory": String(localized: "文件夹不能评分和加标签。当前只支持 JPEG、TIFF、HEIC。")
-            case "archive", "zip", "rar", "7z", "cbz", "cbr": String(localized: "压缩包不能评分和加标签。当前只支持 JPEG、TIFF、HEIC。")
-            case "unknown", "": String(localized: "当前文件格式不能评分和加标签。只支持 JPEG、TIFF、HEIC。")
-            default: String(localized: "\(f.uppercased()) 不能评分和加标签。当前只支持 JPEG、TIFF、HEIC。")
+            let subject = switch f.lowercased() {
+            case "video": String(localized: "视频")
+            case "directory": String(localized: "文件夹")
+            case "archive": String(localized: "压缩包")
+            case "unknown", "": String(localized: "这种文件")
+            default: detailed ? f.uppercased() : String(localized: "\(f.uppercased()) 格式")
             }
+            return detailed ? String(localized: "\(subject)不能评分和加标签。当前只支持 JPEG、TIFF、HEIC。") : String(localized: "\(subject)不能评分")
         }
     }
 
@@ -126,13 +115,18 @@ final class MetadataWriteController {
         app?.services?.fileOperations != nil && !origin.items.isEmpty && origin.items.allSatisfy { Self.writability(for: $0) == .writable }
     }
 
-    func handleDisabledCommand(_ id: CommandID, in controller: ReaderWindowController?) -> Bool {
-        guard Self.metadataCommands.contains(id), let controller,
-              let unwritable = controller.fileOrigin().items.first(where: { Self.writability(for: $0) != .writable }) else { return false }
+    @discardableResult
+    private func showUnwritableReason(for items: [Entry], in controller: ReaderWindowController?) -> Bool {
+        guard let controller, let unwritable = items.first(where: { Self.writability(for: $0) != .writable }) else { return false }
         let reason = Self.shortReason(for: Self.writability(for: unwritable))
         controller.content.statusBar.showMessage(reason)
         controller.viewer.showMetadataToast(text: reason, isSpinning: false)
         return true
+    }
+
+    func handleDisabledCommand(_ id: CommandID, in controller: ReaderWindowController?) -> Bool {
+        guard Self.metadataCommands.contains(id), let controller else { return false }
+        return showUnwritableReason(for: controller.fileOrigin().items, in: controller)
     }
 
     private static let metadataCommands: Set<CommandID> = [
@@ -143,13 +137,13 @@ final class MetadataWriteController {
 
     func setRating(_ rating: Int, origin: FileOrigin) {
         let clamped = min(max(rating, 0), 5)
-        guard canEdit(origin) else { _ = handleDisabledCommand(.ratingSet0, in: origin.window); return }
+        guard canEdit(origin) else { showUnwritableReason(for: origin.items, in: targetController(for: origin)); return }
         let title = clamped == 0 ? String(localized: "清除评分") : String(localized: "评分 \(clamped) 星")
         submitUniform(XMPFields(rating: clamped), title: title, origin: origin)
     }
 
     func setTags(_ tags: [String], origin: FileOrigin) {
-        guard canEdit(origin) else { _ = handleDisabledCommand(.metadataTagsEdit, in: origin.window); return }
+        guard canEdit(origin) else { showUnwritableReason(for: origin.items, in: targetController(for: origin)); return }
         submitUniform(XMPFields(tags: Self.normalizeTags(tags)), title: String(localized: "编辑标签"), origin: origin)
     }
 
@@ -190,6 +184,7 @@ final class MetadataWriteController {
 
     private func enqueueSingle(entry: Entry, fields: XMPFields, title: String, origin: FileOrigin) {
         let loc = entry.location
+        let previous = queuedSingles[loc]?.previous ?? overlays[loc]
         failures.removeValue(forKey: loc)
         applyOptimistic(fields, to: loc, isWriting: true)
         notifyObservers()
@@ -198,7 +193,7 @@ final class MetadataWriteController {
         var merged = queuedSingles[loc]?.fields ?? XMPFields()
         if let r = fields.rating { merged.rating = r }
         if let t = fields.tags { merged.tags = t }
-        queuedSingles[loc] = PendingSingle(fields: merged, origin: origin, title: title)
+        queuedSingles[loc] = PendingSingle(fields: merged, origin: origin, title: title, previous: previous)
 
         guard !activeLocations.contains(loc) else { return }
         debounceTasks[loc]?.cancel()
@@ -216,13 +211,12 @@ final class MetadataWriteController {
         defer { activeLocations.remove(loc) }
 
         while let next = queuedSingles.removeValue(forKey: loc) {
-            let previous = overlays[loc]
             guard let fileOps = app?.fileOps else {
                 overlays.removeValue(forKey: loc); notifyObservers(); return
             }
             let result = await fileOps.perform(.setMetadata([loc], next.fields), title: next.title, origin: next.origin, reportsFailures: false)
             if queuedSingles[loc] != nil { continue }
-            handleCompletion(result: result, targets: [loc], fieldsByLocation: [loc: next.fields], previousOverlays: [loc: previous], title: next.title, origin: next.origin)
+            handleCompletion(result: result, targets: [loc], fieldsByLocation: [loc: next.fields], previousOverlays: [loc: next.previous], title: next.title, origin: next.origin)
         }
     }
 
@@ -238,13 +232,9 @@ final class MetadataWriteController {
         notifyObservers()
 
         if targets.count > 1 {
-            controller?.content.statusBar.showProgress(String(localized: "\(title) 0 / \(targets.count)"), fraction: 0) { [weak fileOps] in
-                fileOps?.cancelCurrentOperation()
-            }
             controller?.viewer.showMetadataToast(text: String(localized: "正在\(title)（\(targets.count) 项）…"), isSpinning: true, autoHideAfter: nil)
         }
-        let result = await fileOps.perform(operation, title: title, origin: origin, reportsFailures: false)
-        if targets.count > 1, !fileOps.isBusy { controller?.content.statusBar.hideProgress() }
+        let result = await fileOps.perform(operation, title: title, origin: origin, reportsFailures: false, immediateProgress: targets.count > 1)
         handleCompletion(result: result, targets: targets, fieldsByLocation: optimisticFields, previousOverlays: previousOverlays, title: title, origin: origin)
     }
 
@@ -263,11 +253,10 @@ final class MetadataWriteController {
         for loc in targets {
             if let failure = failedMap[loc] {
                 rollback(loc, previous: previousOverlays[loc] ?? nil)
-                let retryFields = fieldsByLocation[loc] ?? XMPFields()
-                let entry = origin.items.first { $0.location == loc }
-                failures[loc] = FailureRecord(location: loc, reason: ErrorText.describe(failure.error)) { [weak self] in
-                    guard let self, let entry else { return }
-                    self.enqueueSingle(entry: entry, fields: retryFields, title: title, origin: FileOrigin(window: origin.window, items: [entry]))
+                if let retryFields = fieldsByLocation[loc], let entry = origin.items.first(where: { $0.location == loc }) {
+                    failures[loc] = FailureRecord(reason: ErrorText.describe(failure.error)) { [weak self] in
+                        self?.enqueueSingle(entry: entry, fields: retryFields, title: title, origin: FileOrigin(window: origin.window, items: [entry]))
+                    }
                 }
             } else if succeededLocs.contains(loc) {
                 overlays[loc]?.isWriting = false
@@ -339,7 +328,7 @@ final class MetadataWriteController {
     // MARK: 标签弹窗与右键菜单
 
     func presentTagEditor(origin: FileOrigin, relativeTo anchor: NSView? = nil) {
-        guard canEdit(origin) else { _ = handleDisabledCommand(.metadataTagsEdit, in: origin.window); return }
+        guard canEdit(origin) else { showUnwritableReason(for: origin.items, in: targetController(for: origin)); return }
         guard let controller = targetController(for: origin), let services = app?.services else { return }
         activePopover?.close()
         let editor = TagEditorPopover(entries: origin.items, services: services, writer: self, origin: origin)

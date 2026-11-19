@@ -49,10 +49,8 @@ final class IndexController {
                 }
                 guard !Task.isCancelled, let self else { return }
                 self.indexTask = nil
-                if var current = self.state, current.progress.phase != .finished {
-                    current.progress.phase = .finished
-                    self.state = current
-                    self.notifyObservers()
+                guard self.state?.progress.phase == .finished else {
+                    self.state = nil; self.notifyObservers(); return
                 }
                 self.dismissTask = Task { [weak self] in
                     try? await Task.sleep(for: .seconds(2.5))

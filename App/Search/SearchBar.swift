@@ -18,11 +18,8 @@ final class SearchBar: NSView, NSSearchFieldDelegate, NSMenuDelegate {
     private(set) var minimumRating: Int?
     private(set) var selectedTags: [String] = []
     private(set) var selectedKinds: Set<SearchKind> = []
-    var queryText: String { searchField.stringValue }
-    var hasActiveFilters: Bool { minimumRating != nil || !selectedTags.isEmpty || !selectedKinds.isEmpty }
 
     private let bottomLine = CALayer()
-    private var recentTerms: [String] = []
     private var cachedTags: [String] = []
 
     override init(frame frameRect: NSRect) {
@@ -81,9 +78,9 @@ final class SearchBar: NSView, NSSearchFieldDelegate, NSMenuDelegate {
     private func submitCurrentText() {
         let text = searchField.stringValue, trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty {
-            recentTerms.removeAll { $0 == trimmed }; recentTerms.insert(trimmed, at: 0)
-            if recentTerms.count > 10 { recentTerms = Array(recentTerms.prefix(10)) }
-            searchField.recentSearches = recentTerms
+            var recents = searchField.recentSearches
+            recents.removeAll { $0 == trimmed }; recents.insert(trimmed, at: 0)
+            searchField.recentSearches = Array(recents.prefix(10))
         }
         onSubmit?(text)
     }

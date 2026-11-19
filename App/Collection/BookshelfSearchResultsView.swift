@@ -244,10 +244,6 @@ final class SearchResultsTableView: NSTableView, InputScoped {
 
 @MainActor
 private final class SearchResultCell: NSView {
-    private static let starColor = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        ? NSColor(srgbRed: 0xE3 / 255, green: 0x9A / 255, blue: 0x77 / 255, alpha: 1)
-        : NSColor(srgbRed: 0xC2 / 255, green: 0x64 / 255, blue: 0x3F / 255, alpha: 1) }
-
     private let thumb = CALayer()
     private let icon = NSImageView()
     private let nameLabel = NSTextField(labelWithString: "")
@@ -314,7 +310,7 @@ private final class SearchResultCell: NSView {
         func sep() { if out.length > 0 { out.append(NSAttributedString(string: "  ", attributes: [.font: font])) } }
         if let r = rating, r > 0 {
             let c = min(max(r, 1), 5)
-            out.append(NSAttributedString(string: String(repeating: "★", count: c), attributes: [.font: font, .foregroundColor: starColor]))
+            out.append(NSAttributedString(string: String(repeating: "★", count: c), attributes: [.font: font, .foregroundColor: Theme.star]))
             if c < 5 { out.append(NSAttributedString(string: String(repeating: "★", count: 5 - c), attributes: [.font: font, .foregroundColor: Theme.lineStrong])) }
         }
         if isWriting {

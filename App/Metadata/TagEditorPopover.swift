@@ -134,6 +134,7 @@ final class TagEditorPopover: NSViewController, NSTextFieldDelegate, NSTableView
                 }
             }
             guard !Task.isCancelled, let self else { return }
+            self.loadTask = nil
             for (loc, tags) in loaded where self.writer?.overlay(for: loc)?.tags == nil {
                 self.perEntryTags[loc] = tags
             }
@@ -230,14 +231,14 @@ final class TagEditorPopover: NSViewController, NSTextFieldDelegate, NSTableView
 
     private func apply(row: Row) {
         guard let writer else { return }
-        switch row {
-        case let .existing(tag, state):
-            let adding = state != .all
-            writer.applyTagToggle(tag, adding: adding, perEntryTags: perEntryTags, origin: origin)
-        case let .create(tag):
-            writer.applyTagToggle(tag, adding: true, perEntryTags: perEntryTags, origin: origin)
+        let submit = {
+            switch row {
+            case let .existing(tag, state): writer.applyTagToggle(tag, adding: state != .all, perEntryTags: self.perEntryTags, origin: self.origin)
+            case let .create(tag): writer.applyTagToggle(tag, adding: true, perEntryTags: self.perEntryTags, origin: self.origin)
+            }
         }
         onClose?()
+        if let pendingLoad = loadTask { Task { @MainActor in await pendingLoad.value; submit() } } else { submit() }
     }
 
     @objc private func rowClicked(_ sender: Any?) {
