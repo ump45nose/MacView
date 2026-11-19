@@ -77,7 +77,7 @@ final class WindowDock: NSView, NSSplitViewDelegate {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
 
     /// 在本窗口上变换布局。`render` 为 false 时界面已经是这个样子（拖动分隔线、改视图设置）。
     func perform(render: Bool = true, _ transform: (DockLayout) -> DockLayout) {

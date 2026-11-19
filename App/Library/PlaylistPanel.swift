@@ -791,7 +791,7 @@ private final class PlaylistHeader: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
 
     /// 外框按它的宽度排信息行：占满面板宽度减去两侧边距。
     override var fittingSize: NSSize {
@@ -875,7 +875,7 @@ private final class PlaylistCell: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
 
     override func updateLayer() {
@@ -933,6 +933,9 @@ private final class PlaylistTableView: NSTableView {
     var onReturn: (() -> Void)?
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    // 与书架表格相同，明确走 mouseDown 的 AppKit 跟踪入口。
+    override func mouseDown(with event: NSEvent) { super.mouseDown(with: event) }
 
     override func keyDown(with event: NSEvent) {
         let plain = event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty

@@ -14,7 +14,7 @@ import MVSettings
 /// 历史、书签、播放列表与虚拟书的自检（`-MVLibrarySelfTest YES`，真实服务）。
 ///
 /// 测试书在隔离 support 目录下自建：文件夹书 alpha、bravo、echo，压缩包书 charlie.zip，含 1 个视频的 delta。
-/// 点击、拖放和按键经 `NSApp.sendEvent` 走真实事件路径（拖放：mouseDown 发起真实拖动会话，再排队拖动事件和 mouseUp）；
+/// 点击和拖放按真实顺序进入应用事件队列，再由 `NSApp.sendEvent` 分发；按键直接分发，拖放建立真实拖动会话；
 /// 右键菜单取视图的 `menu(for:)` 后执行菜单项，弹出按钮选项后发送它的动作。拖放离不开前台，要加 `-MVSelfTestActivate YES`。
 /// 不能自动化的项（重启后保持、3000 项流畅度、“连接”打开卷、拖到标签上停留切换）记 SKIP。
 @MainActor
@@ -62,6 +62,12 @@ final class LibrarySelfTest {
         window.makeKeyAndOrderFront(nil)
         TestPresentation.activateIfAllowed()
         do {
+            if TestPresentation.activationAllowed {
+                print("INFO 等待自检窗口进入前台")
+                guard await until("App 进入前台", attempts: 1200, condition: { NSApp.isActive && window.isKeyWindow }) else {
+                    throw Failure(description: "资料库自检需要前台和键盘焦点；请解锁屏幕，经 open -n 启动")
+                }
+            }
             try await makeBooks()
             try await layoutChecks()
             try await dragPayloadChecks()
@@ -161,7 +167,7 @@ final class LibrarySelfTest {
         _ = await until("历史列出 5 本") { self.history.entries.count == 5 }
         log.check(names(history.entries) == ["echo", "delta", "charlie.zip", "bravo", "alpha"], "C2.1 历史从新到旧：\(names(history.entries))")
         let table = tableView(in: history.view)
-        await click(rowPoint(table, 4))
+        try await click(rowPoint(table, 4))
         let reopened = await until("从历史打开 alpha") { self.controller.session.book?.location.name == "alpha" && self.controller.session.currentPage == 2 }
         log.check(reopened, "C2.1 单击历史行打开 alpha 并回到上次的第 3 页：\(controller.session.currentPage + 1)")
         _ = await until("alpha 排到最前") { self.history.entries.first?.book.name == "alpha" }
@@ -177,7 +183,7 @@ final class LibrarySelfTest {
               let field = views(NSTextField.self, in: content).first(where: {
                   $0.isEditable && $0.stringValue == String(settings.state.model.global.historyLimit)
               }) else { throw Failure(description: "找不到设置里的历史保留本数输入框") }
-        await click(center(of: field), in: settingsWindow)
+        try await click(center(of: field), in: settingsWindow)
         await type("3", in: settingsWindow)
         let trimmed = await until("上限 3 立即生效") { self.history.entries.count == 3 }
         log.check(trimmed && names(history.entries) == ["alpha", "echo", "delta"], "C2.13 上限改为 3 后立即只留最近 3 本：\(names(history.entries))")
@@ -196,7 +202,7 @@ final class LibrarySelfTest {
         _ = await until("书架列出 5 本") { self.shelfView.items.count == 5 }
         let outline = tableView(in: bookmarks.view)
         guard let bravoRow = shelfView.items.firstIndex(where: { $0.name == "bravo" }), let start = shelfView.rowPointInWindow(bravoRow) else { throw Failure(description: "书架里没有 bravo") }
-        await drag(from: start, to: outline.convert(NSPoint(x: outline.bounds.midX, y: 30), to: nil))
+        try await drag(from: start, to: outline.convert(NSPoint(x: outline.bounds.midX, y: 30), to: nil), source: shelfView)
         let dropped = await until("拖进书签") { await self.tree() == "bravo" }
         log.check(dropped, "C2.7 从书架拖一本书进书签面板：\(await tree())")
         guard dropped else { throw Failure(description: "书架拖入书签失败，停止依赖该书签的后续断言") }
@@ -215,7 +221,7 @@ final class LibrarySelfTest {
         log.check(await until("书架右键加入书签") { await self.tree() == "bravo, alpha, charlie.zip" }, "C2.7 书架右键“加入书签”：\(await tree())")
 
         guard let addFolder = button(String(localized: "＋ 文件夹"), in: bookmarks.view) else { throw Failure(description: "找不到“＋ 文件夹”按钮") }
-        await click(center(of: addFolder))
+        try await click(center(of: addFolder))
         _ = await until("新文件夹进入改名") { self.window.firstResponder is NSTextView }
         await type("画集")
         log.check(await until("文件夹改名") { await self.tree() == "bravo, alpha, charlie.zip, 画集[]" }, "C2.2 点“＋ 文件夹”新建并回车确认名字：\(await tree())")
@@ -228,16 +234,16 @@ final class LibrarySelfTest {
         await settle()
 
         guard let bravoMark = row(outline, "bravo"), let folderMark = row(outline, "画集") else { throw Failure(description: "书签行缺失") }
-        await drag(from: rowPoint(outline, bravoMark), to: rowPoint(outline, folderMark))
+        try await drag(from: rowPoint(outline, bravoMark), to: rowPoint(outline, folderMark))
         log.check(await until("拖进文件夹") { await self.tree() == "alpha, charlie.zip, 画集[\(folder)[], bravo]" }, "C2.2 把书签拖进文件夹：\(await tree())")
         await settle()
         guard let charlieMark = row(outline, "charlie.zip"), let alphaMark = row(outline, "alpha") else { throw Failure(description: "书签行缺失") }
-        await drag(from: rowPoint(outline, charlieMark), to: rowPoint(outline, alphaMark, fraction: 0.2))
+        try await drag(from: rowPoint(outline, charlieMark), to: rowPoint(outline, alphaMark, fraction: 0.2))
         log.check(await until("拖动排序") { await self.tree() == "charlie.zip, alpha, 画集[\(folder)[], bravo]" }, "C2.2 拖动排序：\(await tree())")
         await settle()
 
         guard let alphaRow = row(outline, "alpha") else { throw Failure(description: "书签里没有 alpha") }
-        await click(rowPoint(outline, alphaRow), count: 2)
+        try await click(rowPoint(outline, alphaRow), count: 2)
         _ = await until("双击进入改名") { self.window.firstResponder is NSTextView }
         await type("阿尔法")
         let renamed = await until("改显示名") { await self.tree() == "charlie.zip, 阿尔法(alpha), 画集[\(folder)[], bravo]" }
@@ -251,7 +257,7 @@ final class LibrarySelfTest {
 
         await open("echo")
         guard let openRow = row(outline, "alpha") else { throw Failure(description: "书签里没有 alpha") }
-        await click(rowPoint(outline, openRow))
+        try await click(rowPoint(outline, openRow))
         log.check(await until("从书签打开") { self.controller.session.book?.location.name == "alpha" && self.controller.session.currentPage == 2 }, "C2.2 单击书签打开 alpha 并回到上次的第 3 页")
         guard let removeRow = row(outline, "charlie.zip") else { throw Failure(description: "书签里没有 charlie.zip") }
         perform(contextMenu(outline, row: removeRow), String(localized: "从书签中移除"))
@@ -269,22 +275,26 @@ final class LibrarySelfTest {
         _ = try await library.addBookmarks([offline], into: nil, at: nil)
         try await library.recordOpened(offline, at: Date())
         let volumeText = String(localized: "网络卷没有连接")
-        let marked = await until("网络根的书签变灰") { self.row(outline, "画册").flatMap { self.badge(outline, row: $0) }?.isHidden == false }
+        guard await until("网络根书签出现", condition: { self.row(outline, "画册") != nil }) else { throw Failure(description: "书签里没有网络根的条目") }
+        outline.scrollRowToVisible(row(outline, "画册")!)
+        if let index = history.entries.firstIndex(where: { $0.book == offline }) { historyTable.scrollRowToVisible(index) }
+        await settle()
+        let marked = await until("网络根的书签变灰", attempts: 480) { self.row(outline, "画册").flatMap { self.badge(outline, row: $0) }?.isHidden == false }
         let mark = row(outline, "画册").flatMap { badge(outline, row: $0) }
         log.check(marked && mark?.toolTip == volumeText, "C2.3 没挂上的网络根的书签变灰并带“网络卷没有连接”标记：\(mark?.toolTip ?? "无")")
-        let historyMarked = await until("网络根的历史变灰") {
+        let historyMarked = await until("网络根的历史变灰", attempts: 480) {
             self.history.entries.firstIndex { $0.book == offline }.flatMap { self.badge(historyTable, row: $0) }?.isHidden == false
         }
         log.check(historyMarked, "C2.3 没挂上的网络根的历史行变灰并带标记")
         guard let offlineRow = row(outline, "画册") else { throw Failure(description: "书签里没有网络根的条目") }
-        await click(rowPoint(outline, offlineRow))
+        try await click(rowPoint(outline, offlineRow))
         _ = await until("弹出原因") { self.popoverWindow() != nil }
         let volumeTexts = popoverWindow().map { texts(in: $0.contentView!) } ?? []
         let connect = popoverWindow().flatMap { button(String(localized: "连接"), in: $0.contentView!) }
         log.check(volumeTexts.contains(volumeText) && connect != nil, "C2.3 点击不可用的行弹出原因“网络卷没有连接”，带“连接”按钮：\(volumeTexts.prefix(2))")
         if let popover = popoverWindow() { log.snapshot(popover, "library-popover-volume") }
         if let popover = popoverWindow(), let remove = button(String(localized: "移除"), in: popover.contentView!) {
-            await click(center(of: remove), in: popover)
+            try await click(center(of: remove), in: popover)
         }
         log.check(await until("移除网络根书签") { await self.tree() == "alpha, 画集[\(String(localized: "新文件夹"))[], bravo]" }, "C2.3 原因弹出层里“移除”后条目消失")
 
@@ -300,14 +310,14 @@ final class LibrarySelfTest {
         log.check(gone, "C2.3 在 MacView 之外移走后切回，书签和历史里的 alpha 变灰并带“找不到”标记")
         await settle()
         log.snapshot(window, "library-unavailable")
-        if let alphaRow = history.entries.firstIndex(where: { $0.book.name == "alpha" }) { await click(rowPoint(historyTable, alphaRow)) }
+        if let alphaRow = history.entries.firstIndex(where: { $0.book.name == "alpha" }) { try await click(rowPoint(historyTable, alphaRow)) }
         _ = await until("弹出找不到的原因") { self.popoverWindow() != nil }
         let missingTexts = popoverWindow().map { texts(in: $0.contentView!) } ?? []
         log.check(missingTexts.contains(String(localized: "找不到\(String(localized: "这本书"))")) && popoverWindow().flatMap { button(String(localized: "连接"), in: $0.contentView!) } == nil,
                   "C2.3 找不到的书弹出“找不到这本书”，没有“连接”：\(missingTexts.prefix(2))")
         if let popover = popoverWindow() { log.snapshot(popover, "library-popover-missing") }
-        await click(history.view.convert(NSPoint(x: 20, y: 14), to: nil))
-        _ = await until("弹出层关闭") { self.popoverWindow() == nil }
+        await sendKey(kVK_Escape)
+        guard await until("弹出层关闭", condition: { self.popoverWindow() == nil }) else { throw Failure(description: "原因弹出层没有关闭，停止后续点击") }
         try fm.moveItem(at: away, to: alpha)
         NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: NSApp)
         let back = await until("移回后恢复") {
@@ -323,8 +333,8 @@ final class LibrarySelfTest {
         let pageTable = tableView(in: pageList.collection!), listTable = tableView(in: playlist.view)
         log.check(button(String(localized: "新建播放列表"), in: playlist.view) != nil && texts(in: playlist.view).contains(String(localized: "还没有播放列表")), "C2.4 还没有列表时显示空状态和“新建播放列表”")
         await open("delta")
-        await click(rowPoint(pageTable, 0))
-        await click(rowPoint(pageTable, 2), flags: .command)
+        try await click(rowPoint(pageTable, 0))
+        try await click(rowPoint(pageTable, 2), flags: .command)
         log.check(pageTable.selectedRowIndexes == IndexSet([0, 2]), "C2.8 页面列表 ⌘ 点击多选两页（含视频）")
         perform(contextMenu(pageTable, row: 2), String(localized: "加到播放列表"), String(localized: "新建播放列表…"))
         let firstName = String(localized: "新播放列表 \(1)")
@@ -338,7 +348,7 @@ final class LibrarySelfTest {
 
         await open("charlie.zip")
         _ = await until("菜单里有列表 A") { LibraryActions.playlists.map(\.name) == ["列表 A"] }
-        await click(rowPoint(pageTable, 1))
+        try await click(rowPoint(pageTable, 1))
         let submenu = contextMenu(pageTable, row: 1)?.items.first { $0.title == String(localized: "加到播放列表") }?.submenu
         log.check(submenu?.items.first?.title == "列表 A" && submenu?.items.first?.badge != nil && submenu?.items.last?.title == String(localized: "新建播放列表…"),
                   "C2.8 子菜单最近用的列表排第一并标“最近用”，末尾“新建播放列表…”：\(submenu?.items.map(\.title) ?? [])")
@@ -352,12 +362,12 @@ final class LibrarySelfTest {
         let nameB = String(localized: "新播放列表 \(2)")
         listB = playlist.lists.first { $0.name == nameB }?.id
         log.check(listB != nil && playlist.items.isEmpty && texts(in: playlist.view).contains(String(localized: "列表是空的")), "C2.4 ⋯“新建播放列表”新建并切到它，Esc 保留默认名：\(playlist.lists.map(\.name))")
-        await click(rowPoint(pageTable, 0))
-        await click(rowPoint(pageTable, 2), flags: .command)
-        await drag(from: rowPoint(pageTable, 0), to: listTable.convert(NSPoint(x: listTable.bounds.midX, y: 30), to: nil))
+        try await click(rowPoint(pageTable, 0))
+        try await click(rowPoint(pageTable, 2), flags: .command)
+        try await drag(from: rowPoint(pageTable, 0), to: listTable.convert(NSPoint(x: listTable.bounds.midX, y: 30), to: nil), source: pageList.collection)
         log.check(await until("拖进列表 B") { (try? await self.items(self.listB)) == ["charlie.zip!/001.png", "charlie.zip!/003.png"] }, "C2.8 页面列表拖 2 页进列表 B：\(try await items(listB))")
-        await click(rowPoint(pageTable, 1))
-        await click(rowPoint(pageTable, 2), flags: .shift)
+        try await click(rowPoint(pageTable, 1))
+        try await click(rowPoint(pageTable, 2), flags: .shift)
         await sendKey(kVK_ANSI_L, [.command])
         log.check(await message(String(localized: "已加 \(1) 项到「\(nameB)」，\(1) 项已在列表中")), "C2.8 页面列表 ⇧ 多选 2 页按 ⌘L 加到最近用的列表，提示其中 1 项已在列表中")
         await open("echo")
@@ -391,10 +401,11 @@ final class LibrarySelfTest {
     private func virtualBookChecks() async throws {
         guard let listA, let play = button(String(localized: "▶ 当书打开"), in: playlist.view) else { throw Failure(description: "找不到“当书打开”") }
         let session = controller.session, book = Location.playlist(listA)
-        await click(center(of: play))
+        try await click(center(of: play))
         let opened = await until("当书打开列表 A") { session.book?.location == book && session.book?.pages.count == 3 && session.book?.pages.allSatisfy { $0.metadata != nil } == true }
         let order = (try await library.items(of: listA)).map(\.location)
         log.check(opened && session.book?.pages.map(\.id) == order, "C2.9 列表 A 当书打开，页序与列表一致")
+        guard opened else { throw Failure(description: "当书打开没有完成 book=\(session.book?.location.description ?? "none") pages=\(session.book?.pages.count ?? -1)") }
         let titleTexts = window.toolbar?.items.first { $0.itemIdentifier.rawValue == "book.title" }?.view.map(texts(in:)) ?? []
         log.check(window.title == "列表 A" && titleTexts.contains(String(localized: "播放列表")) && titleTexts.contains(String(localized: "\(3) 项，来自 \(2) 本书")),
                   "C2.9 标题前有“播放列表”标记，副标题“3 项，来自 2 本书”：\(titleTexts)")
@@ -424,7 +435,7 @@ final class LibrarySelfTest {
         let page = session.currentPage
         try? await Task.sleep(for: .milliseconds(600))
         await open("alpha")
-        await click(center(of: play))
+        try await click(center(of: play))
         let restored = await until("重新打开列表 A") { session.book?.location == book && session.book?.pages.count == 3 && session.currentPage == page }
         log.check(restored && session.settings.pageMode == .double && session.settings.scaleMode == .fitWidth,
                   "C2.9 关掉再打开回到第 \(page + 1) 页并保持双页与适合宽度：第 \(session.currentPage + 1) 页，\(session.settings.pageMode)，\(session.settings.scaleMode)")
@@ -440,18 +451,21 @@ final class LibrarySelfTest {
         guard let listB else { throw Failure(description: "没有列表 B") }
         let session = controller.session, table = tableView(in: playlist.view)
         await choose(listB)
-        await click(rowPoint(table, 2), count: 2)
+        try await click(rowPoint(table, 2), count: 2)
         log.check(await until("双击从该项开始读") { session.book?.location == .playlist(listB) && session.currentPage == 2 }, "C2.4 双击一项当书打开并从该项开始读：第 \(session.currentPage + 1) 页")
-        await click(rowPoint(table, 0))
-        await click(rowPoint(table, 2), flags: .command)
-        await click(rowPoint(table, 3), flags: .shift)
+        try await click(rowPoint(table, 0))
+        try await click(rowPoint(table, 2), flags: .command)
+        try await click(rowPoint(table, 3), flags: .shift)
         log.check(table.selectedRowIndexes == IndexSet([0, 2, 3]), "C2.5 列表里 ⌘、⇧ 点击多选：\(Array(table.selectedRowIndexes))")
-        await click(rowPoint(table, 3))
-        await drag(from: rowPoint(table, 3), to: rowPoint(table, 0, fraction: 0.15))
+        // 排序检查只拖最后一行：先点未选中的行结束多选，再点需要拖动的行。
+        try await click(rowPoint(table, 1))
+        try await click(rowPoint(table, 3))
+        guard table.selectedRowIndexes == IndexSet(integer: 3) else { throw Failure(description: "排序前没有选中唯一的目标行") }
+        try await drag(from: rowPoint(table, 3), to: rowPoint(table, 0, fraction: 0.15))
         let reordered = ["echo/001.png", "charlie.zip!/001.png", "charlie.zip!/003.png", "charlie.zip!/002.png"]
         log.check(await until("拖动排序") { (try? await self.items(listB)) == reordered }, "C2.5 拖动排序：\(try await items(listB))")
         let zip = shelf.appending(path: "charlie.zip"), zipBytes = try Data(contentsOf: zip)
-        await click(rowPoint(table, 2))
+        try await click(rowPoint(table, 2))
         await sendKey(kVK_Delete)
         log.check(await until("⌫ 移除") { (try? await self.items(listB)) == ["echo/001.png", "charlie.zip!/001.png", "charlie.zip!/002.png"] }, "C2.5 ⌫ 从列表移除：\(try await items(listB))")
         log.check(await message(String(localized: "已从「\(String(localized: "新播放列表 \(2)"))」移除 \(1) 项，原文件不动")) && (try? Data(contentsOf: zip)) == zipBytes, "C2.5 移除只拿掉条目，原文件不动")
@@ -466,7 +480,7 @@ final class LibrarySelfTest {
         let session = controller.session, table = tableView(in: playlist.view), pageTable = tableView(in: pageList.collection!)
         let file = shelf.appending(path: "delta/001.png")
         await choose(listA)
-        await click(center(of: play))
+        try await click(center(of: play))
         _ = await until("打开列表 A") { session.book?.location == .playlist(listA) && session.book?.pages.count == 3 }
         window.makeFirstResponder(controller.viewer)
         await sendKey(kVK_Home)
@@ -512,10 +526,10 @@ final class LibrarySelfTest {
         _ = await fileOps.perform(.transfer([page], into: target, mode: .move, conflict: .appendNumber), title: "移动“001.png”", origin: FileOrigin(window: controller))
         log.check(await until("列表跟到新位置") { (try? await self.items(listA))?.first == "moved/001.png" }, "C2.11 把列表里的一页移到另一个文件夹后列表指向新位置：\(try await items(listA))")
         let outline = tableView(in: bookmarks.view)
-        if let index = row(outline, "bravo-2") { await click(rowPoint(outline, index)) }
+        if let index = row(outline, "bravo-2") { try await click(rowPoint(outline, index)) }
         log.check(await until("从书签打开改名后的书") { session.book?.location == renamed && session.book?.pages.count == 3 }, "C2.11 改名后的书从书签能打开")
         guard let play = button(String(localized: "▶ 当书打开"), in: playlist.view) else { throw Failure(description: "找不到“当书打开”") }
-        await click(center(of: play))
+        try await click(center(of: play))
         let playable = await until("移动后的页能打开") {
             session.book?.location == .playlist(listA) && session.book?.pages.first?.id == target.appending("001.png") && session.book?.pages.first?.metadata != nil
         }
@@ -533,7 +547,7 @@ final class LibrarySelfTest {
         _ = await until("重查列表出现") { self.playlist.lists.contains { $0.id == id } }
         await choose(id)
         guard let play = button(String(localized: "▶ 当书打开"), in: playlist.view) else { throw Failure(description: "找不到当书打开") }
-        if interactive { await click(center(of: play)) } else { controller.openBook(.playlist(id)) }
+        if interactive { try await click(center(of: play)) } else { controller.openBook(.playlist(id)) }
         _ = await until("打开重查列表") { self.controller.session.book?.pages.count == 6 && self.pageList.collection?.items.count == 6 && self.controller.session.book?.pages.allSatisfy { $0.metadata != nil } == true }
         let table = tableView(in: pageList.collection!)
         table.scrollRowToVisible(5)
@@ -587,7 +601,7 @@ final class LibrarySelfTest {
         if let view = placeholders().first, let remove = button(String(localized: "从列表移除"), in: view) {
             log.check(!remove.isHiddenOrHasHiddenAncestor, "C2.15 瀑布流占位页的移除按钮可见")
             if interactive {
-                await click(center(of: remove))
+                try await click(center(of: remove))
                 log.check(await until("瀑布流移除") { (try? await self.library.items(of: id).count) == 5 }, "C2.15 瀑布流占位页可直接从列表移除")
             }
         } else { log.check(false, "瀑布流占位页没有移除按钮") }
@@ -637,7 +651,7 @@ final class LibrarySelfTest {
         log.check(banner.contains(String(localized: "删除播放列表「\("列表 A")」（\(2) 项）？只删除列表，原文件不动。")), "C2.4 删除列表先在面板内确认，说明原文件不动")
         log.snapshot(window, "library-playlist-delete")
         guard let delete = button(String(localized: "删除"), in: playlist.view) else { throw Failure(description: "找不到“删除”") }
-        await click(center(of: delete))
+        try await click(center(of: delete))
         log.check(await until("删除列表") { self.playlist.lists.allSatisfy { $0.id != listA } } && exists(temporary.appending(path: "moved/001.png")), "C2.4 确认后删除列表，原文件不动")
 
         let count = history.entries.count
@@ -646,7 +660,7 @@ final class LibrarySelfTest {
         log.check(texts(in: history.view).contains(String(localized: "清空全部 \(count) 条历史？书的“上次看到的页”不受影响。")), "C2.1 ⋯“清空历史…”先在面板内确认，文案说明不影响上次看到的页")
         log.snapshot(window, "library-history-clear")
         guard let clear = button(String(localized: "清空"), in: history.view) else { throw Failure(description: "找不到“清空”") }
-        await click(center(of: clear))
+        try await click(center(of: clear))
         let cleared = await until("清空历史") { self.history.entries.isEmpty }
         let memory = await services.settings.bookMemory(for: book("alpha"))?.lastPageIndex
         log.check(cleared && memory == 2 && texts(in: history.view).contains(String(localized: "还没有历史")), "C2.1 清空后历史为空，alpha 的上次看到的页仍是第 \((memory ?? -1) + 1) 页")
@@ -837,45 +851,87 @@ final class LibrarySelfTest {
                            context: nil, eventNumber: number, clickCount: clicks, pressure: [.leftMouseUp, .rightMouseUp].contains(type) ? 0 : 1)!
     }
 
-    /// 点击：先排队 mouseUp，再发 mouseDown，控件的跟踪循环从队列里取到 mouseUp。
-    private func click(_ point: NSPoint, count: Int = 1, flags: NSEvent.ModifierFlags = [], in target: NSWindow? = nil) async {
+    /// 点击：按真实顺序进入应用事件队列，由 NSApp.sendEvent 分发，让当前事件与控件跟踪状态保持一致。
+    private func click(_ point: NSPoint, count: Int = 1, flags: NSEvent.ModifierFlags = [], in target: NSWindow? = nil) async throws {
         let target = target ?? window!
         if !target.isKeyWindow, target.canBecomeKey { target.makeKeyAndOrderFront(nil) }
         target.displayIfNeeded()
+        let cursor = NSEvent.mouseLocation
+        defer { movePointer(toScreen: cursor) }
+        movePointer(toScreen: target.convertPoint(toScreen: point))
+        try? await Task.sleep(for: .milliseconds(50))
+        var lastDown = -1
+        let monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+            MainActor.assumeIsolated {
+                if event.window === target { lastDown = event.eventNumber }
+            }
+            return event
+        }
+        defer { if let monitor { NSEvent.removeMonitor(monitor) } }
         for clicks in 1...count { sendClick(point, clicks: clicks, flags: flags, in: target) }
+        let number = eventNumber
+        guard await until("点击事件分发", attempts: 80, condition: { lastDown == number }) else {
+            throw Failure(description: "点击的 mouseDown 没有经过应用事件队列（event=\(number), lastDown=\(lastDown)）")
+        }
         try? await Task.sleep(for: .milliseconds(150))
     }
 
     private func sendClick(_ point: NSPoint, clicks: Int = 1, flags: NSEvent.ModifierFlags = [], in target: NSWindow) {
         eventNumber += 1
+        NSApp.postEvent(mouse(.mouseMoved, at: point, in: target, number: eventNumber, clicks: clicks, flags: flags), atStart: false)
+        NSApp.postEvent(mouse(.leftMouseDown, at: point, in: target, number: eventNumber, clicks: clicks, flags: flags), atStart: false)
         NSApp.postEvent(mouse(.leftMouseUp, at: point, in: target, number: eventNumber, clicks: clicks, flags: flags), atStart: false)
-        NSApp.sendEvent(mouse(.leftMouseDown, at: point, in: target, number: eventNumber, clicks: clicks, flags: flags))
     }
 
-    /// 拖放：mouseDown 的跟踪循环取到排队的拖动事件后发起真实拖动会话，会话再从队列里取后面的拖动和 mouseUp。
-    private func drag(from start: NSPoint, to end: NSPoint) async {
+    /// 拖放：按真实顺序投递完整手势，跟踪模式里的定时器保证同步 mouseDown 期间仍能送到拖动和 mouseUp。
+    private func drag(from start: NSPoint, to end: NSPoint, source: CollectionView? = nil) async throws {
+        guard NSApp.isActive, window.isKeyWindow else {
+            throw Failure(description: "拖放前没有前台和键盘焦点（active=\(NSApp.isActive), key=\(window.isKeyWindow)）；本轮不判定产品拖放")
+        }
         window.displayIfNeeded()
+        source?.clearLastDragSession()
         // AppKit 拖放管理器读取全局指针位置；合成事件本身不会移动指针。
         let cursor = NSEvent.mouseLocation
         defer { movePointer(toScreen: cursor) }
         movePointer(toScreen: window.convertPoint(toScreen: start))
         eventNumber += 1
         let number = eventNumber
-        NSApp.postEvent(mouse(.leftMouseDragged, at: NSPoint(x: start.x + 8, y: start.y - 8), in: window, number: number), atStart: false)
-        NSApp.sendEvent(mouse(.leftMouseDown, at: start, in: window, number: number))
-        for step in 1...8 {
-            let t = CGFloat(step) / 8
-            let point = NSPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t)
-            movePointer(toScreen: window.convertPoint(toScreen: point))
-            NSApp.postEvent(mouse(.leftMouseDragged, at: point, in: window, number: number), atStart: false)
-            try? await Task.sleep(for: .milliseconds(50))
+        var lostForeground = false
+        await withCheckedContinuation { continuation in
+            var step = 0
+            var lastPoint = start
+            // mouseDown 走应用事件队列，由 NSApp.sendEvent 正常分发；跟踪循环期间也要继续投递完整手势。
+            let timer = Timer(timeInterval: 0.05, repeats: true) { timer in
+                let finished = MainActor.assumeIsolated {
+                    lostForeground = lostForeground || !NSApp.isActive || !self.window.isKeyWindow
+                    step += 1
+                    if step <= 8, !lostForeground {
+                        let t = CGFloat(step) / 8
+                        let point = NSPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t)
+                        lastPoint = point
+                        self.movePointer(toScreen: self.window.convertPoint(toScreen: point))
+                        NSApp.postEvent(self.mouse(.leftMouseDragged, at: point, in: self.window, number: number), atStart: false)
+                    } else if step >= 12 || lostForeground {
+                        NSApp.postEvent(self.mouse(.leftMouseUp, at: lastPoint, in: self.window, number: number), atStart: false)
+                        continuation.resume()
+                        return true
+                    }
+                    return false
+                }
+                if finished { timer.invalidate() }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            NSApp.postEvent(mouse(.leftMouseDown, at: start, in: window, number: number), atStart: false)
         }
-        try? await Task.sleep(for: .milliseconds(150))
-        NSApp.postEvent(mouse(.leftMouseUp, at: end, in: window, number: number), atStart: false)
         try? await Task.sleep(for: .milliseconds(400))
-        // 拖动会话结束后窗口吞掉下一次 mouseDown：在信息行上补一次空点击。
-        sendClick(history.view.convert(NSPoint(x: 20, y: 14), to: nil), in: window)
-        try? await Task.sleep(for: .milliseconds(100))
+        let finishedSession = source?.lastDragSession?.session
+        guard !lostForeground, NSApp.isActive, window.isKeyWindow else {
+            throw Failure(description: "拖放期间丢失前台或键盘焦点；已结束本轮手势，不判定产品拖放")
+        }
+        if source != nil, finishedSession == nil {
+            throw Failure(description: "书架/页面列表的 mouseDown 没有建立真实拖动会话；检查自检事件路径，尚未到达面板放下阶段")
+        }
+
     }
 
     private func movePointer(toScreen point: NSPoint) {

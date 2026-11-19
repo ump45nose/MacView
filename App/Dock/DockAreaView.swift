@@ -95,7 +95,7 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         return button
     }
 
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
 
     override func updateLayer() {
@@ -341,7 +341,7 @@ final class PanelFrameView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
     override var mouseDownCanMoveWindow: Bool { true }
 

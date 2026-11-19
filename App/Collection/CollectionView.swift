@@ -192,7 +192,8 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool { true }
+    // AppKit 会在并行生成多项拖动图像时查询坐标方向；常量 getter 不访问主线程状态。
+    nonisolated override var isFlipped: Bool { true }
 
     override func layout() {
         super.layout()
@@ -663,7 +664,7 @@ private final class CollectionListCell: NSView, CollectionCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
 
     override func updateLayer() {
