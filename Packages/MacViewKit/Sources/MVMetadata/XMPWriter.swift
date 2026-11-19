@@ -150,57 +150,60 @@ public enum XMPWriter {
         }
     }
 
-    /// 提取 JPEG 第一个 SOS（FF DA）到 EOI（FF D9）的扫描段字节。
+    /// 提取 JPEG 第一个 SOS（FF DA）到 EOI（FF D9）的扫描段字节（零拷贝切片）。
     static func jpegScanSegment(in data: Data) -> Data? {
-        let bytes = [UInt8](data)
-        let count = bytes.count
-        guard count >= 4, bytes[0] == 0xFF, bytes[1] == 0xD8 else { return nil }
+        let range: Range<Int>? = data.withUnsafeBytes { bytes in
+            let count = bytes.count
+            guard count >= 4, bytes[0] == 0xFF, bytes[1] == 0xD8 else { return nil }
 
-        var offset = 2
-        var sosOffset: Int?
+            var offset = 2
+            var sosOffset: Int?
 
-        while offset < count {
-            // 寻找下一个 marker 前缀 0xFF
-            guard bytes[offset] == 0xFF else { return nil }
-            let markerStart = offset
-            while offset < count && bytes[offset] == 0xFF {
+            while offset < count {
+                // 寻找下一个 marker 前缀 0xFF
+                guard bytes[offset] == 0xFF else { return nil }
+                let markerStart = offset
+                while offset < count && bytes[offset] == 0xFF {
+                    offset += 1
+                }
+                guard offset < count else { return nil }
+                let marker = bytes[offset]
                 offset += 1
-            }
-            guard offset < count else { return nil }
-            let marker = bytes[offset]
-            offset += 1
 
-            if marker == 0xDA { // SOS
-                sosOffset = markerStart
-                break
+                if marker == 0xDA { // SOS
+                    sosOffset = markerStart
+                    break
+                }
+                if marker == 0xD9 { // EOI before SOS
+                    return nil
+                }
+                // 无长度字段的 standalone marker（RST0–RST7, TEM）
+                if (marker >= 0xD0 && marker <= 0xD7) || marker == 0x01 {
+                    continue
+                }
+                guard offset + 2 <= count else { return nil }
+                let length = (Int(bytes[offset]) << 8) | Int(bytes[offset + 1])
+                guard length >= 2, offset + length <= count else { return nil }
+                offset += length
             }
-            if marker == 0xD9 { // EOI before SOS
-                return nil
+
+            guard let start = sosOffset else { return nil }
+
+            // 从文件尾部向前找 EOI（FF D9）
+            var eoiEnd: Int?
+            var i = count - 2
+            while i >= start {
+                if bytes[i] == 0xFF && bytes[i + 1] == 0xD9 {
+                    eoiEnd = i + 2
+                    break
+                }
+                i -= 1
             }
-            // 无长度字段的 standalone marker（RST0–RST7, TEM）
-            if (marker >= 0xD0 && marker <= 0xD7) || marker == 0x01 {
-                continue
-            }
-            guard offset + 2 <= count else { return nil }
-            let length = (Int(bytes[offset]) << 8) | Int(bytes[offset + 1])
-            guard length >= 2, offset + length <= count else { return nil }
-            offset += length
+            guard let end = eoiEnd, end > start else { return nil }
+            return start..<end
         }
-
-        guard let start = sosOffset else { return nil }
-
-        // 从文件尾部向前找 EOI（FF D9）
-        var eoiEnd: Int?
-        var i = count - 2
-        while i >= start {
-            if bytes[i] == 0xFF && bytes[i + 1] == 0xD9 {
-                eoiEnd = i + 2
-                break
-            }
-            i -= 1
-        }
-        guard let end = eoiEnd, end > start else { return nil }
-        return Data(bytes[start..<end])
+        guard let range else { return nil }
+        return data[(data.startIndex + range.lowerBound)..<(data.startIndex + range.upperBound)]
     }
 
     private struct DecodedPixels {

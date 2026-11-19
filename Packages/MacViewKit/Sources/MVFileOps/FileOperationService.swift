@@ -625,10 +625,8 @@ public final class FileOperationService: Sendable {
         guard type == .regular else {
             throw FileOpsError.metadataUnsupported(type == .directory ? "directory" : "other")
         }
-        switch MetadataFormat.writability(fileName: entry.name, header: nil) {
-        case .writable: break
-        case let .unsupportedFormat(format): throw FileOpsError.metadataUnsupported(format)
-        case .insideArchive: throw FileOpsError.readOnly
+        if case let .unsupportedFormat(format) = MetadataFormat.writability(fileName: entry.name, header: nil) {
+            throw FileOpsError.metadataUnsupported(format)
         }
 
         var original = Data()
@@ -643,13 +641,7 @@ public final class FileOperationService: Sendable {
             offset += Int64(chunk.count)
         }
 
-        switch MetadataFormat.writability(fileName: entry.name, header: original) {
-        case .writable: break
-        case let .unsupportedFormat(format): throw FileOpsError.metadataUnsupported(format)
-        case .insideArchive: throw FileOpsError.readOnly
-        }
-
-        let previous = XMPReader.fields(fromHeader: original)
+        let previous = XMPReader.fields(fromHeader: original.prefix(MediaProbe.headerLimit))
         let inverseFields = XMPFields(
             rating: fields.rating != nil ? (previous?.rating ?? 0) : nil,
             tags: fields.tags != nil ? (previous?.tags ?? []) : nil

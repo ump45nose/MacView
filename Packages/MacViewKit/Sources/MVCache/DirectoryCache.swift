@@ -102,7 +102,7 @@ public final class DirectoryCache: Sendable {
 
             for change in changes {
                 switch change {
-                case let .added(entry):
+                case let .added(entry), let .rewritten(entry, _, _):
                     guard let parent = entry.location.parent else { continue }
                     let parentKey = try encodeLocationKey(parent)
                     guard var listing = try cachedListing(for: parentKey) else { continue }
@@ -159,16 +159,6 @@ public final class DirectoryCache: Sendable {
                         listingCache.removeAll()
                         dirtyListings.removeAll()
                     }
-
-                case let .rewritten(entry, _, _):
-                    guard let parent = entry.location.parent else { continue }
-                    let parentKey = try encodeLocationKey(parent)
-                    guard var listing = try cachedListing(for: parentKey) else { continue }
-                    listing.entries.removeAll { $0.location == entry.location }
-                    listing.entries.append(entry)
-                    listingCache[parentKey] = listing
-                    dirtyListings.insert(parentKey)
-                    try Self.upsertSearchEntry(entry, containerKey: parentKey, statement: upsertSearch)
                 }
             }
 
@@ -254,10 +244,11 @@ public final class DirectoryCache: Sendable {
                 continue
             }
             let oldContainer = try decodeLocationKey(oldContainerKey)
-            let newContainer = replacingPrefix(oldRoot, with: newRoot, in: oldContainer)
+            let newContainer = oldContainer.replacingPrefix(oldRoot, with: newRoot) ?? oldContainer
             var listing = try DirectoryListingStorage.decode(data)
             for index in listing.entries.indices {
-                let updatedLocation = replacingPrefix(oldRoot, with: newRoot, in: listing.entries[index].identity.location)
+                let oldEntryLocation = listing.entries[index].identity.location
+                let updatedLocation = oldEntryLocation.replacingPrefix(oldRoot, with: newRoot) ?? oldEntryLocation
                 listing.entries[index].identity.location = updatedLocation
                 updatedCacheKeys[updatedLocation] = listing.entries[index].identity.cacheKey
             }
@@ -285,8 +276,8 @@ public final class DirectoryCache: Sendable {
             for row in rows {
                 let oldLocation = try decodeLocationKey(row[0])
                 let oldContainer = try decodeLocationKey(row[1])
-                let newLocation = replacingPrefix(oldRoot, with: newRoot, in: oldLocation)
-                let newContainer = replacingPrefix(oldRoot, with: newRoot, in: oldContainer)
+                let newLocation = oldLocation.replacingPrefix(oldRoot, with: newRoot) ?? oldLocation
+                let newContainer = oldContainer.replacingPrefix(oldRoot, with: newRoot) ?? oldContainer
                 let name: String = row[2]
                 let kind: String = row[3]
                 let fallbackCacheKey: String = row[4]
@@ -303,20 +294,5 @@ public final class DirectoryCache: Sendable {
         }
 
         return true
-    }
-
-    private static func replacingPrefix(_ oldPrefix: Location, with newPrefix: Location, in location: Location) -> Location {
-        guard location.hasPrefix(oldPrefix) else { return location }
-        let locLayers = location.layers.isEmpty ? [[]] : location.layers
-        let oldLayers = oldPrefix.layers.isEmpty ? [[]] : oldPrefix.layers
-        let newLayers = newPrefix.layers.isEmpty ? [[]] : newPrefix.layers
-        let lastIndex = oldLayers.count - 1
-        let suffixInLast = Array(locLayers[lastIndex].dropFirst(oldLayers[lastIndex].count))
-        var resultLayers = newLayers
-        resultLayers[resultLayers.count - 1].append(contentsOf: suffixInLast)
-        if lastIndex + 1 < locLayers.count {
-            resultLayers.append(contentsOf: locLayers[(lastIndex + 1)...])
-        }
-        return Location(root: newPrefix.root, layers: resultLayers)
     }
 }

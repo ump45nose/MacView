@@ -27,29 +27,7 @@ enum DirectoryListingStorage {
             var entries: [Entry] = []
             entries.reserveCapacity(count)
             for _ in 0..<count {
-                let location = try reader.location()
-                let size = Int64(bitPattern: try reader.integer() as UInt64)
-                let modified = Int64(bitPattern: try reader.integer() as UInt64)
-                let checksum: UInt32? = try reader.present() ? reader.integer() : nil
-                let name = try reader.present() ? reader.string() : location.name
-                let kind: EntryKind
-                switch try reader.byte() {
-                case 0: kind = .directory
-                case 1:
-                    switch try reader.byte() {
-                    case 0: kind = .archive(.zip)
-                    case 1: kind = .archive(.tar)
-                    case 2: kind = .archive(.tarGzip)
-                    case 3: kind = .archive(.gzip)
-                    default: throw malformed()
-                    }
-                case 2: kind = .image
-                case 3: kind = .video
-                case 4: kind = .other
-                default: throw malformed()
-                }
-                let created = try reader.present() ? Date(timeIntervalSinceReferenceDate: Double(bitPattern: reader.integer())) : nil
-                entries.append(Entry(identity: ContentIdentity(location: location, size: size, modificationNanos: modified, checksum: checksum), name: name, kind: kind, created: created))
+                entries.append(try reader.entry())
             }
             guard reader.remaining == 0 else { throw malformed() }
             return DirectoryListing(entries: entries, directoryModificationNanos: nanos)
