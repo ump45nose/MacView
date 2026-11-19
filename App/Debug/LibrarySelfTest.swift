@@ -511,7 +511,12 @@ final class LibrarySelfTest {
         guard let listA, let fileOps = app.fileOps else { throw Failure(description: "没有文件操作") }
         let session = controller.session
         await open("bravo")
-        await open("alpha")
+        session.go(.index(2))
+        let shownBefore = await until("改名前第 3 页上屏") {
+            self.controller.viewer.paged.slots.contains { $0.element.page == 2 && $0.hasImage && ($0.quality ?? .placeholder) >= .exact }
+        }
+        log.check(shownBefore, "C2.11 改名前当前第 3 页已上屏")
+        guard shownBefore else { throw Failure(description: "改名前第 3 页没有图像，停止改名断言") }
         let bravo = book("bravo"), renamed = book("bravo-2")
         _ = await fileOps.perform(.rename(bravo, to: "bravo-2"), title: "重命名“bravo”", origin: FileOrigin(window: controller))
         let folder = String(localized: "新文件夹")
@@ -520,11 +525,23 @@ final class LibrarySelfTest {
             return tree == "alpha, 画集[\(folder)[], bravo-2]" && history.contains { $0.book == renamed }
         }
         log.check(followed, "C2.11 改名书所在的文件夹后书签和历史指向新位置：\(await tree())")
+        let shownAfter = await until("改名后当前第 3 页上屏") {
+            guard session.book?.location == renamed, session.currentPage == 2,
+                  session.frames.indices.contains(session.currentFrame) else { return false }
+            let expected = session.frames[session.currentFrame].elements
+            let slots = self.controller.viewer.paged.slots
+            return slots.map(\.element) == expected && !slots.isEmpty
+                && slots.allSatisfy { $0.hasImage && ($0.quality ?? .placeholder) >= .exact }
+        }
+        log.check(shownAfter, "C2.11 当前书改名后仍显示第 3 页，页槽与当前页帧一致")
+        log.snapshot(window, "library-renamed-current-page")
+        guard shownAfter else { throw Failure(description: "当前书改名后页槽或图像没有更新，停止后续迁移断言") }
         let moved = temporary.appending(path: "moved", directoryHint: .isDirectory)
         try fm.createDirectory(at: moved, withIntermediateDirectories: true)
         let page = book("delta").appending("001.png"), target = try await services.sources.location(for: moved)
         _ = await fileOps.perform(.transfer([page], into: target, mode: .move, conflict: .appendNumber), title: "移动“001.png”", origin: FileOrigin(window: controller))
         log.check(await until("列表跟到新位置") { (try? await self.items(listA))?.first == "moved/001.png" }, "C2.11 把列表里的一页移到另一个文件夹后列表指向新位置：\(try await items(listA))")
+        await open("alpha")
         let outline = tableView(in: bookmarks.view)
         if let index = row(outline, "bravo-2") { try await click(rowPoint(outline, index)) }
         log.check(await until("从书签打开改名后的书") { session.book?.location == renamed && session.book?.pages.count == 3 }, "C2.11 改名后的书从书签能打开")
