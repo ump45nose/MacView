@@ -88,6 +88,11 @@ public final class IOScheduler: Sendable {
         var fail: @Sendable (IOError) -> Void
     }
 
+    private struct HealthPublication {
+        var snapshot: [VolumeHealth]
+        var observers: [AsyncStream<[VolumeHealth]>.Continuation]
+    }
+
     private struct State {
         var volumes: [String: VolumeRecord] = [:]
         var jobs: [UInt64: Job] = [:]
@@ -97,6 +102,8 @@ public final class IOScheduler: Sendable {
         /// 还没入队就被取消的请求；入队时直接失败。
         var cancelledBeforeEnqueue: Set<UInt64> = []
         var observers: [UUID: AsyncStream<[VolumeHealth]>.Continuation] = [:]
+        var healthPublications: [HealthPublication] = []
+        var publishingHealth = false
     }
 
     let configuration: IOConfiguration
@@ -162,14 +169,14 @@ public final class IOScheduler: Sendable {
     public func volumeHealth() -> AsyncStream<[VolumeHealth]> {
         AsyncStream { continuation in
             let id = UUID()
-            let snapshot = state.withLock { state in
-                state.observers[id] = continuation
-                return Self.health(state)
-            }
-            continuation.yield(snapshot)
             continuation.onTermination = { [weak self] _ in
                 self?.state.withLock { _ = $0.observers.removeValue(forKey: id) }
             }
+            state.withLock { state in
+                state.observers[id] = continuation
+                state.healthPublications.append(HealthPublication(snapshot: Self.health(state), observers: [continuation]))
+            }
+            publishPendingHealth()
         }
     }
 
@@ -198,9 +205,33 @@ public final class IOScheduler: Sendable {
         }
     }
 
-    private func publish(_ state: State) {
-        let snapshot = Self.health(state)
-        for observer in state.observers.values { observer.yield(snapshot) }
+    /// 与状态变更同一把锁内复制快照和接收者；初始值也入同一条队列，避免被后续变化抢先。
+    private static func enqueueHealth(_ state: inout State) {
+        guard !state.observers.isEmpty else { return }
+        state.healthPublications.append(HealthPublication(snapshot: health(state), observers: Array(state.observers.values)))
+    }
+
+    /// 只有一个调用方排空队列，保证所有订阅者的事件顺序相同。
+    /// yield 可能同步唤醒任务或执行终止回调，调用时必须已经释放调度器锁。
+    private func publishPendingHealth() {
+        let publish = state.withLock { state in
+            guard !state.publishingHealth, !state.healthPublications.isEmpty else { return false }
+            state.publishingHealth = true
+            return true
+        }
+        guard publish else { return }
+        while true {
+            let publications = state.withLock { state in
+                let publications = state.healthPublications
+                state.healthPublications.removeAll(keepingCapacity: true)
+                if publications.isEmpty { state.publishingHealth = false }
+                return publications
+            }
+            guard !publications.isEmpty else { return }
+            for publication in publications {
+                for observer in publication.observers { observer.yield(publication.snapshot) }
+            }
+        }
     }
 
     // MARK: 执行
@@ -217,10 +248,11 @@ public final class IOScheduler: Sendable {
                 for key in state.volumes.keys where state.volumes[key]?.volume.root == location.root && location.root != .local {
                     if state.volumes[key]?.unavailable == false {
                         state.volumes[key]?.unavailable = true
-                        publish(state)
+                        Self.enqueueHealth(&state)
                     }
                 }
             }
+            publishPendingHealth()
             throw .volumeUnavailable(location.root)
         }
         return volume
@@ -272,11 +304,11 @@ public final class IOScheduler: Sendable {
             if let group, state.cancelledGroups.contains(group) { return .cancelled }
             if state.volumes[volume.mountPoint] == nil {
                 state.volumes[volume.mountPoint] = VolumeRecord(volume: volume)
-                publish(state)
+                Self.enqueueHealth(&state)
             } else if state.volumes[volume.mountPoint]?.unavailable == true {
                 state.volumes[volume.mountPoint]?.unavailable = false
                 state.volumes[volume.mountPoint]?.volume = volume
-                publish(state)
+                Self.enqueueHealth(&state)
             }
             if state.volumes[volume.mountPoint]?.degradedReason != nil { return .volumeDegraded(volume.root) }
             let effective = group.flatMap { state.groupPriorities[$0] } ?? priority
@@ -284,6 +316,7 @@ public final class IOScheduler: Sendable {
             state.volumes[volume.mountPoint]?.queues[channel]?.append(id)
             return nil
         }
+        publishPendingHealth()
         if let rejection {
             fail(rejection)
             return
@@ -360,10 +393,11 @@ public final class IOScheduler: Sendable {
             } else if case .success = result {
                 state.volumes[job.volume]?.consecutiveTimeouts = 0
             }
-            publish(state)
+            Self.enqueueHealth(&state)
             return (job.volume, job.channel, job.phase == .running)
         }
         guard let outcome else { return }
+        publishPendingHealth()
         if outcome.deliver { resume(result) }
         pump(outcome.mountPoint, outcome.channel)
     }
@@ -388,10 +422,11 @@ public final class IOScheduler: Sendable {
                 state.volumes[degraded.mountPoint]?.queues = [.metadata: [], .bulk: []]
                 queued = ids.compactMap { state.jobs.removeValue(forKey: $0) }
             }
-            publish(state)
+            Self.enqueueHealth(&state)
             return (job, degraded, queued)
         }
         guard let (job, degraded, queued) = expired else { return }
+        publishPendingHealth()
         job.fail(.timeout)
         if let degraded {
             queued.forEach { $0.fail(.volumeDegraded(degraded.root)) }
@@ -418,9 +453,10 @@ public final class IOScheduler: Sendable {
                 if healthy {
                     state.volumes[volume.mountPoint]?.degradedReason = nil
                     state.volumes[volume.mountPoint]?.consecutiveTimeouts = 0
-                    publish(state)
+                    Self.enqueueHealth(&state)
                 }
             }
+            publishPendingHealth()
             if !healthy {
                 timers.asyncAfter(deadline: .now() + configuration.probeInterval.timeInterval) { [weak self] in
                     self?.probe(volume)
