@@ -329,6 +329,19 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         if style.usesCanvas { highlightCanvas(reveal: true) } else { revealCurrent() }
     }
 
+    /// 读写当前滚动位置；书架进入搜索再按 Esc 返回时恢复。
+    var scrollOrigin: NSPoint {
+        get {
+            let clip = style.usesCanvas ? canvas.contentView : tableScroll.contentView
+            return clip.bounds.origin
+        }
+        set {
+            let scroll: NSScrollView = style.usesCanvas ? canvas : tableScroll
+            scroll.contentView.scroll(to: newValue)
+            scroll.reflectScrolledClipView(scroll.contentView)
+        }
+    }
+
     private func updateRowHighlights() {
         table.enumerateAvailableRowViews { rowView, row in
             (rowView as? CollectionRowBackground)?.isCurrent = row == self.current

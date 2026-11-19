@@ -1,12 +1,14 @@
 import AppKit
+import MVCache
 import MVFoundation
 import MVIO
 import MVPipeline
 import MVReading
+import MVSearch
 import MVSettings
 import Observation
 
-/// 书架：当前书所在目录下的书。默认跟随打开的书；可以进入上一层或双击进入子文件夹。
+/// 书架：当前书所在目录下的书。默认跟随打开的书；可以进入上一层或双击进入子文件夹；顶部支持搜索与建立索引。
 @MainActor
 final class BookshelfPanel: CollectionPanel {
     /// 封面的解析结果；排序变化后不用重新解析。读取失败时 `failure` 是错误文字，点击这一项或重新列出目录时重试。
@@ -20,6 +22,12 @@ final class BookshelfPanel: CollectionPanel {
     private nonisolated static let unknownRatio = 2.0 / 3
     private static let concurrentCovers = 4
 
+    let searchBar = SearchBar()
+    let searchController = SearchController()
+    let searchResultsView = BookshelfSearchResultsView()
+    let indexBanner = IndexProgressBanner()
+
+    private let headerStack = NSStackView()
     private var directory: Location?
     private var entries: [Entry] = []
     private var covers: [Location: Cover] = [:]
@@ -35,6 +43,106 @@ final class BookshelfPanel: CollectionPanel {
     private var observedSession: SessionID?
     /// 列表和表格最近回报的可见范围。
     private var visibleRange = 0..<0
+    /// 进入搜索模式前记录的原文件夹滚动位置，Esc 退出时恢复。
+    private var savedScrollOrigin: NSPoint?
+    private var wasSearching = false
+    private var indexObserverID: UUID?
+    private var lastIndexPhase: IndexProgress.Phase?
+
+    var currentDirectory: Location? { directory }
+
+    var folderForIndexing: Location? {
+        let selected = targetEntries
+        if selected.count == 1, selected[0].kind == .directory { return selected[0].location }
+        return searchController.isSearching ? (searchController.currentQuery?.scope ?? directory) : directory
+    }
+
+    override init(settings: CollectionPanelSettings?) {
+        super.init(settings: settings)
+        setupSearchAndIndexing()
+    }
+
+    deinit {
+        if let id = indexObserverID { Task { @MainActor in IndexController.shared.removeObserver(id) } }
+    }
+
+    private func setupSearchAndIndexing() {
+        indexBanner.isHidden = true
+        indexBanner.onCancel = { IndexController.shared.cancel() }
+        indexBanner.onDismiss = { IndexController.shared.dismissBanner() }
+        headerStack.orientation = .vertical; headerStack.alignment = .width; headerStack.spacing = 0
+        headerStack.addArrangedSubview(indexBanner); headerStack.addArrangedSubview(searchBar)
+        setHeaderView(headerStack)
+
+        searchBar.onSubmit = { [weak self] in self?.searchController.submit(text: $0) }
+        searchBar.onClearText = { [weak self] in self?.searchController.clearText() }
+        searchBar.onCancel = { [weak self] in self?.exitSearch() }
+        searchBar.onFilterChange = { [weak self] in
+            guard let self else { return }
+            searchController.updateFilters(minimumRating: searchBar.minimumRating, tags: searchBar.selectedTags, kinds: searchBar.selectedKinds)
+        }
+        searchBar.tagSuggestionsProvider = { [weak self] in await self?.searchController.tagSuggestions() ?? [] }
+
+        searchController.scopeProvider = { [weak self] in self?.directory }
+        searchController.onStateChange = { [weak self] in self?.searchStateChanged() }
+
+        searchResultsView.onActivate = { [weak self] in self?.openSearchHit($0) }
+        searchResultsView.onCancelSearch = { [weak self] in self?.exitSearch() }
+        searchResultsView.onIndexScope = { [weak self] in self?.startIndexing(folder: self?.searchController.currentQuery?.scope ?? self?.directory) }
+        searchResultsView.onContextMenu = { [weak self] in self?.searchContextMenu(for: $0) }
+        searchResultsView.onStatusMessage = { [weak self] in self?.owner?.content.statusBar.showMessage($0) }
+
+        indexObserverID = IndexController.shared.addObserver { [weak self] state in
+            guard let self else { return }
+            let prev = lastIndexPhase; lastIndexPhase = state?.progress.phase
+            indexBanner.update(state); invalidateHeaderLayout()
+            if searchController.isSearching, let phase = state?.progress.phase, phase != prev, phase == .probing || phase == .finished {
+                searchController.rerunIfActive()
+            }
+        }
+    }
+
+    func focusSearch() { searchBar.focusSearchField() }
+    func exitSearch() { searchBar.reset(); searchController.cancelSearch() }
+
+    func startIndexing(folder: Location? = nil) {
+        guard let services = owner?.services, let target = folder ?? folderForIndexing else { return }
+        IndexController.shared.startIndexing(target, services: services)
+    }
+
+    private func searchStateChanged() {
+        if searchController.isSearching {
+            if !wasSearching { savedScrollOrigin = collection?.scrollOrigin; setContentOverlay(searchResultsView); wasSearching = true }
+            searchResultsView.update(
+                queryText: searchController.queryText, terms: searchController.currentTerms,
+                scope: searchController.currentQuery?.scope ?? directory, result: searchController.lastResult,
+                isLoading: searchController.isLoading, error: searchController.lastError
+            )
+        } else if wasSearching {
+            wasSearching = false; setContentOverlay(nil)
+            if let origin = savedScrollOrigin {
+                savedScrollOrigin = nil; view.layoutSubtreeIfNeeded(); collection?.scrollOrigin = origin
+            }
+        }
+    }
+
+    private func openSearchHit(_ hit: SearchHit) {
+        guard let owner else { return }
+        switch hit.entry.kind {
+        case .image, .video: if let book = LibraryActions.containingBook(of: hit.entry.location) { owner.openBook(book, at: hit.entry.location) }
+        case .directory, .archive: owner.openBook(hit.entry.location)
+        case .other: break
+        }
+    }
+
+    private func searchContextMenu(for hits: [SearchHit]) -> NSMenu? {
+        guard let owner, !hits.isEmpty else { return nil }
+        let items = hits.map(\.entry)
+        let menu = owner.fileOps.contextMenu(for: FileOrigin(window: owner, items: items))
+        let leading = libraryMenuItems(for: items)
+        for item in (leading.isEmpty ? [] : leading + [.separator()]).reversed() { menu.insertItem(item, at: 0) }
+        return menu
+    }
 
     /// 解析封面用到的服务。
     private struct CoverServices: Sendable {
@@ -51,6 +159,8 @@ final class BookshelfPanel: CollectionPanel {
 
     override func windowChanged() {
         observedSession = boundSession
+        searchController.attach(owner?.services)
+        searchResultsView.attach(owner?.services)
         owner?.session.shelfSortChanged(sort)
         followedBook = nil
         observeFileChanges()
@@ -62,7 +172,11 @@ final class BookshelfPanel: CollectionPanel {
         guard let stream = owner?.services.appliedFileChanges() else { return }
         changesTask = Task { [weak self] in
             for await batch in stream {
-                guard !Task.isCancelled, let self, let directory else { continue }
+                guard !Task.isCancelled, let self else { continue }
+                if searchController.isSearching {
+                    searchController.rerunIfActive()
+                }
+                guard let directory else { continue }
                 if batch.contains(where: {
                     switch $0 {
                     case let .removed(loc): loc.parent == directory
@@ -96,6 +210,7 @@ final class BookshelfPanel: CollectionPanel {
     private func bookChanged(_ book: Location?) {
         guard book != followedBook else { return }
         followedBook = book
+        if searchController.isSearching { return }
         if book?.playlistID != nil {
             refresh()
             return
@@ -229,13 +344,29 @@ final class BookshelfPanel: CollectionPanel {
         startListing()
     }
 
+    override var targetEntries: [Entry] {
+        if searchController.isSearching {
+            return searchResultsView.selectedHits.map(\.entry)
+        }
+        return super.targetEntries
+    }
+
     override func entries(at indices: [Int]) -> [Entry] {
         indices.compactMap { entries.indices.contains($0) ? entries[$0] : nil }
     }
 
     override func libraryMenuItems(for entries: [Entry]) -> [NSMenuItem] {
         guard let app = NSApp.delegate as? AppDelegate else { return [] }
-        return [LibraryActions.bookmarkMenuItem(for: entries.map(\.location), app: app)]
+        var items: [NSMenuItem] = [LibraryActions.bookmarkMenuItem(for: entries.map(\.location), app: app)]
+        if entries.count == 1, entries[0].kind == .directory {
+            let folder = entries[0].location
+            let indexItem = MenuAction(String(localized: "为此文件夹建立索引")) { [weak self] in
+                self?.startIndexing(folder: folder)
+            }.item
+            indexItem.isEnabled = !IndexController.shared.isIndexing && owner?.services.indexer != nil
+            items.append(indexItem)
+        }
+        return items
     }
 
     // MARK: 封面

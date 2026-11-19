@@ -163,6 +163,21 @@ class CollectionPanel: DockPanel {
         host.setInfo(path: path, count: count, canGoUp: canGoUp, onUp: onUp)
     }
 
+    /// 面板顶部的附加区（书架的索引进度条与搜索栏），位于样式栏上方。
+    final func setHeaderView(_ view: NSView?) {
+        host.setHeaderView(view)
+    }
+
+    /// 顶部附加区高度变化时触发重新布局。
+    final func invalidateHeaderLayout() {
+        host.needsLayout = true
+    }
+
+    /// 覆盖样式栏与集合区域的视图（书架搜索结果）；为 nil 时恢复原集合视图。
+    final func setContentOverlay(_ view: NSView?) {
+        host.setContentOverlay(view)
+    }
+
     // MARK: ⋯ 菜单
 
     func addOptions(to menu: NSMenu) {
@@ -271,6 +286,8 @@ private final class CollectionPanelView: NSView {
     private let largeIcon = NSImageView()
     private let slider = NSSlider()
     private var collection: CollectionView?
+    private var headerView: NSView?
+    private var contentOverlay: NSView?
     private var showsSlider = false
     private var showsUp = false
     private var showsNote = false
@@ -374,7 +391,42 @@ private final class CollectionPanelView: NSView {
         collection?.removeFromSuperview()
         collection = view
         addSubview(view, positioned: .below, relativeTo: nil)
+        view.isHidden = contentOverlay != nil
         needsLayout = true
+    }
+
+    func setHeaderView(_ view: NSView?) {
+        guard headerView !== view else { return }
+        headerView?.removeFromSuperview()
+        headerView = view
+        if let view {
+            addSubview(view)
+        }
+        needsLayout = true
+    }
+
+    func setContentOverlay(_ view: NSView?) {
+        guard contentOverlay !== view else { return }
+        contentOverlay?.removeFromSuperview()
+        contentOverlay = view
+        if let view {
+            addSubview(view)
+        }
+        updateContentVisibility()
+        needsLayout = true
+    }
+
+    private func updateContentVisibility() {
+        let overlayActive = contentOverlay != nil
+        for button in styleButtons.values { button.isHidden = overlayActive }
+        sortButton.isHidden = overlayActive
+        upButton.isHidden = overlayActive || !showsUp
+        pathLabel.isHidden = overlayActive
+        countLabel.isHidden = overlayActive
+        noteBox.isHidden = overlayActive || !showsNote
+        noteLabel.isHidden = overlayActive || !showsNote
+        for view in [slider, smallIcon, largeIcon] { view.isHidden = overlayActive || !showsSlider }
+        collection?.isHidden = overlayActive
     }
 
     func render(_ settings: CollectionPanelSettings, sortTitle: String, sortNote: String?) {
@@ -391,11 +443,9 @@ private final class CollectionPanelView: NSView {
         sortButton.alphaValue = sortNote == nil ? 1 : 0.5
         showsNote = sortNote != nil
         noteLabel.stringValue = sortNote ?? ""
-        noteBox.isHidden = !showsNote
-        noteLabel.isHidden = !showsNote
         slider.doubleValue = settings.itemExtent
         showsSlider = settings.style.usesCanvas
-        for view in [slider, smallIcon, largeIcon] { view.isHidden = !showsSlider }
+        updateContentVisibility()
         needsLayout = true
     }
 
@@ -404,23 +454,36 @@ private final class CollectionPanelView: NSView {
         countLabel.stringValue = count
         upButton.isEnabled = canGoUp
         showsUp = onUp != nil
-        upButton.isHidden = !showsUp
         self.onUp = onUp
+        updateContentVisibility()
         needsLayout = true
     }
 
     override func layout() {
         super.layout()
         let width = bounds.width
+        var y: CGFloat = 0
+        if let headerView {
+            headerView.frame = CGRect(x: 0, y: 0, width: width, height: 1)
+            headerView.layoutSubtreeIfNeeded()
+            let headerHeight = ceil(headerView.fittingSize.height)
+            headerView.frame = CGRect(x: 0, y: 0, width: width, height: headerHeight)
+            y = headerHeight
+        }
+        if let contentOverlay {
+            contentOverlay.frame = CGRect(x: 0, y: y, width: width, height: max(bounds.height - y, 0))
+            return
+        }
+
         var x: CGFloat = 8
         for style in CollectionStyle.allCases {
-            styleButtons[style]?.frame = CGRect(x: x, y: 5, width: 24, height: 22)
+            styleButtons[style]?.frame = CGRect(x: x, y: y + 5, width: 24, height: 22)
             x += 25
         }
         let sortWidth = min(ceil(sortButton.intrinsicContentSize.width) + 4, max(width - x - 12, 0))
-        sortButton.frame = CGRect(x: width - sortWidth - 8, y: 5, width: sortWidth, height: 22)
+        sortButton.frame = CGRect(x: width - sortWidth - 8, y: y + 5, width: sortWidth, height: 22)
 
-        var y = Self.controlHeight
+        y += Self.controlHeight
         let countWidth = min(ceil(countLabel.intrinsicContentSize.width) + 2, width / 2)
         countLabel.frame = CGRect(x: width - countWidth - 10, y: y + 5, width: countWidth, height: 15)
         let pathX: CGFloat = showsUp ? 34 : 12
