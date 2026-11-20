@@ -380,6 +380,7 @@ public struct BookMemory: Codable, Sendable, Hashable {
 public enum SettingsChange: Sendable, Equatable {
     case global
     case pathRules
+    case profiles
     /// 设置文件解析失败；仍沿用上一份可用的配置。
     case fileError(file: String, message: String)
 }
@@ -394,5 +395,7 @@ public protocol SettingsStore: Sendable {
     func updateGlobal(_ change: @Sendable (inout GlobalSettings) -> Void) async throws
     func pathRules() async -> [PathRule]
     func updatePathRules(_ change: @Sendable (inout [PathRule]) -> Void) async throws
+    func profiles() async -> [DisplayProfile]
+    func updateProfiles(_ change: @Sendable (inout [DisplayProfile]) -> Void) async throws
     func changes() -> AsyncStream<SettingsChange>
 }

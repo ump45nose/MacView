@@ -228,6 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 switch change {
                 case .global: setFileProblem("settings.json", nil)
                 case .pathRules: setFileProblem("path-rules.json", nil)
+                case .profiles: setFileProblem("profiles.json", nil)
                 case let .fileError(file, message): setFileProblem(file, message)
                 }
             }

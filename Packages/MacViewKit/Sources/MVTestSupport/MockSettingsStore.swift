@@ -8,6 +8,7 @@ public final class MockSettingsStore: SettingsStore {
     private struct State {
         var global: GlobalSettings
         var rules: [PathRule]
+        var profiles: [DisplayProfile]
         var memories: [Location: BookMemory]
         var observers: [UUID: AsyncStream<SettingsChange>.Continuation] = [:]
 
@@ -18,8 +19,8 @@ public final class MockSettingsStore: SettingsStore {
 
     private let state: Mutex<State>
 
-    public init(global: GlobalSettings = .default, pathRules: [PathRule] = [], memories: [BookMemory] = []) {
-        state = Mutex(State(global: global, rules: pathRules, memories: Dictionary(memories.map { ($0.book, $0) }) { _, last in last }))
+    public init(global: GlobalSettings = .default, pathRules: [PathRule] = [], profiles: [DisplayProfile] = [], memories: [BookMemory] = []) {
+        state = Mutex(State(global: global, rules: pathRules, profiles: profiles, memories: Dictionary(memories.map { ($0.book, $0) }) { _, last in last }))
     }
 
     public func resolve(for book: Location) async -> ResolvedBookSettings {
@@ -90,6 +91,17 @@ public final class MockSettingsStore: SettingsStore {
         state.withLock { current in
             change(&current.rules)
             current.notify(.pathRules)
+        }
+    }
+
+    public func profiles() async -> [DisplayProfile] {
+        state.withLock { $0.profiles }
+    }
+
+    public func updateProfiles(_ change: @Sendable (inout [DisplayProfile]) -> Void) async throws {
+        state.withLock { current in
+            change(&current.profiles)
+            current.notify(.profiles)
         }
     }
 

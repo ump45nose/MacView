@@ -103,3 +103,106 @@ func effectsAndBackgroundClampingIdentityAndJSONShape() throws {
     #expect(object["contrast"] as? Double == 0)
     #expect(try JSONDecoder().decode(Effect.self, from: encodedEffect) == .colorAdjust(adjusted))
 }
+
+@Test("C1.4 DisplayProfile 按选定组提取字段，merge 到书层时只改变这两组字段")
+func displayProfileCapturesSelectedGroupsAndMergesOnlyThoseFields() throws {
+    let customEffects = EffectChain(effects: [.colorAdjust(ColorAdjust(brightness: 0.3, saturation: -0.2))])
+    let customBackground = ViewerBackground.custom(red: 0.1, green: 0.2, blue: 0.3)
+    let resolved = ResolvedBookSettings(
+        browseMode: .waterfall,
+        pageMode: .double,
+        direction: .rightToLeft,
+        firstPageSingle: false,
+        widePage: .split,
+        sort: SortSpec(key: .modified, ascending: false, foldersFirst: false, randomSeed: 99),
+        recursion: RecursionSpec(enabled: true, maxDepth: 4),
+        scaleMode: .fixed,
+        allowUpscale: true,
+        fixedScale: 1.5,
+        keepZoomOnPageTurn: true,
+        resample: .nearest,
+        sharpen: 0.6,
+        effects: customEffects,
+        background: customBackground
+    )
+
+    // 只勾选 layout 与 background 两组
+    let profile = DisplayProfile(name: "双页夜景", capturing: resolved, groups: [.layout, .background])
+    #expect(profile.groups == [.layout, .background])
+    #expect(profile.settings.browseMode == .waterfall)
+    #expect(profile.settings.pageMode == .double)
+    #expect(profile.settings.direction == .rightToLeft)
+    #expect(profile.settings.firstPageSingle == false)
+    #expect(profile.settings.widePage == .split)
+    #expect(profile.settings.background == customBackground)
+    // 未勾选组及排序/递归均为 nil
+    #expect(profile.settings.scaleMode == nil)
+    #expect(profile.settings.allowUpscale == nil)
+    #expect(profile.settings.fixedScale == nil)
+    #expect(profile.settings.keepZoomOnPageTurn == nil)
+    #expect(profile.settings.resample == nil)
+    #expect(profile.settings.sharpen == nil)
+    #expect(profile.settings.effects == nil)
+    #expect(profile.settings.sort == nil)
+    #expect(profile.settings.recursion == nil)
+
+    // Codable 往返保留全部信息及 groups 推导
+    let roundTripped = try JSONDecoder().decode(DisplayProfile.self, from: JSONEncoder().encode(profile))
+    #expect(roundTripped == profile)
+    #expect(roundTripped.groups == [.layout, .background])
+
+    // 另一组组合（scale + effects）也完整覆盖
+    let scaleAndEffects = DisplayProfile(name: "锐化调色", capturing: resolved, groups: [.scale, .effects])
+    #expect(scaleAndEffects.groups == [.scale, .effects])
+    #expect(scaleAndEffects.settings.scaleMode == .fixed)
+    #expect(scaleAndEffects.settings.allowUpscale == true)
+    #expect(scaleAndEffects.settings.fixedScale == 1.5)
+    #expect(scaleAndEffects.settings.keepZoomOnPageTurn == true)
+    #expect(scaleAndEffects.settings.resample == .nearest)
+    #expect(scaleAndEffects.settings.sharpen == 0.6)
+    #expect(scaleAndEffects.settings.effects == customEffects)
+    #expect(scaleAndEffects.settings.browseMode == nil)
+    #expect(scaleAndEffects.settings.background == nil)
+    #expect(scaleAndEffects.settings.sort == nil)
+    #expect(scaleAndEffects.settings.recursion == nil)
+
+    // merge 进一本书的 BookSettings 书层：只有勾选的两组字段变化，其余保持原值
+    let originalEffects = EffectChain(effects: [.colorAdjust(ColorAdjust(contrast: 0.4))])
+    let originalSort = SortSpec(key: .size, ascending: true)
+    let originalRecursion = RecursionSpec(enabled: false, maxDepth: 2)
+    var bookLayer = BookSettings(
+        browseMode: .paged,
+        pageMode: .single,
+        direction: .leftToRight,
+        firstPageSingle: true,
+        widePage: .asIs,
+        sort: originalSort,
+        recursion: originalRecursion,
+        scaleMode: .fitWidth,
+        allowUpscale: false,
+        fixedScale: 0.8,
+        keepZoomOnPageTurn: false,
+        resample: .lanczos,
+        sharpen: 0.1,
+        effects: originalEffects,
+        background: .white
+    )
+    bookLayer.merge(profile.settings)
+    // layout 与 background 两组更新
+    #expect(bookLayer.browseMode == .waterfall)
+    #expect(bookLayer.pageMode == .double)
+    #expect(bookLayer.direction == .rightToLeft)
+    #expect(bookLayer.firstPageSingle == false)
+    #expect(bookLayer.widePage == .split)
+    #expect(bookLayer.background == customBackground)
+    // scale、effects、sort、recursion 保持原值
+    #expect(bookLayer.scaleMode == .fitWidth)
+    #expect(bookLayer.allowUpscale == false)
+    #expect(bookLayer.fixedScale == 0.8)
+    #expect(bookLayer.keepZoomOnPageTurn == false)
+    #expect(bookLayer.resample == .lanczos)
+    #expect(bookLayer.sharpen == 0.1)
+    #expect(bookLayer.effects == originalEffects)
+    #expect(bookLayer.sort == originalSort)
+    #expect(bookLayer.recursion == originalRecursion)
+}

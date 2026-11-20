@@ -3,7 +3,7 @@ import GRDB
 import MVFoundation
 import Synchronization
 
-/// settings.json、path-rules.json 与 state.sqlite 的真实设置存储。
+/// settings.json、path-rules.json、profiles.json 与 state.sqlite 的真实设置存储。
 public final class FileSettingsStore: SettingsStore {
     private struct State {
         var memories: [Location: BookMemory]
@@ -15,6 +15,7 @@ public final class FileSettingsStore: SettingsStore {
 
     private let settings: JSONDocumentStore<GlobalSettings>
     private let rules: JSONDocumentStore<[PathRule]>
+    private let profileStore: JSONDocumentStore<[DisplayProfile]>
     private let database: DatabaseQueue
     private let state: Mutex<State>
     private let queue = DispatchQueue(label: "MacView.BookMemory")
@@ -24,6 +25,7 @@ public final class FileSettingsStore: SettingsStore {
         settings = try JSONDocumentStore(fileURL: directory.appending(path: "settings.json"), version: 1,
                                          defaultValue: .default, valueDecoder: Self.decodeGlobal)
         rules = try JSONDocumentStore(fileURL: directory.appending(path: "path-rules.json"), version: 1, defaultValue: [])
+        profileStore = try JSONDocumentStore(fileURL: directory.appending(path: "profiles.json"), version: 1, defaultValue: [])
         var configuration = Configuration()
         configuration.prepareDatabase { database in
             try Self.enableWriteAheadLogging(database)
@@ -46,6 +48,7 @@ public final class FileSettingsStore: SettingsStore {
         state = Mutex(State(memories: Dictionary(uniqueKeysWithValues: memories.map { ($0.book, $0) })))
         settings.observe { [weak self] change in self?.documentChanged(change, file: "settings.json", change: .global) }
         rules.observe { [weak self] change in self?.documentChanged(change, file: "path-rules.json", change: .pathRules) }
+        profileStore.observe { [weak self] change in self?.documentChanged(change, file: "profiles.json", change: .profiles) }
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + .milliseconds(250), repeating: .milliseconds(250))
         timer.setEventHandler { [weak self] in
@@ -75,6 +78,12 @@ public final class FileSettingsStore: SettingsStore {
 
     public func updatePathRules(_ change: @Sendable (inout [PathRule]) -> Void) async throws {
         try await rules.update(change)
+    }
+
+    public func profiles() async -> [DisplayProfile] { profileStore.value() }
+
+    public func updateProfiles(_ change: @Sendable (inout [DisplayProfile]) -> Void) async throws {
+        try await profileStore.update(change)
     }
 
     public func resolve(for book: Location) async -> ResolvedBookSettings {
