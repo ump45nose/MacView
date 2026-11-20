@@ -568,3 +568,63 @@ func legacySettingsAndBookMemoryDecodeWithoutEffectsOrBackground() async throws 
     #expect(decodedMemory.settings.background == nil)
     #expect(decodedMemory.lastPageIndex == 5)
 }
+
+@Test("C1.6 profiles.json 不存在时返回空列表且不产生 fileError")
+func missingProfilesFileReturnsEmptyWithoutError() async throws {
+    let directory = try SettingsDirectory()
+    let file = directory.url.appending(path: "profiles.json")
+    #expect(!FileManager.default.fileExists(atPath: file.path))
+
+    let store = try FileSettingsStore(directory: directory.url)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+
+    #expect(await store.profiles().isEmpty)
+    #expect(!FileManager.default.fileExists(atPath: file.path))
+
+    let profile = DisplayProfile(name: "默认夜景", settings: BookSettings(background: .black))
+    try await store.updateProfiles { $0.append(profile) }
+    try await settingsWait { events.values.contains(.profiles) }
+    #expect(!events.values.contains { if case .fileError = $0 { true } else { false } })
+    #expect(await store.profiles() == [profile])
+
+    let envelope = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+    #expect(envelope["version"] as? Int == 1)
+    #expect(await (try FileSettingsStore(directory: directory.url)).profiles() == [profile])
+}
+
+@Test("C1.5 外部改坏 profiles.json 保留上一份并报错，改回合法后恢复且清除错误")
+func externalProfilesReloadErrorAndRecovery() async throws {
+    let directory = try SettingsDirectory()
+    let file = directory.url.appending(path: "profiles.json")
+    let initial = [DisplayProfile(name: "初始配置", settings: BookSettings(pageMode: .double, background: .black))]
+    try writeSettingsDocument(initial, to: file)
+
+    let store = try FileSettingsStore(directory: directory.url)
+    #expect(await store.profiles() == initial)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+
+    // 外部改坏 profiles.json
+    try Data("{ broken json".utf8).write(to: file, options: .atomic)
+    try await settingsWait(timeout: .seconds(1)) {
+        events.values.contains { if case let .fileError(name, _) = $0 { name == "profiles.json" } else { false } }
+    }
+    #expect(await store.profiles() == initial)
+
+    // 外部改回合法 JSON
+    let recovered = [DisplayProfile(name: "新配置", settings: BookSettings(scaleMode: .fitWidth, background: .gray))]
+    let beforeRecovery = events.values.count
+    try writeSettingsDocument(recovered, to: file)
+    try await settingsWait(timeout: .seconds(1)) {
+        events.values.dropFirst(beforeRecovery).contains(.profiles)
+    }
+    #expect(await store.profiles() == recovered)
+
+    // 验证错误已清除：新订阅者不会收到旧的 profiles.json fileError
+    let postRecoveryEvents = ChangeRecorder(store.changes())
+    defer { postRecoveryEvents.cancel() }
+    try await store.updateProfiles { $0[0].name = "新配置2" }
+    try await settingsWait { postRecoveryEvents.values.contains(.profiles) }
+    #expect(!postRecoveryEvents.values.contains { if case .fileError = $0 { true } else { false } })
+}
