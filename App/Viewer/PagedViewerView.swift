@@ -943,4 +943,9 @@ private final class EffectContainerView: NSView {
     }
 
     override var isFlipped: Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        return hit === self ? nil : hit
+    }
 }
