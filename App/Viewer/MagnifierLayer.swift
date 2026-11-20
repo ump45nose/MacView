@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 import QuartzCore
 
 /// 放大镜：跟随光标的圆形图层。内容先用页面图层已有的图按比例裁出，超大图取到块后换成块。
@@ -41,6 +42,13 @@ final class MagnifierLayer {
         CATransaction.setDisableActions(true)
         image.contents = contents
         image.contentsRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        CATransaction.commit()
+    }
+
+    func setFilters(_ filters: [CIFilter]) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        root.filters = filters.isEmpty ? nil : filters
         CATransaction.commit()
     }
 

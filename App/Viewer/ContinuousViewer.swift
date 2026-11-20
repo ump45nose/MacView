@@ -42,6 +42,7 @@ final class ContinuousViewer: NSView {
     var onPageFailure: ((Location) -> Void)?
     var onRemoveUnavailable: ((Location) -> Void)?
     private var placeholders: [Location: UnavailablePageView] = [:]
+    private var appliedEffects: EffectChain = .empty
 
     init(session: ReaderSession, pipeline: any ImagePipeline, settings: any SettingsStore, bookshelf: any Bookshelf) {
         self.session = session
@@ -137,6 +138,13 @@ final class ContinuousViewer: NSView {
         let page = min(knownPage ?? session.currentPage, max(current.pages.count - 1, 0))
         pageLabel.text = current.pages.isEmpty ? "" : "\(page + 1) / \(current.pages.count)"
         pageLabel.isHidden = current.pages.isEmpty
+    }
+
+    /// 主视图画布的实时效果滤镜；只在链变化时替换。
+    func setEffects(_ chain: EffectChain) {
+        guard chain != appliedEffects else { return }
+        appliedEffects = chain
+        canvas.setEffectFilters(EffectFilters.filters(for: chain))
     }
 
     /// 离开连续模式：停掉请求。回来时重新定位。
