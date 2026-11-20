@@ -1260,6 +1260,8 @@ private final class ShutdownDelaySettings: SettingsStore {
     func updateGlobal(_ change: @Sendable (inout GlobalSettings) -> Void) async throws { try await base.updateGlobal(change) }
     func pathRules() async -> [PathRule] { await base.pathRules() }
     func updatePathRules(_ change: @Sendable (inout [PathRule]) -> Void) async throws { try await base.updatePathRules(change) }
+    func profiles() async -> [DisplayProfile] { await base.profiles() }
+    func updateProfiles(_ change: @Sendable (inout [DisplayProfile]) -> Void) async throws { try await base.updateProfiles(change) }
     func changes() -> AsyncStream<SettingsChange> {
         AsyncStream(unfolding: { [self] in
             await withCheckedContinuation { continuation in

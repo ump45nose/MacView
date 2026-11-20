@@ -74,7 +74,7 @@ public final class ReaderSession {
                 guard !Task.isCancelled else { return }
                 switch change {
                 case .global, .pathRules: await self?.settingsChanged()
-                case .fileError: break // SettingsStore 保留上一份可用配置。
+                case .profiles, .fileError: break // SettingsStore 保留上一份可用配置。
                 }
             }
         }
@@ -488,6 +488,10 @@ public final class ReaderSession {
         let previous = settings
         change(&bookLayer)
         settings = resolved.applying(bookLayer)
+        if Self.onlyDisplayAppearanceChanged(from: previous, to: settings) {
+            remember()
+            return
+        }
         seedRandomOrder()
         layoutFrames()
         remember()
@@ -679,6 +683,7 @@ public final class ReaderSession {
             let previous = self.settings
             self.resolved = resolved
             self.settings = resolved.applying(self.bookLayer)
+            if Self.onlyDisplayAppearanceChanged(from: previous, to: self.settings) { return }
             self.layoutFrames()
             self.prefetch()
             if !self.isVirtualBook, previous.sort != self.settings.sort || previous.recursion != self.settings.recursion { self.reloadBook() }
@@ -734,19 +739,31 @@ public final class ReaderSession {
         }
     }
 
+    private static func onlyDisplayAppearanceChanged(from previous: ResolvedBookSettings, to current: ResolvedBookSettings) -> Bool {
+        var normalized = current
+        normalized.effects = previous.effects
+        normalized.background = previous.background
+        return normalized == previous
+    }
+
     private func settingsChanged() async {
         guard book != nil else { global = await store.global(); return }
-        cancelAdjacent()
-        prefetch()
         let current = generation
         guard let location = book?.location else { return }
         let resolved = await store.resolve(for: location)
         let global = await store.global()
         guard current == generation else { return }
         let previous = settings
+        let previousGlobal = self.global
+        let next = resolved.applying(bookLayer)
         self.resolved = resolved
         self.global = global
-        settings = resolved.applying(bookLayer)
+        settings = next
+        if Self.onlyDisplayAppearanceChanged(from: previous, to: next),
+           previousGlobal.prefetch == global.prefetch,
+           previousGlobal.maxDecodeLongSide == global.maxDecodeLongSide {
+            return
+        }
         seedRandomOrder()
         layoutFrames()
         remember()

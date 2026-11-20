@@ -57,8 +57,10 @@ final class ReadingFixture {
 final class TracingPipeline: ImagePipeline {
     let base: MockImagePipeline
     private let probes = Mutex<[Location]>([])
+    private let planCalls = Mutex(0)
     init(base: MockImagePipeline) { self.base = base }
     var metadataOrder: [Location] { probes.withLock { $0 } }
+    var prefetchPlanCount: Int { planCalls.withLock { $0 } }
     func metadata(for identity: ContentIdentity, priority: IOPriority) async throws -> ImageMetadata {
         probes.withLock { $0.append(identity.location) }
         return try await base.metadata(for: identity, priority: priority)
@@ -69,7 +71,10 @@ final class TracingPipeline: ImagePipeline {
     func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource { try await base.tiledSource(for: identity) }
     func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource { try await base.animatedFrames(for: identity, target: target) }
     func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage { try await base.videoPoster(for: identity, maxPixel: maxPixel, priority: priority) }
-    func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID) { base.setPrefetchPlan(plan, session: session) }
+    func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID) {
+        planCalls.withLock { $0 += 1 }
+        base.setPrefetchPlan(plan, session: session)
+    }
     func cancelAll(session: SessionID) { base.cancelAll(session: session) }
 }
 
