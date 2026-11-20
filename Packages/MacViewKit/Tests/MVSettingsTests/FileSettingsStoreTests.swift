@@ -492,3 +492,79 @@ func nonPositiveHistoryLimitsKeepLastGoodSettings(_ limit: Int) async throws {
     #expect(operationSettings["nameConflict"] as? String == "appendNumber")
     #expect((operationSettings["classifyTargets"] as? [Any])?.isEmpty == true)
 }
+
+@Test("C1.1 路径规则与书记忆里的 effects 与 background 按全局 ⊕ 规则 ⊕ 书记忆合并")
+func effectsAndBackgroundResolveAcrossGlobalRulesAndMemory() async throws {
+    let directory = try SettingsDirectory()
+    let outer = Location(root: .local, layers: [["Comics"]])
+    let inner = outer.appending("Author")
+    let book = inner.appending("vol1.zip")
+
+    let globalEffects = EffectChain(effects: [.colorAdjust(ColorAdjust(brightness: 0.1))])
+    let ruleEffects = EffectChain(effects: [.colorAdjust(ColorAdjust(contrast: 0.2, gamma: 1.2))])
+    let customBackground = ViewerBackground.custom(red: 0.15, green: 0.2, blue: 0.25)
+
+    var global = GlobalSettings.default
+    global.defaultBook.effects = globalEffects
+    global.defaultBook.background = .gray
+    try writeSettingsDocument(global, to: directory.url.appending(path: "settings.json"))
+
+    let rules = [
+        PathRule(name: "外层", prefix: outer, settings: BookSettings(effects: ruleEffects, background: .black)),
+        PathRule(name: "内层", prefix: inner, settings: BookSettings(background: customBackground)),
+    ]
+    try writeSettingsDocument(rules, to: directory.url.appending(path: "path-rules.json"))
+
+    let store = try FileSettingsStore(directory: directory.url)
+    let fromRules = await store.resolve(for: book)
+    #expect(fromRules.effects == ruleEffects)
+    #expect(fromRules.background == customBackground)
+
+    let memoryEffects = EffectChain(effects: [.colorAdjust(ColorAdjust(saturation: -0.5))])
+    await store.saveBookMemory(BookMemory(book: book, settings: BookSettings(effects: memoryEffects)))
+    let fromMemory = await store.resolve(for: book)
+    #expect(fromMemory.effects == memoryEffects)
+    #expect(fromMemory.background == customBackground)
+    try await store.flush()
+
+    let reopened = try FileSettingsStore(directory: directory.url)
+    #expect(await reopened.resolve(for: book) == fromMemory)
+}
+
+@Test("C1.2 旧版 settings.json 缺 effects/background 安静补默认，旧版书记忆 blob 正常解码")
+func legacySettingsAndBookMemoryDecodeWithoutEffectsOrBackground() async throws {
+    let directory = try SettingsDirectory()
+    let file = directory.url.appending(path: "settings.json")
+    var legacy = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(GlobalSettings.default)) as? [String: Any])
+    var defaultBook = try #require(legacy["defaultBook"] as? [String: Any])
+    defaultBook.removeValue(forKey: "effects")
+    defaultBook.removeValue(forKey: "background")
+    legacy["defaultBook"] = defaultBook
+
+    let legacyData = try JSONSerialization.data(withJSONObject: legacy)
+    let direct = try JSONDecoder().decode(GlobalSettings.self, from: legacyData)
+    #expect(direct.defaultBook.effects == .empty)
+    #expect(direct.defaultBook.background == .auto)
+
+    try JSONSerialization.data(withJSONObject: ["version": 1, "value": legacy]).write(to: file)
+    let store = try FileSettingsStore(directory: directory.url)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+    #expect(await store.global().defaultBook.effects == .empty)
+    #expect(await store.global().defaultBook.background == .auto)
+    try await store.updateGlobal { $0.defaultBook.background = .white }
+    try await settingsWait { events.values.contains(.global) }
+    #expect(!events.values.contains { if case .fileError = $0 { true } else { false } })
+
+    // 旧版书记忆 blob（不含 effects、background 字段）
+    let book = Location(root: .local, layers: [["legacy", "book.zip"]])
+    let legacyMemoryJSON = Data("""
+    {"book":\(String(decoding: try JSONEncoder().encode(book), as: UTF8.self)),"settings":{"pageMode":"double"},"lastPageIndex":5,"openedAt":0}
+    """.utf8)
+    let decodedMemory = try JSONDecoder().decode(BookMemory.self, from: legacyMemoryJSON)
+    #expect(decodedMemory.book == book)
+    #expect(decodedMemory.settings.pageMode == .double)
+    #expect(decodedMemory.settings.effects == nil)
+    #expect(decodedMemory.settings.background == nil)
+    #expect(decodedMemory.lastPageIndex == 5)
+}

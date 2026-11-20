@@ -235,12 +235,16 @@ public final class FileSettingsStore: SettingsStore {
         return (value, missing.isEmpty ? nil : String(localized: "缺少全局字段，已补默认值：\(missing.sorted().joined(separator: ", "))", bundle: .main))
     }
 
+    private static let optionalGlobalFields: Set<String> = [
+        "fileOperations", "historyLimit", "defaultBook.effects", "defaultBook.background",
+    ]
+
     private static func filling(_ object: Any, defaults: Any, path: String, missing: inout [String]) -> Any {
         guard var object = object as? [String: Any], let defaults = defaults as? [String: Any] else { return object }
         for (key, value) in defaults {
             let field = path.isEmpty ? key : path + "." + key
             if let present = object[key] { object[key] = filling(present, defaults: value, path: field, missing: &missing) }
-            else { object[key] = value; if field != "fileOperations" && field != "historyLimit" { missing.append(field) } }
+            else { object[key] = value; if !optionalGlobalFields.contains(field) { missing.append(field) } }
         }
         return object
     }
