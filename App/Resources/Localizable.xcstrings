@@ -1225,6 +1225,16 @@
         }
       }
     },
+    "保存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        }
+      }
+    },
     "保持缩放": {
       "localizations": {
         "en": {
