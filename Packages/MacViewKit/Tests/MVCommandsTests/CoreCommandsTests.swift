@@ -152,3 +152,42 @@ func searchAndMetadataCommandsHaveNoConflicts() throws {
         #expect(menu.contains(id))
     }
 }
+
+@Test("C1.9/C1.10 显示配置与效果命令绑定、作用域、菜单位置与无冲突")
+func displayProfileAndEffectsCommandsHaveBindingsAndNoConflicts() throws {
+    let expected: [(CommandID, String)] = [
+        (.displayProfileApply, "displayProfile.apply"),
+        (.effectsToggle, "effects.toggle"),
+        (.effectsPanelToggle, "panel.effects.toggle"),
+    ]
+    for (id, raw) in expected {
+        #expect(id.rawValue == raw)
+        #expect(CoreCommands.all.contains { $0.id == id })
+    }
+    let bindings = CoreCommands.all.flatMap(\.defaultBindings)
+    #expect(BindingResolver.conflicts(in: bindings).isEmpty)
+
+    var resolver = BindingResolver(bindings: bindings)
+    let now = ContinuousClock.now
+    for scope in [InputScope.viewer, .list] {
+        for slot in 1...9 {
+            #expect(
+                resolver.feed(KeyChord(String(slot), modifiers: .control), scope: scope, at: now)
+                    == .command(.displayProfileApply, ["slot": .number(Double(slot))])
+            )
+        }
+    }
+    #expect(resolver.feed(KeyChord("1", modifiers: .control), scope: .textInput, at: now) == .unmatched)
+    #expect(resolver.feed(KeyChord("e"), scope: .viewer, at: now) == .command(.effectsToggle, nil))
+    #expect(resolver.feed(KeyChord("e"), scope: .textInput, at: now) == .unmatched)
+    #expect(resolver.feed(KeyChord("e"), scope: .list, at: now) == .unmatched)
+    for scope in [InputScope.global, .viewer, .list] {
+        #expect(resolver.feed(KeyChord("e", modifiers: [.command, .option]), scope: scope, at: now) == .command(.effectsPanelToggle, nil))
+    }
+    #expect(resolver.feed(KeyChord("e", modifiers: [.command, .option]), scope: .textInput, at: now) == .unmatched)
+
+    let viewMenu = try #require(CoreCommands.defaultMenu.roots.first { if case .submenu("显示", _) = $0 { true } else { false } })
+    let windowMenu = try #require(CoreCommands.defaultMenu.roots.first { if case .submenu("窗口", _) = $0 { true } else { false } })
+    #expect(Set(menuCommands([viewMenu])).isSuperset(of: [.effectsToggle, .displayProfileApply]))
+    #expect(Set(menuCommands([windowMenu])).contains(.effectsPanelToggle))
+}
