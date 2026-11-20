@@ -187,6 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let path = UserDefaults.standard.string(forKey: Self.cacheDirectoryKey) { cacheDirectory = URL(fileURLWithPath: path) }
         await FileOpsSelfTest.prepareStartupRecoveryIfNeeded(supportDirectory: supportDirectory)
         #endif
+        try? FileManager.default.removeItem(at: cacheDirectory.appending(path: "rendered", directoryHint: .isDirectory))
         if isMock { return CoreServices.makeMock() }
         let pixels = NSScreen.screens.map { $0.frame.size.applying(.init(scaleX: $0.backingScaleFactor, y: $0.backingScaleFactor)) }
         let bounds = PixelSize(width: Int(pixels.map(\.width).max() ?? 3840), height: Int(pixels.map(\.height).max() ?? 2160))

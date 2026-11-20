@@ -112,6 +112,17 @@ final class ViewerContainerView: NSView, InputScoped {
             guard let self, let index, let pages = session.book?.pages, pages.indices.contains(index) else { return nil }
             return onContextMenu?(pages[index].entry)
         }
+        continuous.canvas.onDraggingWriters = { [weak self] index in
+            guard let self, let pages = session.book?.pages, pages.indices.contains(index),
+                  let fileOps = (NSApp.delegate as? AppDelegate)?.fileOps,
+                  let writer = fileOps.pasteboardWriter(for: pages[index].entry, in: window?.windowController as? ReaderWindowController) else {
+                return []
+            }
+            return [(index, writer)]
+        }
+        continuous.canvas.onDragSessionEnded = { operation in
+            (NSApp.delegate as? AppDelegate)?.fileOps?.dragSessionEnded(operation: operation)
+        }
         paged.onPageFailure = { [weak self] location in self?.recheckAvailability { $0 == location } }
         // 外部变化没有通知：App 重新激活、卷挂载或卸载时重查。
         let recheck: @Sendable (Notification) -> Void = { [weak self] _ in
