@@ -1,11 +1,25 @@
 import Foundation
 
-/// keybindings.json 的文档内容；版本与原子写入由 JSONDocumentStore 管理。
+/// keybindings.json 的文档内容（v2；新字段均可缺省，v1 文件照常读取）；版本与原子写入由 JSONDocumentStore 管理。
 public struct KeyBindingsFile: Codable, Sendable, Hashable {
     public var bindings: [KeyBinding]
+    public var mouseGestures: [MouseGestureBinding]?
+    public var trackpad: [TrackpadBinding]?
+    public var clickZones: [ClickZoneBinding]?
+    public var wheel: [WheelBinding]?
 
-    public init(bindings: [KeyBinding] = []) {
+    public init(
+        bindings: [KeyBinding] = [],
+        mouseGestures: [MouseGestureBinding]? = nil,
+        trackpad: [TrackpadBinding]? = nil,
+        clickZones: [ClickZoneBinding]? = nil,
+        wheel: [WheelBinding]? = nil
+    ) {
         self.bindings = bindings
+        self.mouseGestures = mouseGestures
+        self.trackpad = trackpad
+        self.clickZones = clickZones
+        self.wheel = wheel
     }
 }
 

@@ -4,6 +4,8 @@ import MVFoundation
 extension CommandID {
     public static let frameNext = CommandID("frame.next")
     public static let framePrevious = CommandID("frame.previous")
+    public static let frameLeft = CommandID("frame.left")
+    public static let frameRight = CommandID("frame.right")
     public static let pageNext = CommandID("page.next")
     public static let pagePrevious = CommandID("page.previous")
     public static let pageFirst = CommandID("page.first")
