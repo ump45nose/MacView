@@ -114,8 +114,9 @@ final class EffectsPanelView: NSView {
     // 背景段
     private var swatches: [BackgroundOption: BackgroundSwatchView] = [:]
 
-    // 显示配置段容器（W3.2 填充）
+    // 显示配置段
     let profilesSection = NSStackView()
+    let profileListView = ProfileListSectionView()
 
     private var customColor = NSColor(srgbRed: 0x3B / 255, green: 0x4A / 255, blue: 0x5C / 255, alpha: 1)
 
@@ -305,6 +306,7 @@ final class EffectsPanelView: NSView {
         profilesSection.alignment = .width
         profilesSection.spacing = 8
         profilesSection.edgeInsets = NSEdgeInsets(top: 10, left: 12, bottom: 12, right: 12)
+        profilesSection.addArrangedSubview(profileListView)
         return profilesSection
     }
 

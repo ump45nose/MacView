@@ -77,6 +77,20 @@ extension AppDelegate {
         }
         register(.magnifierToggle) { controller, _ in controller.viewer.paged.toggleMagnifier() }
         register(.effectsToggle, needsBook: false) { controller, _ in controller.toggleEffects() }
+        register(.displayProfileApply) { controller, arguments in
+            guard case let .number(rawSlot)? = arguments?["slot"] else { return }
+            let slot = Int(rawSlot)
+            guard (1...9).contains(slot) else { return }
+            Task { @MainActor [weak controller] in
+                guard let controller, controller.session.book != nil else { return }
+                let profiles = await controller.services.settings.profiles()
+                guard profiles.indices.contains(slot - 1) else {
+                    controller.content.statusBar.showMessage(String(localized: "没有第 \(slot) 个显示配置"))
+                    return
+                }
+                DisplayProfileHelpers.applyToBook(profiles[slot - 1], in: controller)
+            }
+        }
         register(.retryFailed) { controller, _ in controller.viewer.retryFailed() }
 
         let sorts: [(CommandID, SortKey)] = [
