@@ -251,6 +251,29 @@ struct OverrideField: Identifiable {
         .bool("shrinkOnly", String(localized: "仅缩小"), \.allowUpscale, \.allowUpscale, inverted: true),
         .bool("keepZoom", String(localized: "保持缩放"), \.keepZoomOnPageTurn, \.keepZoomOnPageTurn),
         .enum("resample", String(localized: "重采样"), \.resample, \.resample, resamples),
+        // 数值在效果面板里调；这里能看到、能复位、能移除。
+        OverrideField(
+            id: "effects", title: String(localized: "效果"), isSet: { $0.effects != nil }, clear: { $0.effects = nil },
+            seed: { $0.effects = $1.effects },
+            text: { DisplayProfileHelpers.summary(of: .effects, in: $0) },
+            control: .choice([(String(localized: "全部复位"), { $0.effects = .empty })])
+        ),
+        OverrideField(
+            id: "background", title: String(localized: "背景"), isSet: { $0.background != nil }, clear: { $0.background = nil },
+            seed: { $0.background = $1.background },
+            text: { DisplayProfileHelpers.summary(of: .background, in: $0) },
+            control: .choice(EffectsPanelView.BackgroundOption.allCases.compactMap { option in
+                let value: ViewerBackground? = switch option {
+                case .auto: .auto
+                case .black: .black
+                case .gray: .gray
+                case .white: .white
+                case .checkerboard: .checkerboard
+                case .custom: nil
+                }
+                return value.map { value in (option.title, { $0.background = value }) }
+            })
+        ),
     ]
 }
 
