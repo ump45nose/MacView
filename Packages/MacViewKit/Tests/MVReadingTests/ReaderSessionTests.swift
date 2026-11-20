@@ -500,6 +500,69 @@ import Testing
         item.renditions.contains { if case .display = $0 { true } else { false } }
     }
 
+    @Test("C1.7/C1.8/C1.8b 只改效果或背景走快路径，改布局照常重排，全局效果变更不重排")
+    func effectsAndBackgroundFastPath() async throws {
+        let environment = MockEnvironment(MockOptions(tree: tree, timing: .instant))
+        let store = MockSettingsStore()
+        let pipeline = TracingPipeline(base: MockImagePipeline(environment: environment))
+        let session = ReaderSession(
+            loader: MockBookLoader(environment: environment),
+            settings: store,
+            bookshelf: MockBookshelf(environment: environment),
+            pipeline: pipeline
+        )
+        await session.open(tree.location("A"), at: nil)
+        let initialFrames = session.frames
+        let initialPlanCount = pipeline.prefetchPlanCount
+
+        // C1.7：连续 100 次只改 effects，不重排、不重设预取计划，最终写入最后一次的值。
+        var lastChain = EffectChain.empty
+        for step in 1...100 {
+            var chain = EffectChain.empty
+            chain.colorAdjust = ColorAdjust(brightness: Double(step) / 100.0)
+            lastChain = chain
+            session.update { $0.effects = chain }
+        }
+        #expect(session.frames == initialFrames)
+        #expect(pipeline.prefetchPlanCount == initialPlanCount)
+        #expect(session.settings.effects == lastChain)
+        await eventually(attempts: 1000) {
+            await store.bookMemory(for: tree.location("A"))?.settings.effects == lastChain
+        }
+        #expect(session.frames == initialFrames)
+        #expect(pipeline.prefetchPlanCount == initialPlanCount)
+
+        // 只改背景同样不重排、不重设预取计划。
+        session.update { $0.background = .checkerboard }
+        #expect(session.settings.background == .checkerboard)
+        #expect(session.frames == initialFrames)
+        #expect(pipeline.prefetchPlanCount == initialPlanCount)
+
+        // C1.8b：打开着的会话收到 .global 变更（只改 defaultBook.effects）后实时更新，不重排不预取。
+        session.update { $0.effects = nil }
+        await eventually(attempts: 1000) {
+            await store.bookMemory(for: tree.location("A"))?.settings.effects == nil
+        }
+        let planCountBeforeGlobal = pipeline.prefetchPlanCount
+        let globalChain = EffectChain(effects: [.colorAdjust(ColorAdjust(contrast: 0.4, gamma: 1.5))])
+        try await store.updateGlobal { $0.defaultBook.effects = globalChain }
+        await eventually { session.settings.effects == globalChain }
+        #expect(session.frames == initialFrames)
+        #expect(pipeline.prefetchPlanCount == planCountBeforeGlobal)
+
+        // C1.8：同时改了 pageMode 时照常重排页帧并更新预取计划。
+        let planCountBeforeLayout = pipeline.prefetchPlanCount
+        let combinedChain = EffectChain(effects: [.colorAdjust(ColorAdjust(saturation: -0.5))])
+        session.update {
+            $0.effects = combinedChain
+            $0.pageMode = .double
+        }
+        #expect(session.settings.effects == combinedChain)
+        #expect(session.settings.pageMode == .double)
+        #expect(session.frames.count < initialFrames.count)
+        #expect(pipeline.prefetchPlanCount > planCountBeforeLayout)
+    }
+
     private func eventually(attempts: Int = 200, _ predicate: @MainActor () async -> Bool) async {
         for _ in 0..<attempts {
             if await predicate() { return }
