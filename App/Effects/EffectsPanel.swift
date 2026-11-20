@@ -20,6 +20,7 @@ final class EffectsPanel: DockPanel {
 
     private(set) var profiles: [DisplayProfile] = []
     private(set) var activeSavePopover: SaveProfilePopover?
+    private(set) var activePathRulePopover: SavePathRulePopover?
 
     private var observedSession: SessionID?
     private var effectsObserver: NSObjectProtocol?
@@ -53,6 +54,12 @@ final class EffectsPanel: DockPanel {
         list.onApplyToBook = { [weak self] profile in
             guard let owner = self?.owner else { return }
             DisplayProfileHelpers.applyToBook(profile, in: owner)
+        }
+        list.onApplyToGlobal = { [weak self] profile in
+            self?.applyToGlobal(profile)
+        }
+        list.onSaveAsPathRule = { [weak self] profile, anchor in
+            self?.openSavePathRulePopover(for: profile, from: anchor)
         }
         list.onUpdateWithCurrent = { [weak self] profile in
             self?.updateProfileWithCurrent(profile)
@@ -355,6 +362,55 @@ final class EffectsPanel: DockPanel {
                 let latest = await store.profiles()
                 self?.profiles = latest
                 self?.renderProfiles()
+            } catch {
+                owner?.content.statusBar.showMessage(ErrorText.describe(error))
+            }
+        }
+    }
+
+    func applyToGlobal(_ profile: DisplayProfile) {
+        guard let owner else { return }
+        let store = owner.services.settings
+        Task { [weak owner] in
+            do {
+                try await store.updateGlobal { global in
+                    global.defaultBook = global.defaultBook.applying(profile.settings)
+                }
+                let groupsText = DisplayProfileHelpers.groupListText(profile.groups)
+                owner?.content.statusBar.showMessage(
+                    String(localized: "已把“\(profile.name)”套用到全局默认（\(groupsText)）")
+                )
+            } catch {
+                owner?.content.statusBar.showMessage(ErrorText.describe(error))
+            }
+        }
+    }
+
+    func openSavePathRulePopover(for profile: DisplayProfile, from anchor: NSView) {
+        guard let owner, let bookLocation = owner.session.book?.location, !owner.session.isVirtualBook else { return }
+        let popover = SavePathRulePopover(profile: profile, bookLocation: bookLocation) { [weak self] prefix in
+            self?.saveAsPathRule(profile: profile, prefix: prefix)
+        }
+        activePathRulePopover = popover
+        popover.show(relativeTo: anchor)
+    }
+
+    func saveAsPathRule(profile: DisplayProfile, prefix: Location) {
+        guard let owner else { return }
+        let store = owner.services.settings
+        Task { [weak owner] in
+            do {
+                try await store.updatePathRules { rules in
+                    if let idx = rules.firstIndex(where: { $0.prefix == prefix }) {
+                        rules[idx].settings.merge(profile.settings)
+                    } else {
+                        rules.append(PathRule(name: profile.name, prefix: prefix, settings: profile.settings))
+                    }
+                }
+                let groupsText = DisplayProfileHelpers.groupListText(profile.groups)
+                owner?.content.statusBar.showMessage(
+                    String(localized: "已把“\(profile.name)”存为路径规则（\(groupsText)）")
+                )
             } catch {
                 owner?.content.statusBar.showMessage(ErrorText.describe(error))
             }
