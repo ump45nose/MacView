@@ -36,6 +36,7 @@ final class ViewerContainerView: NSView, InputScoped {
     /// 当前窗口是否启用实时调色；由 `ReaderWindowController` 驱动。
     private(set) var effectsEnabled = true
     private var appliedEffects: EffectChain = .empty
+    private var appliedBackground: ViewerBackground = .auto
 
     var inputScope: InputScope { .viewer }
 
@@ -135,7 +136,51 @@ final class ViewerContainerView: NSView, InputScoped {
     override var wantsUpdateLayer: Bool { true }
 
     override func updateLayer() {
-        layer?.backgroundColor = (isEmptyState ? Theme.ground : Theme.canvas).cgColor
+        layer?.backgroundColor = Self.backgroundColor(
+            for: appliedBackground,
+            isEmptyState: isEmptyState,
+            appearance: effectiveAppearance
+        )
+    }
+
+    private static let lightCheckerboard = makeCheckerboardColor(
+        first: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1),
+        second: NSColor(srgbRed: 0xCF / 255, green: 0xCD / 255, blue: 0xC4 / 255, alpha: 1)
+    )
+    private static let darkCheckerboard = makeCheckerboardColor(
+        first: NSColor(srgbRed: 0x2B / 255, green: 0x2A / 255, blue: 0x28 / 255, alpha: 1),
+        second: NSColor(srgbRed: 0x1E / 255, green: 0x1D / 255, blue: 0x1C / 255, alpha: 1)
+    )
+
+    private static func makeCheckerboardColor(first: NSColor, second: NSColor) -> CGColor {
+        let tile = 8.0
+        let image = NSImage(size: NSSize(width: tile * 2, height: tile * 2), flipped: false) { _ in
+            first.setFill()
+            NSRect(x: 0, y: 0, width: tile * 2, height: tile * 2).fill()
+            second.setFill()
+            NSRect(x: 0, y: 0, width: tile, height: tile).fill()
+            NSRect(x: tile, y: tile, width: tile, height: tile).fill()
+            return true
+        }
+        return NSColor(patternImage: image).cgColor
+    }
+
+    private static func backgroundColor(for background: ViewerBackground, isEmptyState: Bool, appearance: NSAppearance) -> CGColor {
+        switch background {
+        case .auto:
+            return (isEmptyState ? Theme.ground : Theme.canvas).cgColor
+        case .black:
+            return NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 1).cgColor
+        case .gray:
+            return NSColor(srgbRed: 0.5, green: 0.5, blue: 0.5, alpha: 1).cgColor
+        case .white:
+            return NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1).cgColor
+        case .checkerboard:
+            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return isDark ? darkCheckerboard : lightCheckerboard
+        case let .custom(red, green, blue):
+            return NSColor(srgbRed: red, green: green, blue: blue, alpha: 1).cgColor
+        }
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -156,6 +201,10 @@ final class ViewerContainerView: NSView, InputScoped {
         updateSourcePill()
         checkAvailability()
         applyEffectsIfNeeded()
+        if appliedBackground != session.settings.background {
+            appliedBackground = session.settings.background
+            needsDisplay = true
+        }
         if session.settings.browseMode == .paged {
             continuous.isHidden = true
             continuous.leave()
