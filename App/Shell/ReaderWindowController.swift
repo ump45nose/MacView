@@ -598,6 +598,18 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         return nil
     }
 
+    /// 本窗口当前关联的效果面板（停靠或浮动）。
+    var effectsPanel: EffectsPanel? {
+        if let docked = dock.panels[DockPanels.effects] as? EffectsPanel {
+            return docked
+        }
+        if let floating = dock.coordinator.floatingWindows[DockPanels.effects]?.panel as? EffectsPanel,
+           floating.owner === self {
+            return floating
+        }
+        return nil
+    }
+
     /// 本窗口当前关联的书架面板（停靠或浮动）。
     var bookshelfPanel: BookshelfPanel? {
         if let docked = dock.panels[DockPanels.bookshelf] as? BookshelfPanel {
