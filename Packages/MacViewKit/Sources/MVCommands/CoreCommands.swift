@@ -31,6 +31,7 @@ extension CommandID {
     public static let bookmarkAdd = CommandID("library.bookmark.add")
     public static let playlistAddCurrent = CommandID("library.playlist.addCurrent")
     public static let playlistRemoveItem = CommandID("library.playlist.removeItem")
+    public static let playlistOpenContainingBook = CommandID("library.playlist.openContainingBook")
     public static let historyToggle = CommandID("panel.history.toggle")
     public static let bookmarksToggle = CommandID("panel.bookmarks.toggle")
     public static let playlistToggle = CommandID("panel.playlist.toggle")
@@ -87,6 +88,8 @@ extension CommandID {
     public static let displayProfileApply = CommandID("displayProfile.apply")
     public static let effectsToggle = CommandID("effects.toggle")
     public static let effectsPanelToggle = CommandID("panel.effects.toggle")
+    public static let layoutSchemeSave = CommandID("layout.scheme.save")
+    public static let layoutSchemeApply = CommandID("layout.scheme.apply")
 }
 
 /// P0 的命令元数据与默认菜单。处理器由 MVServices 和 App 注册。
@@ -97,12 +100,12 @@ public enum CoreCommands {
     public static let defaultMenu = MenuModel(roots: groups.map { group in
         var children: [MenuNode] = []
         for section in group.sections {
-            let commands = section.commands.map { MenuNode.command($0.id) }
+            let items = section.commands.map { MenuNode.command($0.id) } + section.trailingNodes
             if let title = section.title {
-                children.append(.submenu(titleKey: title, children: commands))
+                children.append(.submenu(titleKey: title, children: items))
             } else {
                 if !children.isEmpty { children.append(.separator) }
-                children.append(contentsOf: commands)
+                children.append(contentsOf: items)
             }
         }
         return .submenu(titleKey: group.title, children: children)
@@ -116,30 +119,42 @@ public enum CoreCommands {
     private struct Section: Sendable {
         var title: String?
         var commands: [CommandDescriptor]
+        var trailingNodes: [MenuNode]
 
-        init(_ commands: [CommandDescriptor]) {
+        init(_ commands: [CommandDescriptor], trailingNodes: [MenuNode] = []) {
             self.title = nil
             self.commands = commands
+            self.trailingNodes = trailingNodes
         }
 
-        init(_ title: String, _ commands: [CommandDescriptor]) {
+        init(_ title: String, _ commands: [CommandDescriptor], trailingNodes: [MenuNode] = []) {
             self.title = title
             self.commands = commands
+            self.trailingNodes = trailingNodes
         }
     }
 
     private static func command(
         _ id: CommandID, _ title: LocalizedStringResource, _ category: String,
-        scope: InputScope = .viewer, keys: [KeyChord] = [], sequences: [[KeyChord]] = []
+        scope: InputScope = .viewer, keys: [KeyChord] = [], sequences: [[KeyChord]] = [],
+        symbol: String? = nil
     ) -> CommandDescriptor {
         CommandDescriptor(
             id: id, title: title, category: category,
-            defaultBindings: (keys.map { [$0] } + sequences).map { KeyBinding(sequence: $0, command: id, scope: scope) }
+            defaultBindings: (keys.map { [$0] } + sequences).map { KeyBinding(sequence: $0, command: id, scope: scope) },
+            symbol: symbol
         )
     }
 
-    private static func commandMany(_ id: CommandID, _ title: LocalizedStringResource, _ category: String, key: KeyChord, scopes: [InputScope]) -> CommandDescriptor {
-        CommandDescriptor(id: id, title: title, category: category, defaultBindings: scopes.map { KeyBinding(sequence: [key], command: id, scope: $0) })
+    private static func commandMany(
+        _ id: CommandID, _ title: LocalizedStringResource, _ category: String,
+        key: KeyChord, scopes: [InputScope], symbol: String? = nil
+    ) -> CommandDescriptor {
+        CommandDescriptor(
+            id: id, title: title, category: category,
+            defaultBindings: scopes.map { KeyBinding(sequence: [key], command: id, scope: $0) },
+            symbol: symbol
+        )
     }
 
     private static let classifyTargetCommand = CommandDescriptor(
@@ -168,14 +183,14 @@ public enum CoreCommands {
         Group(title: "文件", sections: [
             Section([
                 command(.fileOpen, .init("打开文件夹或压缩包…", bundle: .main), "book", scope: .global,
-                        keys: [KeyChord("o", modifiers: .command)]),
+                        keys: [KeyChord("o", modifiers: .command)], symbol: "folder"),
             ]),
             Section([
-                commandMany(.fileDelete, .init("删除", bundle: .main), "file", key: KeyChord("Delete", modifiers: .command), scopes: [.viewer, .list]),
+                commandMany(.fileDelete, .init("删除", bundle: .main), "file", key: KeyChord("Delete", modifiers: .command), scopes: [.viewer, .list], symbol: "trash"),
                 command(.fileRename, .init("重命名", bundle: .main), "file"),
                 commandMany(.fileCopy, .init("复制", bundle: .main), "file", key: KeyChord("c", modifiers: .command), scopes: [.viewer, .list]),
                 commandMany(.fileCopyPath, .init("复制路径", bundle: .main), "file", key: KeyChord("c", modifiers: [.command, .option]), scopes: [.viewer, .list]),
-                commandMany(.fileReveal, .init("在 Finder 中显示", bundle: .main), "file", key: KeyChord("r", modifiers: [.command, .option]), scopes: [.viewer, .list]),
+                commandMany(.fileReveal, .init("在 Finder 中显示", bundle: .main), "file", key: KeyChord("r", modifiers: [.command, .option]), scopes: [.viewer, .list], symbol: "arrow.up.forward.square"),
                 command(.fileOpenWith, .init("用指定应用打开", bundle: .main), "file"),
                 command(.recycleEmpty, .init("清空回收目录…", bundle: .main), "file"),
             ]),
@@ -204,23 +219,23 @@ public enum CoreCommands {
                 command(.retryFailed, .init("重试失败的项", bundle: .main), "other", scope: .global,
                         keys: [KeyChord("r", modifiers: .command)]),
                 command(.settingsOpen, .init("设置…", bundle: .main), "other", scope: .global,
-                        keys: [KeyChord(",", modifiers: .command)]),
+                        keys: [KeyChord(",", modifiers: .command)], symbol: "gearshape"),
             ]),
         ]),
         Group(title: "显示", sections: [
             Section("浏览方式", [
                 command(.browsePaged, .init("分页", bundle: .main), "view",
-                        keys: [KeyChord("1", modifiers: .command)]),
+                        keys: [KeyChord("1", modifiers: .command)], symbol: "book"),
                 command(.browseWaterfall, .init("瀑布流", bundle: .main), "view",
-                        keys: [KeyChord("2", modifiers: .command)]),
+                        keys: [KeyChord("2", modifiers: .command)], symbol: "square.grid.2x2"),
                 command(.browseVerticalStrip, .init("纵向连续", bundle: .main), "view",
-                        keys: [KeyChord("3", modifiers: .command)]),
+                        keys: [KeyChord("3", modifiers: .command)], symbol: "rectangle.split.1x2"),
                 command(.browseHorizontalStrip, .init("横向连续", bundle: .main), "view",
-                        keys: [KeyChord("4", modifiers: .command)]),
+                        keys: [KeyChord("4", modifiers: .command)], symbol: "rectangle.split.2x1"),
             ]),
             Section([
-                command(.pageModeToggle, .init("切换单页与双页", bundle: .main), "view", keys: [KeyChord("d")]),
-                command(.readingDirectionToggle, .init("切换阅读方向", bundle: .main), "view", keys: [KeyChord("r")]),
+                command(.pageModeToggle, .init("切换单页与双页", bundle: .main), "view", keys: [KeyChord("d")], symbol: "book.closed"),
+                command(.readingDirectionToggle, .init("切换阅读方向", bundle: .main), "view", keys: [KeyChord("r")], symbol: "arrow.left.arrow.right"),
                 command(.firstPageSingleToggle, .init("首页单页", bundle: .main), "view"),
             ]),
             Section("宽页处理", [
@@ -229,52 +244,55 @@ public enum CoreCommands {
                 command(.widePageSplit, .init("宽页拆分", bundle: .main), "view"),
             ]),
             Section("缩放", [
-                command(.zoomFitWindow, .init("适合窗口", bundle: .main), "zoom", keys: [KeyChord("0")]),
+                command(.zoomFitWindow, .init("适合窗口", bundle: .main), "zoom", keys: [KeyChord("0")], symbol: "viewfinder"),
                 command(.zoomFitWidth, .init("适合宽度", bundle: .main), "zoom", keys: [KeyChord("2")]),
                 command(.zoomFitHeight, .init("适合高度", bundle: .main), "zoom", keys: [KeyChord("3")]),
                 command(.zoomFill, .init("填满裁切", bundle: .main), "zoom", keys: [KeyChord("4")]),
-                command(.zoomOriginal, .init("实际像素", bundle: .main), "zoom", keys: [KeyChord("1")]),
+                command(.zoomOriginal, .init("实际像素", bundle: .main), "zoom", keys: [KeyChord("1")], symbol: "1.magnifyingglass"),
                 command(.zoomDevicePixel, .init("设备像素 1:1", bundle: .main), "zoom",
                         keys: [KeyChord("1", modifiers: [.option, .shift])]),
                 command(.zoomFixed, .init("固定百分比…", bundle: .main), "zoom"),
-                command(.zoomIn, .init("放大", bundle: .main), "zoom", keys: [KeyChord("=", modifiers: .command)]),
-                command(.zoomOut, .init("缩小", bundle: .main), "zoom", keys: [KeyChord("-", modifiers: .command)]),
+                command(.zoomIn, .init("放大", bundle: .main), "zoom", keys: [KeyChord("=", modifiers: .command)], symbol: "plus.magnifyingglass"),
+                command(.zoomOut, .init("缩小", bundle: .main), "zoom", keys: [KeyChord("-", modifiers: .command)], symbol: "minus.magnifyingglass"),
                 command(.zoomAllowUpscaleToggle, .init("允许放大小图", bundle: .main), "zoom"),
-                command(.magnifierToggle, .init("放大镜", bundle: .main), "zoom", keys: [KeyChord("z")]),
+                command(.magnifierToggle, .init("放大镜", bundle: .main), "zoom", keys: [KeyChord("z")], symbol: "magnifyingglass.circle"),
                 command(.keepZoomOnPageTurnToggle, .init("翻页保持缩放与位置", bundle: .main), "zoom"),
             ]),
             Section([
-                command(.effectsToggle, .init("效果开关", bundle: .main), "view", keys: [KeyChord("e")]),
+                command(.effectsToggle, .init("效果开关", bundle: .main), "view", keys: [KeyChord("e")], symbol: "wand.and.stars"),
                 displayProfileApplyCommand,
             ]),
         ]),
         Group(title: "翻页", sections: [
             Section([
-                command(.frameNext, .init("下一帧", bundle: .main), "page", keys: [KeyChord("Right"), KeyChord("Space")]),
+                command(.frameNext, .init("下一帧", bundle: .main), "page", keys: [KeyChord("Right"), KeyChord("Space")], symbol: "arrow.right"),
                 command(.framePrevious, .init("上一帧", bundle: .main), "page",
-                        keys: [KeyChord("Left"), KeyChord("Space", modifiers: .shift)]),
-                command(.pageNext, .init("下一页", bundle: .main), "page", keys: [KeyChord("Right", modifiers: .option)]),
-                command(.pagePrevious, .init("上一页", bundle: .main), "page", keys: [KeyChord("Left", modifiers: .option)]),
+                        keys: [KeyChord("Left"), KeyChord("Space", modifiers: .shift)], symbol: "arrow.left"),
+                command(.frameLeft, .init("左侧一帧", bundle: .main), "page", symbol: "chevron.backward"),
+                command(.frameRight, .init("右侧一帧", bundle: .main), "page", symbol: "chevron.forward"),
+                command(.pageNext, .init("下一页", bundle: .main), "page", keys: [KeyChord("Right", modifiers: .option)], symbol: "arrow.right.to.line"),
+                command(.pagePrevious, .init("上一页", bundle: .main), "page", keys: [KeyChord("Left", modifiers: .option)], symbol: "arrow.left.to.line"),
             ]),
             Section([
                 command(.pageFirst, .init("首页", bundle: .main), "page",
                         keys: [KeyChord("Home"), KeyChord("Left", modifiers: .command)],
-                        sequences: [[KeyChord("g"), KeyChord("g")]]),
+                        sequences: [[KeyChord("g"), KeyChord("g")]], symbol: "backward.end"),
                 command(.pageLast, .init("末页", bundle: .main), "page",
                         keys: [KeyChord("End"), KeyChord("Right", modifiers: .command)],
-                        sequences: [[KeyChord("g"), KeyChord("e")]]),
+                        sequences: [[KeyChord("g"), KeyChord("e")]], symbol: "forward.end"),
                 command(.pageJump, .init("跳到指定页…", bundle: .main), "page", keys: [KeyChord("g", modifiers: .command)]),
             ]),
         ]),
         Group(title: "书", sections: [
             Section([
-                commandMany(.bookmarkAdd, .init("加入书签", bundle: .main), "book", key: KeyChord("d", modifiers: .command), scopes: [.viewer, .list]),
-                commandMany(.playlistAddCurrent, .init("加入播放列表…", bundle: .main), "book", key: KeyChord("l", modifiers: .command), scopes: [.viewer, .list]),
+                commandMany(.bookmarkAdd, .init("加入书签", bundle: .main), "book", key: KeyChord("d", modifiers: .command), scopes: [.viewer, .list], symbol: "bookmark"),
+                commandMany(.playlistAddCurrent, .init("加入播放列表…", bundle: .main), "book", key: KeyChord("l", modifiers: .command), scopes: [.viewer, .list], symbol: "text.badge.plus"),
                 command(.playlistRemoveItem, .init("从播放列表移除", bundle: .main), "book"),
+                command(.playlistOpenContainingBook, .init("打开所在的书", bundle: .main), "book"),
             ]),
             Section([
-                command(.bookNext, .init("下一本书", bundle: .main), "book", keys: [KeyChord("Down", modifiers: .option)]),
-                command(.bookPrevious, .init("上一本书", bundle: .main), "book", keys: [KeyChord("Up", modifiers: .option)]),
+                command(.bookNext, .init("下一本书", bundle: .main), "book", keys: [KeyChord("Down", modifiers: .option)], symbol: "chevron.right"),
+                command(.bookPrevious, .init("上一本书", bundle: .main), "book", keys: [KeyChord("Up", modifiers: .option)], symbol: "chevron.left"),
                 command(.bookReveal, .init("在书架中显示当前书", bundle: .main), "book", scope: .global,
                         keys: [KeyChord("j", modifiers: [.command, .shift])]),
             ]),
@@ -298,34 +316,38 @@ public enum CoreCommands {
                 command(.recursionToggle, .init("递归展开子文件夹", bundle: .main), "sort",
                         keys: [KeyChord("r", modifiers: [.command, .shift])]),
                 command(.searchFocus, .init("搜索", bundle: .main), "search", scope: .global,
-                        keys: [KeyChord("f", modifiers: .command)]),
+                        keys: [KeyChord("f", modifiers: .command)], symbol: "magnifyingglass"),
                 command(.searchIndexFolder, .init("建立索引", bundle: .main), "search"),
             ]),
         ]),
         Group(title: "窗口", sections: [
             Section([
                 command(.fullScreenToggle, .init("切换全屏幕", bundle: .main), "window", scope: .global,
-                        keys: [KeyChord("f", modifiers: [.control, .command])]),
+                        keys: [KeyChord("f", modifiers: [.control, .command])], symbol: "arrow.up.left.and.arrow.down.right"),
             ]),
             Section([
                 command(.bookshelfToggle, .init("显示或隐藏书架", bundle: .main), "window", scope: .global,
-                        keys: [KeyChord("1", modifiers: [.command, .option])]),
+                        keys: [KeyChord("1", modifiers: [.command, .option])], symbol: "books.vertical"),
                 command(.pageListToggle, .init("显示或隐藏页面列表", bundle: .main), "window", scope: .global,
-                        keys: [KeyChord("2", modifiers: [.command, .option])]),
+                        keys: [KeyChord("2", modifiers: [.command, .option])], symbol: "list.bullet.rectangle"),
                 command(.classifyPanelToggle, .init("显示或隐藏分类面板", bundle: .main), "window", scope: .global,
-                        keys: [KeyChord("3", modifiers: [.command, .option])]),
+                        keys: [KeyChord("3", modifiers: [.command, .option])], symbol: "folder.badge.plus"),
                 command(.historyToggle, .init("显示或隐藏历史", bundle: .main), "window", scope: .global,
-                        keys: [KeyChord("4", modifiers: [.command, .option])]),
+                        keys: [KeyChord("4", modifiers: [.command, .option])], symbol: "clock"),
                 command(.bookmarksToggle, .init("显示或隐藏书签", bundle: .main), "window", scope: .global,
-                        keys: [KeyChord("5", modifiers: [.command, .option])]),
+                        keys: [KeyChord("5", modifiers: [.command, .option])], symbol: "bookmark.fill"),
                 command(.playlistToggle, .init("显示或隐藏播放列表", bundle: .main), "window", scope: .global,
-                        keys: [KeyChord("6", modifiers: [.command, .option])]),
+                        keys: [KeyChord("6", modifiers: [.command, .option])], symbol: "list.star"),
                 command(.infoPanelToggle, .init("显示或隐藏信息面板", bundle: .main), "window", scope: .global,
-                        keys: [KeyChord("i", modifiers: [.command, .option])]),
+                        keys: [KeyChord("i", modifiers: [.command, .option])], symbol: "info.circle"),
                 command(.effectsPanelToggle, .init("效果面板", bundle: .main), "window", scope: .global,
-                        keys: [KeyChord("e", modifiers: [.command, .option])]),
-                command(.docksToggle, .init("显示或隐藏停靠区", bundle: .main), "window", keys: [KeyChord("Tab")]),
+                        keys: [KeyChord("e", modifiers: [.command, .option])], symbol: "slider.horizontal.3"),
+                command(.docksToggle, .init("显示或隐藏停靠区", bundle: .main), "window", keys: [KeyChord("Tab")], symbol: "sidebar.squares.left"),
             ]),
+            Section([
+                command(.layoutSchemeSave, .init("保存为布局方案…", bundle: .main), "window", scope: .global),
+                command(.layoutSchemeApply, .init("套用布局方案", bundle: .main), "window", scope: .global),
+            ], trailingNodes: [.dynamic(.layoutSchemes)]),
         ]),
     ]
 }

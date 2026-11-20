@@ -60,7 +60,7 @@ private func menuCommands(_ nodes: [MenuNode]) -> [CommandID] {
         return switch node {
         case let .command(command): [command]
         case let .submenu(_, children): menuCommands(children)
-        case .separator: []
+        case .dynamic, .separator: []
         }
     }
 }

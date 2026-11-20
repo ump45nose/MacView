@@ -42,6 +42,7 @@ public struct CoreConfiguration: Sendable {
     public let search: SearchCatalog?
     public let indexer: FolderIndexer?
     public let keyBindings: JSONDocumentStore<KeyBindingsFile>?
+    public let menus: JSONDocumentStore<MenuFile>?
     let loader: any BookLoader
     let runtime: Runtime?
     private var sessions: [WeakSession] = []
@@ -71,15 +72,16 @@ public struct CoreConfiguration: Sendable {
         library: (any LibraryStore)? = nil, search: SearchCatalog? = nil, indexer: FolderIndexer? = nil
     ) {
         self.init(sources: sources, pipeline: pipeline, settings: settings, commands: commands,
-                  bookshelf: bookshelf, loader: loader, keyBindings: nil, fileOperations: nil,
+                  bookshelf: bookshelf, loader: loader, keyBindings: nil, menus: nil, fileOperations: nil,
                   library: library, availability: nil, search: search, indexer: indexer, runtime: nil)
     }
 
     private init(
         sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore,
         commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader,
-        keyBindings: JSONDocumentStore<KeyBindingsFile>?, fileOperations: FileOperationService?,
-        library: (any LibraryStore)?, availability: AvailabilityChecker?, search: SearchCatalog?,
+        keyBindings: JSONDocumentStore<KeyBindingsFile>?, menus: JSONDocumentStore<MenuFile>?,
+        fileOperations: FileOperationService?, library: (any LibraryStore)?,
+        availability: AvailabilityChecker?, search: SearchCatalog?,
         indexer: FolderIndexer?, runtime: Runtime?
     ) {
         self.sources = sources
@@ -89,6 +91,7 @@ public struct CoreConfiguration: Sendable {
         self.bookshelf = bookshelf
         self.loader = loader
         self.keyBindings = keyBindings
+        self.menus = menus
         self.fileOperations = fileOperations
         self.library = library
         self.availability = availability
@@ -130,7 +133,9 @@ public struct CoreConfiguration: Sendable {
         let pipeline = FileImagePipeline(sources: sources, decoder: ImageDecoder(), caches: caches,
                                          configuration: PipelineConfiguration(browseBounds: configuration.browseBounds, maxDecodeLongSide: global.maxDecodeLongSide))
         let keyBindings = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "keybindings.json"),
-                                               version: 1, defaultValue: KeyBindingsFile())
+                                               version: 2, defaultValue: KeyBindingsFile())
+        let menus = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "menus.json"),
+                                         version: 1, defaultValue: MenuFile())
         let journal = configuration.supportDirectory.appending(path: "transfers.json")
         let fileOperations = try factory?(sources.fileSystem, journal) ?? FileOperationService(fileSystem: sources.fileSystem, journalURL: journal)
         let library = try SQLiteLibraryStore(databaseURL: configuration.supportDirectory.appending(path: "library.sqlite"), historyLimit: global.historyLimit)
@@ -141,7 +146,7 @@ public struct CoreConfiguration: Sendable {
         let indexer = FolderIndexer(sources: sources, directories: directories, metadata: caches.metadata)
         let services = CoreServices(sources: sources, pipeline: pipeline, settings: settings, commands: CommandRegistry(),
                                     bookshelf: FileBookshelf(sources: sources, directories: directories),
-                                    loader: loader, keyBindings: keyBindings, fileOperations: fileOperations,
+                                    loader: loader, keyBindings: keyBindings, menus: menus, fileOperations: fileOperations,
                                     library: library, availability: AvailabilityChecker(sources: sources, directories: directories, store: library),
                                     search: search, indexer: indexer,
                                     runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches))

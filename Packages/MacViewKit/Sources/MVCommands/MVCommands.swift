@@ -70,12 +70,20 @@ public struct CommandDescriptor: Sendable {
     public var title: LocalizedStringResource
     public var category: String
     public var defaultBindings: [KeyBinding]
+    public var symbol: String?
 
-    public init(id: CommandID, title: LocalizedStringResource, category: String, defaultBindings: [KeyBinding] = []) {
+    public init(
+        id: CommandID,
+        title: LocalizedStringResource,
+        category: String,
+        defaultBindings: [KeyBinding] = [],
+        symbol: String? = nil
+    ) {
         self.id = id
         self.title = title
         self.category = category
         self.defaultBindings = defaultBindings
+        self.symbol = symbol
     }
 }
 
@@ -142,6 +150,7 @@ public enum CommandError: Error, Sendable, Equatable {
 public indirect enum MenuNode: Codable, Sendable, Hashable {
     case command(CommandID)
     case submenu(titleKey: String, children: [MenuNode])
+    case dynamic(DynamicMenuID)
     case separator
 }
 

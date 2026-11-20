@@ -459,10 +459,10 @@ import Testing
         await fixture.shutdown(services)
     }
 
-    @Test("Mock 保留原构造入口，没有 keybindings 存储，组合根只弱持有会话")
+    @Test("Mock 保留原构造入口，没有 keybindings 与 menus 存储，组合根只弱持有会话")
     func mockAndWeakSessions() async throws {
         let services = CoreServices.makeMock(MockOptions(timing: .instant))
-        #expect(services.keyBindings == nil && services.fileOperations == nil)
+        #expect(services.keyBindings == nil && services.menus == nil && services.fileOperations == nil)
         #expect(await services.interruptedTransfersReport() == nil)
         var received = 0
         for await _ in services.appliedFileChanges() { received += 1 }
@@ -472,6 +472,62 @@ import Testing
         session = nil
         #expect(weakSession == nil)
         await services.shutdown()
+    }
+
+    @Test("C1.3 menus.json 存储初始化、读写往返与变更通知，以及 keybindings.json v1→v2 兼容读取")
+    func menusStoreAndKeyBindingsV1Compatibility() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        try FileManager.default.createDirectory(at: fixture.configuration.supportDirectory, withIntermediateDirectories: true)
+
+        // 先写入 v1 格式的 keybindings.json（只含 bindings）。
+        let v1Binding = KeyBinding(sequence: [KeyChord("k")], command: .pageNext, scope: .viewer)
+        let v1JSON: [String: Any] = [
+            "version": 1,
+            "value": [
+                "bindings": try JSONSerialization.jsonObject(with: JSONEncoder().encode([v1Binding])),
+            ],
+        ]
+        let keyBindingsURL = fixture.configuration.supportDirectory.appending(path: "keybindings.json")
+        try JSONSerialization.data(withJSONObject: v1JSON, options: [.sortedKeys]).write(to: keyBindingsURL, options: .atomic)
+
+        let services = try await fixture.make()
+        let keyBindings = try #require(services.keyBindings)
+        let menus = try #require(services.menus)
+
+        // v1 keybindings 无迁移读入，新字段保持 nil。
+        let loadedKB = keyBindings.value()
+        #expect(loadedKB.bindings == [v1Binding])
+        #expect(loadedKB.mouseGestures == nil && loadedKB.trackpad == nil && loadedKB.clickZones == nil && loadedKB.wheel == nil)
+
+        // 更新后写出 v2 文档。
+        let gesture = MouseGestureBinding(directions: [.down, .right], command: .bookNext)
+        try await keyBindings.update { $0.mouseGestures = [gesture] }
+        let kbObject = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: keyBindingsURL)) as? [String: Any])
+        #expect(kbObject["version"] as? Int == 2)
+
+        // menus.json 初始为默认 MenuFile()，更新后发出变更并持久化为 v1。
+        #expect(menus.value() == MenuFile())
+        var changes = menus.changes().makeAsyncIterator()
+        let customToolbar: [ToolbarItemID] = [.dockLeft, .bookTitle, .flexibleSpace, ToolbarItemID(command: .effectsToggle)]
+        let customContext: [MenuNode] = [.command(.fileCopy), .dynamic(.openWith), .separator, .command(.fileDelete)]
+        try await menus.update {
+            $0.toolbar = customToolbar
+            $0.viewerContextMenu = customContext
+        }
+        #expect(await changes.next() == .reloaded)
+        let menusURL = fixture.configuration.supportDirectory.appending(path: "menus.json")
+        let menusObject = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: menusURL)) as? [String: Any])
+        #expect(menusObject["version"] as? Int == 1)
+
+        await fixture.shutdown(services)
+
+        // 重启后 menus.json 与 keybindings.json v2 均完整读回。
+        let reopened = try await fixture.make()
+        #expect(reopened.menus?.value() == MenuFile(mainMenu: nil, viewerContextMenu: customContext, toolbar: customToolbar))
+        #expect(reopened.keyBindings?.value().bindings == [v1Binding])
+        #expect(reopened.keyBindings?.value().mouseGestures == [gesture])
+        await fixture.shutdown(reopened)
     }
 
     @Test("C1.14 历史接线及文件广播前已完成资料库迁移，删除撤销保留条目")
