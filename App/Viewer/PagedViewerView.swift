@@ -32,6 +32,9 @@ final class PagedViewerView: NSView {
     private var retireTimer: Timer?
     private static let retireDelay = 0.12
     private let shadowLayer = CALayer()
+    /// 效果容器：页槽、分块、动图和视频都在里面，统一挂一份 Core Image 滤镜；导航图、错误、占位与放大镜留在容器外。
+    let contentContainer: NSView = EffectContainerView()
+    private var appliedEffects: EffectChain = .empty
     private var errorViews: [ObjectIdentifier: ItemErrorView] = [:]
     /// 虚拟书里不可用或取图失败的页盖上占位页。
     private var placeholders: [ObjectIdentifier: UnavailablePageView] = [:]
@@ -71,12 +74,16 @@ final class PagedViewerView: NSView {
         self.sources = sources
         super.init(frame: .zero)
         wantsLayer = true
+        layerUsesCoreImageFilters = true
         layerContentsRedrawPolicy = .never
         shadowLayer.shadowColor = NSColor.black.cgColor
         shadowLayer.shadowOpacity = 0.25
         shadowLayer.shadowRadius = 15
         shadowLayer.shadowOffset = CGSize(width: 0, height: -6)
         layer?.addSublayer(shadowLayer)
+        contentContainer.frame = bounds
+        contentContainer.autoresizingMask = [.width, .height]
+        addSubview(contentContainer)
         navigator.isHidden = true
         navigator.onPan = { [weak self] fraction in self?.pan(toFraction: fraction) }
         addSubview(navigator)
@@ -178,7 +185,7 @@ final class PagedViewerView: NSView {
             let slot = PageSlot(element: element, page: pages[element.page], pipeline: pipeline)
             slot.onChange = { [weak self] in self?.slotChanged() }
             if !hadImages { slot.showPlaceholder() }
-            layer?.insertSublayer(slot.root, below: navigator.layer)
+            contentContainer.layer?.addSublayer(slot.root)
             return slot
         }
         retireTimer?.invalidate()
@@ -278,7 +285,7 @@ final class PagedViewerView: NSView {
             let rect = CGRect(x: x / scale, y: y / scale, width: pageWidth / scale, height: pageHeight / scale)
             slot.root.frame = rect
             slot.imageLayer.frame = CGRect(origin: .zero, size: rect.size)
-            slot.tiled?.layout(in: slot.root.bounds, visible: slot.root.convert(bounds, from: layer), scale: scale)
+            slot.tiled?.layout(in: slot.root.bounds, visible: slot.root.convert(bounds, from: contentContainer.layer), scale: scale)
             errorViews[ObjectIdentifier(slot)]?.frame = rect.intersection(bounds).isEmpty ? rect : rect.intersection(bounds)
             placeholders[ObjectIdentifier(slot)]?.frame = Self.placeholderFrame(rect)
             if slot.isVideo { video?.frame = rect }
@@ -389,7 +396,7 @@ final class PagedViewerView: NSView {
             let view = VideoPageView(identity: slot.identity, sources: sources)
             view.onFailure = { [weak slot] error in slot?.fail(error) }
             view.frame = slot.root.frame
-            addSubview(view, positioned: .below, relativeTo: navigator)
+            contentContainer.addSubview(view)
             video = view
             view.start()
         }
@@ -710,6 +717,22 @@ final class PagedViewerView: NSView {
         return Int((Double(page.pixelSize.width) / Double(max(sourceWidth, 1)) / backing * 100).rounded())
     }
 
+    /// 挂在内容容器和放大镜上的滤镜：只在链变化时替换，不重建图层。
+    func setEffects(_ chain: EffectChain) {
+        guard chain != appliedEffects else { return }
+        appliedEffects = chain
+        let mainFilters = EffectFilters.filters(for: chain)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        contentContainer.layer?.filters = mainFilters.isEmpty ? nil : mainFilters
+        CATransaction.commit()
+        magnifier.setFilters(EffectFilters.filters(for: chain))
+    }
+
+    var effectFilterCount: Int {
+        contentContainer.layer?.filters?.count ?? 0
+    }
+
     /// 窗口关闭时取消全部请求。
     func cancelLoads() {
         slots.forEach { $0.cancel() }
@@ -863,4 +886,22 @@ final class UnavailablePageView: NSView {
     @objc private func removePressed() {
         onRemove?()
     }
+}
+
+/// 分页视图的内容容器：翻转坐标、启用 Core Image 滤镜，不挡鼠标命中。
+@MainActor
+private final class EffectContainerView: NSView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layerUsesCoreImageFilters = true
+        layerContentsRedrawPolicy = .never
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var isFlipped: Bool { true }
 }

@@ -33,6 +33,9 @@ final class ViewerContainerView: NSView, InputScoped {
     private var isEmptyState = true {
         didSet { needsDisplay = true }
     }
+    /// 当前窗口是否启用实时调色；由 `ReaderWindowController` 驱动。
+    private(set) var effectsEnabled = true
+    private var appliedEffects: EffectChain = .empty
 
     var inputScope: InputScope { .viewer }
 
@@ -152,6 +155,7 @@ final class ViewerContainerView: NSView, InputScoped {
         updateMessage()
         updateSourcePill()
         checkAvailability()
+        applyEffectsIfNeeded()
         if session.settings.browseMode == .paged {
             continuous.isHidden = true
             continuous.leave()
@@ -167,6 +171,24 @@ final class ViewerContainerView: NSView, InputScoped {
         }
         hud.refresh()
         hud.updateZoom(percent: paged.displayPercent)
+    }
+
+    func setEffectsEnabled(_ enabled: Bool) {
+        guard effectsEnabled != enabled else { return }
+        effectsEnabled = enabled
+        applyEffectsIfNeeded()
+    }
+
+    var effectFilterCount: Int {
+        session.settings.browseMode == .paged ? paged.effectFilterCount : continuous.canvas.effectFilterCount
+    }
+
+    private func applyEffectsIfNeeded() {
+        let chain = effectsEnabled ? session.settings.effects : .empty
+        guard chain != appliedEffects else { return }
+        appliedEffects = chain
+        paged.setEffects(chain)
+        continuous.setEffects(chain)
     }
 
     /// 窗口关闭时取消全部请求。

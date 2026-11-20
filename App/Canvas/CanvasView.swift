@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 import MVFoundation
 import MVIO
 import MVLayout
@@ -160,6 +161,7 @@ final class CanvasView: NSScrollView {
             guard let index = tileIndex[identity], let tile = tiles[index] else { return false }
             tile.layer.contentsGravity = contentGravity
             tile.layer.contents = image.contents
+            tile.layer.backgroundColor = nil
             #if DEBUG
             onImageApplied?()
             #endif
@@ -172,6 +174,7 @@ final class CanvasView: NSScrollView {
 
         content.canvas = self
         drawsBackground = false
+        contentView.drawsBackground = false
         autohidesScrollers = true
         allowsMagnification = false
         documentView = content
@@ -463,9 +466,11 @@ final class CanvasView: NSScrollView {
             showError(on: layer)
         case .idle, .loading, .loaded:
             layer.contentsGravity = contentGravity
-            layer.contents = loader.cached(identity)?.contents
+            let cached = loader.cached(identity)?.contents
+            layer.contents = cached
+            layer.backgroundColor = cached == nil ? NSColor.quaternaryLabelColor.cgColor : nil
             #if DEBUG
-            if layer.contents != nil { onImageApplied?() }
+            if cached != nil { onImageApplied?() }
             #endif
         }
         setOverlays(items[index], on: layer)
@@ -482,6 +487,7 @@ final class CanvasView: NSScrollView {
             tileIndex[tile.identity] = nil
             tile.layer.isHidden = true
             tile.layer.contents = nil
+            tile.layer.backgroundColor = NSColor.quaternaryLabelColor.cgColor
             tile.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
             spare.append(tile.layer)
             loader.cancel(tile.identity)
@@ -563,6 +569,22 @@ final class CanvasView: NSScrollView {
     private func showError(on layer: CALayer) {
         layer.contentsGravity = .center
         layer.contents = Self.errorImage
+        layer.backgroundColor = NSColor.quaternaryLabelColor.cgColor
+    }
+
+    /// 主视图画布用于挂 Core Image 滤镜；面板里的画布不调用，挂点保持为空。
+    func setEffectFilters(_ filters: [CIFilter]) {
+        contentView.wantsLayer = true
+        contentView.layerUsesCoreImageFilters = true
+        contentView.drawsBackground = false
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        contentView.layer?.filters = filters.isEmpty ? nil : filters
+        CATransaction.commit()
+    }
+
+    var effectFilterCount: Int {
+        contentView.layer?.filters?.count ?? 0
     }
 
     #if DEBUG
