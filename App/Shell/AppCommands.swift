@@ -236,6 +236,11 @@ extension AppDelegate {
         return fileOps.deleteTitle(for: activeFileOrigin())
     }
 
+    func menuState(for id: CommandID) -> NSControl.StateValue? {
+        guard id == .effectsToggle, let controller = mainController ?? controllers.first else { return nil }
+        return controller.effectsEnabled ? .on : .off
+    }
+
     func updateSubmenu(key: String, menu: NSMenu) -> Bool {
         guard let fileOps else { menu.removeAllItems(); return false }
         let origin = activeFileOrigin()
