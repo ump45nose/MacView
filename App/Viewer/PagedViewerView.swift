@@ -75,7 +75,6 @@ final class PagedViewerView: NSView, NSDraggingSource {
         self.sources = sources
         super.init(frame: .zero)
         wantsLayer = true
-        layerUsesCoreImageFilters = true
         layerContentsRedrawPolicy = .never
         shadowLayer.shadowColor = NSColor.black.cgColor
         shadowLayer.shadowOpacity = 0.25
@@ -761,9 +760,12 @@ final class PagedViewerView: NSView, NSDraggingSource {
         guard chain != appliedEffects else { return }
         appliedEffects = chain
         let mainFilters = EffectFilters.filters(for: chain)
+        let active = !mainFilters.isEmpty
+        layerUsesCoreImageFilters = active
+        contentContainer.layerUsesCoreImageFilters = active
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        contentContainer.layer?.filters = mainFilters.isEmpty ? nil : mainFilters
+        contentContainer.layer?.filters = active ? mainFilters : nil
         CATransaction.commit()
         magnifier.setFilters(EffectFilters.filters(for: chain))
     }
@@ -933,7 +935,6 @@ private final class EffectContainerView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        layerUsesCoreImageFilters = true
         layerContentsRedrawPolicy = .never
     }
 

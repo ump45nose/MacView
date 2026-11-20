@@ -574,12 +574,13 @@ final class CanvasView: NSScrollView {
 
     /// 主视图画布用于挂 Core Image 滤镜；面板里的画布不调用，挂点保持为空。
     func setEffectFilters(_ filters: [CIFilter]) {
+        let active = !filters.isEmpty
         contentView.wantsLayer = true
-        contentView.layerUsesCoreImageFilters = true
+        contentView.layerUsesCoreImageFilters = active
         contentView.drawsBackground = false
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        contentView.layer?.filters = filters.isEmpty ? nil : filters
+        contentView.layer?.filters = active ? filters : nil
         CATransaction.commit()
     }
 
