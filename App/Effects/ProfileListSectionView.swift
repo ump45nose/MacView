@@ -159,7 +159,9 @@ final class ProfileListSectionView: NSView, NSTableViewDataSource, NSTableViewDe
         hint.textColor = Theme.text2
         hint.lineBreakMode = .byTruncatingTail
 
-        let header = NSStackView(views: [title, hint])
+        let headerSpacer = NSView()
+        headerSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let header = NSStackView(views: [title, hint, headerSpacer])
         header.orientation = .horizontal
         header.alignment = .firstBaseline
         header.spacing = 6
@@ -169,6 +171,7 @@ final class ProfileListSectionView: NSView, NSTableViewDataSource, NSTableViewDe
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("profile"))
         column.resizingMask = .autoresizingMask
         tableView.addTableColumn(column)
+        tableView.style = .plain
         tableView.headerView = nil
         tableView.rowHeight = Self.rowHeight
         tableView.intercellSpacing = .zero

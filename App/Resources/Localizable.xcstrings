@@ -253,6 +253,26 @@
         }
       }
     },
+    "%@（上一层，含其他书）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (Parent folder, includes other books)"
+          }
+        }
+      }
+    },
+    "%@（这本书）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (This book)"
+          }
+        }
+      }
+    },
     "%@（默认）": {
       "localizations": {
         "en": {
@@ -521,6 +541,16 @@
         }
       }
     },
+    "-效果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "-adjusted"
+          }
+        }
+      }
+    },
     "1 星": {
       "localizations": {
         "en": {
@@ -721,6 +751,16 @@
         }
       }
     },
+    "、": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ", "
+          }
+        }
+      }
+    },
     "。已改动，下次启动时生效": {
       "localizations": {
         "en": {
@@ -893,6 +933,16 @@
         }
       }
     },
+    "不放大": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Upscale"
+          }
+        }
+      }
+    },
     "不能把文件夹移进它自己或子文件夹": {
       "localizations": {
         "en": {
@@ -939,6 +989,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Neither option overwrites existing files in the destination. Skipped items are noted in the result."
+          }
+        }
+      }
+    },
+    "临时关闭/打开效果，滑块值保留": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temporarily disable/enable effects without losing slider values"
           }
         }
       }
@@ -1035,6 +1095,16 @@
         }
       }
     },
+    "亮度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Brightness"
+          }
+        }
+      }
+    },
     "仅缩小": {
       "localizations": {
         "en": {
@@ -1125,12 +1195,32 @@
         }
       }
     },
+    "伽马": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gamma"
+          }
+        }
+      }
+    },
     "位置": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Location"
+          }
+        }
+      }
+    },
+    "位置在这个路径下的书按“%@”的值显示；书里单独改过的值仍优先。已有同一路径的规则时，并入那条规则。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Books under this path use “%@”; per-book settings still take priority. If a rule already exists for this path, it will be merged."
           }
         }
       }
@@ -1235,6 +1325,16 @@
         }
       }
     },
+    "允许放大": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Upscale"
+          }
+        }
+      }
+    },
     "允许放大小图": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -1293,6 +1393,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "All"
+          }
+        }
+      }
+    },
+    "全部复位": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset All"
           }
         }
       }
@@ -1363,6 +1473,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "When off, each subfolder is the next book"
+          }
+        }
+      }
+    },
+    "关（显示原图）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off (Original)"
           }
         }
       }
@@ -1545,6 +1665,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete"
+          }
+        }
+      }
+    },
+    "删除“%@”？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete “%@”?"
           }
         }
       }
@@ -1801,6 +1931,16 @@
         }
       }
     },
+    "原值": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        }
+      }
+    },
     "原名：%@": {
       "localizations": {
         "en": {
@@ -1857,6 +1997,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "As Is"
+          }
+        }
+      }
+    },
+    "双击滑块复位单项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double-click slider to reset"
           }
         }
       }
@@ -2261,6 +2411,56 @@
         }
       }
     },
+    "套用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply"
+          }
+        }
+      }
+    },
+    "套用到全局默认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply to Global Default"
+          }
+        }
+      }
+    },
+    "套用到当前书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply to Current Book"
+          }
+        }
+      }
+    },
+    "套用显示配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply Display Profile"
+          }
+        }
+      }
+    },
+    "套用默认写入当前书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies to current book"
+          }
+        }
+      }
+    },
     "好": {
       "localizations": {
         "en": {
@@ -2277,6 +2477,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Subfolders"
+          }
+        }
+      }
+    },
+    "存为显示配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Display Profile"
+          }
+        }
+      }
+    },
+    "存为规则": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Rule"
+          }
+        }
+      }
+    },
+    "存为路径规则": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save as Path Rule"
+          }
+        }
+      }
+    },
+    "存为路径规则…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save as Path Rule…"
+          }
+        }
+      }
+    },
+    "存为配置…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Profile…"
           }
         }
       }
@@ -2391,6 +2641,16 @@
         }
       }
     },
+    "对比度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrast"
+          }
+        }
+      }
+    },
     "封面单独占一帧": {
       "localizations": {
         "en": {
@@ -2477,6 +2737,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Removed %2$lld items from “%1$@”; original files kept"
+          }
+        }
+      }
+    },
+    "已保存“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved “%@”"
           }
         }
       }
@@ -2591,6 +2861,16 @@
         }
       }
     },
+    "已套用到各本书的设置不受影响。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings already applied to books will not be affected."
+          }
+        }
+      }
+    },
     "已完成“%@”的索引": {
       "localizations": {
         "en": {
@@ -2623,6 +2903,36 @@
         }
       }
     },
+    "已把“%@”套用到全局默认（%@）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applied “%1$@” to global default (%2$@)"
+          }
+        }
+      }
+    },
+    "已把“%@”套用到当前书（%@）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applied “%1$@” to current book (%2$@)"
+          }
+        }
+      }
+    },
+    "已把“%@”存为路径规则（%@）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved “%1$@” as path rule (%2$@)"
+          }
+        }
+      }
+    },
     "已撤销%@": {
       "localizations": {
         "en": {
@@ -2639,6 +2949,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Using the default settings."
+          }
+        }
+      }
+    },
+    "已有同名配置，保存会覆盖它。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A profile with this name already exists and will be overwritten."
+          }
+        }
+      }
+    },
+    "已用当前值更新“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated “%@” with current values"
           }
         }
       }
@@ -2955,6 +3285,16 @@
         }
       }
     },
+    "把现在的浏览方式、缩放、效果和背景存成一个配置，以后一键或按 ⌃1 套用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save the current layout, zoom, effects, and background as a profile to apply in one click or with ⌃1."
+          }
+        }
+      }
+    },
     "拆分": {
       "localizations": {
         "en": {
@@ -2991,6 +3331,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Captured"
+          }
+        }
+      }
+    },
+    "拖动排序": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag to reorder"
           }
         }
       }
@@ -3301,6 +3651,56 @@
         }
       }
     },
+    "效果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effects"
+          }
+        }
+      }
+    },
+    "效果已关闭，显示原图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effects disabled, showing original"
+          }
+        }
+      }
+    },
+    "效果已打开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effects enabled"
+          }
+        }
+      }
+    },
+    "效果开关": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toggle Effects"
+          }
+        }
+      }
+    },
+    "效果面板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effects Panel"
+          }
+        }
+      }
+    },
     "数字按大小，中文按拼音": {
       "localizations": {
         "en": {
@@ -3519,6 +3919,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "New reads are paused while the connection is probed"
+          }
+        }
+      }
+    },
+    "新配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Profile"
           }
         }
       }
@@ -3771,6 +4181,16 @@
         }
       }
     },
+    "显示或隐藏效果面板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide Effects Panel"
+          }
+        }
+      }
+    },
     "显示或隐藏页面列表": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -3803,6 +4223,16 @@
         }
       }
     },
+    "显示配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display Profiles"
+          }
+        }
+      }
+    },
     "暂停": {
       "localizations": {
         "en": {
@@ -3819,6 +4249,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Indexed Tags"
+          }
+        }
+      }
+    },
+    "更多操作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More actions"
           }
         }
       }
@@ -4041,6 +4481,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Format"
+          }
+        }
+      }
+    },
+    "棋盘格": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checker"
           }
         }
       }
@@ -4293,6 +4743,16 @@
         }
       }
     },
+    "没有第 %lld 个显示配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No display profile at slot %lld"
+          }
+        }
+      }
+    },
     "没有覆盖项。这条规则下的书沿用上一层的设置。": {
       "localizations": {
         "en": {
@@ -4381,6 +4841,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Browse Mode"
+          }
+        }
+      }
+    },
+    "浏览方式与页面": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layout & Pages"
           }
         }
       }
@@ -4579,12 +5049,32 @@
         }
       }
     },
+    "灰": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gray"
+          }
+        }
+      }
+    },
     "点击移除“%@”": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Click to remove “%@”"
+          }
+        }
+      }
+    },
+    "点击输入数值": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to enter value"
           }
         }
       }
@@ -4609,6 +5099,16 @@
         }
       }
     },
+    "用当前值更新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update with Current"
+          }
+        }
+      }
+    },
     "用指定应用打开": {
       "localizations": {
         "en": {
@@ -4625,6 +5125,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Canvas Test"
+          }
+        }
+      }
+    },
+    "白": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "White"
           }
         }
       }
@@ -5103,6 +5613,16 @@
         }
       }
     },
+    "缩放与重采样": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom & Resampling"
+          }
+        }
+      }
+    },
     "缩放方式": {
       "localizations": {
         "en": {
@@ -5259,6 +5779,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keep zoom and position on page turn"
+          }
+        }
+      }
+    },
+    "背景": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background"
+          }
+        }
+      }
+    },
+    "自定义": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
+          }
+        }
+      }
+    },
+    "色温": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperature"
+          }
+        }
+      }
+    },
+    "色调": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tint"
           }
         }
       }
@@ -5533,6 +6093,16 @@
         }
       }
     },
+    "调色": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color"
+          }
+        }
+      }
+    },
     "调试": {
       "localizations": {
         "en": {
@@ -5661,6 +6231,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Playlists Yet"
+          }
+        }
+      }
+    },
+    "还没有显示配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Display Profiles"
           }
         }
       }
@@ -6003,6 +6583,16 @@
         }
       }
     },
+    "重命名显示配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename Display Profile"
+          }
+        }
+      }
+    },
     "重试": {
       "localizations": {
         "en": {
@@ -6279,6 +6869,16 @@
         }
       }
     },
+    "饱和度": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saturation"
+          }
+        }
+      }
+    },
     "首页": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -6299,6 +6899,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Single First Page"
+          }
+        }
+      }
+    },
+    "黑": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Black"
+          }
+        }
+      }
+    },
+    "默认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto"
           }
         }
       }
