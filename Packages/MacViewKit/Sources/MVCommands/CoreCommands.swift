@@ -82,6 +82,9 @@ extension CommandID {
     public static let searchFocus = CommandID("search.focus")
     public static let searchIndexFolder = CommandID("search.indexFolder")
     public static let infoPanelToggle = CommandID("panel.info.toggle")
+    public static let displayProfileApply = CommandID("displayProfile.apply")
+    public static let effectsToggle = CommandID("effects.toggle")
+    public static let effectsPanelToggle = CommandID("panel.effects.toggle")
 }
 
 /// P0 的命令元数据与默认菜单。处理器由 MVServices 和 App 注册。
@@ -142,6 +145,20 @@ public enum CoreCommands {
         defaultBindings: (1...10).map { index in
             KeyBinding(sequence: [KeyChord(index == 10 ? "0" : String(index))], command: .classifyTarget,
                        arguments: ["index": .number(Double(index))], scope: .classify)
+        }
+    )
+
+    private static let displayProfileApplyCommand = CommandDescriptor(
+        id: .displayProfileApply, title: .init("套用显示配置", bundle: .main), category: "view",
+        defaultBindings: [InputScope.viewer, .list].flatMap { scope in
+            (1...9).map { slot in
+                KeyBinding(
+                    sequence: [KeyChord(String(slot), modifiers: .control)],
+                    command: .displayProfileApply,
+                    arguments: ["slot": .number(Double(slot))],
+                    scope: scope
+                )
+            }
         }
     )
 
@@ -224,6 +241,10 @@ public enum CoreCommands {
                 command(.magnifierToggle, .init("放大镜", bundle: .main), "zoom", keys: [KeyChord("z")]),
                 command(.keepZoomOnPageTurnToggle, .init("翻页保持缩放与位置", bundle: .main), "zoom"),
             ]),
+            Section([
+                command(.effectsToggle, .init("效果开关", bundle: .main), "view", keys: [KeyChord("e")]),
+                displayProfileApplyCommand,
+            ]),
         ]),
         Group(title: "翻页", sections: [
             Section([
@@ -299,6 +320,8 @@ public enum CoreCommands {
                         keys: [KeyChord("6", modifiers: [.command, .option])]),
                 command(.infoPanelToggle, .init("显示或隐藏信息面板", bundle: .main), "window", scope: .global,
                         keys: [KeyChord("i", modifiers: [.command, .option])]),
+                command(.effectsPanelToggle, .init("效果面板", bundle: .main), "window", scope: .global,
+                        keys: [KeyChord("e", modifiers: [.command, .option])]),
                 command(.docksToggle, .init("显示或隐藏停靠区", bundle: .main), "window", keys: [KeyChord("Tab")]),
             ]),
         ]),

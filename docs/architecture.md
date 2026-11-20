@@ -42,7 +42,7 @@
 | MVMedia | 探测（含 XMP 评分与标签）、显示尺寸解码与重采样、原图与分块、动图帧、视频封面与元数据、渲染件编码 | MVFoundation、MVMetadata |
 | MVCache | 泛型内存缓存 L0/L1、字节磁盘缓存 L2/L3（含改挂）、按容器查询的图像元数据与标签索引、目录缓存与搜索查询（SearchCatalog） | MVFoundation、GRDB.swift |
 | MVPipeline | ImagePipeline：串联各缓存层，一次读取产出多种渲染件，渐进交付，按会话管理预取计划 | MVIO、MVMedia、MVCache |
-| MVSettings | 设置模式、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
+| MVSettings | 设置模式、效果链与背景模型、显示配置、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
 | MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型 | MVFoundation |
 | MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVCache、MVPipeline、MVSettings |
 | MVLibraryData | 历史、书签、播放列表存储与变更；可用性检查；虚拟书加载 | MVFoundation、MVIO、MVCache、MVReading、GRDB.swift |
@@ -54,7 +54,7 @@
 | App（`MacView` target） | 窗口与标签页、停靠面板、集合视图、查看器、输入、菜单、设置界面、本地化 | MVServices 等 |
 
 - 任务 ID 中，T 表示 Core 任务，F 表示 App 任务。
-- P1 的新模块到对应阶段再建：MVEffects、MVScripting、MVPlugins。
+- P1 的新模块到对应阶段再建：MVScripting、MVPlugins（效果链模型放在 MVSettings，S4-T1 决定）。
 - 依赖选型：SQLite 统一用 GRDB.swift（MIT 许可），由第一个用到它的任务引入，MVCache 与 MVSettings 共用。其余依赖由各任务按需选用。
 - 已引入的依赖（版本以 `Packages/MacViewKit/Package.resolved` 为准）：
 
@@ -229,10 +229,10 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - `~/Library/Application Support/MacView/`：
   - JSON 文件：
     - `settings.json`：全局设置与默认书设置。
-    - `path-rules.json`、`keybindings.json`。
+    - `path-rules.json`、`profiles.json`、`keybindings.json`。
     - `layout.json`：停靠布局和各面板的视图设置。
   - SQLite：`state.sqlite` 只存书记忆；`library.sqlite` 统一存历史、书签和播放列表，WAL、`synchronous = FULL`。
-  - P1 再增加 `profiles.json`、`menus.json`。
+  - P1 再增加 `menus.json`。
 - `~/Library/Caches/MacView/`：`thumbnails/`、`browse/`、`extract/`（压缩包临时解出）、`index.sqlite`。
 - JSON 文件：
   - 带版本号，原子写入，外部编辑后自动重载。
@@ -240,7 +240,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 分层解析：
   - 顺序：全局 ⊕ 匹配的路径规则（越具体越靠后）⊕ 书记忆，逐字段合并。
   - 各层的字段都是可选的，只有全局层必须完整。
-- 书记忆保存：页位置（页身份加序号）、单双页、方向、排序、递归、缩放和浏览方式；P1 再加显示配置的值。
+- 书记忆保存：页位置（页身份加序号）、单双页、方向、排序、递归、缩放、浏览方式、效果链与背景。
 - `state.sqlite` 打开时，`PRAGMA journal_mode = WAL` 只对 SQLITE_BUSY 显式重试，间隔 20 ms，最长 5 秒。这条切换不走 `busyMode`，退出后立刻重开或两个实例并存时会遇到。
 
 资料库的 `history`、`bookmark`、`playlist`、`playlist_item` 四张表分别存打开时间、树层级与序号、列表摘要、列表顺序及 `Entry` 快照。位置按 `sortedKeys` 编码，并保存带索引的 `prefix_key`。开库沿用 `state.sqlite` 的 SQLITE_BUSY 重试。历史默认保留 1000 本，`historyLimit` 缺失时补默认且不报缺字段，非正值拒绝；缩小立即裁剪。
@@ -353,8 +353,8 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 数据源插件以 ContainerProvider 的形式注册到 SourceRegistry，按根分派。
 - 脚本命令和插件命令注册进 CommandRegistry。
 - HTML/JS 面板是一种面板类型。
-- 显示配置按模板语义写入设置层，不新增层级。
-- 效果链的模型放在 Core，由前端在呈现时用 CALayer 滤镜或 Core Image 在 GPU 上应用。
+- 显示配置（S4-T1 已实现）：`DisplayProfile` 存进 `profiles.json`，按所选组保存 `BookSettings` 子集，套用时按模板语义经 `BookSettings.merge(_:)` / `ResolvedBookSettings.applying(_:)` 写入对应设置层，不新增层级。
+- 效果链（S4-T1 已实现 Core 模型）：`ColorAdjust`、`Effect`、`EffectChain`、`ViewerBackground` 放在 `MVSettings`，随 `BookSettings` 分层解析并写入书记忆；`ReaderSession` 对只改效果或背景走不重排、不预取快路径；前端在呈现时用 Core Image 滤镜在 GPU 上应用。
 
 ## 4. Core 协议契约
 
@@ -623,20 +623,28 @@ public enum ScaleMode: String, Codable, Sendable { case original, fitWindow, fit
 public enum SortKey: String, Codable, Sendable { case name, modified, created, size, type, random }
 public struct SortSpec: Codable, Sendable, Hashable { public var key: SortKey; public var ascending: Bool; public var foldersFirst: Bool; public var randomSeed: UInt64? }
 public struct RecursionSpec: Codable, Sendable, Hashable { public var enabled: Bool; public var maxDepth: Int }
+public struct ColorAdjust: Codable, Sendable, Hashable { public var brightness: Double; public var contrast: Double; public var saturation: Double; public var gamma: Double; public var temperature: Double; public var tint: Double; public static let identity: ColorAdjust; public var isIdentity: Bool { get } }   // 除 gamma 为 0.25…4（默认 1）外均为 −1…1（默认 0），解码时夹到范围
+public enum Effect: Codable, Sendable, Hashable { case colorAdjust(ColorAdjust) }   // JSON：{"type":"colorAdjust", ...字段}
+public struct EffectChain: Codable, Sendable, Hashable { public var effects: [Effect]; public static let empty: EffectChain; public var isIdentity: Bool { get }; public var colorAdjust: ColorAdjust { get set } }   // 写 identity 时移除该项
+public enum ViewerBackground: Codable, Sendable, Hashable { case auto, black, gray, white, checkerboard; case custom(red: Double, green: Double, blue: Double) }   // custom sRGB 0…1，解码时夹到范围
+public enum DisplayProfileGroup: String, Codable, Sendable, CaseIterable { case layout, scale, effects, background }
+public struct DisplayProfile: Codable, Sendable, Hashable, Identifiable { public var id: UUID; public var name: String; public var settings: BookSettings; public var groups: Set<DisplayProfileGroup> { get }; public init(id: UUID = UUID(), name: String, capturing resolved: ResolvedBookSettings, groups: Set<DisplayProfileGroup>) }   // settings 只含所选组字段，groups 由非空字段推出
 public struct BookSettings: Codable, Sendable, Hashable {   // 每层只写自己覆盖的字段
     public var browseMode: BrowseMode?; public var pageMode: PageMode?; public var direction: ReadingDirection?
     public var firstPageSingle: Bool?; public var widePage: WidePagePolicy?; public var sort: SortSpec?; public var recursion: RecursionSpec?
     public var scaleMode: ScaleMode?; public var allowUpscale: Bool?; public var fixedScale: Double?; public var keepZoomOnPageTurn: Bool?
     public var resample: ResampleFilter?; public var sharpen: Float?
+    public var effects: EffectChain?; public var background: ViewerBackground?
+    public mutating func merge(_ other: BookSettings)   // 用 other 里非空字段覆盖自己
 }   // “仅缩小不放大” = 适合类缩放模式 + allowUpscale=false
-public struct ResolvedBookSettings: Codable, Sendable, Hashable { /* 与 BookSettings 字段相同，全部非可选 */ }
+public struct ResolvedBookSettings: Codable, Sendable, Hashable { /* 与 BookSettings 字段相同，全部非可选；effects 默认 .empty，background 默认 .auto；applying(_:) 同步合并 */ }
 public struct ClassifyTarget: Codable, Sendable, Hashable { public var location: Location; public var listsSubfolders: Bool }
 public struct FileOperationSettings: Codable, Sendable, Hashable { public var nameConflict: ConflictPolicy; public var classifyMode: TransferMode; public var classifyTargets: [ClassifyTarget] }   // 默认 appendNumber、move、空列表
 public struct GlobalSettings: Codable, Sendable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int; public var fileOperations: FileOperationSettings; public var historyLimit: Int }   // historyLimit 默认 1000；CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
 extension PathRule { public static func matching(_ rules: [PathRule], for book: Location) -> [PathRule] }   // 越具体越靠后，相同时按原顺序；解析和设置窗口共用
 public struct PathRule: Codable, Sendable { public var id: UUID; public var name: String; public var prefix: Location; public var settings: BookSettings }
 public struct BookMemory: Codable, Sendable { public var book: Location; public var settings: BookSettings; public var lastPage: Location?; public var lastPageIndex: Int?; public var openedAt: Date }
-public enum SettingsChange: Sendable, Equatable { case global, pathRules, fileError(file: String, message: String) }
+public enum SettingsChange: Sendable, Equatable { case global, pathRules, profiles, fileError(file: String, message: String) }
 public protocol SettingsStore: Sendable {
     func resolve(for book: Location) async -> ResolvedBookSettings
     func bookMemory(for book: Location) async -> BookMemory?
@@ -646,6 +654,8 @@ public protocol SettingsStore: Sendable {
     func updateGlobal(_ change: @Sendable (inout GlobalSettings) -> Void) async throws
     func pathRules() async -> [PathRule]
     func updatePathRules(_ change: @Sendable (inout [PathRule]) -> Void) async throws
+    func profiles() async -> [DisplayProfile]
+    func updateProfiles(_ change: @Sendable (inout [DisplayProfile]) -> Void) async throws
     func changes() -> AsyncStream<SettingsChange>
 }
 public enum DocumentChange: Sendable, Equatable { case reloaded, fileError(message: String) }   // 解析错误带行列号，保留上一份可用值
@@ -655,7 +665,7 @@ public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
     public func update(_ change: @Sendable (inout Value) -> Void) async throws
     public func changes() -> AsyncStream<DocumentChange>
 }   // 顶层 {"version": Int, "value": Value}；原子写入并监听外部修改，未来版本报 fileError；缺文件时首次 update 才写出
-public final class FileSettingsStore: SettingsStore { public init(directory: URL) throws; public func flush() async throws; public func relocateBookMemory(from: Location, to: Location) async }   // settings.json、path-rules.json 与 state.sqlite（书记忆），shutdown 调用 flush
+public final class FileSettingsStore: SettingsStore { public init(directory: URL) throws; public func flush() async throws; public func relocateBookMemory(from: Location, to: Location) async }   // settings.json、path-rules.json、profiles.json 与 state.sqlite（书记忆），shutdown 调用 flush
 // relocateBookMemory 按前缀迁移书位置及全部记忆中的 lastPage；目标已有记忆时保留目标。FileSettingsStore 与 Mock 一致。
 // keybindings.json 由 MVServices 用 JSONDocumentStore<KeyBindingsFile> 管理；App 可用同一存储管理 layout.json
 
@@ -665,6 +675,7 @@ public struct CommandID: RawRepresentable, Hashable, Codable, Sendable { public 
 // playlistRemoveItem = library.playlist.removeItem，无默认键；historyToggle / bookmarksToggle / playlistToggle 为 global，⌥⌘4/5/6，归“窗口”菜单。
 // file.reveal 默认 ⌥⌘R（viewer、list）；viewer 的 ⇧⌘R 仍用于递归。
 // 搜索与评分标签：rating.set.0–5（⌥0–⌥5）、metadata.tags.edit（⌥T）、search.focus（⌘F）、search.indexFolder、panel.info.toggle（⌥⌘I）；zoomDevicePixel 默认绑定调整为 ⌥⇧1 以避免与 rating.set.1（⌥1）冲突。
+// 显示配置与效果：displayProfile.apply（⌃1–⌃9，viewer/list，参数 slot 1–9）、effects.toggle（E，viewer）、panel.effects.toggle（⌥⌘E，global）。
 public enum InputScope: String, Codable, Sendable { case global, viewer, list, textInput, classify }
 public struct KeyModifiers: OptionSet, Hashable, Codable, Sendable { public let rawValue: UInt8 /* command, option, control, shift, function */ }
 public struct KeyChord: Hashable, Codable, Sendable { public var key: String; public var modifiers: KeyModifiers }   // key 为逻辑键名，如 "Right"、"a"
@@ -699,6 +710,7 @@ extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources
     public static let sortName, sortModified, sortCreated, sortSize, sortType, sortRandom, sortAscending, sortDescending, sortFoldersFirstToggle, recursionToggle: CommandID
     public static let windowNew, windowNewTab, fullScreenToggle, bookshelfToggle, pageListToggle, docksToggle, retryFailed, settingsOpen: CommandID
     public static let ratingSet0, ratingSet1, ratingSet2, ratingSet3, ratingSet4, ratingSet5, metadataTagsEdit, searchFocus, searchIndexFolder, infoPanelToggle: CommandID
+    public static let displayProfileApply, effectsToggle, effectsPanelToggle: CommandID
 }
 
 // MVReading
@@ -754,7 +766,7 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public func go(_ move: PageMove)
     public func applyFileChanges(_ changes: [FileChange])   // 组合根转发；递归新增页按平铺顺序插入
     public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async   // sort 是书架面板当前的排序，与书内页面的排序无关
-    public func update(_ change: (inout BookSettings) -> Void)   // 写入书层，去抖后持久化
+    public func update(_ change: (inout BookSettings) -> Void)   // 写入书层，去抖后持久化；只改 effects 或 background 时不重排页帧、不重设预取计划
     public func visibleRangeChanged(_ pages: Range<Int>)        // 连续和瀑布模式由前端回报
     public func viewportChanged(_ pixels: PixelSize, backingScale: Double)   // 设备像素；未回报前不预解码
     public var currentPage: Int { get }   // 分页模式下是当前页帧中阅读顺序靠前的一页，连续和瀑布模式下是回报的当前页
