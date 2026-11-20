@@ -229,10 +229,11 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - `~/Library/Application Support/MacView/`：
   - JSON 文件：
     - `settings.json`：全局设置与默认书设置。
-    - `path-rules.json`、`profiles.json`、`keybindings.json`。
-    - `layout.json`：停靠布局和各面板的视图设置。
+    - `path-rules.json`、`profiles.json`。
+    - `keybindings.json`（v2，兼容 v1 读取）：键盘快捷键及非键盘输入绑定（鼠标手势、触控板、点击区域、滚轮）。
+    - `menus.json`（v1）：主菜单、查看器右键菜单与工具栏自定义配置。
+    - `layout.json`：停靠布局和各面板的视图设置；`layout-schemes.json`（v1）：命名停靠布局方案。
   - SQLite：`state.sqlite` 只存书记忆；`library.sqlite` 统一存历史、书签和播放列表，WAL、`synchronous = FULL`。
-  - P1 再增加 `menus.json`。
 - `~/Library/Caches/MacView/`：`thumbnails/`、`browse/`、`extract/`（压缩包临时解出）、`index.sqlite`。
 - JSON 文件：
   - 带版本号，原子写入，外部编辑后自动重载。
@@ -667,12 +668,12 @@ public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
 }   // 顶层 {"version": Int, "value": Value}；原子写入并监听外部修改，未来版本报 fileError；缺文件时首次 update 才写出
 public final class FileSettingsStore: SettingsStore { public init(directory: URL) throws; public func flush() async throws; public func relocateBookMemory(from: Location, to: Location) async }   // settings.json、path-rules.json、profiles.json 与 state.sqlite（书记忆），shutdown 调用 flush
 // relocateBookMemory 按前缀迁移书位置及全部记忆中的 lastPage；目标已有记忆时保留目标。FileSettingsStore 与 Mock 一致。
-// keybindings.json 由 MVServices 用 JSONDocumentStore<KeyBindingsFile> 管理；App 可用同一存储管理 layout.json
+// keybindings.json（v2，兼容 v1）与 menus.json（v1）由 MVServices 用 JSONDocumentStore 管理；App 可用同一存储管理 layout.json 与 layout-schemes.json（v1）
 
 // MVCommands
 public struct CommandID: RawRepresentable, Hashable, Codable, Sendable { public var rawValue: String; public init(_ rawValue: String) }   // 例如 "page.next"，JSON 中为字符串
 // 资料库：bookmarkAdd = library.bookmark.add（⌘D）、playlistAddCurrent = library.playlist.addCurrent（⌘L），viewer/list，归“书”菜单。
-// playlistRemoveItem = library.playlist.removeItem，无默认键；historyToggle / bookmarksToggle / playlistToggle 为 global，⌥⌘4/5/6，归“窗口”菜单。
+// playlistRemoveItem = library.playlist.removeItem、playlistOpenContainingBook = library.playlist.openContainingBook，无默认键；historyToggle / bookmarksToggle / playlistToggle 为 global，⌥⌘4/5/6，归“窗口”菜单。
 // file.reveal 默认 ⌥⌘R（viewer、list）；viewer 的 ⇧⌘R 仍用于递归。
 // 搜索与评分标签：rating.set.0–5（⌥0–⌥5）、metadata.tags.edit（⌥T）、search.focus（⌘F）、search.indexFolder、panel.info.toggle（⌥⌘I）；zoomDevicePixel 默认绑定调整为 ⌥⇧1 以避免与 rating.set.1（⌥1）冲突。
 // 显示配置与效果：displayProfile.apply（⌃1–⌃9，viewer/list，参数 slot 1–9）、effects.toggle（E，viewer）、panel.effects.toggle（⌥⌘E，global）。
@@ -682,10 +683,30 @@ public struct KeyChord: Hashable, Codable, Sendable { public var key: String; pu
 public struct KeyBinding: Codable, Sendable, Hashable { public var sequence: [KeyChord]; public var command: CommandID; public var arguments: [String: JSONValue]?; public var scope: InputScope }
 public enum ResolveResult: Sendable, Equatable { case command(CommandID, [String: JSONValue]?), pending([KeyChord]), unmatched }
 public struct BindingResolver: Sendable { public init(bindings: [KeyBinding], sequenceTimeout: Duration = .seconds(1)); public mutating func feed(_ chord: KeyChord, scope: InputScope, overlay: InputScope? = nil, at time: ContinuousClock.Instant) -> ResolveResult; public static func conflicts(in bindings: [KeyBinding]) -> [BindingConflict] }   // 同作用域的相同序列或前缀冲突；textInput 不回退全局
-public struct KeyBindingsFile: Codable, Sendable, Hashable { public var bindings: [KeyBinding]; public init(bindings: [KeyBinding] = []) }
+public enum PointerDirection: String, Codable, Sendable, Hashable, CaseIterable { case up, down, left, right }
+public struct MouseGestureBinding: Codable, Sendable, Hashable { public var directions: [PointerDirection]; public var command: CommandID?; public var arguments: [String: JSONValue]? }   // 1…4 个相邻不重复方向；command 为 nil 表示取消默认
+public enum TrackpadInput: String, Codable, Sendable, Hashable, CaseIterable { case swipeLeft, swipeRight, doubleTap, rotateLeft, rotateRight }
+public struct TrackpadBinding: Codable, Sendable, Hashable { public var input: TrackpadInput; public var command: CommandID?; public var arguments: [String: JSONValue]? }   // command 为 nil 表示取消默认
+public enum ClickZone: String, Codable, Sendable, Hashable, CaseIterable { case left, center, right }
+public struct ClickZoneBinding: Codable, Sendable, Hashable { public var zone: ClickZone; public var command: CommandID?; public var arguments: [String: JSONValue]? }   // command 为 nil 表示取消默认
+public enum WheelDevice: String, Codable, Sendable, Hashable, CaseIterable { case mouse, trackpad }
+public enum WheelAction: Codable, Sendable, Hashable { case standard, zoom, commands(up: CommandID, down: CommandID), none }
+public struct WheelBinding: Codable, Sendable, Hashable { public var device: WheelDevice; public var modifiers: KeyModifiers; public var action: WheelAction }
+public struct InputBindingDefaults: Sendable, Hashable { public var mouseGestures: [MouseGestureBinding]; public var trackpad: [TrackpadBinding]; public var clickZones: [ClickZoneBinding]; public var wheel: [WheelBinding]; public static let standard: InputBindingDefaults }
+public enum InputConflict: Sendable, Hashable { case key(BindingConflict), mouseGesture(first: MouseGestureBinding, second: MouseGestureBinding), trackpad(first: TrackpadBinding, second: TrackpadBinding), clickZone(first: ClickZoneBinding, second: ClickZoneBinding), wheel(first: WheelBinding, second: WheelBinding) }
+public struct InputBindings: Sendable, Hashable {
+    public static func effective(defaults: InputBindingDefaults = .standard, user: KeyBindingsFile) -> InputBindings   // 默认值叠加用户覆盖；同一输入用户替换默认，command == nil 取消默认
+    public func command(forGesture directions: [PointerDirection]) -> (CommandID, [String: JSONValue]?)?
+    public func command(for input: TrackpadInput) -> (CommandID, [String: JSONValue]?)?
+    public func command(for zone: ClickZone) -> (CommandID, [String: JSONValue]?)?
+    public func wheelAction(device: WheelDevice, modifiers: KeyModifiers) -> WheelAction   // 未绑定的修饰键组合回到该设备无修饰键动作
+    public static func conflicts(in file: KeyBindingsFile) -> [InputConflict]
+}
+public struct MouseGestureTracker: Sendable { public let minSegment: CGFloat; public private(set) var directions: [PointerDirection]; public var hasMoved: Bool { get }; public init(origin: CGPoint, minSegment: CGFloat = 24); public mutating func add(_ point: CGPoint) }   // AppKit 视图坐标按 minSegment 折成四向序列并合并相邻同向；未移动时 App 弹右键菜单
+public struct KeyBindingsFile: Codable, Sendable, Hashable { public var bindings: [KeyBinding]; public var mouseGestures: [MouseGestureBinding]?; public var trackpad: [TrackpadBinding]?; public var clickZones: [ClickZoneBinding]?; public var wheel: [WheelBinding]?; public init(bindings: [KeyBinding] = [], mouseGestures: [MouseGestureBinding]? = nil, trackpad: [TrackpadBinding]? = nil, clickZones: [ClickZoneBinding]? = nil, wheel: [WheelBinding]? = nil) }   // keybindings.json v2；新字段均可缺省，兼容 v1 读取
 public struct BindingConflict: Sendable, Hashable { public var scope: InputScope; public var first: KeyBinding; public var second: KeyBinding; public init(scope: InputScope, first: KeyBinding, second: KeyBinding) }
 extension KeyBinding { public static func effective(defaults: [CommandDescriptor], user: [KeyBinding]) -> [KeyBinding] }   // 用户按命令覆盖全部默认绑定；空序列可取消默认绑定
-public struct CommandDescriptor: Sendable { public var id: CommandID; public var title: LocalizedStringResource; public var category: String; public var defaultBindings: [KeyBinding] }
+public struct CommandDescriptor: Sendable { public var id: CommandID; public var title: LocalizedStringResource; public var category: String; public var defaultBindings: [KeyBinding]; public var symbol: String? }
 public struct CommandContext: Sendable { public var session: SessionID?; public var scope: InputScope; public var selection: [Location] }
 public enum CommandError: Error, Sendable, Equatable { case unknownCommand(CommandID), disabled(CommandID) }
 @MainActor public final class CommandRegistry {
@@ -695,11 +716,14 @@ public enum CommandError: Error, Sendable, Equatable { case unknownCommand(Comma
     public func perform(_ id: CommandID, arguments: [String: JSONValue]?, context: CommandContext) async throws   // 没登记或不可用时抛出 CommandError
     public func descriptors() -> [CommandDescriptor]
 }
-public indirect enum MenuNode: Codable, Sendable, Hashable { case command(CommandID), submenu(titleKey: String, children: [MenuNode]), separator }
+public enum DynamicMenuID: String, Codable, Sendable, Hashable, CaseIterable { case openWith, moveTo, copyTo, rating, displayProfiles, layoutSchemes }
+public indirect enum MenuNode: Codable, Sendable, Hashable { case command(CommandID), submenu(titleKey: String, children: [MenuNode]), dynamic(DynamicMenuID), separator }
 public struct MenuModel: Codable, Sendable, Hashable { public var roots: [MenuNode] }
-public enum CoreCommands { public static let all: [CommandDescriptor]; public static let defaultMenu: MenuModel }   // P0 命令；文件、显示、翻页、书、窗口；标题用中文键与 .main bundle
+public struct ToolbarItemID: RawRepresentable, Codable, Hashable, Sendable { public var rawValue: String; public init(rawValue: String); public init(_ rawValue: String); public init(command: CommandID); public static let flexibleSpace, space, dockLeft, dockRight, bookTitle, viewWaterfallOptions, viewBrowse, viewOptions, windowFullScreen: ToolbarItemID }
+public struct MenuFile: Codable, Sendable, Hashable { public var mainMenu: [MenuNode]?; public var viewerContextMenu: [MenuNode]?; public var toolbar: [ToolbarItemID]?; public init(mainMenu: [MenuNode]? = nil, viewerContextMenu: [MenuNode]? = nil, toolbar: [ToolbarItemID]? = nil); public var resolvedMainMenu: [MenuNode] { get }; public var resolvedViewerContextMenu: [MenuNode] { get }; public var resolvedToolbar: [ToolbarItemID] { get } }   // menus.json（v1）；任一字段为 nil 时取默认
+public enum CoreCommands { public static let all: [CommandDescriptor]; public static let defaultMenu: MenuModel; public static let defaultViewerContextMenu: [MenuNode]; public static let defaultToolbar: [ToolbarItemID] }   // 文件、显示、翻页、书、窗口；标题用中文键与 .main bundle
 extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources/MVCommands/CoreCommands.swift
-    public static let frameNext, framePrevious, pageNext, pagePrevious, pageFirst, pageLast, pageJump: CommandID
+    public static let frameNext, framePrevious, frameLeft, frameRight, pageNext, pagePrevious, pageFirst, pageLast, pageJump: CommandID
     public static let bookNext, bookPrevious, fileOpen, bookReveal: CommandID
     public static let fileDelete, fileRename, fileCopy, fileCopyPath, fileReveal, fileOpenWith, recycleEmpty: CommandID
     public static let classifyTarget, classifyModeToggle, classifyNewTarget, classifyPanelToggle, editUndo, editRedo: CommandID
@@ -709,6 +733,7 @@ extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources
     public static let zoomAllowUpscaleToggle, magnifierToggle, keepZoomOnPageTurnToggle: CommandID
     public static let sortName, sortModified, sortCreated, sortSize, sortType, sortRandom, sortAscending, sortDescending, sortFoldersFirstToggle, recursionToggle: CommandID
     public static let windowNew, windowNewTab, fullScreenToggle, bookshelfToggle, pageListToggle, docksToggle, retryFailed, settingsOpen: CommandID
+    public static let layoutSchemeSave, layoutSchemeApply: CommandID
     public static let ratingSet0, ratingSet1, ratingSet2, ratingSet3, ratingSet4, ratingSet5, metadataTagsEdit, searchFocus, searchIndexFolder, infoPanelToggle: CommandID
     public static let displayProfileApply, effectsToggle, effectsPanelToggle: CommandID
 }
@@ -814,7 +839,7 @@ public struct CoreConfiguration: Sendable {
     public static func make(configuration: CoreConfiguration) async throws -> CoreServices
     public convenience init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader, library: (any LibraryStore)? = nil, search: SearchCatalog? = nil, indexer: FolderIndexer? = nil)   // Mock 等消费方的构造入口
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
-    public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?   // Mock 为 nil
+    public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?; public let menus: JSONDocumentStore<MenuFile>?   // Mock 为 nil；keybindings.json v2（兼容 v1），menus.json v1
     public let fileOperations: FileOperationService?   // Mock 为 nil
     public let library: (any LibraryStore)?   // make 为 SQLite；makeMock 为内存 MockLibraryStore
     public let availability: AvailabilityChecker?   // Mock 为 nil
@@ -901,6 +926,8 @@ public struct DockLayout: Codable, Sendable, Hashable {   // layout.json 的内�
     public func adoptingFloating(of other: DockLayout) -> DockLayout   // 浮动面板全应用一份：采用对方的浮动列表，并移走自己停靠着的同一面板
     public func sanitized(knownPanels: Set<PanelID>) -> DockLayout   // 整理从文件读入的布局
 }
+public struct LayoutScheme: Codable, Sendable, Hashable { public var name: String; public var layout: DockLayout; public init(name: String, layout: DockLayout) }
+public struct LayoutSchemesFile: Codable, Sendable, Hashable { public var schemes: [LayoutScheme]; public init(schemes: [LayoutScheme] = []) }   // layout-schemes.json（v1）的内容
 ```
 
 ## 5. 关口
