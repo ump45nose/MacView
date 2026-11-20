@@ -76,6 +76,7 @@ extension AppDelegate {
             controller.session.update { $0.keepZoomOnPageTurn = !value }
         }
         register(.magnifierToggle) { controller, _ in controller.viewer.paged.toggleMagnifier() }
+        register(.effectsToggle, needsBook: false) { controller, _ in controller.toggleEffects() }
         register(.retryFailed) { controller, _ in controller.viewer.retryFailed() }
 
         let sorts: [(CommandID, SortKey)] = [

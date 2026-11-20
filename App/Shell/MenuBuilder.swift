@@ -29,8 +29,13 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         }
 
         func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-            if let title = (NSApp.delegate as? AppDelegate)?.menuTitle(for: command) {
-                menuItem.title = title
+            if let app = NSApp.delegate as? AppDelegate {
+                if let title = app.menuTitle(for: command) {
+                    menuItem.title = title
+                }
+                if let state = app.menuState(for: command) {
+                    menuItem.state = state
+                }
             }
             return builder.isEnabled(command)
         }

@@ -133,6 +133,10 @@ private final class PlaylistMarkView: NSView {
 final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate,
     NSToolbarItemValidation, NSOpenSavePanelDelegate {
     static let tabbingIdentifier = "MacView.reader"
+    static let effectsEnabledDidChangeNotification = Notification.Name("MacView.effectsEnabledDidChange")
+
+    /// 当前窗口是否启用实时调色；默认打开，不持久化。
+    private(set) var effectsEnabled = true
 
     let session: ReaderSession
     private(set) var router: InputRouter
@@ -166,6 +170,19 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         image: NSImage(systemSymbolName: "arrow.up.left.and.arrow.down.right", accessibilityDescription: String(localized: "全屏")) ?? NSImage(),
         target: self, action: #selector(toggleFullScreen(_:))
     )
+    private lazy var effectsToggleButton: NSButton = {
+        let title = catalog.title(of: .effectsToggle)
+        let button = DockToggleButton(
+            image: NSImage(systemSymbolName: "circle.lefthalf.filled", accessibilityDescription: title) ?? NSImage(),
+            target: self, action: #selector(effectsToggleClicked(_:))
+        )
+        button.setButtonType(.pushOnPushOff)
+        button.isBordered = false
+        button.contentTintColor = Theme.text
+        button.toolTip = title
+        button.state = effectsEnabled ? .on : .off
+        return button
+    }()
     private let sortButton = NSPopUpButton(frame: .zero, pullsDown: true)
     private let sizeSlider = NSSlider()
     private var optionsPopover: NSPopover?
@@ -281,6 +298,22 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    /// 设置当前窗口的效果开关；供命令处理器、效果面板与套用配置调用。
+    func setEffectsEnabled(_ enabled: Bool) {
+        guard effectsEnabled != enabled else { return }
+        effectsEnabled = enabled
+        viewer.setEffectsEnabled(enabled)
+        effectsToggleButton.state = enabled ? .on : .off
+        NotificationCenter.default.post(name: Self.effectsEnabledDidChangeNotification, object: self)
+    }
+
+    func toggleEffects() {
+        setEffectsEnabled(!effectsEnabled)
+        content.statusBar.showMessage(
+            effectsEnabled ? String(localized: "效果已打开") : String(localized: "效果已关闭，显示原图")
+        )
     }
 
     /// 按第一响应者的作用域执行命令，供工具栏和按钮使用。
@@ -765,11 +798,12 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private static let toolbarWaterfall = NSToolbarItem.Identifier("view.waterfallOptions")
     private static let toolbarOptions = NSToolbarItem.Identifier("view.options")
     private static let toolbarFullScreen = NSToolbarItem.Identifier("window.fullScreen")
+    private static let toolbarEffectsToggle = NSToolbarItem.Identifier("effects.toggle")
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [
             .init("dock.left"), .init("book.previous"), .init("book.next"), Self.toolbarTitle, .flexibleSpace,
-            Self.toolbarWaterfall, Self.toolbarBrowse, Self.toolbarOptions, Self.toolbarFullScreen, .init("dock.right"),
+            Self.toolbarWaterfall, Self.toolbarBrowse, Self.toolbarOptions, Self.toolbarFullScreen, Self.toolbarEffectsToggle, .init("dock.right"),
         ]
     }
 
@@ -787,6 +821,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         }
         if identifier == Self.toolbarOptions { return viewItem(identifier, optionsButton, label: String(localized: "显示")) }
         if identifier == Self.toolbarFullScreen { return viewItem(identifier, fullScreenButton, label: catalog.title(of: .fullScreenToggle)) }
+        if identifier == Self.toolbarEffectsToggle { return viewItem(identifier, effectsToggleButton, label: catalog.title(of: .effectsToggle)) }
         if let entry = Self.dockToggleItems[identifier] { return makeDockToggleItem(identifier, entry) }
         guard let entry = Self.toolbarCommands[identifier] else { return nil }
         let title = catalog.title(of: entry.command)
@@ -917,6 +952,11 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     @objc private func toggleFullScreen(_ sender: Any?) {
         run(.fullScreenToggle)
+    }
+
+    @objc private func effectsToggleClicked(_ sender: NSButton) {
+        run(.effectsToggle)
+        effectsToggleButton.state = effectsEnabled ? .on : .off
     }
 
     private func makeDockToggle(_ entry: DockToggleItem) -> NSButton {
