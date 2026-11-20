@@ -39,6 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsErrorsTask: Task<Void, Never>?
     /// 配置错误：文件名到文字，按文件各显示一条。
     private(set) var fileProblems: [FileProblem] = []
+    /// 供“显示 → 套用显示配置”动态子菜单同步读取的配置列表快照。
+    private(set) var cachedProfiles: [DisplayProfile] = []
     /// NSWindow 不持有自己的控制器，由这里保留到窗口关闭。
     private(set) var controllers: [ReaderWindowController] = []
     /// 服务就绪之前收到的打开请求（例如拖到 Dock 图标启动）。
@@ -225,12 +227,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let services else { return }
         let changes = services.settings.changes()
         settingsErrorsTask = Task { [weak self] in
+            let initialProfiles = await services.settings.profiles()
+            guard let self, !Task.isCancelled else { return }
+            self.cachedProfiles = initialProfiles
             for await change in changes {
-                guard let self, !Task.isCancelled else { return }
+                guard !Task.isCancelled else { return }
                 switch change {
                 case .global: setFileProblem("settings.json", nil)
                 case .pathRules: setFileProblem("path-rules.json", nil)
-                case .profiles: setFileProblem("profiles.json", nil)
+                case .profiles:
+                    setFileProblem("profiles.json", nil)
+                    cachedProfiles = await services.settings.profiles()
                 case let .fileError(file, message): setFileProblem(file, message)
                 }
             }

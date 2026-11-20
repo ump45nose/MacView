@@ -7,6 +7,20 @@ import MVCommands
 /// - global 作用域的绑定是真正的菜单快捷键，没有窗口或焦点在文本框中时也可用；
 /// - 其余作用域的绑定只在菜单打开时显示。菜单关着时这些项没有快捷键，AppKit 不会拿它们匹配按键，
 ///   按键经响应链走到 InputRouter，按第一响应者的作用域解析，所以文本框能收到方向键，也不会重复执行。
+/// 只在菜单打开时显示的快捷键信息（用于非 global 作用域的动态子菜单项）。
+@MainActor
+final class MenuDisplayShortcut: NSObject {
+    let key: String
+    let mask: NSEvent.ModifierFlags
+    let payload: Any?
+
+    init(key: String, mask: NSEvent.ModifierFlags, payload: Any? = nil) {
+        self.key = key
+        self.mask = mask
+        self.payload = payload
+    }
+}
+
 @MainActor
 final class MenuBuilder: NSObject, NSMenuDelegate {
     /// 一个命令菜单项的动作目标；由菜单项的 representedObject 持有。
@@ -124,6 +138,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
                 menu.addItem(commandItem(id))
             case let .submenu(key, nested) where nested.isEmpty:
                 let submenu = NSMenu(title: Bundle.main.localizedString(forKey: key, value: nil, table: nil))
+                submenu.delegate = self
                 let dynamic = DynamicSubmenu(key: key, submenu: submenu)
                 let item = NSMenuItem(title: submenu.title, action: #selector(DynamicSubmenu.noop(_:)), keyEquivalent: "")
                 item.target = dynamic
@@ -167,9 +182,13 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
 
     private func setDisplayedKeys(in menu: NSMenu, shown: Bool) {
         for item in menu.items {
-            guard let display = (item.representedObject as? Trigger)?.display else { continue }
-            item.keyEquivalent = shown ? display.key : ""
-            item.keyEquivalentModifierMask = shown ? display.mask : []
+            if let display = (item.representedObject as? Trigger)?.display {
+                item.keyEquivalent = shown ? display.key : ""
+                item.keyEquivalentModifierMask = shown ? display.mask : []
+            } else if let display = item.representedObject as? MenuDisplayShortcut {
+                item.keyEquivalent = shown ? display.key : ""
+                item.keyEquivalentModifierMask = shown ? display.mask : []
+            }
         }
     }
 

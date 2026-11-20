@@ -242,6 +242,9 @@ extension AppDelegate {
     }
 
     func updateSubmenu(key: String, menu: NSMenu) -> Bool {
+        if key == "套用显示配置" {
+            return populateDisplayProfilesMenu(menu)
+        }
         guard let fileOps else { menu.removeAllItems(); return false }
         let origin = activeFileOrigin()
         switch key {
@@ -250,6 +253,43 @@ extension AppDelegate {
         case "复制到": return fileOps.populateTransferMenu(menu, origin: origin, mode: .copy)
         default: return false
         }
+    }
+
+    private func populateDisplayProfilesMenu(_ menu: NSMenu) -> Bool {
+        menu.removeAllItems()
+        menu.autoenablesItems = false
+        let controller = mainController ?? controllers.first
+        let hasBook = controller?.session.book != nil
+        if cachedProfiles.isEmpty {
+            let empty = NSMenuItem(title: String(localized: "还没有显示配置"), action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+            return true
+        }
+        for (index, profile) in cachedProfiles.enumerated() {
+            let item = NSMenuItem(title: profile.name, action: #selector(applyDisplayProfileFromMenu(_:)), keyEquivalent: "")
+            item.target = self
+            item.isEnabled = hasBook
+            if index < 9 {
+                item.representedObject = MenuDisplayShortcut(key: String(index + 1), mask: .control, payload: profile.id)
+            } else {
+                item.representedObject = profile.id
+            }
+            menu.addItem(item)
+        }
+        return true
+    }
+
+    @objc private func applyDisplayProfileFromMenu(_ sender: NSMenuItem) {
+        guard let controller = mainController ?? controllers.first, controller.session.book != nil else { return }
+        let profileID: UUID?
+        if let shortcut = sender.representedObject as? MenuDisplayShortcut {
+            profileID = shortcut.payload as? UUID
+        } else {
+            profileID = sender.representedObject as? UUID
+        }
+        guard let profileID, let profile = cachedProfiles.first(where: { $0.id == profileID }) else { return }
+        DisplayProfileHelpers.applyToBook(profile, in: controller)
     }
 
     private func registerFileCommands(in registry: CommandRegistry) {

@@ -71,7 +71,14 @@ struct CommandCatalog {
             switch titleKey {
             // 撤销与重做在“编辑”菜单；“文件”按文件操作规范排布。
             case "文件": return [.submenu(titleKey: titleKey, children: Self.fileMenu)]
-            case "显示": return [.submenu(titleKey: titleKey, children: children + [.separator] + Self.dockMenu), .submenu(titleKey: "图像", children: Self.imageMenu)]
+            case "显示":
+                let viewChildren = children.map { node -> MenuNode in
+                    if case .command(.displayProfileApply) = node {
+                        return .submenu(titleKey: "套用显示配置", children: [])
+                    }
+                    return node
+                }
+                return [.submenu(titleKey: titleKey, children: viewChildren + [.separator] + Self.dockMenu), .submenu(titleKey: "图像", children: Self.imageMenu)]
             case "书": return [.submenu(titleKey: titleKey, children: Self.removing([.searchFocus, .searchIndexFolder], from: children))]
             case "窗口": return [.submenu(titleKey: titleKey, children: Self.removing(dockCommands, from: children))]
             default: return [root]
