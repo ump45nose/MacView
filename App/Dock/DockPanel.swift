@@ -74,6 +74,7 @@ enum DockPanels {
     static let pageList = PanelID("pageList")
     static let classify = PanelID("classify")
     static let info = PanelID("info")
+    static let effects = PanelID("effects")
 
     static let all: [DockPanelType] = [
         DockPanelType(
@@ -103,6 +104,10 @@ enum DockPanels {
         DockPanelType(
             id: info, title: String(localized: "信息"), symbol: "info.circle",
             toggleCommand: .infoPanelToggle, defaultEdge: .right, make: InfoPanel.init
+        ),
+        DockPanelType(
+            id: effects, title: String(localized: "效果"), symbol: "camera.filters",
+            toggleCommand: .effectsPanelToggle, defaultEdge: .right, make: EffectsPanel.init
         ),
     ]
 
