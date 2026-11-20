@@ -12,6 +12,7 @@ enum TestPresentation {
         return defaults.string(forKey: "MVDebugSocket") != nil
             || defaults.string(forKey: "MVSessionSelfTest") != nil
             || defaults.string(forKey: DockSelfTest.launchKey) != nil
+            || defaults.string(forKey: EffectsSelfTest.launchKey) != nil
             || FileOpsSelfTest.isRequested
             || [SelfTest.launchKey, "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", LibrarySelfTest.launchKey, SearchSelfTest.launchKey, CanvasTestWindowController.launchKey].contains { defaults.bool(forKey: $0) }
     }

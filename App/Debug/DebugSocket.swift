@@ -530,6 +530,10 @@ final class DebugCommands: Sendable {
                 "pageList": panelSettingsState(DockPanels.pageList, controller: controller),
             ]),
             "tiles": tileState(controller),
+            "effects": effectsState(settings.effects),
+            "effectsEnabled": .bool(controller.effectsEnabled),
+            "background": backgroundState(settings.background),
+            "effectFilterCount": .number(Double(viewer.effectFilterCount)),
         ]
         if let record = viewer.paged.lastDisplay {
             let (seconds, attoseconds) = record.duration.components
@@ -582,6 +586,31 @@ final class DebugCommands: Sendable {
             "cancelled": .number(Double(layers.reduce(0) { $0 + $1.cancelledTiles })),
             "inFlight": .number(Double(layers.reduce(0) { $0 + $1.inFlightTiles })),
         ])
+    }
+
+    private func effectsState(_ chain: EffectChain) -> JSONValue {
+        guard !chain.isIdentity else { return .null }
+        let adjust = chain.colorAdjust
+        return .object([
+            "brightness": .number(adjust.brightness),
+            "contrast": .number(adjust.contrast),
+            "saturation": .number(adjust.saturation),
+            "gamma": .number(adjust.gamma),
+            "temperature": .number(adjust.temperature),
+            "tint": .number(adjust.tint),
+        ])
+    }
+
+    private func backgroundState(_ background: ViewerBackground) -> JSONValue {
+        switch background {
+        case .auto: .string("auto")
+        case .black: .string("black")
+        case .gray: .string("gray")
+        case .white: .string("white")
+        case .checkerboard: .string("checkerboard")
+        case let .custom(red, green, blue):
+            .object(["type": .string("custom"), "red": .number(red), "green": .number(green), "blue": .number(blue)])
+        }
     }
 
     private static func name(of quality: RenditionQuality) -> String {
