@@ -51,12 +51,15 @@ public struct BookSettings: Codable, Sendable, Hashable {
     public var keepZoomOnPageTurn: Bool?
     public var resample: ResampleFilter?
     public var sharpen: Float?
+    public var effects: EffectChain?
+    public var background: ViewerBackground?
 
     public init(
         browseMode: BrowseMode? = nil, pageMode: PageMode? = nil, direction: ReadingDirection? = nil,
         firstPageSingle: Bool? = nil, widePage: WidePagePolicy? = nil, sort: SortSpec? = nil, recursion: RecursionSpec? = nil,
         scaleMode: ScaleMode? = nil, allowUpscale: Bool? = nil, fixedScale: Double? = nil, keepZoomOnPageTurn: Bool? = nil,
-        resample: ResampleFilter? = nil, sharpen: Float? = nil
+        resample: ResampleFilter? = nil, sharpen: Float? = nil,
+        effects: EffectChain? = nil, background: ViewerBackground? = nil
     ) {
         self.browseMode = browseMode
         self.pageMode = pageMode
@@ -71,6 +74,27 @@ public struct BookSettings: Codable, Sendable, Hashable {
         self.keepZoomOnPageTurn = keepZoomOnPageTurn
         self.resample = resample
         self.sharpen = sharpen
+        self.effects = effects
+        self.background = background
+    }
+
+    /// 用 `other` 里有值的字段覆盖自己（套用配置、存为路径规则共用）。
+    public mutating func merge(_ other: BookSettings) {
+        if let value = other.browseMode { browseMode = value }
+        if let value = other.pageMode { pageMode = value }
+        if let value = other.direction { direction = value }
+        if let value = other.firstPageSingle { firstPageSingle = value }
+        if let value = other.widePage { widePage = value }
+        if let value = other.sort { sort = value }
+        if let value = other.recursion { recursion = value }
+        if let value = other.scaleMode { scaleMode = value }
+        if let value = other.allowUpscale { allowUpscale = value }
+        if let value = other.fixedScale { fixedScale = value }
+        if let value = other.keepZoomOnPageTurn { keepZoomOnPageTurn = value }
+        if let value = other.resample { resample = value }
+        if let value = other.sharpen { sharpen = value }
+        if let value = other.effects { effects = value }
+        if let value = other.background { background = value }
     }
 }
 
@@ -89,12 +113,15 @@ public struct ResolvedBookSettings: Codable, Sendable, Hashable {
     public var keepZoomOnPageTurn: Bool
     public var resample: ResampleFilter
     public var sharpen: Float
+    public var effects: EffectChain
+    public var background: ViewerBackground
 
     public init(
         browseMode: BrowseMode, pageMode: PageMode, direction: ReadingDirection,
         firstPageSingle: Bool, widePage: WidePagePolicy, sort: SortSpec, recursion: RecursionSpec,
         scaleMode: ScaleMode, allowUpscale: Bool, fixedScale: Double, keepZoomOnPageTurn: Bool,
-        resample: ResampleFilter, sharpen: Float
+        resample: ResampleFilter, sharpen: Float,
+        effects: EffectChain = .empty, background: ViewerBackground = .auto
     ) {
         self.browseMode = browseMode
         self.pageMode = pageMode
@@ -109,6 +136,29 @@ public struct ResolvedBookSettings: Codable, Sendable, Hashable {
         self.keepZoomOnPageTurn = keepZoomOnPageTurn
         self.resample = resample
         self.sharpen = sharpen
+        self.effects = effects
+        self.background = background
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            browseMode: try values.decode(BrowseMode.self, forKey: .browseMode),
+            pageMode: try values.decode(PageMode.self, forKey: .pageMode),
+            direction: try values.decode(ReadingDirection.self, forKey: .direction),
+            firstPageSingle: try values.decode(Bool.self, forKey: .firstPageSingle),
+            widePage: try values.decode(WidePagePolicy.self, forKey: .widePage),
+            sort: try values.decode(SortSpec.self, forKey: .sort),
+            recursion: try values.decode(RecursionSpec.self, forKey: .recursion),
+            scaleMode: try values.decode(ScaleMode.self, forKey: .scaleMode),
+            allowUpscale: try values.decode(Bool.self, forKey: .allowUpscale),
+            fixedScale: try values.decode(Double.self, forKey: .fixedScale),
+            keepZoomOnPageTurn: try values.decode(Bool.self, forKey: .keepZoomOnPageTurn),
+            resample: try values.decode(ResampleFilter.self, forKey: .resample),
+            sharpen: try values.decode(Float.self, forKey: .sharpen),
+            effects: try values.decodeIfPresent(EffectChain.self, forKey: .effects) ?? .empty,
+            background: try values.decodeIfPresent(ViewerBackground.self, forKey: .background) ?? .auto
+        )
     }
 
     /// 内置默认值，S1-T7 可以按需调整。
@@ -116,7 +166,7 @@ public struct ResolvedBookSettings: Codable, Sendable, Hashable {
         browseMode: .paged, pageMode: .single, direction: .leftToRight,
         firstPageSingle: true, widePage: .single, sort: SortSpec(key: .name), recursion: RecursionSpec(enabled: false, maxDepth: 1),
         scaleMode: .fitWindow, allowUpscale: false, fixedScale: 1, keepZoomOnPageTurn: false,
-        resample: .lanczos, sharpen: 0
+        resample: .lanczos, sharpen: 0, effects: .empty, background: .auto
     )
 
     /// 逐字段合并：`layer` 中有值的字段覆盖当前值。
@@ -135,6 +185,8 @@ public struct ResolvedBookSettings: Codable, Sendable, Hashable {
         if let value = layer.keepZoomOnPageTurn { result.keepZoomOnPageTurn = value }
         if let value = layer.resample { result.resample = value }
         if let value = layer.sharpen { result.sharpen = value }
+        if let value = layer.effects { result.effects = value }
+        if let value = layer.background { result.background = value }
         return result
     }
 }
