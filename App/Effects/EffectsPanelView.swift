@@ -265,8 +265,13 @@ final class EffectsPanelView: NSView {
     private func buildBackgroundSection() -> NSView {
         let section = makeSectionStack()
         let title = makeSectionTitle(String(localized: "背景"))
-        section.addArrangedSubview(title)
-        section.setCustomSpacing(8, after: title)
+        let headerSpacer = NSView()
+        headerSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let header = NSStackView(views: [title, headerSpacer])
+        header.orientation = .horizontal
+        header.alignment = .centerY
+        section.addArrangedSubview(header)
+        section.setCustomSpacing(8, after: header)
 
         let row = NSStackView()
         row.orientation = .horizontal
@@ -407,6 +412,8 @@ final class KeyBadgeView: NSView {
 @MainActor
 private final class DoubleClickSlider: NSSlider {
     var onDoubleClick: (() -> Void)?
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {
         guard isEnabled else { return }
@@ -586,6 +593,8 @@ private final class BackgroundSwatchView: NSView {
         tile.needsDisplay = true
     }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func mouseDown(with event: NSEvent) {
         guard isEnabled else { return }
         onClick?()
@@ -597,6 +606,8 @@ private final class SwatchTileView: NSView {
     var option: EffectsPanelView.BackgroundOption = .auto
     var isSelected = false
     var customColor = NSColor(srgbRed: 0x3B / 255, green: 0x4A / 255, blue: 0x5C / 255, alpha: 1)
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
         let inner = bounds.insetBy(dx: 2.5, dy: 2.5)

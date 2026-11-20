@@ -41,10 +41,21 @@ final class EffectsSelfTest {
             log.check(false, "效果自检需要真实服务与主窗口")
             exit(log.summarize())
         }
-        guard mode == "render" else {
+        switch mode {
+        case "render":
+            await runRenderSuite(controller: controller, window: window)
+        case "panel":
+            await runPanelSuite(controller: controller, window: window)
+        default:
             log.check(false, "未知的 -MVEffectsSelfTest 模式：\(mode)")
             exit(log.summarize())
         }
+        try? FileManager.default.removeItem(at: temporary)
+        await app.services?.shutdown()
+        exit(log.summarize())
+    }
+
+    private func runRenderSuite(controller: ReaderWindowController, window: NSWindow) async {
         do {
             try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
             window.setContentSize(NSSize(width: 1100, height: 760))
@@ -71,9 +82,283 @@ final class EffectsSelfTest {
         } catch {
             log.check(false, "效果自检异常：\(error)")
         }
-        try? FileManager.default.removeItem(at: temporary)
-        await app.services?.shutdown()
-        exit(log.summarize())
+    }
+
+    // MARK: panel 自检（C3.1–C3.8）
+
+    private func runPanelSuite(controller: ReaderWindowController, window: NSWindow) async {
+        do {
+            try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+            window.setContentSize(NSSize(width: 1160, height: 760))
+            let books = try makePanelBooks()
+
+            // 打开效果面板（⌥⌘E / panel.effects.toggle）
+            controller.run(.effectsPanelToggle)
+            await settle()
+            guard let panel = controller.effectsPanel else {
+                log.check(false, "C3.1 打开效果面板失败")
+                return
+            }
+
+            // 打开书 A
+            await openBook(controller, url: books.bookA, expectedCount: 2)
+            window.contentView?.layoutSubtreeIfNeeded()
+            await settle()
+
+            // C3.1：用真实鼠标事件拖亮度滑块
+            if let slider = panel.panelView.slider(for: .brightness) {
+                let start = slider.convert(NSPoint(x: slider.bounds.minX + slider.bounds.width * 0.62, y: slider.bounds.midY), to: nil)
+                let end = slider.convert(NSPoint(x: slider.bounds.minX + slider.bounds.width * 0.78, y: slider.bounds.midY), to: nil)
+                sendMouseDrag(from: start, to: end, in: window)
+                await settle()
+            }
+            let draggedBrightness = controller.session.settings.effects.colorAdjust.brightness
+            let bookshelfCount = (controller.dock.panels[DockPanels.bookshelf] as? CollectionPanel)?.collection?.canvas.effectFilterCount ?? 0
+            log.check(
+                draggedBrightness > 0.1 && controller.viewer.effectFilterCount > 0 && bookshelfCount == 0,
+                "C3.1 拖亮度滑块后 brightness=\(String(format: "%.2f", draggedBrightness))，主视图滤镜数=\(controller.viewer.effectFilterCount)，书架挂点=\(bookshelfCount)"
+            )
+
+            // C3.2：点开关关闭效果 -> 滑块变灰、值不变、滤镜清零
+            let sw = panel.panelView.effectsSwitch
+            let swPoint = sw.convert(NSPoint(x: sw.bounds.midX, y: sw.bounds.midY), to: nil)
+            sendMouseClick(at: swPoint, in: window)
+            await settle()
+            let sliderDisabled = panel.panelView.slider(for: .brightness)?.isEnabled == false
+            let brightnessKept = abs(controller.session.settings.effects.colorAdjust.brightness - draggedBrightness) < 0.001
+            log.check(
+                !controller.effectsEnabled && sliderDisabled && brightnessKept && controller.viewer.effectFilterCount == 0,
+                "C3.2 关闭开关后滑块变灰(\(sliderDisabled))、值保留(\(brightnessKept))、滤镜数=\(controller.viewer.effectFilterCount)"
+            )
+            // 重新打开开关
+            sendMouseClick(at: swPoint, in: window)
+            await settle()
+
+            // C3.3：用真实鼠标事件点棋盘格色块
+            if let checker = panel.panelView.swatchView(for: .checkerboard) {
+                let pt = checker.convert(NSPoint(x: checker.bounds.midX, y: checker.bounds.midY), to: nil)
+                sendMouseClick(at: pt, in: window)
+                await settle()
+            }
+            log.check(controller.session.settings.background == .checkerboard, "C3.3 点击棋盘格后 background=\(controller.session.settings.background)")
+
+            // C3.4：只勾“效果”“背景”保存为“夜间”；打开书 B 按 ⌃1 套用
+            panel.openSavePopover(from: panel.panelView.profileListView.emptySaveButton)
+            await settle()
+            if let pop = panel.activeSavePopover {
+                pop.setName("夜间")
+                pop.setGroup(.layout, checked: false)
+                pop.setGroup(.scale, checked: false)
+                pop.setGroup(.effects, checked: true)
+                pop.setGroup(.background, checked: true)
+                pop.submit()
+            }
+            await settle()
+            let savedProfiles = await controller.services.settings.profiles()
+            log.check(
+                savedProfiles.count == 1 && savedProfiles[0].name == "夜间" && savedProfiles[0].groups == [.effects, .background],
+                "C3.4 保存“夜间”配置成功，含组=\(savedProfiles.first?.groups.map(\.rawValue).sorted() ?? [])"
+            )
+            let originalID = savedProfiles.first?.id
+
+            // 打开书 B 并设为瀑布流
+            await openBook(controller, url: books.bookB, expectedCount: 2)
+            controller.session.update { $0.browseMode = .waterfall }
+            await settle()
+
+            // 经命令注册表触发 displayProfile.apply (slot: 1，即 ⌃1)
+            if let services = app.services {
+                let ctx = CommandContext(session: controller.session.id, scope: .viewer, selection: [])
+                try await services.commands.perform(.displayProfileApply, arguments: ["slot": .number(1)], context: ctx)
+            }
+            await settle()
+            let bApplied = abs(controller.session.settings.effects.colorAdjust.brightness - draggedBrightness) < 0.001
+                && controller.session.settings.background == .checkerboard
+                && controller.session.settings.browseMode == .waterfall
+            log.check(bApplied, "C3.4 书 B 按 ⌃1 仅效果与背景变化，浏览方式保持 waterfall")
+
+            // 切走再重开书 B，确认书记忆生效；切回书 A 确认未受影响
+            await controller.session.flush()
+            await openBook(controller, url: books.bookA, expectedCount: 2)
+            await settle()
+            let aUnchanged = controller.session.settings.browseMode == .paged
+            log.check(aUnchanged, "C3.4 书 A 浏览方式不受影响：\(controller.session.settings.browseMode)")
+
+            await openBook(controller, url: books.bookB, expectedCount: 2)
+            await settle()
+            let bPersisted = abs(controller.session.settings.effects.colorAdjust.brightness - draggedBrightness) < 0.001
+                && controller.session.settings.background == .checkerboard
+                && controller.session.settings.browseMode == .waterfall
+            log.check(bPersisted, "C3.4 重开书 B 仍保留套用的效果、背景与浏览方式")
+
+            // C3.5：同名保存就地替换（id 与槽位不变），且效果开关关着时 ⌃1 自动打开开关
+            var updatedAdjust = controller.session.settings.effects.colorAdjust
+            updatedAdjust.contrast = 0.4
+            controller.session.update { $0.effects = EffectChain(effects: [.colorAdjust(updatedAdjust)]) }
+            await settle()
+
+            panel.openSavePopover(from: panel.panelView.profileListView.saveButton)
+            await settle()
+            var showsWarning = false
+            if let pop = panel.activeSavePopover {
+                pop.setName("夜间")
+                showsWarning = pop.isShowingDuplicateWarning
+                pop.setGroup(.layout, checked: false)
+                pop.setGroup(.scale, checked: false)
+                pop.setGroup(.effects, checked: true)
+                pop.setGroup(.background, checked: true)
+                pop.submit()
+            }
+            await settle()
+            let afterOverwrite = await controller.services.settings.profiles()
+            log.check(
+                showsWarning && afterOverwrite.count == 1 && afterOverwrite[0].id == originalID
+                    && abs((afterOverwrite[0].settings.effects?.colorAdjust.contrast ?? 0) - 0.4) < 0.001,
+                "C3.5 同名保存提示覆盖并就地替换：warning=\(showsWarning) count=\(afterOverwrite.count) sameID=\(afterOverwrite.first?.id == originalID)"
+            )
+
+            controller.setEffectsEnabled(false)
+            await settle()
+            if let services = app.services {
+                let ctx = CommandContext(session: controller.session.id, scope: .viewer, selection: [])
+                try await services.commands.perform(.displayProfileApply, arguments: ["slot": .number(1)], context: ctx)
+            }
+            await settle()
+            log.check(controller.effectsEnabled && controller.viewer.effectFilterCount > 0, "C3.5 效果开关关着时 ⌃1 套用含效果配置自动打开开关")
+
+            // C3.8：在正常配置列表状态下截面板图（供中英文、浅深色四组合核对）
+            window.contentView?.layoutSubtreeIfNeeded()
+            await settle()
+            _ = log.snapshot(window, "effects-panel")
+
+            // C3.6：套用到全局默认 -> 新书 C 打开即为新值；存为路径规则选上一层 -> 同层书 D 生效
+            if let profile = afterOverwrite.first {
+                panel.applyToGlobal(profile)
+                await settle()
+                await openBook(controller, url: books.bookC, expectedCount: 2)
+                await settle()
+                let cGotGlobal = abs(controller.session.settings.effects.colorAdjust.contrast - 0.4) < 0.001
+                    && controller.session.settings.background == .checkerboard
+                log.check(cGotGlobal, "C3.6 套用到全局默认后新书 C 自动按新值显示")
+
+                // 恢复全局默认后再测路径规则，确保是路径规则生效而非全局默认
+                try await controller.services.settings.updateGlobal {
+                    $0.defaultBook.effects = .empty
+                    $0.defaultBook.background = .auto
+                }
+                await settle()
+
+                // 在书 C 所在的父目录建路径规则（SavePathRulePopover 默认选中上一层）
+                panel.openSavePathRulePopover(for: profile, from: panel.panelView.profileListView)
+                await settle()
+                panel.activePathRulePopover?.submit()
+                await settle()
+                let rules = await controller.services.settings.pathRules()
+                let hasRule = rules.contains { $0.name == "夜间" }
+                await openBook(controller, url: books.bookD, expectedCount: 2)
+                await settle()
+                let dGotRule = abs(controller.session.settings.effects.colorAdjust.contrast - 0.4) < 0.001
+                    && controller.session.settings.background == .checkerboard
+                log.check(hasRule && dGotRule, "C3.6 存为路径规则（上一层）后规则列表可见(\(hasRule))且同层书 D 生效(\(dGotRule))")
+            }
+
+            // C3.7：写坏 profiles.json -> 列表保留、窗口顶部错误条出现；写回正确内容 -> 错误条消失
+            let profilesURL = app.supportDirectory.appending(path: "profiles.json")
+            let validData = try Data(contentsOf: profilesURL)
+            try Data("{ broken json".utf8).write(to: profilesURL, options: .atomic)
+            let errorAppeared = await waitUntil(timeoutSeconds: 4) {
+                self.app.fileProblems.contains { $0.file == "profiles.json" }
+            }
+            let listRetained = panel.profiles.count == 1 && panel.profiles[0].name == "夜间"
+            log.check(
+                errorAppeared && listRetained,
+                "C3.7 profiles.json 写坏后错误条出现(\(errorAppeared))且列表保留(\(listRetained))"
+            )
+
+            try validData.write(to: profilesURL, options: .atomic)
+            let errorCleared = await waitUntil(timeoutSeconds: 4) {
+                !self.app.fileProblems.contains { $0.file == "profiles.json" }
+            }
+            log.check(errorCleared, "C3.7 profiles.json 写回合法内容后错误条自动消失")
+        } catch {
+            log.check(false, "效果面板自检异常：\(error)")
+        }
+    }
+
+    private func makePanelBooks() throws -> (bookA: URL, bookB: URL, bookC: URL, bookD: URL) {
+        let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
+        func makeBook(at dir: URL, color: [CGFloat]) throws -> URL {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try writePNG(to: dir.appending(path: "01.png"), width: 320, height: 240, colorSpace: srgb) { ctx in
+                ctx.setFillColor(CGColor(colorSpace: srgb, components: color)!)
+                ctx.fill(CGRect(x: 0, y: 0, width: 320, height: 240))
+            }
+            try writePNG(to: dir.appending(path: "02.png"), width: 320, height: 240, colorSpace: srgb) { ctx in
+                ctx.clear(CGRect(x: 0, y: 0, width: 320, height: 240))
+                ctx.setFillColor(CGColor(colorSpace: srgb, components: [0.85, 0.35, 0.25, 1])!)
+                ctx.fillEllipse(in: CGRect(x: 80, y: 40, width: 160, height: 160))
+            }
+            return dir
+        }
+        let bookA = try makeBook(at: temporary.appending(path: "bookA", directoryHint: .isDirectory), color: [0.5, 0.4, 0.3, 1])
+        let bookB = try makeBook(at: temporary.appending(path: "bookB", directoryHint: .isDirectory), color: [0.3, 0.5, 0.6, 1])
+        let group = temporary.appending(path: "series", directoryHint: .isDirectory)
+        let bookC = try makeBook(at: group.appending(path: "bookC", directoryHint: .isDirectory), color: [0.4, 0.6, 0.4, 1])
+        let bookD = try makeBook(at: group.appending(path: "bookD", directoryHint: .isDirectory), color: [0.6, 0.4, 0.5, 1])
+        return (bookA, bookB, bookC, bookD)
+    }
+
+    private func sendMouseClick(at point: NSPoint, in window: NSWindow) {
+        let now = ProcessInfo.processInfo.systemUptime
+        if let down = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: point, modifierFlags: [], timestamp: now,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1
+        ), let up = NSEvent.mouseEvent(
+            with: .leftMouseUp, location: point, modifierFlags: [], timestamp: now + 0.02,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 0
+        ) {
+            NSApp.postEvent(up, atStart: false)
+            if NSApp.isActive {
+                NSApp.sendEvent(down)
+            } else {
+                window.sendEvent(down)
+            }
+        }
+    }
+
+    private func sendMouseDrag(from start: NSPoint, to end: NSPoint, in window: NSWindow) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let mid = NSPoint(x: (start.x + end.x) * 0.5, y: (start.y + end.y) * 0.5)
+        guard let down = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: start, modifierFlags: [], timestamp: now,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 1
+        ), let drag1 = NSEvent.mouseEvent(
+            with: .leftMouseDragged, location: mid, modifierFlags: [], timestamp: now + 0.01,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 1
+        ), let drag2 = NSEvent.mouseEvent(
+            with: .leftMouseDragged, location: end, modifierFlags: [], timestamp: now + 0.02,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 1
+        ), let up = NSEvent.mouseEvent(
+            with: .leftMouseUp, location: end, modifierFlags: [], timestamp: now + 0.03,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 0
+        ) else { return }
+        NSApp.postEvent(drag1, atStart: false)
+        NSApp.postEvent(drag2, atStart: false)
+        NSApp.postEvent(up, atStart: false)
+        if NSApp.isActive {
+            NSApp.sendEvent(down)
+        } else {
+            window.sendEvent(down)
+        }
+    }
+
+    private func waitUntil(timeoutSeconds: Double, condition: () -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(timeoutSeconds))
+        while ContinuousClock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        return condition()
     }
 
     // MARK: 夹具生成
@@ -411,9 +696,13 @@ final class EffectsSelfTest {
     // MARK: 辅助
 
     private func openBook(_ controller: ReaderWindowController, url: URL, expectedCount: Int) async {
+        let expectedName = url.lastPathComponent
         controller.open([url])
         for _ in 0..<200 {
-            if let book = controller.session.book, book.isEnumerated, book.pages.count == expectedCount { return }
+            if let book = controller.session.book,
+               book.location.name == expectedName,
+               book.isEnumerated,
+               book.pages.count == expectedCount { return }
             try? await Task.sleep(for: .milliseconds(50))
         }
     }

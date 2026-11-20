@@ -450,7 +450,7 @@ final class FileOperationController {
     }
 
     nonisolated static var adjustedFileSuffix: String {
-        Bundle.main.preferredLocalizations.first == "en" ? "-adjusted" : "-效果"
+        String(localized: "-效果")
     }
 
     nonisolated static func adjustedFileName(for originalName: String) -> String {

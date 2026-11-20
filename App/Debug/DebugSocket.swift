@@ -388,7 +388,23 @@ final class DebugCommands: Sendable {
             "library": await libraryState(),
             "search": searchState(),
             "metadata": await metadataState(),
+            "profiles": await profilesState(),
+            "profilesError": app.fileProblems.first(where: { $0.file == "profiles.json" }).map { .string($0.message) } ?? .null,
         ])
+    }
+
+    /// 显示配置列表快照：名称与所含组。
+    private func profilesState() async -> JSONValue {
+        let profiles = await app.services?.settings.profiles() ?? []
+        return .array(profiles.map { profile in
+            let groups = DisplayProfileHelpers.orderedGroups
+                .filter { profile.groups.contains($0) }
+                .map { JSONValue.string($0.rawValue) }
+            return .object([
+                "name": .string(profile.name),
+                "groups": .array(groups),
+            ])
+        })
     }
 
     /// 搜索状态：当前查询与结果数。
