@@ -1,5 +1,7 @@
 import AppKit
+import CoreImage
 import Darwin
+import ImageIO
 import MVCommands
 import MVFoundation
 import MVIO
@@ -40,6 +42,8 @@ final class FileOperationController {
     private var settingsTask: Task<Void, Never>?, changesTask: Task<Void, Never>?
     private var pasteboardLeases: [FileLease] = [], openWithLeases: [FileLease] = []
     private var activePromiseDelegates: [FilePromiseDelegate] = []
+    private var activeRenderedDelegates: [RenderedImagePromiseDelegate] = []
+    nonisolated private static let renderContext = CIContext(options: [.cacheIntermediates: false])
     private let promiseQueue: OperationQueue = {
         let queue = OperationQueue()
         queue.name = "io.github.ump45nose.MacView.file-promises"
@@ -439,21 +443,93 @@ final class FileOperationController {
         return leases
     }
 
+    private func activeEffects(for controller: ReaderWindowController?) -> EffectChain? {
+        guard let controller, controller.effectsEnabled else { return nil }
+        let chain = controller.session.settings.effects
+        return chain.isIdentity ? nil : chain
+    }
+
+    nonisolated static var adjustedFileSuffix: String {
+        Bundle.main.preferredLocalizations.first == "en" ? "-adjusted" : "-效果"
+    }
+
+    nonisolated static func adjustedFileName(for originalName: String) -> String {
+        let stem = (originalName as NSString).deletingPathExtension
+        let base = stem.isEmpty ? "image" : stem
+        return "\(base)\(adjustedFileSuffix).png"
+    }
+
+    /// 读取静态图字节并按 `EffectFilters.apply` 渲染为原分辨率 PNG；动图或非静态图返回 nil（由调用方回退原文件）。
+    nonisolated static func renderAdjustedPNG(for entry: Entry, sources: any SourceRegistry, chain: EffectChain) async throws -> Data? {
+        guard entry.kind == .image else { return nil }
+        let handle = try await sources.provider(for: entry.location).open(entry.location)
+        let data = try await handle.read(0..<handle.identity.size, priority: .visible, group: nil)
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              CGImageSourceGetCount(source) <= 1,
+              let ciImage = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
+            return nil
+        }
+        let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
+        let targetSpace: CGColorSpace
+        if let srcSpace = ciImage.colorSpace, srcSpace.model == .rgb {
+            targetSpace = srcSpace
+        } else {
+            targetSpace = srgb
+        }
+        let adjusted = EffectFilters.apply(chain, to: ciImage).cropped(to: ciImage.extent)
+        if let png = renderContext.pngRepresentation(of: adjusted, format: .RGBA8, colorSpace: targetSpace, options: [:]) {
+            return png
+        }
+        return renderContext.pngRepresentation(of: adjusted, format: .RGBA8, colorSpace: srgb, options: [:])
+    }
+
+    private static func writeRenderedPNG(_ data: Data, originalName: String, cacheRoot: URL) throws -> URL {
+        let shortDir = String(UUID().uuidString.prefix(8).lowercased())
+        let folder = cacheRoot
+            .appending(path: "rendered", directoryHint: .isDirectory)
+            .appending(path: shortDir, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let fileURL = folder.appending(path: adjustedFileName(for: originalName), directoryHint: .notDirectory)
+        try data.write(to: fileURL, options: .atomic)
+        return fileURL
+    }
+
     func copyItems(origin: FileOrigin) async {
         guard canRead(origin), let services = app?.services else { return }
+        let controller = targetController(for: origin)
+        let activeChain = activeEffects(for: controller)
         do {
-            let leases = try await resolveLeases(for: origin.items.map(\.location), in: services)
+            var urls: [URL] = []
+            var leases: [FileLease] = []
             var imagePayload: (Data, NSPasteboard.PasteboardType)?
-            if origin.items.count == 1, origin.items[0].kind == .image {
-                let item = origin.items[0], handle = try await services.sources.provider(for: item.location).open(item.location)
-                let data = try await handle.read(0..<handle.identity.size, priority: .visible, group: nil)
-                imagePayload = (data, NSPasteboard.PasteboardType(Self.contentType(for: item).identifier))
+            if let activeChain {
+                let cacheRoot = app?.cacheDirectory ?? URL.cachesDirectory.appending(path: "MacView")
+                for item in origin.items {
+                    if item.kind == .image,
+                       let pngData = try await Self.renderAdjustedPNG(for: item, sources: services.sources, chain: activeChain) {
+                        let url = try Self.writeRenderedPNG(pngData, originalName: item.name, cacheRoot: cacheRoot)
+                        urls.append(url)
+                        if origin.items.count == 1 { imagePayload = (pngData, .png) }
+                    } else {
+                        let lease = try await services.sources.provider(for: item.location).fileLease(for: item.location)
+                        leases.append(lease)
+                        urls.append(lease.url)
+                    }
+                }
+            } else {
+                leases = try await resolveLeases(for: origin.items.map(\.location), in: services)
+                urls = leases.map(\.url)
+                if origin.items.count == 1, origin.items[0].kind == .image {
+                    let item = origin.items[0], handle = try await services.sources.provider(for: item.location).open(item.location)
+                    let data = try await handle.read(0..<handle.identity.size, priority: .visible, group: nil)
+                    imagePayload = (data, NSPasteboard.PasteboardType(Self.contentType(for: item).identifier))
+                }
             }
             pasteboardLeases = leases
             let pb = NSPasteboard.general; pb.clearContents()
-            pb.writeObjects(leases.map { $0.url as NSURL })
+            pb.writeObjects(urls as [NSURL])
             if let (data, pbType) = imagePayload { pb.setData(data, forType: pbType) }
-        } catch { targetController(for: origin)?.content.statusBar.showMessage(ErrorText.describe(error)) }
+        } catch { controller?.content.statusBar.showMessage(ErrorText.describe(error)) }
     }
 
     func copyPaths(origin: FileOrigin) async {
@@ -588,11 +664,21 @@ final class FileOperationController {
 
     func pasteboardWriter(forItemAt index: Int, in collectionView: CollectionView) -> (any NSPasteboardWriting)? {
         guard let panel = collectionPanel(for: collectionView), let entry = panel.entries(at: [index]).first else { return nil }
-        return pasteboardWriter(for: entry)
+        return pasteboardWriter(for: entry, in: panel.owner)
     }
 
-    func pasteboardWriter(for entry: Entry) -> (any NSPasteboardWriting)? {
+    func pasteboardWriter(for entry: Entry, in controller: ReaderWindowController? = nil) -> (any NSPasteboardWriting)? {
         guard let services = app?.services, services.fileOperations != nil else { return nil }
+        let owner = controller ?? app?.mainController
+        if entry.kind == .image, let chain = activeEffects(for: owner) {
+            let frameCount = owner?.session.book?.pages.first(where: { $0.entry.identity == entry.identity })?.metadata?.frameCount ?? 1
+            if frameCount <= 1 {
+                let delegate = RenderedImagePromiseDelegate(entry: entry, sources: services.sources, chain: chain, queue: promiseQueue)
+                let provider = NSFilePromiseProvider(fileType: UTType.png.identifier, delegate: delegate)
+                provider.userInfo = delegate; activeRenderedDelegates.append(delegate)
+                return provider
+            }
+        }
         if entry.location.layers.count == 1 { return Self.fileURL(for: entry).map { $0 as NSURL } }
         let delegate = FilePromiseDelegate(entry: entry, sources: services.sources, queue: promiseQueue)
         let provider = NSFilePromiseProvider(fileType: Self.contentType(for: entry).identifier, delegate: delegate)
@@ -601,8 +687,12 @@ final class FileOperationController {
     }
 
     func dragSessionEnded(operation: NSDragOperation) {
-        if operation == [] { activePromiseDelegates.forEach { $0.releaseLease() } }
+        if operation == [] {
+            activePromiseDelegates.forEach { $0.releaseLease() }
+            activeRenderedDelegates.forEach { $0.cancel() }
+        }
         activePromiseDelegates.removeAll()
+        activeRenderedDelegates.removeAll()
     }
 
     private func collectionPanel(for collectionView: CollectionView) -> CollectionPanel? {
@@ -689,5 +779,85 @@ final class FilePromiseDelegate: NSObject, NSFilePromiseProviderDelegate, Sendab
             withExtendedLifetime(lease) {}
             completionHandler(nil)
         } catch { completionHandler(error) }
+    }
+}
+
+/// 效果打开且非恒等时拖出静态图的文件承诺：放下时在后台渲染调色 PNG 写入目标 URL；若是动图则回退原文件。
+final class RenderedImagePromiseDelegate: NSObject, NSFilePromiseProviderDelegate, Sendable {
+    let entry: Entry
+    private let sources: any SourceRegistry
+    private let chain: EffectChain
+    private let queue: OperationQueue
+    private let activeTask = Mutex<Task<Void, Never>?>(nil)
+
+    init(entry: Entry, sources: any SourceRegistry, chain: EffectChain, queue: OperationQueue) {
+        self.entry = entry
+        self.sources = sources
+        self.chain = chain
+        self.queue = queue
+    }
+
+    deinit { cancel() }
+
+    func cancel() {
+        let task = activeTask.withLock { current -> Task<Void, Never>? in
+            defer { current = nil }
+            return current
+        }
+        task?.cancel()
+    }
+
+    func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String {
+        FileOperationController.adjustedFileName(for: entry.name)
+    }
+
+    func operationQueue(for filePromiseProvider: NSFilePromiseProvider) -> OperationQueue { queue }
+
+    func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, writePromiseTo url: URL, completionHandler: @escaping @Sendable ((any Error)?) -> Void) {
+        let entry = self.entry, sources = self.sources, chain = self.chain
+        let semaphore = DispatchSemaphore(value: 0)
+        let resultBox = Mutex<Result<Data?, any Error>?>(nil)
+        let task = Task(priority: .userInitiated) {
+            defer { semaphore.signal() }
+            do {
+                let png = try await FileOperationController.renderAdjustedPNG(for: entry, sources: sources, chain: chain)
+                resultBox.withLock { $0 = .success(png) }
+            } catch {
+                resultBox.withLock { $0 = .failure(error) }
+            }
+        }
+        activeTask.withLock { $0 = task }
+        semaphore.wait()
+        defer { activeTask.withLock { $0 = nil } }
+        do {
+            guard let result = resultBox.withLock({ $0 }) else { throw CancellationError() }
+            if let png = try result.get() {
+                try png.write(to: url, options: .atomic)
+                completionHandler(nil)
+                return
+            }
+            // 探测发现是动图：回退写入原文件。
+            let fallbackSemaphore = DispatchSemaphore(value: 0)
+            let leaseBox = Mutex<Result<FileLease, any Error>?>(nil)
+            let leaseTask = Task(priority: .userInitiated) {
+                defer { fallbackSemaphore.signal() }
+                do {
+                    let lease = try await sources.provider(for: entry.location).fileLease(for: entry.location)
+                    leaseBox.withLock { $0 = .success(lease) }
+                } catch {
+                    leaseBox.withLock { $0 = .failure(error) }
+                }
+            }
+            activeTask.withLock { $0 = leaseTask }
+            fallbackSemaphore.wait()
+            guard let leaseResult = leaseBox.withLock({ $0 }) else { throw CancellationError() }
+            let lease = try leaseResult.get()
+            if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+            try FileManager.default.copyItem(at: lease.url, to: url)
+            withExtendedLifetime(lease) {}
+            completionHandler(nil)
+        } catch {
+            completionHandler(error)
+        }
     }
 }

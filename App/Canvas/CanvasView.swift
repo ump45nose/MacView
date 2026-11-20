@@ -702,7 +702,11 @@ final class CanvasView: NSScrollView {
             request(index, frame: tile.layer.frame, priority: .visible)
         }
         if activatesOnSingleClick {
-            onActivate?(index)
+            if onDraggingWriters != nil {
+                dragCandidate = (index: index, point: event.locationInWindow)
+            } else {
+                onActivate?(index)
+            }
         } else if flags.contains(.command) {
             var next = selection
             if next.remove(index) == nil { next.insert(index) }
@@ -740,7 +744,11 @@ final class CanvasView: NSScrollView {
     fileprivate func release(_ event: NSEvent) {
         guard let candidate = dragCandidate else { return }
         dragCandidate = nil
-        select([candidate.index], focus: candidate.index)
+        if activatesOnSingleClick {
+            onActivate?(candidate.index)
+        } else {
+            select([candidate.index], focus: candidate.index)
+        }
     }
 
     /// 方向键按画面上的位置移动选中项，回车激活。其余按键交给响应链。

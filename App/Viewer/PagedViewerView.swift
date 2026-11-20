@@ -15,7 +15,7 @@ import QuartzCore
 /// 坐标：`ViewerTransform` 和 `PageFrameFit` 用设备像素，图层用点。
 /// `zoom == 1` 时请求 `displayTargets` 的目标，翻到已预解码的页直接命中 L1；放大后按 `decodeSize × zoom` 另外请求。
 @MainActor
-final class PagedViewerView: NSView {
+final class PagedViewerView: NSView, NSDraggingSource {
     /// 最近一次翻页到目标质量上屏的结果，供调试接口和自检读取。
     struct DisplayRecord {
         var page: Int
@@ -58,6 +58,7 @@ final class PagedViewerView: NSView {
     private(set) var lastDisplay: DisplayRecord?
     private var lastMouse: CGPoint?
     private var dragOrigin: CGPoint?
+    private var dragPageCandidate: (page: Int, point: NSPoint)?
     private var occlusionObserver: (any NSObjectProtocol)?
     let navigator = NavigatorView()
     private(set) var video: VideoPageView?
@@ -591,18 +592,56 @@ final class PagedViewerView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(superview)
-        dragOrigin = viewPoint(event)
+        let point = viewPoint(event)
+        if isOverflowing {
+            dragOrigin = point
+            dragPageCandidate = nil
+        } else if let pageIndex = page(at: point) {
+            dragOrigin = nil
+            dragPageCandidate = (pageIndex, event.locationInWindow)
+        } else {
+            dragOrigin = point
+            dragPageCandidate = nil
+        }
     }
 
     override func mouseDragged(with event: NSEvent) {
-        let point = viewPoint(event)
-        guard let origin = dragOrigin else { return }
-        dragOrigin = point
-        pan(by: CGPoint(x: (point.x - origin.x) * backing, y: (point.y - origin.y) * backing))
+        if let origin = dragOrigin {
+            let point = viewPoint(event)
+            dragOrigin = point
+            pan(by: CGPoint(x: (point.x - origin.x) * backing, y: (point.y - origin.y) * backing))
+            return
+        }
+        guard let candidate = dragPageCandidate else { return }
+        let point = event.locationInWindow
+        guard hypot(point.x - candidate.point.x, point.y - candidate.point.y) > 4 else { return }
+        dragPageCandidate = nil
+        guard let pages = session.book?.pages, pages.indices.contains(candidate.page),
+              let fileOps = (NSApp.delegate as? AppDelegate)?.fileOps,
+              let writer = fileOps.pasteboardWriter(for: pages[candidate.page].entry, in: window?.windowController as? ReaderWindowController) else {
+            return
+        }
+        let slot = slots.first { $0.element.page == candidate.page }
+        let frame = slot?.root.frame ?? CGRect(origin: viewPoint(event), size: CGSize(width: 64, height: 64))
+        let raw = slot?.contents
+        let image: Any = (raw != nil && CFGetTypeID(raw as AnyObject) == CGImage.typeID) ? raw! : NSWorkspace.shared.icon(for: .data)
+        let item = NSDraggingItem(pasteboardWriter: writer)
+        item.setDraggingFrame(frame, contents: image)
+        let dragSession = beginDraggingSession(with: [item], event: event, source: self)
+        dragSession.animatesToStartingPositionsOnCancelOrFail = false
     }
 
     override func mouseUp(with event: NSEvent) {
         dragOrigin = nil
+        dragPageCandidate = nil
+    }
+
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        context == .outsideApplication ? .copy : .generic
+    }
+
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        (NSApp.delegate as? AppDelegate)?.fileOps?.dragSessionEnded(operation: operation)
     }
 
     /// 页帧超出视口时平移；没超出时，只有鼠标滚轮（没有相位）翻页，触控板不翻。
