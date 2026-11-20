@@ -21,7 +21,7 @@ final class SelfTest {
 
     /// 自检不读不写用户的会话，会话自检除外。
     static var isRunningExceptSession: Bool {
-        ["MVSelfTest", "MVDockSelfTest", "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", "MVFileOpsSelfTest", LibrarySelfTest.launchKey, SearchSelfTest.launchKey].contains {
+        ["MVSelfTest", "MVDockSelfTest", "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", "MVFileOpsSelfTest", LibrarySelfTest.launchKey, SearchSelfTest.launchKey, EffectsSelfTest.launchKey].contains {
             UserDefaults.standard.object(forKey: $0) != nil
         }
     }
@@ -78,7 +78,7 @@ final class SelfTest {
         }
         target = window
         log.check(text(in: first.content.statusBar).contains(String(localized: "Mock 服务")), "显式 Mock 服务在窗口上标明")
-        log.check(window.toolbar?.items.map(\.itemIdentifier.rawValue) == ["dock.left", "book.previous", "book.next", "book.title", "NSToolbarFlexibleSpaceItem", "view.waterfallOptions", "view.browse", "view.options", "window.fullScreen", "dock.right"], "工具栏有停靠区开关、切书、书名、浏览方式、显示和全屏")
+        log.check(window.toolbar?.items.map(\.itemIdentifier.rawValue) == ["dock.left", "book.previous", "book.next", "book.title", "NSToolbarFlexibleSpaceItem", "view.waterfallOptions", "view.browse", "view.options", "window.fullScreen", "effects.toggle", "dock.right"], "工具栏有停靠区开关、切书、书名、浏览方式、显示、全屏和效果开关")
         print("INFO 按键分派：\(NSApp.isActive ? "NSApp.sendEvent" : "App 未激活（屏幕可能已锁定），按 NSApplication 的顺序手动分派")")
         await settle()
         let frameNextItem = NSApp.mainMenu?.items.compactMap(\.submenu).flatMap(\.items).first { $0.title == app.catalog.title(of: .frameNext) }
