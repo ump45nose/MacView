@@ -79,6 +79,11 @@ final class BookshelfSearchResultsView: NSView, NSTableViewDataSource, NSTableVi
     nonisolated override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
     override func updateLayer() { layer?.backgroundColor = Theme.ground.cgColor }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+        refreshVisibleCells()
+    }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); if window != nil { availability.recheckAll(); loadVisibleThumbnails() } }
 
     func attach(_ services: CoreServices?, writer: MetadataWriteController? = nil) {
@@ -164,6 +169,14 @@ final class BookshelfSearchResultsView: NSView, NSTableViewDataSource, NSTableVi
             if let cell = table.view(atColumn: 0, row: row, makeIfNecessary: false) as? SearchResultCell { configure(cell, row: row) }
         }
     }
+
+    #if DEBUG
+    /// 自检用：读取指定行高亮片段实际使用的背景色（按当前视图外观解析后的 sRGB 颜色）。
+    func highlightedBackgroundColor(at row: Int) -> NSColor? {
+        guard let cell = table.view(atColumn: 0, row: row, makeIfNecessary: true) as? SearchResultCell else { return nil }
+        return cell.firstHighlightBackgroundColor()
+    }
+    #endif
 
     func numberOfRows(in tableView: NSTableView) -> Int { hits.count }
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { LibraryRowView() }
@@ -265,6 +278,10 @@ private final class SearchResultCell: NSView {
     nonisolated override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
     override func updateLayer() { thumb.backgroundColor = Theme.well.cgColor }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
     override func hitTest(_ point: NSPoint) -> NSView? { badge.isHidden ? nil : badge.hitTest(convert(point, from: superview)) }
 
     override func layout() {
@@ -289,6 +306,25 @@ private final class SearchResultCell: NSView {
         if dimmed != isDimmed { isDimmed = dimmed; LibraryPanels.dim([nameLabel, metaLabel], thumb: thumb, dimmed: dimmed); icon.alphaValue = dimmed ? 0.45 : 1 }
         needsLayout = true
     }
+
+    #if DEBUG
+    func firstHighlightBackgroundColor() -> NSColor? {
+        let attr = nameLabel.attributedStringValue
+        var found: NSColor?
+        attr.enumerateAttribute(.backgroundColor, in: NSRange(location: 0, length: attr.length)) { value, _, stop in
+            if let color = value as? NSColor {
+                found = color
+                stop.pointee = true
+            }
+        }
+        guard let found else { return nil }
+        var resolved: NSColor?
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            resolved = found.usingColorSpace(.sRGB)
+        }
+        return resolved
+    }
+    #endif
 
     private static func highlightedName(_ name: String, terms: [String]) -> NSAttributedString {
         let out = NSMutableAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 12.5, weight: .medium), .foregroundColor: Theme.text])

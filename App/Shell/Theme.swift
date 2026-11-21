@@ -1,8 +1,17 @@
 import AppKit
+import MVSettings
+import os
 
 /// 设计稿“设计基础”中的颜色令牌，随系统外观切换浅色（Ivory）与深色（Slate）。只收录外壳用到的几项。
 @MainActor
 enum Theme {
+    private nonisolated static let accentModeLock = OSAllocatedUnfairLock(initialState: AccentColorMode.clay)
+
+    /// 当前强调色模式，由 `AppearanceController` 同步。
+    static var accentMode: AccentColorMode {
+        get { accentModeLock.withLock { $0 } }
+        set { accentModeLock.withLock { $0 = newValue } }
+    }
     static let ground = color(light: 0xFAF9F5, dark: 0x1F1E1D)
     static let canvas = color(light: 0xF0EEE6, dark: 0x1A1918)
     static let raised = color(light: 0xFFFFFF, dark: 0x30302E)
@@ -18,9 +27,25 @@ enum Theme {
     static let dangerSoft = color(light: 0xA33B2A, lightAlpha: 0.08, dark: 0xF09C8B, darkAlpha: 0.12)
     static let well = color(light: 0xF5F4ED, dark: 0x262624)
     static let selected = color(light: 0x73726C, lightAlpha: 0.16, dark: 0xF0EEE6, darkAlpha: 0.12)
-    /// Clay：只作强调色（放置指示、焦点），浅色模式下不用作文字。
-    static let accent = color(light: 0xD97757, dark: 0xD97757)
-    static let accentSoft = color(light: 0xD97757, lightAlpha: 0.14, dark: 0xD97757, darkAlpha: 0.2)
+    /// 强调色（放置指示、焦点等）：按 `accentMode` 返回 Clay 或系统 `controlAccentColor`；浅色模式下不用作文字。
+    static let accent = NSColor(name: nil) { appearance in
+        switch accentModeLock.withLock({ $0 }) {
+        case .clay:
+            rgb(0xD97757, 1)
+        case .system:
+            resolveControlAccent(in: appearance)
+        }
+    }
+    static let accentSoft = NSColor(name: nil) { appearance in
+        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let alpha: CGFloat = isDark ? 0.2 : 0.14
+        switch accentModeLock.withLock({ $0 }) {
+        case .clay:
+            return rgb(0xD97757, alpha)
+        case .system:
+            return resolveControlAccent(in: appearance).withAlphaComponent(alpha)
+        }
+    }
     static let star = color(light: 0xC2643F, dark: 0xE39A77)
 
     /// 衬线字体（New York / 宋体），用于标题和空状态。
@@ -28,6 +53,14 @@ enum Theme {
         let base = NSFont.systemFont(ofSize: size, weight: weight)
         guard let descriptor = base.fontDescriptor.withDesign(.serif) else { return base }
         return NSFont(descriptor: descriptor, size: size) ?? base
+    }
+
+    nonisolated private static func resolveControlAccent(in appearance: NSAppearance) -> NSColor {
+        var resolved: NSColor = .controlAccentColor
+        appearance.performAsCurrentDrawingAppearance {
+            resolved = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? NSColor.controlAccentColor
+        }
+        return resolved
     }
 
     nonisolated private static func color(light: UInt32, lightAlpha: CGFloat = 1, dark: UInt32, darkAlpha: CGFloat = 1) -> NSColor {

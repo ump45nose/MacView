@@ -295,6 +295,13 @@ final class WindowDock: NSView, NSSplitViewDelegate {
         dropTarget = nil
     }
 
+    #if DEBUG
+    /// 自检用：读取当前放置指示层的背景色与描边色。
+    var dropIndicatorLayerColors: (background: CGColor?, border: CGColor?) {
+        (indicator.layer?.backgroundColor, indicator.layer?.borderColor)
+    }
+    #endif
+
     private func dragOperation(_ sender: any NSDraggingInfo) -> NSDragOperation {
         guard coordinator.drag != nil else { return [] }
         return showDropIndicator(at: convert(sender.draggingLocation, from: nil)) == nil ? [] : .move
@@ -439,6 +446,11 @@ private final class DropIndicatorView: NSView {
         super.layout()
         let height = label.intrinsicContentSize.height
         label.frame = CGRect(x: 4, y: (bounds.height - height) / 2, width: max(bounds.width - 8, 0), height: height)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
     }
 
     override func updateLayer() {

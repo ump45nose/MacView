@@ -10,9 +10,9 @@ import MVServices
 import MVSettings
 import UniformTypeIdentifiers
 
-/// 外观与窗口外观自检（`-MVAppearanceSelfTest chrome`）。
+/// 外观与窗口外观自检（`-MVAppearanceSelfTest chrome` / `restart-verify`）。
 ///
-/// 覆盖 W2.1 检查项 C2.1–C2.7（含 C2.5b）。
+/// 覆盖阶段 2 检查项 C2.1–C2.10（含 C2.5b）。
 @MainActor
 final class AppearanceSelfTest {
     static let launchKey = "MVAppearanceSelfTest"
@@ -48,15 +48,24 @@ final class AppearanceSelfTest {
         switch mode {
         case "chrome":
             await runChromeSuite(controller: controller, window: window)
+            try? FileManager.default.removeItem(at: temporary)
+            await app.services?.shutdown()
+            await runC210RestartSubprocess()
+            exit(log.summarize())
+        case "restart-verify":
+            await runRestartVerify(window: window)
+            try? FileManager.default.removeItem(at: temporary)
+            await app.services?.shutdown()
+            exit(log.summarize())
         default:
             log.check(false, "未知的 -MVAppearanceSelfTest 模式：\(mode)")
+            try? FileManager.default.removeItem(at: temporary)
+            await app.services?.shutdown()
+            exit(log.summarize())
         }
-        try? FileManager.default.removeItem(at: temporary)
-        await app.services?.shutdown()
-        exit(log.summarize())
     }
 
-    // MARK: chrome 自检（C2.1–C2.7）
+    // MARK: chrome 自检（C2.1–C2.10）
 
     private func runChromeSuite(controller: ReaderWindowController, window: NSWindow) async {
         do {
@@ -78,6 +87,9 @@ final class AppearanceSelfTest {
             await checkC25bFullScreenChangeAndNewWindows(controller: controller, window: window)
             await checkC26ExternalHotReload(controller: controller, window: window)
             await checkC27BorderlessCommandDrag(controller: controller, window: window)
+            await checkC28AppearanceMode(controller: controller, window: window)
+            await checkC29AccentColorHotRefresh(controller: controller, window: window, booksRoot: books.root)
+            await prepareC210RestartState()
         } catch {
             log.check(false, "外观自检异常：\(error)")
         }
@@ -481,9 +493,322 @@ final class AppearanceSelfTest {
         )
     }
 
+    // MARK: C2.8 外观模式切换（dark / light / system）
+
+    private func checkC28AppearanceMode(controller: ReaderWindowController, window: NSWindow) async {
+        guard let services = app.services, let dock = app.dock else { return }
+        try? await services.settings.updateGlobal {
+            $0.appearance.window.titleBar = .shown
+            $0.appearance.mode = .system
+        }
+        _ = await waitUntil(timeoutMs: 1500) {
+            NSApp.appearance == nil && window.toolbar?.isVisible == true
+        }
+        await settle(150)
+
+        let systemIsDark = isDarkAppearance(NSApp.effectiveAppearance)
+
+        // 确保存在浮动面板与设置窗口，验证所有窗口的 effectiveAppearance 同步切换。
+        if dock.floatingWindows[DockPanels.info] == nil {
+            dock.perform(in: controller.dock) { layout in
+                var next = layout
+                if !next.isPanelVisible(DockPanels.info) {
+                    next = next.togglingPanel(DockPanels.info, defaultEdge: .right)
+                }
+                return next
+            }
+            await settle(100)
+            dock.float(DockPanels.info, from: controller.dock, at: nil)
+            await settle(120)
+        }
+        guard let floating = dock.floatingWindows[DockPanels.info],
+              let settingsWindow = app.openSettings()?.window else {
+            log.check(false, "C2.8 无法打开浮动面板或设置窗口")
+            return
+        }
+        await settle(120)
+
+        // 写 mode=dark：应用、阅读窗口、浮动面板、设置窗口全部为深色。
+        try? await services.settings.updateGlobal { $0.appearance.mode = .dark }
+        let switchedDark = await waitUntil(timeoutMs: 1500) {
+            self.isDarkAppearance(NSApp.effectiveAppearance)
+                && self.isDarkAppearance(window.effectiveAppearance)
+                && self.isDarkAppearance(floating.effectiveAppearance)
+                && self.isDarkAppearance(settingsWindow.effectiveAppearance)
+        }
+        log.check(
+            switchedDark,
+            "C2.8 mode=dark：NSApp=\(isDarkAppearance(NSApp.effectiveAppearance))，阅读窗=\(isDarkAppearance(window.effectiveAppearance))，浮动面板=\(isDarkAppearance(floating.effectiveAppearance))，设置窗=\(isDarkAppearance(settingsWindow.effectiveAppearance))"
+        )
+
+        // 写 mode=light：全部为浅色。
+        try? await services.settings.updateGlobal { $0.appearance.mode = .light }
+        let switchedLight = await waitUntil(timeoutMs: 1500) {
+            !self.isDarkAppearance(NSApp.effectiveAppearance)
+                && !self.isDarkAppearance(window.effectiveAppearance)
+                && !self.isDarkAppearance(floating.effectiveAppearance)
+                && !self.isDarkAppearance(settingsWindow.effectiveAppearance)
+        }
+        log.check(
+            switchedLight,
+            "C2.8 mode=light：四处均切回浅色=\(switchedLight)"
+        )
+
+        // 写 mode=system：NSApp.appearance 为 nil，全部跟随系统外观。
+        try? await services.settings.updateGlobal { $0.appearance.mode = .system }
+        let followedSystem = await waitUntil(timeoutMs: 1500) {
+            NSApp.appearance == nil
+                && self.isDarkAppearance(NSApp.effectiveAppearance) == systemIsDark
+                && self.isDarkAppearance(window.effectiveAppearance) == systemIsDark
+                && self.isDarkAppearance(floating.effectiveAppearance) == systemIsDark
+                && self.isDarkAppearance(settingsWindow.effectiveAppearance) == systemIsDark
+        }
+        log.check(
+            followedSystem,
+            "C2.8 mode=system：NSApp.appearance==nil(\(NSApp.appearance == nil))，四处跟随系统(isDark=\(systemIsDark))=\(followedSystem)"
+        )
+
+        settingsWindow.close()
+        await settle(100)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    // MARK: C2.9 强调色热刷新（瀑布流选中环 / 停靠放置指示 / 书架搜索结果高亮）
+
+    private func checkC29AccentColorHotRefresh(controller: ReaderWindowController, window: NSWindow, booksRoot: URL) async {
+        guard let services = app.services, let dock = app.dock else { return }
+
+        try? await services.settings.updateGlobal { $0.appearance.accent = .clay }
+        _ = await waitUntil(timeoutMs: 1500) { Theme.accentMode == .clay }
+        await settle(100)
+
+        // 1. 切换到瀑布流并选中第 0 项。
+        controller.session.update { $0.browseMode = .waterfall }
+        let canvas = controller.viewer.continuous.canvas
+        let waterfallReady = await waitUntil(timeoutMs: 3000) {
+            !canvas.items.isEmpty && canvas.tileBorderColor(at: 0) != nil
+        }
+        canvas.select([0], focus: 0)
+        await settle(100)
+
+        // 2. 打开左侧书架，对测试书目录建立索引并搜索 "Book" 以产生高亮结果行。
+        dock.perform(in: controller.dock) { layout in
+            var next = layout
+            if !next.isPanelVisible(DockPanels.bookshelf) {
+                next = next.togglingPanel(DockPanels.bookshelf, defaultEdge: .left)
+            }
+            return next
+        }
+        let shelfReady = await waitUntil(timeoutMs: 1500) { controller.bookshelfPanel != nil }
+        guard waterfallReady, shelfReady, let bookshelf = controller.bookshelfPanel else {
+            log.check(false, "C2.9 准备工作失败（瀑布流=\(waterfallReady)，书架=\(shelfReady)）")
+            return
+        }
+        guard let rootLoc = try? await services.sources.location(for: booksRoot) else {
+            log.check(false, "C2.9 无法解析测试书根目录 Location")
+            return
+        }
+        bookshelf.startIndexing(folder: rootLoc)
+        _ = await waitUntil(timeoutMs: 5000) {
+            IndexController.shared.state?.progress.phase == .finished
+        }
+        bookshelf.searchController.submit(text: "Book")
+        let searchReady = await waitUntil(timeoutMs: 3000) {
+            bookshelf.searchController.isSearching
+                && !bookshelf.searchController.isLoading
+                && !bookshelf.searchResultsView.hits.isEmpty
+        }
+        bookshelf.searchResultsView.table.layoutSubtreeIfNeeded()
+        await settle(100)
+        guard searchReady else {
+            log.check(false, "C2.9 书架搜索未能产生高亮结果")
+            return
+        }
+
+        // 3. 辅助：发起一次面板拖动并在右侧空白边缘显示放置指示层，读取其图层颜色后结束拖动。
+        func sampleDropIndicatorColors() async -> (background: CGColor?, border: CGColor?) {
+            dock.beginDrag(DockPanels.info, from: nil)
+            let rightEdgePoint = NSPoint(x: max(controller.dock.bounds.width - 10, 10), y: controller.dock.bounds.midY)
+            _ = controller.dock.showDropIndicator(at: rightEdgePoint)
+            window.displayIfNeeded()
+            await settle(60)
+            let colors = controller.dock.dropIndicatorLayerColors
+            controller.dock.hideDropIndicator()
+            dock.endDrag(DockPanels.info, at: .zero, accepted: false, cancelled: true)
+            return colors
+        }
+
+        // 写 accent=system，不重开窗口，校验三处均为 controlAccentColor（按各自当前外观解析）。
+        try? await services.settings.updateGlobal { $0.appearance.accent = .system }
+        _ = await waitUntil(timeoutMs: 1500) { Theme.accentMode == .system }
+        await settle(150)
+
+        let expectedCanvasSystem = resolvedControlAccent(in: canvas.effectiveAppearance)
+        let expectedDockSystem = resolvedControlAccent(in: controller.dock.effectiveAppearance)
+        let expectedDockSoftSystem = resolvedControlAccentSoft(in: controller.dock.effectiveAppearance)
+        let expectedSearchSoftSystem = resolvedControlAccentSoft(in: bookshelf.searchResultsView.effectiveAppearance)
+
+        let canvasBorderSystem = canvas.tileBorderColor(at: 0).flatMap(srgbColor)
+        let dropSystem = await sampleDropIndicatorColors()
+        let dropBorderSystem = dropSystem.border.flatMap(srgbColor)
+        let dropBgSystem = dropSystem.background.flatMap(srgbColor)
+        let searchBgSystem = bookshelf.searchResultsView.highlightedBackgroundColor(at: 0)
+
+        let canvasMatchesSystem = colorsAlmostEqual(canvasBorderSystem, expectedCanvasSystem)
+        let dropMatchesSystem = colorsAlmostEqual(dropBorderSystem, expectedDockSystem)
+            && colorsAlmostEqual(dropBgSystem, expectedDockSoftSystem)
+        let searchMatchesSystem = colorsAlmostEqual(searchBgSystem, expectedSearchSoftSystem)
+        log.check(
+            canvasMatchesSystem && dropMatchesSystem && searchMatchesSystem,
+            "C2.9 accent=system 不重开窗口：瀑布流选中环=\(canvasMatchesSystem)，停靠放置指示=\(dropMatchesSystem)，书架搜索高亮=\(searchMatchesSystem)"
+        )
+
+        // 写回 accent=clay，不重开窗口，校验三处回到 Clay。
+        try? await services.settings.updateGlobal { $0.appearance.accent = .clay }
+        _ = await waitUntil(timeoutMs: 1500) { Theme.accentMode == .clay }
+        await settle(150)
+
+        let expectedClay = clayColor(alpha: 1)
+        let expectedDockClaySoft = claySoftColor(in: controller.dock.effectiveAppearance)
+        let expectedSearchClaySoft = claySoftColor(in: bookshelf.searchResultsView.effectiveAppearance)
+
+        let canvasBorderClay = canvas.tileBorderColor(at: 0).flatMap(srgbColor)
+        let dropClay = await sampleDropIndicatorColors()
+        let dropBorderClay = dropClay.border.flatMap(srgbColor)
+        let dropBgClay = dropClay.background.flatMap(srgbColor)
+        let searchBgClay = bookshelf.searchResultsView.highlightedBackgroundColor(at: 0)
+
+        let canvasMatchesClay = colorsAlmostEqual(canvasBorderClay, expectedClay)
+        let dropMatchesClay = colorsAlmostEqual(dropBorderClay, expectedClay)
+            && colorsAlmostEqual(dropBgClay, expectedDockClaySoft)
+        let searchMatchesClay = colorsAlmostEqual(searchBgClay, expectedSearchClaySoft)
+        log.check(
+            canvasMatchesClay && dropMatchesClay && searchMatchesClay,
+            "C2.9 accent=clay 不重开窗口：瀑布流选中环=\(canvasMatchesClay)，停靠放置指示=\(dropMatchesClay)，书架搜索高亮=\(searchMatchesClay)"
+        )
+
+        bookshelf.exitSearch()
+        await settle(80)
+    }
+
+    // MARK: C2.10 跨进程重启后外观与强调色保持
+
+    private func prepareC210RestartState() async {
+        guard let services = app.services else { return }
+        try? await services.settings.updateGlobal {
+            $0.appearance.mode = .dark
+            $0.appearance.accent = .system
+        }
+        _ = await waitUntil(timeoutMs: 1500) {
+            self.app.appearance?.current.mode == .dark
+                && self.app.appearance?.current.accent == .system
+                && Theme.accentMode == .system
+        }
+        await settle(150)
+    }
+
+    private func runC210RestartSubprocess() async {
+        guard let executable = Bundle.main.executableURL else {
+            log.check(false, "C2.10 找不到当前可执行文件路径")
+            return
+        }
+        let layoutPath = UserDefaults.standard.string(forKey: DockCoordinator.layoutFileKey)
+            ?? app.supportDirectory.appending(path: "layout-restart.json").path
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = [
+            "-MVAppearanceSelfTest", "restart-verify",
+            "-MVSupportDirectory", app.supportDirectory.path,
+            "-MVCacheDirectory", app.cacheDirectory.path,
+            "-MVLayoutFile", layoutPath,
+        ]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        do {
+            try process.run()
+        } catch {
+            log.check(false, "C2.10 启动重启验证子进程失败：\(error)")
+            return
+        }
+        let result: (status: Int32, output: String) = await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                process.waitUntilExit()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let text = String(data: data, encoding: .utf8) ?? ""
+                continuation.resume(returning: (process.terminationStatus, text))
+            }
+        }
+        if !result.output.isEmpty {
+            print(result.output, terminator: result.output.hasSuffix("\n") ? "" : "\n")
+            fflush(stdout)
+        }
+        log.check(result.status == 0, "C2.10 重启新进程校验外观与强调色保持（exit=\(result.status)）")
+    }
+
+    private func runRestartVerify(window: NSWindow) async {
+        let applied = await waitUntil(timeoutMs: 2500) {
+            self.app.appearance?.hasApplied == true
+        }
+        await settle(120)
+        let modeKept = app.appearance?.current.mode == .dark
+        let accentKept = app.appearance?.current.accent == .system && Theme.accentMode == .system
+        let appDark = isDarkAppearance(NSApp.effectiveAppearance)
+        let windowDark = isDarkAppearance(window.effectiveAppearance)
+        let resolvedAccent: NSColor? = {
+            var color: NSColor?
+            window.effectiveAppearance.performAsCurrentDrawingAppearance {
+                color = Theme.accent.usingColorSpace(.sRGB)
+            }
+            return color
+        }()
+        let accentMatchesSystem = colorsAlmostEqual(resolvedAccent, resolvedControlAccent(in: window.effectiveAppearance))
+        log.check(
+            applied && modeKept && accentKept && appDark && windowDark && accentMatchesSystem,
+            "C2.10 重启后保持：applied=\(applied)，mode=dark(\(modeKept))，accent=system(\(accentKept))，app深色=\(appDark)，窗口深色=\(windowDark)，强调色=系统(\(accentMatchesSystem))"
+        )
+    }
+
     // MARK: 辅助方法
 
-    private func makeTestBooks() throws -> (book1: URL, book2: URL) {
+    private func isDarkAppearance(_ appearance: NSAppearance) -> Bool {
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+    }
+
+    private func srgbColor(_ cgColor: CGColor) -> NSColor? {
+        NSColor(cgColor: cgColor)?.usingColorSpace(.sRGB)
+    }
+
+    private func resolvedControlAccent(in appearance: NSAppearance) -> NSColor {
+        var resolved: NSColor = .controlAccentColor
+        appearance.performAsCurrentDrawingAppearance {
+            resolved = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? NSColor.controlAccentColor
+        }
+        return resolved
+    }
+
+    private func resolvedControlAccentSoft(in appearance: NSAppearance) -> NSColor {
+        let alpha: CGFloat = isDarkAppearance(appearance) ? 0.2 : 0.14
+        return resolvedControlAccent(in: appearance).withAlphaComponent(alpha)
+    }
+
+    private func clayColor(alpha: CGFloat) -> NSColor {
+        NSColor(srgbRed: CGFloat(0xD9) / 255, green: CGFloat(0x77) / 255, blue: CGFloat(0x57) / 255, alpha: alpha)
+    }
+
+    private func claySoftColor(in appearance: NSAppearance) -> NSColor {
+        clayColor(alpha: isDarkAppearance(appearance) ? 0.2 : 0.14)
+    }
+
+    private func colorsAlmostEqual(_ a: NSColor?, _ b: NSColor?, tolerance: CGFloat = 0.02) -> Bool {
+        guard let a = a?.usingColorSpace(.sRGB), let b = b?.usingColorSpace(.sRGB) else { return false }
+        return abs(a.redComponent - b.redComponent) <= tolerance
+            && abs(a.greenComponent - b.greenComponent) <= tolerance
+            && abs(a.blueComponent - b.blueComponent) <= tolerance
+            && abs(a.alphaComponent - b.alphaComponent) <= tolerance
+    }
+
+    private func makeTestBooks() throws -> (root: URL, book1: URL, book2: URL) {
         let root = temporary.appending(path: "books", directoryHint: .isDirectory)
         let book1 = root.appending(path: "Book1", directoryHint: .isDirectory)
         let book2 = root.appending(path: "Book2", directoryHint: .isDirectory)
@@ -491,7 +816,7 @@ final class AppearanceSelfTest {
         try FileManager.default.createDirectory(at: book2, withIntermediateDirectories: true)
         try writeSolidPNG(to: book1.appending(path: "01.png"), r: 235, g: 55, b: 40)
         try writeSolidPNG(to: book2.appending(path: "01.png"), r: 40, g: 140, b: 235)
-        return (book1, book2)
+        return (root, book1, book2)
     }
 
     private func writeSolidPNG(to url: URL, r: UInt8, g: UInt8, b: UInt8) throws {

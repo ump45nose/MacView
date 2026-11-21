@@ -501,10 +501,41 @@ final class CanvasView: NSScrollView {
         CATransaction.commit()
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        refreshAppearanceColors()
+    }
+
+    private func refreshAppearanceColors() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            let border = Theme.accent.cgColor
+            let placeholder = NSColor.quaternaryLabelColor.cgColor
+            let failure = NSColor.secondaryLabelColor.cgColor
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            for (index, tile) in tiles {
+                tile.layer.borderColor = border
+                if tile.layer.contents == nil || isFailed(at: index) {
+                    tile.layer.backgroundColor = placeholder
+                }
+                for sub in tile.layer.sublayers ?? [] where sub.name == "failure" {
+                    (sub as? CATextLayer)?.foregroundColor = failure
+                }
+            }
+            for layer in spare {
+                layer.borderColor = border
+                layer.backgroundColor = placeholder
+            }
+            CATransaction.commit()
+        }
+    }
+
     private func makeLayer() -> CALayer {
         let layer = CALayer()
-        layer.backgroundColor = NSColor.quaternaryLabelColor.cgColor
-        layer.borderColor = Theme.accent.cgColor
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer.backgroundColor = NSColor.quaternaryLabelColor.cgColor
+            layer.borderColor = Theme.accent.cgColor
+        }
         layer.cornerRadius = 6
         layer.cornerCurve = .continuous
         layer.masksToBounds = true
@@ -595,6 +626,11 @@ final class CanvasView: NSScrollView {
     }
 
     #if DEBUG
+    /// 自检用：读取指定序号已分配图层的选中环边框颜色。
+    func tileBorderColor(at index: Int) -> CGColor? {
+        tiles[index]?.layer.borderColor
+    }
+
     /// 当前视口里的项是否都已经有图层内容。只给首屏计时用。
     func visibleItemsHaveContents() -> Bool {
         let shown = tiles.filter { $0.value.layer.frame.intersects(viewport) }

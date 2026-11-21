@@ -16,16 +16,30 @@ final class AppearanceController {
     private let store: any SettingsStore
     private let logger = Logger(category: "appearance")
     private(set) var current: AppearanceSettings = .default
+    private(set) var hasApplied = false
     private var registrations: [ObjectIdentifier: Registration] = [:]
     private weak var dock: DockCoordinator?
     private var observeTask: Task<Void, Never>?
+    private var systemColorsObserver: NSObjectProtocol?
 
     init(store: any SettingsStore) {
         self.store = store
+        systemColorsObserver = NotificationCenter.default.addObserver(
+            forName: NSColor.systemColorsDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.handleSystemColorsDidChange()
+            }
+        }
     }
 
     isolated deinit {
         observeTask?.cancel()
+        if let systemColorsObserver {
+            NotificationCenter.default.removeObserver(systemColorsObserver)
+        }
         for registration in registrations.values {
             NotificationCenter.default.removeObserver(registration.closeObserver)
         }
@@ -104,15 +118,63 @@ final class AppearanceController {
         }
     }
 
+    private static var hasDebugAppearanceOverride: Bool {
+        #if DEBUG
+        UserDefaults.standard.string(forKey: "MVAppearance") != nil
+        #else
+        false
+        #endif
+    }
+
     private func apply(_ next: AppearanceSettings, animated: Bool) {
         let previous = current
+        let isInitial = !hasApplied
+        hasApplied = true
         current = next
         pruneDeadRegistrations()
-        if previous.window != next.window || !animated {
+
+        if isInitial || previous.mode != next.mode {
+            applyMode(next.mode)
+        }
+
+        if isInitial || previous.accent != next.accent {
+            let accentChanged = Theme.accentMode != next.accent
+            Theme.accentMode = next.accent
+            if accentChanged {
+                refreshAllWindowsAppearance()
+            }
+        }
+
+        if isInitial || previous.window != next.window || !animated {
             for registration in registrations.values {
                 registration.controller?.chrome.apply(next.window, animated: animated)
             }
             dock?.setKeepOnTop(next.window.keepOnTop)
+        }
+    }
+
+    private func applyMode(_ mode: AppearanceMode) {
+        guard !Self.hasDebugAppearanceOverride else { return }
+        switch mode {
+        case .system: NSApp.appearance = nil
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
+
+    private func handleSystemColorsDidChange() {
+        guard current.accent == .system else { return }
+        refreshAllWindowsAppearance()
+    }
+
+    /// 临时切换并恢复每个窗口的外观，触发子视图的 `viewDidChangeEffectiveAppearance` 与 `updateLayer`。
+    private func refreshAllWindowsAppearance() {
+        for window in NSApp.windows {
+            let saved = window.appearance
+            let isDark = window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            window.appearance = NSAppearance(named: isDark ? .aqua : .darkAqua)
+            window.appearance = saved
+            window.contentView?.needsDisplay = true
         }
     }
 }
