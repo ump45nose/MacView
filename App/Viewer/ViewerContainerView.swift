@@ -14,6 +14,8 @@ final class ViewerContainerView: NSView, InputScoped {
     let paged: PagedViewerView
     let continuous: ContinuousViewer
     let hud: ViewerHUD
+    let gestureTrailView = GestureTrailView()
+    let gestureRecognizer: ViewerGestureRecognizer
     private let message = ViewerMessageView()
     /// 虚拟书顶部的来源胶囊：“来自 《书名》 · 文件名”。
     private let sourcePill = SourcePillView()
@@ -54,6 +56,7 @@ final class ViewerContainerView: NSView, InputScoped {
         paged = PagedViewerView(session: session, pipeline: services.pipeline, sources: services.sources)
         continuous = ContinuousViewer(session: session, pipeline: services.pipeline, settings: services.settings, bookshelf: services.bookshelf)
         hud = ViewerHUD(session: session, pipeline: services.pipeline)
+        gestureRecognizer = ViewerGestureRecognizer(trailView: gestureTrailView)
         super.init(frame: .zero)
         wantsLayer = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
@@ -77,6 +80,8 @@ final class ViewerContainerView: NSView, InputScoped {
         metadataToast.translatesAutoresizingMaskIntoConstraints = false
         metadataToast.isHidden = true
         addSubview(metadataToast)
+        gestureTrailView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(gestureTrailView)
         let hudWidth = hud.widthAnchor.constraint(equalToConstant: 880)
         hudWidth.priority = .defaultHigh
         NSLayoutConstraint.activate([
@@ -92,6 +97,10 @@ final class ViewerContainerView: NSView, InputScoped {
             sourcePill.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -48),
             metadataToast.centerXAnchor.constraint(equalTo: centerXAnchor),
             metadataToast.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -24),
+            gestureTrailView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            gestureTrailView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            gestureTrailView.topAnchor.constraint(equalTo: topAnchor),
+            gestureTrailView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
         message.onAction = { [weak self] in self?.messageAction() }
         message.onSecondary = { [weak self] in self?.onConnect?() }
@@ -122,6 +131,31 @@ final class ViewerContainerView: NSView, InputScoped {
         }
         continuous.canvas.onDragSessionEnded = { operation in
             (NSApp.delegate as? AppDelegate)?.fileOps?.dragSessionEnded(operation: operation)
+        }
+        gestureRecognizer.inputBindingsProvider = {
+            (NSApp.delegate as? AppDelegate)?.catalog.inputBindings ?? InputBindings.effective(user: KeyBindingsFile())
+        }
+        gestureRecognizer.commandTitleProvider = { id in
+            (NSApp.delegate as? AppDelegate)?.catalog.title(of: id) ?? id.rawValue
+        }
+        gestureRecognizer.onCommand = { [weak self] id, arguments in
+            guard let self, let app = NSApp.delegate as? AppDelegate else { return }
+            let controller = window?.windowController as? ReaderWindowController
+            app.dispatcher?.run(id, arguments: arguments, in: controller, scope: .viewer)
+        }
+        continuous.canvas.onRightMouseDown = { [weak self] event, sourceView in
+            guard let self else { return false }
+            window?.makeFirstResponder(sourceView)
+            gestureRecognizer.rightMouseDown(event, in: sourceView) { [weak sourceView] menuEvent in
+                sourceView?.menu(for: menuEvent)
+            }
+            return true
+        }
+        continuous.canvas.onRightMouseDragged = { [weak self] event in
+            self?.gestureRecognizer.rightMouseDragged(event) ?? false
+        }
+        continuous.canvas.onRightMouseUp = { [weak self] event in
+            self?.gestureRecognizer.rightMouseUp(event) ?? false
         }
         paged.onPageFailure = { [weak self] location in self?.recheckAvailability { $0 == location } }
         // 外部变化没有通知：App 重新激活、卷挂载或卸载时重查。
@@ -198,6 +232,37 @@ final class ViewerContainerView: NSView, InputScoped {
         window?.makeFirstResponder(self)
     }
 
+    override func rightMouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        gestureRecognizer.rightMouseDown(event, in: self) { [weak self] menuEvent in
+            self?.menu(for: menuEvent)
+        }
+    }
+
+    override func rightMouseDragged(with event: NSEvent) {
+        if !gestureRecognizer.rightMouseDragged(event) {
+            super.rightMouseDragged(with: event)
+        }
+    }
+
+    override func rightMouseUp(with event: NSEvent) {
+        if !gestureRecognizer.rightMouseUp(event) {
+            super.rightMouseUp(with: event)
+        }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if gestureRecognizer.handleKeyDown(event) { return }
+        super.keyDown(with: event)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            gestureRecognizer.reset()
+        }
+    }
+
     /// 分页模式取光标下的页，点在页外时取当前页。
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let pages = session.book?.pages else { return nil }
@@ -253,6 +318,7 @@ final class ViewerContainerView: NSView, InputScoped {
 
     /// 窗口关闭时取消全部请求。
     func cancelLoads() {
+        gestureRecognizer.reset()
         checkTasks.values.forEach { $0.cancel() }
         checkTasks = [:]
         for (center, token) in activationTokens { center.removeObserver(token) }

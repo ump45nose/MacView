@@ -1,5 +1,7 @@
 import Foundation
 import MVCommands
+import MVReading
+import MVSettings
 
 extension CommandID {
     /// App 侧的界面命令：关闭当前窗口或标签页。
@@ -54,15 +56,23 @@ struct CommandCatalog {
     }
 
     let bindings: [KeyBinding]
+    let inputBindings: InputBindings
     let menu: MenuModel
     private let descriptors: [CommandID: CommandDescriptor]
 
-    /// `user` 是 keybindings.json 中的绑定。
+    /// `file` 是完整的 keybindings.json 文档（含键盘与鼠标/触控板/点击区域/滚轮绑定）。
     @MainActor
-    init(user: [KeyBinding] = []) {
+    init(file: KeyBindingsFile) {
+        self.init(user: file.bindings, inputBindings: InputBindings.effective(user: file))
+    }
+
+    /// `user` 是 keybindings.json 中的键盘绑定。
+    @MainActor
+    init(user: [KeyBinding] = [], inputBindings: InputBindings = InputBindings.effective(user: KeyBindingsFile())) {
         let all = CoreCommands.all + Self.appCommands
         descriptors = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         bindings = KeyBinding.effective(defaults: all, user: user)
+        self.inputBindings = inputBindings
         let dockCommands = Set(Self.dockMenu.compactMap { node -> CommandID? in
             if case let .command(id) = node { id } else { nil }
         })
@@ -127,6 +137,36 @@ struct CommandCatalog {
             let next = binding.sequence[typed.count]
             guard seen.insert(next).inserted else { return nil }
             return (next, title(of: binding.command))
+        }
+    }
+}
+
+extension AppDelegate {
+    /// 注册按当前阅读方向换算上一帧/下一帧的左右翻帧命令（`frame.left` / `frame.right`）。
+    func registerFrameDirectionCommands(in registry: CommandRegistry) {
+        for id in [CommandID.frameLeft, .frameRight] {
+            guard let descriptor = catalog.descriptor(id) else {
+                preconditionFailure("命令清单中没有 \(id.rawValue)")
+            }
+            registry.register(descriptor, isEnabled: { [weak self] context in
+                guard let session = self?.controller(for: context.session)?.session, !session.frames.isEmpty else { return false }
+                let move = Self.frameMove(for: id, direction: session.settings.direction)
+                return move == .nextFrame ? session.currentFrame < session.frames.count - 1 : session.currentFrame > 0
+            }) { [weak self] context, _ in
+                guard let session = self?.controller(for: context.session)?.session else { return }
+                session.go(Self.frameMove(for: id, direction: session.settings.direction))
+            }
+        }
+    }
+
+    private static func frameMove(for id: CommandID, direction: ReadingDirection) -> PageMove {
+        switch (id, direction) {
+        case (.frameLeft, .leftToRight), (.frameRight, .rightToLeft):
+            .previousFrame
+        case (.frameLeft, .rightToLeft), (.frameRight, .leftToRight):
+            .nextFrame
+        default:
+            .nextFrame
         }
     }
 }

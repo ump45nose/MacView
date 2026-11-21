@@ -118,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.dispatcher = dispatcher
             dock = DockCoordinator(fileURL: DockCoordinator.defaultFileURL())
             registerCommands(in: services.commands)
+            registerFrameDirectionCommands(in: services.commands)
             observeSettingsErrors()
         } catch {
             logger.fault("服务启动失败：\(String(describing: error), privacy: .public)")
@@ -162,6 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LibrarySelfTest.runIfRequested(app: self)
         SearchSelfTest.runIfRequested(app: self)
         EffectsSelfTest.runIfRequested(app: self)
+        InputSelfTest.runIfRequested(app: self)
         debugSocket = DebugSocket.startIfRequested(app: self)
         #endif
     }
@@ -201,7 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func reloadBindings() {
-        catalog = CommandCatalog(user: services?.keyBindings?.value().bindings ?? [])
+        catalog = CommandCatalog(file: services?.keyBindings?.value() ?? KeyBindingsFile())
         installMenu()
         controllers.forEach { $0.updateBindings(catalog) }
     }

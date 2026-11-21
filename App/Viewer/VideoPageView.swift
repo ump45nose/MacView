@@ -166,6 +166,9 @@ final class VideoPageView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {}
+    override func rightMouseDown(with event: NSEvent) { superview?.rightMouseDown(with: event) }
+    override func rightMouseDragged(with event: NSEvent) { superview?.rightMouseDragged(with: event) }
+    override func rightMouseUp(with event: NSEvent) { superview?.rightMouseUp(with: event) }
     override func scrollWheel(with event: NSEvent) { superview?.scrollWheel(with: event) }
     override func magnify(with event: NSEvent) { superview?.magnify(with: event) }
 }
