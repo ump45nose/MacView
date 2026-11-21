@@ -15,10 +15,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var catalog = CommandCatalog()
     private(set) var menuBuilder: MenuBuilder?
     private(set) var contextMenuProvider: ContextMenuProvider?
-    /// 供 W2.4 接入布局方案动态子菜单的填充回调。
-    var layoutSchemesMenuPopulator: ((NSMenu) -> Bool)? {
-        didSet { installMenu() }
-    }
     private(set) var services: CoreServices?
     private(set) var dispatcher: CommandDispatcher?
     private(set) var dock: DockCoordinator?
@@ -77,8 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let builder = MenuBuilder(
             catalog: catalog,
             isEnabled: { [weak self] id in self?.isEnabled(id) ?? false },
-            perform: { [weak self] id in self?.runFromMenu(id) },
-            populateLayoutSchemes: layoutSchemesMenuPopulator
+            perform: { [weak self] id in self?.runFromMenu(id) }
         )
         var extra: [NSMenu] = []
         #if DEBUG
@@ -129,9 +124,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 fileURL: DockCoordinator.defaultFileURL(),
                 schemesFileURL: DockCoordinator.defaultSchemesFileURL(supportDirectory: supportDirectory)
             )
-            layoutSchemesMenuPopulator = { [weak self] menu in
-                self?.populateLayoutSchemesMenu(menu) ?? false
-            }
             registerCommands(in: services.commands)
             registerFrameDirectionCommands(in: services.commands)
             registerLayoutSchemeCommands(in: services.commands)
@@ -233,9 +225,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return holder
         }
         provider.register(dynamic: .layoutSchemes) { [weak self] _ in
-            guard let populate = self?.layoutSchemesMenuPopulator else { return nil }
+            guard let self else { return nil }
             let sub = NSMenu(title: String(localized: "布局方案"))
-            let enabled = populate(sub)
+            let enabled = populateLayoutSchemesMenu(sub)
             let holder = NSMenuItem(title: sub.title, action: nil, keyEquivalent: "")
             holder.submenu = sub
             holder.isEnabled = enabled
@@ -562,7 +554,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dispatcher?.run(id, in: mainController, scope: menuScope)
     }
 
-    private func populateLayoutSchemesMenu(_ menu: NSMenu) -> Bool {
+    func populateLayoutSchemesMenu(_ menu: NSMenu) -> Bool {
         menu.removeAllItems()
         menu.autoenablesItems = false
         let schemes = dock?.schemes ?? []
