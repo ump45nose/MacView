@@ -1,5 +1,176 @@
 import AppKit
+import MVCommands
+import MVSettings
 import SwiftUI
+
+/// 设置页共享的命令清单与标题/图标查找，避免各页重复构建全量字典。
+enum SettingsCommandCatalog {
+    static let all: [CommandDescriptor] = CoreCommands.all + CommandCatalog.appCommands
+    private static let byID: [CommandID: CommandDescriptor] = Dictionary(
+        all.map { ($0.id, $0) },
+        uniquingKeysWith: { first, _ in first }
+    )
+
+    static func descriptor(of id: CommandID) -> CommandDescriptor? { byID[id] }
+
+    static func title(of id: CommandID) -> String {
+        if id == .fileRename { return String(localized: "重命名…") }
+        if id == .searchIndexFolder { return String(localized: "为此文件夹建立索引") }
+        return byID[id].map { String(localized: $0.title) } ?? id.rawValue
+    }
+
+    static func symbol(of id: CommandID) -> String {
+        if let symbol = byID[id]?.symbol, !symbol.isEmpty { return symbol }
+        return "command"
+    }
+}
+
+/// 串行持久化与外部重载桥接：按顺序落盘，写入失败时从 store 回滚内存状态并报告错误。
+@MainActor
+final class DocumentStoreBridge<Value: Codable & Sendable> {
+    private let store: JSONDocumentStore<Value>?
+    private let onSync: @MainActor (Value) -> Void
+    private let onError: @MainActor (String?) -> Void
+    private var changesTask: Task<Void, Never>?
+    private var persistTask: Task<Void, Never>?
+    private var pendingWrites = 0
+
+    init(
+        store: JSONDocumentStore<Value>?,
+        onSync: @escaping @MainActor (Value) -> Void,
+        onError: @escaping @MainActor (String?) -> Void
+    ) {
+        self.store = store
+        self.onSync = onSync
+        self.onError = onError
+        if let store {
+            let changes = store.changes()
+            changesTask = Task { [weak self] in
+                for await change in changes {
+                    guard let self, !Task.isCancelled else { return }
+                    if case .reloaded = change, self.pendingWrites == 0 {
+                        self.onSync(store.value())
+                    }
+                }
+            }
+        }
+    }
+
+    deinit { changesTask?.cancel() }
+
+    func reload() {
+        if let store, pendingWrites == 0 { onSync(store.value()) }
+    }
+
+    func persist(_ mutate: @escaping @Sendable (inout Value) -> Void) {
+        guard let store else { return }
+        pendingWrites += 1
+        let previous = persistTask
+        persistTask = Task { [weak self] in
+            _ = await previous?.value
+            do {
+                try await store.update(mutate)
+                guard let self else { return }
+                self.pendingWrites -= 1
+                self.onError(nil)
+            } catch {
+                guard let self else { return }
+                self.pendingWrites -= 1
+                self.onError(ErrorText.describe(error))
+                if self.pendingWrites == 0 {
+                    self.onSync(store.value())
+                }
+            }
+        }
+    }
+}
+
+/// 设置页卡片内错误提示条。
+struct SettingsErrorBanner: View {
+    let message: String?
+
+    var body: some View {
+        if let message {
+            Text(message)
+                .font(.system(size: 11))
+                .foregroundStyle(Color(nsColor: Theme.danger))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(nsColor: Theme.dangerSoft), in: RoundedRectangle(cornerRadius: 6))
+        }
+    }
+}
+
+/// 设置页搜索输入框。
+struct SettingsSearchField: View {
+    let placeholder: String
+    @Binding var text: String
+    var width: CGFloat?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(Color(nsColor: Theme.text2))
+            TextField(placeholder, text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+        }
+        .padding(.horizontal, 8)
+        .frame(width: width, height: 24)
+        .background(Color(nsColor: Theme.raised), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: Theme.line), lineWidth: 0.5))
+    }
+}
+
+/// 设置页行内 22×22 小图标按钮。
+struct SettingsIconButton: View {
+    let systemImage: String
+    var fontSize: CGFloat = 11
+    var weight: Font.Weight = .regular
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: fontSize, weight: weight))
+                .foregroundStyle(Color(nsColor: Theme.text2))
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+}
+
+/// 绑定冲突提示条（带替换与取消操作）。
+struct SettingsConflictBanner: View {
+    let message: String
+    var replaceDisabled = false
+    let onReplace: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 11))
+            Text(message)
+                .font(.system(size: 11))
+            Spacer(minLength: 4)
+            Button(String(localized: "替换"), action: onReplace)
+                .controlSize(.mini)
+                .disabled(replaceDisabled)
+            Button(String(localized: "取消"), action: onCancel)
+                .controlSize(.mini)
+        }
+        .foregroundStyle(Color(nsColor: Theme.danger))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Color(nsColor: Theme.dangerSoft), in: RoundedRectangle(cornerRadius: 6))
+    }
+}
 
 /// 设置页的分组：小标题加圆角卡片。
 struct SettingsSection<Content: View>: View {

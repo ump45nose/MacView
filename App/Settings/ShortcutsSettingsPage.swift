@@ -38,7 +38,11 @@ final class ShortcutsModel {
 
     static let scopeOrder: [InputScope] = [.viewer, .global, .list, .classify]
 
-    var searchText = ""
+    var searchText = "" {
+        didSet {
+            if searchText != oldValue { cancelRecording() }
+        }
+    }
     var scopeFilter: InputScope?
     private(set) var file: KeyBindingsFile
     private(set) var recordingTarget: RowID?
@@ -46,45 +50,29 @@ final class ShortcutsModel {
     private(set) var pendingConflict: PendingConflict?
     private(set) var errorMessage: String?
 
-    @ObservationIgnored private let store: JSONDocumentStore<KeyBindingsFile>?
-    @ObservationIgnored private let descriptors: [CommandDescriptor]
-    @ObservationIgnored private let descriptorsByID: [CommandID: CommandDescriptor]
-    @ObservationIgnored private var changesTask: Task<Void, Never>?
+    @ObservationIgnored private var bridge: DocumentStoreBridge<KeyBindingsFile>?
     @ObservationIgnored private var sequenceTimer: Task<Void, Never>?
     @ObservationIgnored private let maxSequenceLength = 4
 
     init(store: JSONDocumentStore<KeyBindingsFile>?) {
-        self.store = store
         self.file = store?.value() ?? KeyBindingsFile()
-        let all = CoreCommands.all + CommandCatalog.appCommands
-        self.descriptors = all
-        self.descriptorsByID = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        if let store {
-            let changes = store.changes()
-            changesTask = Task { [weak self] in
-                for await change in changes {
-                    guard let self, !Task.isCancelled else { return }
-                    if case .reloaded = change {
-                        self.file = store.value()
-                    }
-                }
-            }
-        }
+        self.bridge = DocumentStoreBridge(
+            store: store,
+            onSync: { [weak self] in self?.file = $0 },
+            onError: { [weak self] in self?.errorMessage = $0 }
+        )
     }
 
     deinit {
-        changesTask?.cancel()
         sequenceTimer?.cancel()
     }
 
     func reload() {
-        if let store {
-            file = store.value()
-        }
+        bridge?.reload()
     }
 
     var effectiveBindings: [KeyBinding] {
-        KeyBinding.effective(defaults: descriptors, user: file.bindings).filter { !$0.sequence.isEmpty }
+        KeyBinding.effective(defaults: SettingsCommandCatalog.all, user: file.bindings).filter { !$0.sequence.isEmpty }
     }
 
     var hasAnyCustomBindings: Bool {
@@ -98,8 +86,8 @@ final class ShortcutsModel {
         let activeScopes = scopeFilter.map { [$0] } ?? Self.scopeOrder
 
         var grouped: [InputScope: [Row]] = [:]
-        for descriptor in descriptors {
-            let title = commandTitle(of: descriptor.id)
+        for descriptor in SettingsCommandCatalog.all {
+            let title = SettingsCommandCatalog.title(of: descriptor.id)
             let cmdEffective = effective.filter { $0.command == descriptor.id }
             let cmdDefaults = descriptor.defaultBindings
             let scopes = scopesForCommand(descriptor, effective: cmdEffective)
@@ -256,7 +244,7 @@ final class ShortcutsModel {
 
     func resetCommand(_ command: CommandID, scope: InputScope) {
         pendingConflict = nil
-        let defaultsForScope = descriptorsByID[command]?.defaultBindings.filter { $0.scope == scope } ?? []
+        let defaultsForScope = SettingsCommandCatalog.descriptor(of: command)?.defaultBindings.filter { $0.scope == scope } ?? []
         applyCommandChanges { bindings in
             var list = (bindings[command] ?? []).filter { $0.scope != scope }
             list.append(contentsOf: defaultsForScope)
@@ -273,18 +261,12 @@ final class ShortcutsModel {
     func conflictDescription(for conflict: PendingConflict) -> String {
         let keyText = Self.displayText(for: conflict.candidate.sequence)
         guard let first = conflict.conflicts.first else { return "" }
-        let title = commandTitle(of: first.command)
+        let title = SettingsCommandCatalog.title(of: first.command)
         let scope = Self.scopeTitle(for: first.scope)
         if conflict.conflicts.count == 1 {
             return String(localized: "“\(keyText)”已用于“\(title)”（\(scope)）")
         }
         return String(localized: "“\(keyText)”与“\(title)”等 \(conflict.conflicts.count) 项绑定冲突（\(scope)）")
-    }
-
-    func commandTitle(of id: CommandID) -> String {
-        if id == .fileRename { return String(localized: "重命名…") }
-        if id == .searchIndexFolder { return String(localized: "为此文件夹建立索引") }
-        return descriptorsByID[id].map { String(localized: $0.title) } ?? id.rawValue
     }
 
     static func displayText(for sequence: [KeyChord]) -> String {
@@ -321,7 +303,7 @@ final class ShortcutsModel {
     private func applyCommandChanges(_ mutate: (inout [CommandID: [KeyBinding]]) -> Void) {
         let currentEffective = effectiveBindings
         var byCommand: [CommandID: [KeyBinding]] = [:]
-        for descriptor in descriptors {
+        for descriptor in SettingsCommandCatalog.all {
             byCommand[descriptor.id] = currentEffective.filter { $0.command == descriptor.id }
         }
         let before = byCommand
@@ -330,7 +312,7 @@ final class ShortcutsModel {
         var nextUser = file.bindings
         for (command, nextList) in byCommand where before[command] != nextList {
             nextUser.removeAll { $0.command == command }
-            let defaults = descriptorsByID[command]?.defaultBindings ?? []
+            let defaults = SettingsCommandCatalog.descriptor(of: command)?.defaultBindings ?? []
             if Set(nextList) == Set(defaults) {
                 continue
             }
@@ -347,15 +329,7 @@ final class ShortcutsModel {
 
     private func persist(bindings: [KeyBinding]) {
         file.bindings = bindings
-        guard let store else { return }
-        Task { [weak self] in
-            do {
-                try await store.update { $0.bindings = bindings }
-                self?.errorMessage = nil
-            } catch {
-                self?.errorMessage = ErrorText.describe(error)
-            }
-        }
+        bridge?.persist { $0.bindings = bindings }
     }
 }
 
@@ -375,18 +349,8 @@ struct ShortcutsSettingsPage: View {
                 .foregroundStyle(Color(nsColor: Theme.text2))
 
             HStack(spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color(nsColor: Theme.text2))
-                    TextField(String(localized: "搜索命令或按键"), text: $model.searchText)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 12))
-                }
-                .padding(.horizontal, 8)
-                .frame(width: 220, height: 24)
-                .background(Color(nsColor: Theme.raised), in: RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: Theme.line), lineWidth: 0.5))
+                SettingsSearchField(placeholder: String(localized: "搜索命令或按键"), text: $model.searchText, width: 220)
+                    .simultaneousGesture(TapGesture().onEnded { model.cancelRecording() })
 
                 SettingsPopup(
                     label: String(localized: "作用域"),
@@ -403,15 +367,7 @@ struct ShortcutsSettingsPage: View {
                 .disabled(!model.hasAnyCustomBindings)
             }
 
-            if let error = model.errorMessage {
-                Text(error)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color(nsColor: Theme.danger))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(nsColor: Theme.dangerSoft), in: RoundedRectangle(cornerRadius: 6))
-            }
+            SettingsErrorBanner(message: model.errorMessage)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -520,34 +476,18 @@ private struct ShortcutRowView: View {
                             .background(Color(nsColor: Theme.accentSoft), in: RoundedRectangle(cornerRadius: 5))
                             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color(nsColor: Theme.accent), lineWidth: 1.5))
                     } else {
-                        Button {
+                        SettingsIconButton(systemImage: "plus", fontSize: 10, weight: .semibold, help: String(localized: "添加快捷键")) {
                             model.startRecording(command: row.command, scope: row.scope)
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(Color(nsColor: Theme.text2))
-                                .frame(width: 22, height: 22)
-                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        .help(String(localized: "添加快捷键"))
                     }
                 }
                 .frame(minWidth: 200, alignment: .trailing)
 
                 Group {
                     if row.isModified {
-                        Button {
+                        SettingsIconButton(systemImage: "arrow.counterclockwise", help: String(localized: "恢复默认")) {
                             model.resetCommand(row.command, scope: row.scope)
-                        } label: {
-                            Image(systemName: "arrow.counterclockwise")
-                                .font(.system(size: 11))
-                                .foregroundStyle(Color(nsColor: Theme.text2))
-                                .frame(width: 22, height: 22)
-                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        .help(String(localized: "恢复默认"))
                     } else {
                         Color.clear.frame(width: 22, height: 22)
                     }
@@ -555,25 +495,11 @@ private struct ShortcutRowView: View {
             }
 
             if let conflict {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11))
-                    Text(model.conflictDescription(for: conflict))
-                        .font(.system(size: 11))
-                    Spacer(minLength: 4)
-                    Button(String(localized: "替换")) {
-                        model.resolveConflictByReplacing()
-                    }
-                    .controlSize(.mini)
-                    Button(String(localized: "取消")) {
-                        model.dismissConflict()
-                    }
-                    .controlSize(.mini)
-                }
-                .foregroundStyle(Color(nsColor: Theme.danger))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Color(nsColor: Theme.dangerSoft), in: RoundedRectangle(cornerRadius: 6))
+                SettingsConflictBanner(
+                    message: model.conflictDescription(for: conflict),
+                    onReplace: { model.resolveConflictByReplacing() },
+                    onCancel: { model.dismissConflict() }
+                )
             }
         }
         .padding(.horizontal, 10)
@@ -630,7 +556,7 @@ private struct KeyCaptureView: NSViewRepresentable {
         }
 
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
-            guard isRecording else { return super.performKeyEquivalent(with: event) }
+            guard isRecording, window?.firstResponder === self else { return super.performKeyEquivalent(with: event) }
             return onKeyDown?(event) ?? false
         }
 
