@@ -798,9 +798,11 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         dock.setAutoHide(true)
     }
 
+    #if DEBUG
     func windowDidEnterFullScreen(_ notification: Notification) {
         chrome.didEnterFullScreen()
     }
+    #endif
 
     func windowDidFailToEnterFullScreen(_ window: NSWindow) {
         chrome.didFailToEnterFullScreen()
@@ -809,7 +811,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     func windowWillExitFullScreen(_ notification: Notification) {
+        #if DEBUG
         chrome.willExitFullScreen()
+        #endif
         dock.setAutoHide(false)
     }
 

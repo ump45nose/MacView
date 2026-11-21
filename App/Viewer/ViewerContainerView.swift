@@ -251,11 +251,8 @@ final class ViewerContainerView: NSView, InputScoped {
         if appliedBackground == .frostedGlass && !isFullScreen {
             return NSColor.clear.cgColor
         }
-        if appliedBackground == .imageColor {
-            if let lastImageColor {
-                return lastImageColor.cgColor
-            }
-            return Self.backgroundColor(for: .auto, isEmptyState: isEmptyState, appearance: effectiveAppearance)
+        if appliedBackground == .imageColor, let lastImageColor {
+            return lastImageColor.cgColor
         }
         return Self.backgroundColor(for: appliedBackground, isEmptyState: isEmptyState, appearance: effectiveAppearance)
     }
@@ -263,28 +260,26 @@ final class ViewerContainerView: NSView, InputScoped {
     private func applyBackgroundColor(animated: Bool) {
         guard let layer else { return }
         let targetColor = resolvedBackgroundColor()
-        if animated,
-           appliedBackground == .imageColor,
-           let fromColor = layer.presentation()?.backgroundColor ?? layer.backgroundColor,
-           fromColor != targetColor,
-           fromColor.colorSpace?.model != .pattern,
-           targetColor.colorSpace?.model != .pattern {
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            layer.backgroundColor = targetColor
-            CATransaction.commit()
+        let fromColor = animated && appliedBackground == .imageColor
+            ? (layer.presentation()?.backgroundColor ?? layer.backgroundColor)
+            : nil
+        let shouldAnimate = fromColor != nil && fromColor != targetColor
+
+        if !shouldAnimate {
+            layer.removeAnimation(forKey: "backgroundColor")
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.backgroundColor = targetColor
+        CATransaction.commit()
+
+        if shouldAnimate, let fromColor {
             let animation = CABasicAnimation(keyPath: "backgroundColor")
             animation.fromValue = fromColor
             animation.toValue = targetColor
             animation.duration = 0.2
             animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             layer.add(animation, forKey: "backgroundColor")
-        } else {
-            layer.removeAnimation(forKey: "backgroundColor")
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            layer.backgroundColor = targetColor
-            CATransaction.commit()
         }
     }
 
@@ -407,35 +402,40 @@ final class ViewerContainerView: NSView, InputScoped {
         hud.updateZoom(percent: paged.displayPercent)
     }
 
+    private func cancelEdgeColorTask(clearColor: Bool = false) {
+        edgeColorGeneration &+= 1
+        edgeColorTask?.cancel()
+        edgeColorTask = nil
+        if clearColor {
+            lastImageColor = nil
+            lastSampledIdentity = nil
+        }
+    }
+
     private func updateBackgroundState() {
+        var needsApply = false
         let currentBook = session.book?.location
         if currentBook != edgeColorBook {
             edgeColorBook = currentBook
-            edgeColorGeneration &+= 1
-            edgeColorTask?.cancel()
-            edgeColorTask = nil
-            lastImageColor = nil
-            lastSampledIdentity = nil
+            cancelEdgeColorTask(clearColor: true)
             if appliedBackground == .imageColor {
-                applyBackgroundColor(animated: false)
+                needsApply = true
             }
         }
 
         let newBackground = session.settings.background
         if appliedBackground != newBackground {
-            let involvesImageColor = appliedBackground == .imageColor || newBackground == .imageColor
-            appliedBackground = newBackground
-            if involvesImageColor {
-                edgeColorGeneration &+= 1
-                edgeColorTask?.cancel()
-                edgeColorTask = nil
-                lastImageColor = nil
-                lastSampledIdentity = nil
+            if appliedBackground == .imageColor || newBackground == .imageColor {
+                cancelEdgeColorTask(clearColor: true)
             }
+            appliedBackground = newBackground
             updateFrostedVisibility()
-            applyBackgroundColor(animated: false)
+            needsApply = true
         }
 
+        if needsApply {
+            applyBackgroundColor(animated: false)
+        }
         if appliedBackground == .imageColor {
             updateImageEdgeColorIfNeeded()
         }
@@ -460,18 +460,14 @@ final class ViewerContainerView: NSView, InputScoped {
         if page.entry.kind == .video {
             if lastSampledIdentity != page.entry.identity {
                 lastSampledIdentity = page.entry.identity
-                edgeColorGeneration &+= 1
-                edgeColorTask?.cancel()
-                edgeColorTask = nil
+                cancelEdgeColorTask()
             }
             return
         }
         let identity = page.entry.identity
         guard lastSampledIdentity != identity else { return }
         lastSampledIdentity = identity
-        edgeColorGeneration &+= 1
-        edgeColorTask?.cancel()
-        edgeColorTask = nil
+        cancelEdgeColorTask()
 
         if let cached = ImageEdgeColorCache.shared.color(for: identity) {
             let changed = lastImageColor != cached
@@ -556,9 +552,7 @@ final class ViewerContainerView: NSView, InputScoped {
     /// 窗口关闭时取消全部请求。
     func cancelLoads() {
         gestureRecognizer.reset()
-        edgeColorGeneration &+= 1
-        edgeColorTask?.cancel()
-        edgeColorTask = nil
+        cancelEdgeColorTask()
         checkTasks.values.forEach { $0.cancel() }
         checkTasks = [:]
         for (center, token) in activationTokens { center.removeObserver(token) }

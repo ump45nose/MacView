@@ -1,5 +1,5 @@
-import AppKit
 import CoreGraphics
+import Foundation
 import MVFoundation
 
 /// 从图像四边边缘带采样得到的 sRGB 平均色。
@@ -10,15 +10,6 @@ struct EdgeColor: Sendable, Equatable {
 
     var cgColor: CGColor {
         CGColor(srgbRed: red, green: green, blue: blue, alpha: 1)
-    }
-
-    var nsColor: NSColor {
-        NSColor(srgbRed: red, green: green, blue: blue, alpha: 1)
-    }
-
-    /// Rec. 709 相对亮度（0...1）。
-    var luminance: Double {
-        0.2126 * red + 0.7152 * green + 0.0722 * blue
     }
 }
 
@@ -101,89 +92,42 @@ enum ImageEdgeColor {
     }
 }
 
-/// 按页内容标识缓存边缘取色结果的有上限 LRU 内存缓存。
+/// 按页内容标识缓存边缘取色结果的有上限内存缓存。
 @MainActor
 final class ImageEdgeColorCache {
     static let shared = ImageEdgeColorCache(capacity: 512)
 
-    private final class Node {
-        let key: ContentIdentity
-        var value: EdgeColor
-        var prev: Node?
-        var next: Node?
-
-        init(key: ContentIdentity, value: EdgeColor) {
-            self.key = key
-            self.value = value
+    private final class Key: NSObject {
+        let identity: ContentIdentity
+        init(_ identity: ContentIdentity) { self.identity = identity }
+        override var hash: Int { identity.hashValue }
+        override func isEqual(_ object: Any?) -> Bool {
+            (object as? Key)?.identity == identity
         }
     }
 
-    let capacity: Int
-    private var map: [ContentIdentity: Node] = [:]
-    private var head: Node?
-    private var tail: Node?
+    private final class Box {
+        let color: EdgeColor
+        init(_ color: EdgeColor) { self.color = color }
+    }
+
+    private let cache = NSCache<Key, Box>()
 
     init(capacity: Int) {
-        self.capacity = max(1, capacity)
+        cache.countLimit = max(1, capacity)
     }
 
     func color(for identity: ContentIdentity) -> EdgeColor? {
-        guard let node = map[identity] else { return nil }
-        moveToHead(node)
-        return node.value
+        cache.object(forKey: Key(identity))?.color
     }
 
     func store(_ color: EdgeColor, for identity: ContentIdentity) {
-        if let existing = map[identity] {
-            existing.value = color
-            moveToHead(existing)
-            return
-        }
-        let node = Node(key: identity, value: color)
-        map[identity] = node
-        insertAtHead(node)
-        if map.count > capacity, let evicted = tail {
-            remove(evicted)
-            map[evicted.key] = nil
-        }
+        cache.setObject(Box(color), forKey: Key(identity))
     }
 
+    #if DEBUG
     func removeAll() {
-        map.removeAll()
-        head = nil
-        tail = nil
+        cache.removeAllObjects()
     }
-
-    private func insertAtHead(_ node: Node) {
-        node.prev = nil
-        node.next = head
-        head?.prev = node
-        head = node
-        if tail == nil {
-            tail = node
-        }
-    }
-
-    private func moveToHead(_ node: Node) {
-        guard head !== node else { return }
-        remove(node)
-        insertAtHead(node)
-    }
-
-    private func remove(_ node: Node) {
-        let prev = node.prev
-        let next = node.next
-        if let prev {
-            prev.next = next
-        } else {
-            head = next
-        }
-        if let next {
-            next.prev = prev
-        } else {
-            tail = prev
-        }
-        node.prev = nil
-        node.next = nil
-    }
+    #endif
 }

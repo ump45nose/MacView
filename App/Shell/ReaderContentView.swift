@@ -110,9 +110,11 @@ final class ReaderContentView: NSView {
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
-        topBackdrop.layer?.backgroundColor = Theme.ground.cgColor
-        banners.layer?.backgroundColor = Theme.ground.cgColor
-        updateDropBorder()
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            topBackdrop.layer?.backgroundColor = Theme.ground.cgColor
+            banners.layer?.backgroundColor = Theme.ground.cgColor
+            updateDropBorder()
+        }
     }
 
     private func updateDropBorder() {

@@ -1498,4 +1498,15 @@ final class AppearanceSelfTest {
         }
     }
 }
+
+private extension EdgeColor {
+    var nsColor: NSColor {
+        NSColor(srgbRed: red, green: green, blue: blue, alpha: 1)
+    }
+
+    /// Rec. 709 相对亮度（0...1）。
+    var luminance: Double {
+        0.2126 * red + 0.7152 * green + 0.0722 * blue
+    }
+}
 #endif

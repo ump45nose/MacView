@@ -47,7 +47,9 @@ final class WindowChrome {
 
     private(set) var appearance = WindowAppearance()
     private(set) var isFullScreen = false
+    #if DEBUG
     private(set) var isFullScreenSettled = false
+    #endif
     private var isEnteringFullScreen = false
     private var isFrostedBackground = false
     private(set) var isToolbarRevealed = false
@@ -108,7 +110,7 @@ final class WindowChrome {
         if isFullScreen || isEnteringFullScreen {
             return
         }
-        applyEffectiveState(animated: animated)
+        applyEffectiveState()
     }
 
     /// 查看器背景是否为毛玻璃（决定窗口是否不透明与透明底色）。
@@ -130,7 +132,9 @@ final class WindowChrome {
     func willEnterFullScreen() {
         isEnteringFullScreen = false
         isFullScreen = true
+        #if DEBUG
         isFullScreenSettled = false
+        #endif
         cancelAutoHideTimers()
         isToolbarRevealed = false
         removeTopTracking()
@@ -144,32 +148,40 @@ final class WindowChrome {
         applyWindowBackground()
     }
 
+    #if DEBUG
     func didEnterFullScreen() {
         isFullScreen = true
         isFullScreenSettled = true
     }
+    #endif
 
     func didFailToEnterFullScreen() {
         isEnteringFullScreen = false
         isFullScreen = false
+        #if DEBUG
         isFullScreenSettled = false
-        applyEffectiveState(animated: false)
+        #endif
+        applyEffectiveState()
     }
 
+    #if DEBUG
     func willExitFullScreen() {
         isFullScreenSettled = false
     }
+    #endif
 
     func didExitFullScreen() {
         isEnteringFullScreen = false
         isFullScreen = false
+        #if DEBUG
         isFullScreenSettled = false
-        applyEffectiveState(animated: false)
+        #endif
+        applyEffectiveState()
     }
 
     // MARK: 核心套用
 
-    private func applyEffectiveState(animated: Bool) {
+    private func applyEffectiveState() {
         guard let window else { return }
         let savedFrame = window.frame
 
@@ -185,22 +197,18 @@ final class WindowChrome {
             if window.styleMask.contains(.fullSizeContentView) {
                 window.styleMask.remove(.fullSizeContentView)
             }
-            window.titlebarAppearsTransparent = true
             toolbar.isVisible = true
             setStandardButtonsHidden(false)
-            content.setTopInset(0)
 
         case .autoHide:
             if !window.styleMask.contains(.fullSizeContentView) {
                 window.styleMask.insert(.fullSizeContentView)
             }
-            window.titlebarAppearsTransparent = true
             if !isToolbarRevealed {
                 toolbar.isVisible = false
                 setStandardButtonsHidden(true)
             }
             installTopTracking()
-            updateTopInset()
 
         case .borderless:
             cancelAutoHideTimers()
@@ -209,17 +217,14 @@ final class WindowChrome {
             if !window.styleMask.contains(.fullSizeContentView) {
                 window.styleMask.insert(.fullSizeContentView)
             }
-            window.titlebarAppearsTransparent = true
             toolbar.isVisible = false
             setStandardButtonsHidden(true)
-            updateTopInset()
         }
 
         if window.frame != savedFrame {
             window.setFrame(savedFrame, display: true)
         }
         updateTopInset()
-        _ = animated
     }
 
     private func applyWindowBackground() {

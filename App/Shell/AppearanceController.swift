@@ -145,7 +145,7 @@ final class AppearanceController {
             }
         }
 
-        if isInitial || previous.window != next.window || !animated {
+        if isInitial || previous.window != next.window {
             for registration in registrations.values {
                 registration.controller?.chrome.apply(next.window, animated: animated)
             }
