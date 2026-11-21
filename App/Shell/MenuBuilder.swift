@@ -57,29 +57,78 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
 
     @MainActor
     private final class DynamicSubmenu: NSObject, NSMenuItemValidation {
-        let key: String
         let submenu: NSMenu
+        let populate: (NSMenu) -> Bool
 
-        init(key: String, submenu: NSMenu) {
-            self.key = key
+        init(submenu: NSMenu, populate: @escaping (NSMenu) -> Bool) {
             self.submenu = submenu
+            self.populate = populate
         }
 
         @objc func noop(_ sender: Any?) {}
 
         func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-            (NSApp.delegate as? AppDelegate)?.updateSubmenu(key: key, menu: submenu) ?? false
+            populate(submenu)
         }
     }
 
     private let catalog: CommandCatalog
     private let isEnabled: (CommandID) -> Bool
     private let perform: (CommandID) -> Void
+    private let populateLayoutSchemes: ((NSMenu) -> Bool)?
 
-    init(catalog: CommandCatalog, isEnabled: @escaping (CommandID) -> Bool, perform: @escaping (CommandID) -> Void) {
+    init(
+        catalog: CommandCatalog,
+        isEnabled: @escaping (CommandID) -> Bool,
+        perform: @escaping (CommandID) -> Void,
+        populateLayoutSchemes: ((NSMenu) -> Bool)? = nil
+    ) {
         self.catalog = catalog
         self.isEnabled = isEnabled
         self.perform = perform
+        self.populateLayoutSchemes = populateLayoutSchemes
+    }
+
+    /// 按菜单树和上下文条目提供者生成查看器右键菜单；自动合并相邻和首尾分隔线。
+    func contextMenu(nodes: [MenuNode], provider: ContextMenuProvider, target: ContextMenuTarget) -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        appendContextItems(from: nodes, to: menu, provider: provider, target: target)
+        return menu
+    }
+
+    private func appendContextItems(from nodes: [MenuNode], to menu: NSMenu, provider: ContextMenuProvider, target: ContextMenuTarget) {
+        var needsSeparator = false
+        for node in nodes {
+            switch node {
+            case .separator:
+                if !menu.items.isEmpty { needsSeparator = true }
+            case let .command(id):
+                guard let item = provider.menuItem(for: id, target: target) else { continue }
+                if needsSeparator {
+                    menu.addItem(.separator())
+                    needsSeparator = false
+                }
+                menu.addItem(item)
+            case let .dynamic(id):
+                guard let item = provider.menuItem(for: id, target: target) else { continue }
+                if needsSeparator {
+                    menu.addItem(.separator())
+                    needsSeparator = false
+                }
+                menu.addItem(item)
+            case let .submenu(titleKey, children):
+                let submenu = NSMenu(title: Bundle.main.localizedString(forKey: titleKey, value: nil, table: nil))
+                submenu.autoenablesItems = false
+                appendContextItems(from: children, to: submenu, provider: provider, target: target)
+                guard !submenu.items.isEmpty else { continue }
+                if needsSeparator {
+                    menu.addItem(.separator())
+                    needsSeparator = false
+                }
+                menu.addItem(holder(for: submenu))
+            }
+        }
     }
 
     /// `extra` 中的菜单插在“窗口”之前，例如 Debug 构建的“调试”菜单。
@@ -137,24 +186,62 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
             case let .command(id):
                 menu.addItem(commandItem(id))
             case let .submenu(key, nested) where nested.isEmpty:
-                let submenu = NSMenu(title: Bundle.main.localizedString(forKey: key, value: nil, table: nil))
-                submenu.delegate = self
-                let dynamic = DynamicSubmenu(key: key, submenu: submenu)
-                let item = NSMenuItem(title: submenu.title, action: #selector(DynamicSubmenu.noop(_:)), keyEquivalent: "")
-                item.target = dynamic
-                item.representedObject = dynamic
-                item.submenu = submenu
-                menu.addItem(item)
+                menu.addItem(dynamicSubmenuItem(title: Bundle.main.localizedString(forKey: key, value: nil, table: nil)) { submenu in
+                    (NSApp.delegate as? AppDelegate)?.updateSubmenu(key: key, menu: submenu) ?? false
+                })
             case let .submenu(key, nested):
                 let submenu = commandMenu(titleKey: key, children: nested)
                 menu.addItem(holder(for: submenu))
             case .separator:
                 menu.addItem(.separator())
-            case .dynamic:
-                break
+            case let .dynamic(id):
+                if let item = mainMenuDynamicItem(for: id) {
+                    menu.addItem(item)
+                }
             }
         }
         return menu
+    }
+
+    private func mainMenuDynamicItem(for id: DynamicMenuID) -> NSMenuItem? {
+        switch id {
+        case .openWith:
+            dynamicSubmenuItem(title: String(localized: "用指定应用打开")) { submenu in
+                (NSApp.delegate as? AppDelegate)?.updateSubmenu(key: "用指定应用打开", menu: submenu) ?? false
+            }
+        case .moveTo:
+            dynamicSubmenuItem(title: String(localized: "移动到")) { submenu in
+                (NSApp.delegate as? AppDelegate)?.updateSubmenu(key: "移动到", menu: submenu) ?? false
+            }
+        case .copyTo:
+            dynamicSubmenuItem(title: String(localized: "复制到")) { submenu in
+                (NSApp.delegate as? AppDelegate)?.updateSubmenu(key: "复制到", menu: submenu) ?? false
+            }
+        case .displayProfiles:
+            dynamicSubmenuItem(title: String(localized: "套用显示配置")) { submenu in
+                (NSApp.delegate as? AppDelegate)?.updateSubmenu(key: "套用显示配置", menu: submenu) ?? false
+            }
+        case .rating:
+            holder(for: commandMenu(titleKey: "评分", children: [
+                .command(.ratingSet0), .command(.ratingSet1), .command(.ratingSet2),
+                .command(.ratingSet3), .command(.ratingSet4), .command(.ratingSet5),
+            ]))
+        case .layoutSchemes:
+            populateLayoutSchemes.map { populate in
+                dynamicSubmenuItem(title: String(localized: "布局方案"), populate: populate)
+            }
+        }
+    }
+
+    private func dynamicSubmenuItem(title: String, populate: @escaping (NSMenu) -> Bool) -> NSMenuItem {
+        let submenu = NSMenu(title: title)
+        submenu.delegate = self
+        let dynamic = DynamicSubmenu(submenu: submenu, populate: populate)
+        let item = NSMenuItem(title: title, action: #selector(DynamicSubmenu.noop(_:)), keyEquivalent: "")
+        item.target = dynamic
+        item.representedObject = dynamic
+        item.submenu = submenu
+        return item
     }
 
     private func commandItem(_ id: CommandID) -> NSMenuItem {

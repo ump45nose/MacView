@@ -435,21 +435,16 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         updateTitle()
     }
 
-    /// 查看器右键：资料库项（加到播放列表；虚拟书里另有从列表移除、打开所在的书）在前，评分标签居中，文件操作在后。
+    /// 查看器右键：按 menus.json（缺省为默认查看器右键菜单树）经 MenuBuilder 与 ContextMenuProvider 生成。
     private func viewerMenu(for entry: Entry) -> NSMenu? {
-        let origin = FileOrigin(window: self, items: [entry])
-        let menu = fileOps.contextMenu(for: origin)
-        guard let app = NSApp.delegate as? AppDelegate else { return menu }
-        var leading = LibraryActions.pageMenuItems(for: [entry], in: session, app: app)
-        if let writer = app.metadataWriter {
-            if !leading.isEmpty { leading.append(.separator()) }
-            leading.append(contentsOf: writer.contextMenuItems(for: origin))
-        }
-        if !leading.isEmpty {
-            leading.append(.separator())
-            for item in leading.reversed() { menu.insertItem(item, at: 0) }
-        }
-        return menu
+        guard let app = NSApp.delegate as? AppDelegate,
+              let builder = app.menuBuilder,
+              let provider = app.contextMenuProvider else { return nil }
+        return builder.contextMenu(
+            nodes: catalog.viewerContextMenu,
+            provider: provider,
+            target: ContextMenuTarget(window: self, entries: [entry])
+        )
     }
 
     #if DEBUG

@@ -71,20 +71,45 @@ enum LibraryActions {
         return item
     }
 
+    /// 注册查看器右键菜单里的资料库条目提供者。
+    static func registerContextMenuProviders(in provider: ContextMenuProvider, app: AppDelegate) {
+        for id in [CommandID.playlistAddCurrent, .playlistRemoveItem, .playlistOpenContainingBook] {
+            provider.register(command: id) { [weak app] target in
+                guard let app else { return nil }
+                return contextMenuItem(for: id, entries: target.entries, in: target.window.session, app: app)
+            }
+        }
+    }
+
+    static func contextMenuItem(for command: CommandID, entries: [Entry], in session: ReaderSession, app: AppDelegate) -> NSMenuItem? {
+        switch command {
+        case .playlistAddCurrent:
+            return playlistMenu(for: entries, app: app)
+        case .playlistRemoveItem:
+            guard let playlist = session.book?.location.playlistID else { return nil }
+            let locations = entries.map(\.location)
+            let remove = MenuAction(String(localized: "从列表移除")) {
+                Task { await removeFromPlaylist(locations, playlist: playlist, app: app) }
+            }.item
+            setShortcut(of: .playlistRemoveItem, on: remove, app: app)
+            return remove
+        case .playlistOpenContainingBook:
+            guard session.book?.location.playlistID != nil, let first = entries.first?.location else { return nil }
+            let open = MenuAction(String(localized: "打开所在的书")) {
+                Task { await openContainingBook(of: first, app: app) }
+            }.item
+            open.isEnabled = entries.count == 1
+            return open
+        default:
+            return nil
+        }
+    }
+
     /// 页面列表和查看器右键的资料库项：“加到播放列表 ▸”；虚拟书里再加“从列表移除”“打开所在的书”。
     static func pageMenuItems(for entries: [Entry], in session: ReaderSession, app: AppDelegate) -> [NSMenuItem] {
-        let items = [playlistMenu(for: entries, app: app)]
-        guard let playlist = session.book?.location.playlistID else { return items }
-        let locations = entries.map(\.location)
-        let remove = MenuAction(String(localized: "从列表移除")) {
-            Task { await removeFromPlaylist(locations, playlist: playlist, app: app) }
-        }.item
-        setShortcut(of: .playlistRemoveItem, on: remove, app: app)
-        let open = MenuAction(String(localized: "打开所在的书")) {
-            Task { await openContainingBook(of: locations[0], app: app) }
-        }.item
-        open.isEnabled = locations.count == 1
-        return items + [remove, open]
+        [CommandID.playlistAddCurrent, .playlistRemoveItem, .playlistOpenContainingBook].compactMap {
+            contextMenuItem(for: $0, entries: entries, in: session, app: app)
+        }
     }
 
     private static func setShortcut(of command: CommandID, on item: NSMenuItem, app: AppDelegate) {

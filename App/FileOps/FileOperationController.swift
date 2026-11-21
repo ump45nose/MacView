@@ -632,31 +632,83 @@ final class FileOperationController {
         return true
     }
 
-    func contextMenu(for origin: FileOrigin) -> NSMenu {
-        let menu = NSMenu(); menu.autoenablesItems = false; let catalog = app?.catalog
-        func cmdItem(_ id: CommandID, title: String? = nil, enabled: Bool, action: @escaping () -> Void) -> NSMenuItem {
-            let item = MenuAction(title ?? catalog?.title(of: id) ?? id.rawValue, action: action).item
-            item.isEnabled = enabled
-            if let chord = catalog?.menuBinding(for: id)?.sequence.first, let eq = KeyMapping.menuKeyEquivalent(for: chord) {
-                item.keyEquivalent = eq.key; item.keyEquivalentModifierMask = eq.mask
+    func registerContextMenuProviders(in provider: ContextMenuProvider) {
+        for id in [CommandID.fileCopy, .fileCopyPath, .fileReveal, .fileRename, .fileDelete] {
+            provider.register(command: id) { [weak self] target in
+                self?.contextMenuItem(for: id, origin: target.origin)
             }
-            return item
         }
-        func subItem(_ title: String, enabled: Bool, build: (NSMenu) -> Void) -> NSMenuItem {
-            let sub = NSMenu(title: title); if enabled { build(sub) }
-            let holder = NSMenuItem(title: title, action: nil, keyEquivalent: ""); holder.submenu = sub; holder.isEnabled = enabled
-            return holder
+        for id in [DynamicMenuID.openWith, .moveTo, .copyTo] {
+            provider.register(dynamic: id) { [weak self] target in
+                self?.contextMenuDynamicItem(for: id, origin: target.origin)
+            }
         }
-        let readable = canRead(origin), modifiable = canModify(origin)
-        menu.addItem(cmdItem(.fileCopy, enabled: readable) { [weak self] in Task { await self?.copyItems(origin: origin) } })
-        menu.addItem(cmdItem(.fileCopyPath, enabled: readable) { [weak self] in Task { await self?.copyPaths(origin: origin) } })
-        menu.addItem(cmdItem(.fileReveal, enabled: readable) { [weak self] in Task { await self?.revealInFinder(origin: origin) } })
-        menu.addItem(subItem(String(localized: "用指定应用打开"), enabled: readable) { _ = populateOpenWithMenu($0, origin: origin) })
-        menu.addItem(.separator())
-        menu.addItem(subItem(String(localized: "移动到"), enabled: modifiable) { _ = populateTransferMenu($0, origin: origin, mode: .move) })
-        menu.addItem(subItem(String(localized: "复制到"), enabled: modifiable) { _ = populateTransferMenu($0, origin: origin, mode: .copy) })
-        menu.addItem(cmdItem(.fileRename, title: String(localized: "重命名…"), enabled: canRename(origin)) { [weak self] in self?.presentRename(origin: origin) })
-        menu.addItem(cmdItem(.fileDelete, title: deleteTitle(for: origin), enabled: modifiable) { [weak self] in Task { await self?.delete(origin: origin) } })
+    }
+
+    func contextMenuItem(for command: CommandID, origin: FileOrigin) -> NSMenuItem? {
+        switch command {
+        case .fileCopy:
+            makeContextCommandItem(.fileCopy, enabled: canRead(origin)) { [weak self] in Task { await self?.copyItems(origin: origin) } }
+        case .fileCopyPath:
+            makeContextCommandItem(.fileCopyPath, enabled: canRead(origin)) { [weak self] in Task { await self?.copyPaths(origin: origin) } }
+        case .fileReveal:
+            makeContextCommandItem(.fileReveal, enabled: canRead(origin)) { [weak self] in Task { await self?.revealInFinder(origin: origin) } }
+        case .fileRename:
+            makeContextCommandItem(.fileRename, title: String(localized: "重命名…"), enabled: canRename(origin)) { [weak self] in self?.presentRename(origin: origin) }
+        case .fileDelete:
+            makeContextCommandItem(.fileDelete, title: deleteTitle(for: origin), enabled: canModify(origin)) { [weak self] in Task { await self?.delete(origin: origin) } }
+        default:
+            nil
+        }
+    }
+
+    func contextMenuDynamicItem(for id: DynamicMenuID, origin: FileOrigin) -> NSMenuItem? {
+        switch id {
+        case .openWith:
+            makeContextSubmenuItem(String(localized: "用指定应用打开"), enabled: canRead(origin)) { _ = populateOpenWithMenu($0, origin: origin) }
+        case .moveTo:
+            makeContextSubmenuItem(String(localized: "移动到"), enabled: canModify(origin)) { _ = populateTransferMenu($0, origin: origin, mode: .move) }
+        case .copyTo:
+            makeContextSubmenuItem(String(localized: "复制到"), enabled: canModify(origin)) { _ = populateTransferMenu($0, origin: origin, mode: .copy) }
+        default:
+            nil
+        }
+    }
+
+    private func makeContextCommandItem(_ id: CommandID, title: String? = nil, enabled: Bool, action: @escaping () -> Void) -> NSMenuItem {
+        let catalog = app?.catalog
+        let item = MenuAction(title ?? catalog?.title(of: id) ?? id.rawValue, action: action).item
+        item.isEnabled = enabled
+        if let chord = catalog?.menuBinding(for: id)?.sequence.first, let eq = KeyMapping.menuKeyEquivalent(for: chord) {
+            item.keyEquivalent = eq.key; item.keyEquivalentModifierMask = eq.mask
+        }
+        return item
+    }
+
+    private func makeContextSubmenuItem(_ title: String, enabled: Bool, build: (NSMenu) -> Void) -> NSMenuItem {
+        let sub = NSMenu(title: title); if enabled { build(sub) }
+        let holder = NSMenuItem(title: title, action: nil, keyEquivalent: ""); holder.submenu = sub; holder.isEnabled = enabled
+        return holder
+    }
+
+    func contextMenu(for origin: FileOrigin) -> NSMenu {
+        let menu = NSMenu(); menu.autoenablesItems = false
+        let nodes: [MenuNode] = [
+            .command(.fileCopy), .command(.fileCopyPath), .command(.fileReveal), .dynamic(.openWith), .separator,
+            .dynamic(.moveTo), .dynamic(.copyTo), .command(.fileRename), .command(.fileDelete),
+        ]
+        for node in nodes {
+            switch node {
+            case let .command(id):
+                if let item = contextMenuItem(for: id, origin: origin) { menu.addItem(item) }
+            case let .dynamic(id):
+                if let item = contextMenuDynamicItem(for: id, origin: origin) { menu.addItem(item) }
+            case .separator:
+                menu.addItem(.separator())
+            case .submenu:
+                break
+            }
+        }
         return menu
     }
 

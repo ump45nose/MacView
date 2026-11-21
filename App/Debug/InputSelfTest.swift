@@ -7,7 +7,7 @@ import MVSettings
 
 /// 查看器输入与自定义自检（`-MVInputSelfTest viewer`）。
 ///
-/// 覆盖 C2.1（右键手势与右键菜单共存）与 C2.2（点击区域、滚轮分派、自定义滚轮绑定与原有滚轮行为）。
+/// 覆盖 C2.1（右键手势与右键菜单共存）、C2.2（点击区域、滚轮分派、自定义滚轮绑定与原有滚轮行为）与 C2.3（`menus.json` 驱动主菜单、右键菜单热重载与损坏文件提示）。
 @MainActor
 final class InputSelfTest {
     static let launchKey = "MVInputSelfTest"
@@ -74,6 +74,7 @@ final class InputSelfTest {
             await checkContinuousModeRightGestureAndMenu(controller, window: window)
             await checkClickZonesAndDragExclusion(controller, window: window)
             try await checkWheelDispatchAndCustomBinding(controller, window: window)
+            try await checkMenusCustomizationAndReload(controller, window: window)
         } catch {
             log.check(false, "输入自检异常：\(error)")
         }
@@ -411,6 +412,219 @@ final class InputSelfTest {
         } else {
             try? FileManager.default.removeItem(at: url)
         }
+    }
+
+    // MARK: C2.3 menus.json 驱动主菜单、查看器右键菜单与损坏提示
+
+    private func checkMenusCustomizationAndReload(_ controller: ReaderWindowController, window: NSWindow) async throws {
+        let paged = controller.viewer.paged
+        controller.session.update {
+            $0.browseMode = .paged
+            $0.pageMode = .single
+            $0.direction = .leftToRight
+            $0.scaleMode = .fitWindow
+        }
+        paged.resetTransform()
+        controller.session.go(.index(1))
+        await settle()
+
+        let menusURL = app.supportDirectory.appending(path: "menus.json")
+        let previousData = try? Data(contentsOf: menusURL)
+        defer { restoreKeyBindings(at: menusURL, previousData: previousData) }
+
+        if previousData != nil {
+            try? FileManager.default.removeItem(at: menusURL)
+            for _ in 0..<100 where app.catalog.viewerContextMenu != CoreCommands.defaultViewerContextMenu {
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+        }
+
+        // 1. 无 menus.json 时，主菜单顶层与子菜单条目、以及查看器右键菜单逐项与改动前一致。
+        let topTitles = NSApp.mainMenu?.items.map(\.title) ?? []
+        let expectedTopTitles = [
+            ProcessInfo.processInfo.processName,
+            String(localized: "文件"),
+            String(localized: "编辑"),
+            String(localized: "显示"),
+            String(localized: "图像"),
+            String(localized: "翻页"),
+            String(localized: "书"),
+            String(localized: "调试"),
+            String(localized: "窗口"),
+        ]
+        log.check(topTitles == expectedTopTitles, "C2.3 无 menus.json 时主菜单顶层顺序一致：\(topTitles.joined(separator: "、"))")
+
+        let fileSubmenuTitles = menuTitles(of: NSApp.mainMenu?.item(withTitle: String(localized: "文件"))?.submenu)
+        let expectedFileTitles = [
+            String(localized: "打开文件夹或压缩包…"), "-",
+            String(localized: "复制"), String(localized: "复制路径"), String(localized: "在 Finder 中显示"), String(localized: "用指定应用打开"), "-",
+            String(localized: "移动到"), String(localized: "复制到"), String(localized: "重命名…"), String(localized: "删除"), "-",
+            String(localized: "为此文件夹建立索引"), String(localized: "清空回收目录…"), "-",
+            String(localized: "新建窗口"), String(localized: "新建标签页"), "-",
+            String(localized: "重试失败的项"), String(localized: "设置…"), "-",
+            String(localized: "关闭"),
+        ]
+        log.check(fileSubmenuTitles == expectedFileTitles, "C2.3 无 menus.json 时“文件”子菜单条目与顺序一致")
+
+        let imageSubmenu = NSApp.mainMenu?.item(withTitle: String(localized: "图像"))?.submenu
+        let imageSubmenuTitles = menuTitles(of: imageSubmenu)
+        log.check(
+            imageSubmenuTitles == [String(localized: "评分"), String(localized: "编辑标签…")],
+            "C2.3 无 menus.json 时“图像”子菜单条目与顺序一致：\(imageSubmenuTitles.joined(separator: "、"))"
+        )
+
+        let viewSubmenu = NSApp.mainMenu?.item(withTitle: String(localized: "显示"))?.submenu
+        log.check(
+            viewSubmenu?.item(withTitle: String(localized: "套用显示配置"))?.submenu != nil,
+            "C2.3 无 menus.json 时“显示”子菜单包含“套用显示配置”动态子菜单"
+        )
+
+        let windowSubmenuTitles = menuTitles(of: NSApp.mainMenu?.item(withTitle: String(localized: "窗口"))?.submenu)
+        let expectedWindowTitles = [
+            String(localized: "最小化"), String(localized: "缩放"), "-",
+            String(localized: "切换全屏幕"), "-",
+            String(localized: "保存为布局方案…"), String(localized: "套用布局方案"), "-",
+            String(localized: "前置全部窗口"),
+        ]
+        log.check(
+            Array(windowSubmenuTitles.prefix(expectedWindowTitles.count)) == expectedWindowTitles,
+            "C2.3 无 menus.json 时“窗口”子菜单条目与顺序一致：\(windowSubmenuTitles.joined(separator: "、"))"
+        )
+
+        let defaultContextMenu = await presentViewerContextMenu(controller, window: window)
+        let defaultContextTitles = menuTitles(of: defaultContextMenu)
+        let expectedDefaultContextTitles = [
+            String(localized: "加到播放列表"), "-",
+            String(localized: "评分"), String(localized: "编辑标签…"), "-",
+            String(localized: "复制"), String(localized: "复制路径"), String(localized: "在 Finder 中显示"), String(localized: "用指定应用打开"), "-",
+            String(localized: "移动到"), String(localized: "复制到"), String(localized: "重命名…"), String(localized: "移到废纸篓"),
+        ]
+        log.check(
+            defaultContextTitles == expectedDefaultContextTitles,
+            "C2.3 无 menus.json 时查看器右键菜单条目与顺序逐项一致：\(defaultContextTitles.joined(separator: "、"))"
+        )
+
+        // 2. 写入改过的 menus.json：修改查看器右键菜单树（增删、调序、含通用命令），验证自动重载与通用命令携带点中项执行。
+        let customCommandID = CommandID("selftest.context.selection")
+        var capturedSelection: [Location] = []
+        app.services?.commands.register(
+            CommandDescriptor(id: customCommandID, title: "自检点中项命令", category: "selftest"),
+            isEnabled: { context in !context.selection.isEmpty }
+        ) { context, _ in
+            capturedSelection = context.selection
+        }
+
+        let customViewerMenu: [MenuNode] = [
+            .command(.fileCopyPath),
+            .command(customCommandID),
+            .separator,
+            .command(.frameNext),
+            .dynamic(.rating),
+            .command(.fileReveal),
+        ]
+        let customMenuFile = MenuFile(viewerContextMenu: customViewerMenu)
+        let encodedValue = try JSONSerialization.jsonObject(with: JSONEncoder().encode(customMenuFile))
+        let encodedDoc = try JSONSerialization.data(withJSONObject: ["version": 1, "value": encodedValue])
+        try encodedDoc.write(to: menusURL, options: .atomic)
+
+        for _ in 0..<100 where app.catalog.viewerContextMenu != customViewerMenu {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        log.check(app.catalog.viewerContextMenu == customViewerMenu, "C2.3 写入自定义 menus.json 后自动重载生效")
+
+        let expectedEntry = controller.session.book?.pages[controller.session.currentPage].entry
+        let customContextMenu = await presentViewerContextMenu(controller, window: window)
+        let customContextTitles = menuTitles(of: customContextMenu)
+        let expectedCustomTitles = [
+            String(localized: "复制路径"),
+            customCommandID.rawValue,
+            "-",
+            app.catalog.title(of: .frameNext),
+            String(localized: "评分"),
+            String(localized: "在 Finder 中显示"),
+        ]
+        log.check(
+            customContextTitles == expectedCustomTitles,
+            "C2.3 自定义查看器右键菜单条目与顺序生效：\(customContextTitles.joined(separator: "、"))"
+        )
+
+        if let genericItem = customContextMenu?.item(withTitle: customCommandID.rawValue),
+           let action = genericItem.action {
+            log.check(genericItem.isEnabled, "C2.3 通用命令菜单项可用")
+            NSApp.sendAction(action, to: genericItem.target, from: genericItem)
+            for _ in 0..<50 where capturedSelection.isEmpty {
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+        }
+        log.check(
+            expectedEntry != nil && capturedSelection == [expectedEntry!.location],
+            "C2.3 点击右键菜单通用命令带上点中项执行：\(capturedSelection.map(\.name).joined(separator: "、"))"
+        )
+
+        let beforeFrame = controller.session.currentFrame
+        if let nextItem = customContextMenu?.item(withTitle: app.catalog.title(of: .frameNext)),
+           let action = nextItem.action {
+            NSApp.sendAction(action, to: nextItem.target, from: nextItem)
+            await settle()
+        }
+        log.check(controller.session.currentFrame == beforeFrame + 1, "C2.3 点击右键菜单内置通用命令 frame.next 生效：\(beforeFrame) → \(controller.session.currentFrame)")
+
+        // 3. 写入损坏的 menus.json，验证保留上一份有效配置并显示“文件问题”提示与“打开文件”入口；删除后自动恢复。
+        try Data("{ invalid json".utf8).write(to: menusURL, options: .atomic)
+        for _ in 0..<100 where !app.fileProblems.contains(where: { $0.file == "menus.json" }) {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let problem = app.fileProblems.first { $0.file == "menus.json" }
+        let banner = controller.content.fileErrorBanners["menus.json"]
+        let hasOpenFileButton = banner.map { hasButton(titled: String(localized: "打开文件"), in: $0) } ?? false
+        log.check(problem != nil && problem?.url == menusURL, "C2.3 损坏 menus.json 记录文件问题提示")
+        log.check(banner != nil && hasOpenFileButton, "C2.3 损坏 menus.json 显示顶部错误横幅及“打开文件”入口")
+
+        let retainedMenu = await presentViewerContextMenu(controller, window: window)
+        log.check(
+            menuTitles(of: retainedMenu) == expectedCustomTitles,
+            "C2.3 menus.json 损坏时保留上一份有效查看器右键菜单配置"
+        )
+
+        try? FileManager.default.removeItem(at: menusURL)
+        for _ in 0..<100 where app.fileProblems.contains(where: { $0.file == "menus.json" }) || app.catalog.viewerContextMenu != CoreCommands.defaultViewerContextMenu {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        log.check(
+            !app.fileProblems.contains(where: { $0.file == "menus.json" }) && controller.content.fileErrorBanners["menus.json"] == nil,
+            "C2.3 删除损坏 menus.json 后文件问题提示自动消失"
+        )
+        let recoveredMenu = await presentViewerContextMenu(controller, window: window)
+        log.check(
+            menuTitles(of: recoveredMenu) == expectedDefaultContextTitles,
+            "C2.3 删除损坏 menus.json 后自动恢复默认查看器右键菜单"
+        )
+    }
+
+    private func presentViewerContextMenu(_ controller: ReaderWindowController, window: NSWindow) async -> NSMenu? {
+        let viewer = controller.viewer
+        let center = windowCenter(of: viewer.paged)
+        var presentedMenu: NSMenu?
+        viewer.gestureRecognizer.onPresentContextMenu = { menu, _, _ in
+            presentedMenu = menu
+            return true
+        }
+        defer { viewer.gestureRecognizer.onPresentContextMenu = nil }
+        sendMouse(.rightMouseDown, at: center, in: window)
+        sendMouse(.rightMouseUp, at: center, in: window)
+        await settle()
+        return presentedMenu
+    }
+
+    private func menuTitles(of menu: NSMenu?) -> [String] {
+        (menu?.items ?? []).map { $0.isSeparatorItem ? "-" : $0.title }
+    }
+
+    private func hasButton(titled title: String, in root: NSView) -> Bool {
+        if let button = root as? NSButton, button.title == title || button.attributedTitle.string == title {
+            return true
+        }
+        return root.subviews.contains { hasButton(titled: title, in: $0) }
     }
 
     // MARK: 夹具与事件工具

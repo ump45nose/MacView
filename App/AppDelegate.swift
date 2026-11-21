@@ -13,7 +13,12 @@ import os
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let logger = Logger(category: "app")
     private(set) var catalog = CommandCatalog()
-    private var menuBuilder: MenuBuilder?
+    private(set) var menuBuilder: MenuBuilder?
+    private(set) var contextMenuProvider: ContextMenuProvider?
+    /// 供 W2.4 接入布局方案动态子菜单的填充回调。
+    var layoutSchemesMenuPopulator: ((NSMenu) -> Bool)? {
+        didSet { installMenu() }
+    }
     private(set) var services: CoreServices?
     private(set) var dispatcher: CommandDispatcher?
     private(set) var dock: DockCoordinator?
@@ -27,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
     private var keyBindingsTask: Task<Void, Never>?
+    private var menusTask: Task<Void, Never>?
     private(set) var supportDirectory = URL.applicationSupportDirectory.appending(path: "MacView")
     private(set) var cacheDirectory = URL.cachesDirectory.appending(path: "MacView")
     private var settingsWindow: SettingsWindowController?
@@ -71,7 +77,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let builder = MenuBuilder(
             catalog: catalog,
             isEnabled: { [weak self] id in self?.isEnabled(id) ?? false },
-            perform: { [weak self] id in self?.runFromMenu(id) }
+            perform: { [weak self] id in self?.runFromMenu(id) },
+            populateLayoutSchemes: layoutSchemesMenuPopulator
         )
         var extra: [NSMenu] = []
         #if DEBUG
@@ -109,8 +116,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.services = services
             fileOps = FileOperationController(app: self)
             metadataWriter = MetadataWriteController(app: self)
-            reloadBindings()
+            configureContextMenuProvider()
+            reloadCatalog()
             observeBindings()
+            observeMenus()
             let dispatcher = CommandDispatcher(registry: services.commands)
             dispatcher.onDisabledCommand = { [weak self] id, controller in
                 self?.metadataWriter?.handleDisabledCommand(id, in: controller) ?? false
@@ -202,8 +211,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ))
     }
 
-    private func reloadBindings() {
-        catalog = CommandCatalog(file: services?.keyBindings?.value() ?? KeyBindingsFile())
+    private func configureContextMenuProvider() {
+        let provider = ContextMenuProvider(app: self)
+        fileOps?.registerContextMenuProviders(in: provider)
+        LibraryActions.registerContextMenuProviders(in: provider, app: self)
+        metadataWriter?.registerContextMenuProviders(in: provider)
+        provider.register(dynamic: .displayProfiles) { [weak self] _ in
+            guard let self else { return nil }
+            let sub = NSMenu(title: String(localized: "套用显示配置"))
+            let enabled = updateSubmenu(key: "套用显示配置", menu: sub)
+            let holder = NSMenuItem(title: sub.title, action: nil, keyEquivalent: "")
+            holder.submenu = sub
+            holder.isEnabled = enabled
+            return holder
+        }
+        provider.register(dynamic: .layoutSchemes) { [weak self] _ in
+            guard let populate = self?.layoutSchemesMenuPopulator else { return nil }
+            let sub = NSMenu(title: String(localized: "布局方案"))
+            let enabled = populate(sub)
+            let holder = NSMenuItem(title: sub.title, action: nil, keyEquivalent: "")
+            holder.submenu = sub
+            holder.isEnabled = enabled
+            return holder
+        }
+        contextMenuProvider = provider
+    }
+
+    private func reloadCatalog() {
+        catalog = CommandCatalog(
+            file: services?.keyBindings?.value() ?? KeyBindingsFile(),
+            menuFile: services?.menus?.value() ?? MenuFile()
+        )
         installMenu()
         controllers.forEach { $0.updateBindings(catalog) }
     }
@@ -217,9 +255,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 switch change {
                 case .reloaded:
                     setFileProblem("keybindings.json", nil)
-                    reloadBindings()
+                    reloadCatalog()
                 case let .fileError(message):
                     setFileProblem("keybindings.json", message)
+                }
+            }
+        }
+    }
+
+    private func observeMenus() {
+        guard let store = services?.menus else { return }
+        let changes = store.changes()
+        menusTask = Task { [weak self] in
+            for await change in changes {
+                guard let self, !Task.isCancelled else { return }
+                switch change {
+                case .reloaded:
+                    setFileProblem("menus.json", nil)
+                    reloadCatalog()
+                case let .fileError(message):
+                    setFileProblem("menus.json", message)
                 }
             }
         }
@@ -375,6 +430,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let services else { return .terminateNow }
         keyBindingsTask?.cancel()
+        menusTask?.cancel()
         settingsErrorsTask?.cancel()
         sessionSaveEnabled = false
         let snapshot = sessionStore == nil ? nil : sessionSnapshot()
