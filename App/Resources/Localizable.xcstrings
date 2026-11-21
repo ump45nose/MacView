@@ -7232,6 +7232,366 @@
           }
         }
       }
+    },
+    "鼠标与触控板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mouse & Trackpad"
+          }
+        }
+      }
+    },
+    "无修饰键": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Modifiers"
+          }
+        }
+      }
+    },
+    "无": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        }
+      }
+    },
+    "翻页（按阅读方向）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn Page (by Reading Direction)"
+          }
+        }
+      }
+    },
+    "上一帧 / 下一帧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous / Next Frame"
+          }
+        }
+      }
+    },
+    "上一页 / 下一页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous / Next Page"
+          }
+        }
+      }
+    },
+    "上一本书 / 下一本书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous / Next Book"
+          }
+        }
+      }
+    },
+    "缩小 / 放大": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom Out / Zoom In"
+          }
+        }
+      }
+    },
+    "“%@”已用于“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%1$@” is already used by “%2$@”"
+          }
+        }
+      }
+    },
+    "鼠标滚轮": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mouse Wheel"
+          }
+        }
+      }
+    },
+    "触控板滚动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trackpad Scroll"
+          }
+        }
+      }
+    },
+    "默认（滚动；不超出时翻页）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default (Scroll; Turn Page When Fit)"
+          }
+        }
+      }
+    },
+    "执行命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run Commands"
+          }
+        }
+      }
+    },
+    "鼠标、触控板与手势改动立即生效并写入 keybindings.json。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mouse, trackpad, and gesture changes take effect immediately and are saved to keybindings.json."
+          }
+        }
+      }
+    },
+    "点击区域": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click Zones"
+          }
+        }
+      }
+    },
+    "单击查看器的左、中、右区域执行命令。“左翻帧 / 右翻帧”按阅读方向换算。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click the left, center, or right area of the viewer to run a command. Left/Right Frame follows reading direction."
+          }
+        }
+      }
+    },
+    "左侧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left"
+          }
+        }
+      }
+    },
+    "中间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Center"
+          }
+        }
+      }
+    },
+    "右侧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right"
+          }
+        }
+      }
+    },
+    "滚轮": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll Wheel"
+          }
+        }
+      }
+    },
+    "滚轮设备": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll Device"
+          }
+        }
+      }
+    },
+    "向上": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up"
+          }
+        }
+      }
+    },
+    "向上滚动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll Up"
+          }
+        }
+      }
+    },
+    "向下": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Down"
+          }
+        }
+      }
+    },
+    "向下滚动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll Down"
+          }
+        }
+      }
+    },
+    "触控板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trackpad"
+          }
+        }
+      }
+    },
+    "横扫": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swipe"
+          }
+        }
+      }
+    },
+    "轻点两下": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double-Tap"
+          }
+        }
+      }
+    },
+    "旋转": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rotate"
+          }
+        }
+      }
+    },
+    "捏合始终用于缩放。双指横扫依赖“系统设置 › 触控板 › 更多手势”中的“在页面间轻扫”。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pinch always zooms. Two-finger swipe requires “Swipe between pages” in System Settings › Trackpad › More Gestures."
+          }
+        }
+      }
+    },
+    "鼠标手势": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mouse Gestures"
+          }
+        }
+      }
+    },
+    "尚未设置鼠标手势": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No mouse gestures configured"
+          }
+        }
+      }
+    },
+    "按住右键拖动执行手势；不拖动直接松开仍弹出右键菜单。在下方录制区按住右键画出手势，松开后选择命令。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold the right mouse button and drag to run a gesture; release without dragging to open the context menu. Draw a gesture below and choose a command."
+          }
+        }
+      }
+    },
+    "删除手势": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Gesture"
+          }
+        }
+      }
+    },
+    "选择命令…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Command…"
+          }
+        }
+      }
+    },
+    "在此按住右键拖动画出手势": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold right-click and drag here to draw a gesture"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
