@@ -171,6 +171,8 @@ final class VideoPageView: NSView {
     override func rightMouseUp(with event: NSEvent) { superview?.rightMouseUp(with: event) }
     override func scrollWheel(with event: NSEvent) { superview?.scrollWheel(with: event) }
     override func magnify(with event: NSEvent) { superview?.magnify(with: event) }
+    override func smartMagnify(with event: NSEvent) { superview?.smartMagnify(with: event) }
+    override func rotate(with event: NSEvent) { superview?.rotate(with: event) }
 }
 
 enum VideoError: Error {

@@ -7,7 +7,7 @@ import MVSettings
 
 /// 查看器输入与自定义自检（`-MVInputSelfTest viewer`）。
 ///
-/// 覆盖 C2.1：右键手势（← 执行 frame.left）、右键原地松开弹出右键菜单、右键拖动中 Esc 取消、左键拖动平移与拖出保持正常。
+/// 覆盖 C2.1（右键手势与右键菜单共存）与 C2.2（点击区域、滚轮分派、自定义滚轮绑定与原有滚轮行为）。
 @MainActor
 final class InputSelfTest {
     static let launchKey = "MVInputSelfTest"
@@ -72,6 +72,8 @@ final class InputSelfTest {
             await checkRightGestureCancelWithEscape(controller, window: window)
             await checkLeftDragPanAndDragOut(controller, window: window)
             await checkContinuousModeRightGestureAndMenu(controller, window: window)
+            await checkClickZonesAndDragExclusion(controller, window: window)
+            try await checkWheelDispatchAndCustomBinding(controller, window: window)
         } catch {
             log.check(false, "输入自检异常：\(error)")
         }
@@ -235,6 +237,182 @@ final class InputSelfTest {
         await settle()
     }
 
+    // MARK: C2.2 点击区域、滚轮分派与自定义滚轮绑定
+
+    private func checkClickZonesAndDragExclusion(_ controller: ReaderWindowController, window: NSWindow) async {
+        let paged = controller.viewer.paged
+        controller.session.update {
+            $0.browseMode = .paged
+            $0.pageMode = .single
+            $0.direction = .leftToRight
+            $0.scaleMode = .fitWindow
+        }
+        paged.resetTransform()
+        controller.session.go(.index(1))
+        await settle()
+
+        let leftPoint = windowPoint(in: paged, xFraction: 1.0 / 6.0, yFraction: 0.5)
+        let centerPoint = windowPoint(in: paged, xFraction: 0.5, yFraction: 0.5)
+        let rightPoint = windowPoint(in: paged, xFraction: 5.0 / 6.0, yFraction: 0.5)
+
+        // 1. 从左往右：单击右区域翻下一帧，单击左区域翻上一帧。
+        sendLeftClick(at: rightPoint, in: window)
+        await settle()
+        log.check(controller.session.currentFrame == 2, "C2.2 左开模式单击右区域翻到下一帧：\(controller.session.currentFrame)")
+
+        sendLeftClick(at: leftPoint, in: window)
+        await settle()
+        log.check(controller.session.currentFrame == 1, "C2.2 左开模式单击左区域翻到上一帧：\(controller.session.currentFrame)")
+
+        // 2. 单击中间区域（默认未绑定）无动作。
+        sendLeftClick(at: centerPoint, in: window)
+        await settle()
+        log.check(controller.session.currentFrame == 1, "C2.2 单击中间区域（默认未绑定）不翻页：\(controller.session.currentFrame)")
+
+        // 3. 从右往左：单击左区域翻下一帧，单击右区域翻上一帧。
+        controller.session.update { $0.direction = .rightToLeft }
+        await settle()
+        sendLeftClick(at: leftPoint, in: window)
+        await settle()
+        log.check(controller.session.currentFrame == 2, "C2.2 右开模式单击左区域翻到下一帧：\(controller.session.currentFrame)")
+
+        sendLeftClick(at: rightPoint, in: window)
+        await settle()
+        log.check(controller.session.currentFrame == 1, "C2.2 右开模式单击右区域翻到上一帧：\(controller.session.currentFrame)")
+
+        controller.session.update { $0.direction = .leftToRight }
+        await settle()
+
+        // 4. 放大后在右区域拖动平移（位移 >= 4 pt），应平移且不触发点击区域翻页。
+        paged.zoom(by: 4.0)
+        await settle()
+        let beforeFrame = controller.session.currentFrame
+        let beforeOffset = paged.transform.offset
+        let dragID = nextEventNumber()
+        let dragEnd = NSPoint(x: rightPoint.x - 24, y: rightPoint.y + 12)
+        sendMouse(.leftMouseDown, at: rightPoint, in: window, eventNumber: dragID)
+        sendMouse(.leftMouseDragged, at: dragEnd, in: window, eventNumber: dragID)
+        sendMouse(.leftMouseUp, at: dragEnd, in: window, eventNumber: dragID)
+        await settle()
+        log.check(paged.transform.offset != beforeOffset, "C2.2 放大后拖动平移生效：\(beforeOffset) → \(paged.transform.offset)")
+        log.check(controller.session.currentFrame == beforeFrame, "C2.2 位移 >= 4 pt 的拖动平移不触发点击区域：\(controller.session.currentFrame)")
+
+        paged.resetTransform()
+        await settle()
+    }
+
+    private func checkWheelDispatchAndCustomBinding(_ controller: ReaderWindowController, window: NSWindow) async throws {
+        let paged = controller.viewer.paged
+        let center = windowCenter(of: paged)
+        controller.session.update {
+            $0.browseMode = .paged
+            $0.pageMode = .single
+            $0.direction = .leftToRight
+            $0.scaleMode = .fitWindow
+        }
+        paged.resetTransform()
+        controller.session.go(.index(1))
+        await settle()
+
+        // 1. ⌘ + 滚轮触发缩放，且不翻页。
+        let zoomBefore = paged.transform.zoom
+        let frameBeforeZoom = controller.session.currentFrame
+        sendMouseWheel(at: center, in: window, deltaY: 4, modifiers: .maskCommand)
+        await settle()
+        log.check(paged.transform.zoom > zoomBefore, "C2.2 ⌘ + 滚轮向上触发放大：\(zoomBefore) → \(paged.transform.zoom)")
+        log.check(controller.session.currentFrame == frameBeforeZoom, "C2.2 ⌘ + 滚轮缩放不触发翻页：\(controller.session.currentFrame)")
+
+        let zoomedLevel = paged.transform.zoom
+        sendMouseWheel(at: center, in: window, deltaY: -2, modifiers: .maskCommand)
+        await settle()
+        log.check(paged.transform.zoom < zoomedLevel, "C2.2 ⌘ + 滚轮向下触发缩小：\(zoomedLevel) → \(paged.transform.zoom)")
+
+        // 2. 临时写入 keybindings.json 绑定 ⌥ + 滚轮到命令，验证执行后恢复。
+        let url = app.supportDirectory.appending(path: "keybindings.json")
+        let previousData = try? Data(contentsOf: url)
+        let optionWheel = WheelBinding(
+            device: .mouse,
+            modifiers: .option,
+            action: .commands(up: .framePrevious, down: .frameNext)
+        )
+        let customFile = KeyBindingsFile(bindings: [], wheel: [optionWheel])
+        let value = try JSONSerialization.jsonObject(with: JSONEncoder().encode(customFile))
+        let encoded = try JSONSerialization.data(withJSONObject: ["version": 1, "value": value])
+
+        do {
+            try encoded.write(to: url, options: .atomic)
+            for _ in 0..<100 where app.catalog.inputBindings.wheelAction(device: .mouse, modifiers: .option) != optionWheel.action {
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+            log.check(
+                app.catalog.inputBindings.wheelAction(device: .mouse, modifiers: .option) == optionWheel.action,
+                "C2.2 临时写入 keybindings.json 生效 ⌥ + 滚轮命令绑定"
+            )
+
+            // 在放大状态下发 ⌥ + 滚轮向下，确认直接执行 frame.next 而非平移。
+            paged.zoom(by: 3.0)
+            await settle()
+            let frameBeforeOption = controller.session.currentFrame
+            sendMouseWheel(at: center, in: window, deltaY: -1, modifiers: .maskAlternate)
+            await settle()
+            log.check(
+                controller.session.currentFrame == frameBeforeOption + 1,
+                "C2.2 ⌥ + 滚轮向下执行自定义命令 frame.next：\(frameBeforeOption) → \(controller.session.currentFrame)"
+            )
+
+            sendMouseWheel(at: center, in: window, deltaY: 1, modifiers: .maskAlternate)
+            await settle()
+            log.check(
+                controller.session.currentFrame == frameBeforeOption,
+                "C2.2 ⌥ + 滚轮向上执行自定义命令 frame.previous：\(controller.session.currentFrame)"
+            )
+        } catch {
+            restoreKeyBindings(at: url, previousData: previousData)
+            throw error
+        }
+
+        restoreKeyBindings(at: url, previousData: previousData)
+        for _ in 0..<100 where app.catalog.inputBindings.wheelAction(device: .mouse, modifiers: .option) != .standard {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        log.check(
+            app.catalog.inputBindings.wheelAction(device: .mouse, modifiers: .option) == .standard,
+            "C2.2 恢复 keybindings.json 后 ⌥ + 滚轮回到默认行为"
+        )
+
+        // 3. 未改绑定时滚轮翻页与平移和改动前一致。
+        paged.resetTransform()
+        controller.session.go(.index(1))
+        await settle()
+        sendMouseWheel(at: center, in: window, deltaY: -1)
+        await settle()
+        log.check(controller.session.currentFrame == 2, "C2.2 未改绑定适合窗口下鼠标滚轮向下翻到下一帧：\(controller.session.currentFrame)")
+
+        sendMouseWheel(at: center, in: window, deltaY: 1)
+        await settle()
+        log.check(controller.session.currentFrame == 1, "C2.2 未改绑定适合窗口下鼠标滚轮向上翻到上一帧：\(controller.session.currentFrame)")
+
+        paged.zoom(by: 4.0)
+        await settle()
+        let panFrameBefore = controller.session.currentFrame
+        let panOffsetBefore = paged.transform.offset
+        sendMouseWheel(at: center, in: window, deltaY: -2)
+        await settle()
+        log.check(paged.transform.offset != panOffsetBefore, "C2.2 未改绑定放大后鼠标滚轮平移：\(panOffsetBefore) → \(paged.transform.offset)")
+        log.check(controller.session.currentFrame == panFrameBefore, "C2.2 未改绑定放大后鼠标滚轮平移不翻页：\(controller.session.currentFrame)")
+
+        paged.resetTransform()
+        await settle()
+    }
+
+    private func restoreKeyBindings(at url: URL, previousData: Data?) {
+        if let previousData {
+            try? previousData.write(to: url, options: .atomic)
+        } else {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     // MARK: 夹具与事件工具
 
     private func makeBook(count: Int) throws -> URL {
@@ -275,7 +453,59 @@ final class InputSelfTest {
     }
 
     private func windowCenter(of view: NSView) -> NSPoint {
-        view.convert(NSPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
+        windowPoint(in: view, xFraction: 0.5, yFraction: 0.5)
+    }
+
+    private func windowPoint(in view: NSView, xFraction: CGFloat, yFraction: CGFloat) -> NSPoint {
+        let local = NSPoint(
+            x: view.bounds.minX + view.bounds.width * xFraction,
+            y: view.bounds.minY + view.bounds.height * yFraction
+        )
+        return view.convert(local, to: nil)
+    }
+
+    private func sendLeftClick(at point: NSPoint, in window: NSWindow) {
+        let number = nextEventNumber()
+        sendMouse(.leftMouseDown, at: point, in: window, eventNumber: number)
+        sendMouse(.leftMouseUp, at: point, in: window, eventNumber: number)
+    }
+
+    private static let setWindowLocation: (@convention(c) (CGEvent, CGPoint) -> Void)? = {
+        dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGEventSetWindowLocation").map {
+            unsafeBitCast($0, to: (@convention(c) (CGEvent, CGPoint) -> Void).self)
+        }
+    }()
+
+    private func sendMouseWheel(
+        at point: NSPoint,
+        in window: NSWindow,
+        deltaY: Int32,
+        deltaX: Int32 = 0,
+        modifiers: CGEventFlags = []
+    ) {
+        guard let cg = CGEvent(
+            scrollWheelEvent2Source: nil,
+            units: .line,
+            wheelCount: 2,
+            wheel1: deltaY,
+            wheel2: deltaX,
+            wheel3: 0
+        ) else { return }
+        cg.setIntegerValueField(.scrollWheelEventIsContinuous, value: 0)
+        cg.setIntegerValueField(.scrollWheelEventScrollPhase, value: 0)
+        cg.setIntegerValueField(.scrollWheelEventMomentumPhase, value: 0)
+        cg.flags = modifiers
+        cg.timestamp = clock_gettime_nsec_np(CLOCK_UPTIME_RAW)
+        let screen = window.convertPoint(toScreen: point)
+        let height = NSScreen.screens.first?.frame.height ?? 0
+        cg.location = CGPoint(x: screen.x, y: height - screen.y)
+        if let field = CGEventField(rawValue: 51) {
+            cg.setIntegerValueField(field, value: Int64(window.windowNumber))
+        }
+        Self.setWindowLocation?(cg, CGPoint(x: point.x, y: window.frame.height - point.y))
+        if let event = NSEvent(cgEvent: cg) {
+            NSApp.sendEvent(event)
+        }
     }
 
     private func nextEventNumber() -> Int {

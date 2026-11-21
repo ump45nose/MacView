@@ -118,6 +118,8 @@ final class CanvasView: NSScrollView {
     var onRightMouseDown: ((NSEvent, NSView) -> Bool)?
     var onRightMouseDragged: ((NSEvent) -> Bool)?
     var onRightMouseUp: ((NSEvent) -> Bool)?
+    /// 滚轮拦截：返回 true 表示由外部接管（例如查看器 ⌘ + 滚轮缩放或自定义滚轮命令），否则走默认滚动。
+    var onScrollWheel: ((NSEvent) -> Bool)?
     var onDraggingWriters: ((Int) -> [(index: Int, writer: any NSPasteboardWriting)])?
     var onDragSessionBegan: ((NSDraggingSession, [any NSPasteboardWriting]) -> Void)?
     var onDragSessionEnded: ((NSDragOperation) -> Void)?
@@ -792,6 +794,11 @@ final class CanvasView: NSScrollView {
         let point = content.convert(event.locationInWindow, from: nil)
         let index = layout.items(in: CGRect(x: point.x, y: point.y, width: 1, height: 1)).first(where: { $0.frame.contains(point) && $0.index < items.count })?.index
         return onContextMenu?(index)
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        if onScrollWheel?(event) == true { return }
+        super.scrollWheel(with: event)
     }
 
     /// 捏合改缩略图尺寸，锚点不动。

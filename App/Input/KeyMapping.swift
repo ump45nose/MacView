@@ -49,14 +49,21 @@ enum KeyMapping {
     private static let byKeyCode = Dictionary(namedKeys.map { ($0.keyCode, $0) }, uniquingKeysWith: { first, _ in first })
     private static let byName = Dictionary(namedKeys.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
 
+    /// 将 AppKit 事件修饰键标志换算为 Core `KeyModifiers`（不含 `function` 标志）。
+    static func modifiers(for flags: NSEvent.ModifierFlags) -> KeyModifiers {
+        let masked = flags.intersection(.deviceIndependentFlagsMask)
+        var result = KeyModifiers()
+        for (modifier, flag) in modifierFlags where modifier != .function && masked.contains(flag) {
+            result.insert(modifier)
+        }
+        return result
+    }
+
     /// 按下的键；修饰键本身、死键等没有逻辑键名的事件返回 nil。
     static func chord(for event: NSEvent) -> KeyChord? {
         guard event.type == .keyDown else { return nil }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        var modifiers = KeyModifiers()
-        for (modifier, flag) in modifierFlags where modifier != .function && flags.contains(flag) {
-            modifiers.insert(modifier)
-        }
+        var modifiers = Self.modifiers(for: flags)
         if let named = byKeyCode[Int(event.keyCode)] {
             // 方向键、Home 等自带 function 标志，不算修饰键。
             return KeyChord(named.name, modifiers: modifiers)

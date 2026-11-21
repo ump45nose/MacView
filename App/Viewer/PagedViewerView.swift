@@ -59,6 +59,9 @@ final class PagedViewerView: NSView, NSDraggingSource {
     private var lastMouse: CGPoint?
     private var dragOrigin: CGPoint?
     private var dragPageCandidate: (page: Int, point: NSPoint)?
+    private var leftDownPoint: NSPoint?
+    private var leftDidDrag = false
+    private var leftClickCount = 0
     private var occlusionObserver: (any NSObjectProtocol)?
     let navigator = NavigatorView()
     private(set) var video: VideoPageView?
@@ -68,6 +71,10 @@ final class PagedViewerView: NSView, NSDraggingSource {
     private var magnifierTask: Task<Void, Never>?
     /// 缩放或平移变了，HUD 上的比例随之更新。
     var onTransformChange: (() -> Void)?
+    /// 左键单击命中查看器区域（参数为视图坐标与视图宽度）。
+    var onClickZone: ((CGPoint, CGFloat) -> Void)?
+    /// 滚轮分派（参数为事件与当前是否允许触控板双指横扫）。
+    var onScrollWheel: ((NSEvent, Bool) -> ViewerGestureRecognizer.WheelDispatchResult)?
 
     init(session: ReaderSession, pipeline: any ImagePipeline, sources: any SourceRegistry) {
         self.session = session
@@ -585,12 +592,19 @@ final class PagedViewerView: NSView, NSDraggingSource {
         requestImages(immediately: false)
     }
 
+    private var isHorizontallyOverflowing: Bool {
+        frameSize.width * transform.zoom > viewport.width + 1
+    }
+
     private var isOverflowing: Bool {
-        frameSize.width * transform.zoom > viewport.width + 1 || frameSize.height * transform.zoom > viewport.height + 1
+        isHorizontallyOverflowing || frameSize.height * transform.zoom > viewport.height + 1
     }
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(superview)
+        leftDownPoint = event.locationInWindow
+        leftDidDrag = false
+        leftClickCount = event.clickCount
         let point = viewPoint(event)
         if isOverflowing {
             dragOrigin = point
@@ -605,6 +619,10 @@ final class PagedViewerView: NSView, NSDraggingSource {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        if let down = leftDownPoint,
+           hypot(event.locationInWindow.x - down.x, event.locationInWindow.y - down.y) >= 4 {
+            leftDidDrag = true
+        }
         if let origin = dragOrigin {
             let point = viewPoint(event)
             dragOrigin = point
@@ -631,8 +649,23 @@ final class PagedViewerView: NSView, NSDraggingSource {
     }
 
     override func mouseUp(with event: NSEvent) {
+        let down = leftDownPoint
+        let didDrag = leftDidDrag
+        let downClickCount = leftClickCount
         dragOrigin = nil
         dragPageCandidate = nil
+        leftDownPoint = nil
+        leftDidDrag = false
+        leftClickCount = 0
+
+        let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        if let down, !didDrag, flags.isEmpty, downClickCount == 1, event.clickCount == 1 {
+            let distance = hypot(event.locationInWindow.x - down.x, event.locationInWindow.y - down.y)
+            let point = viewPoint(event)
+            if distance < 4, bounds.contains(point) {
+                onClickZone?(point, bounds.width)
+            }
+        }
     }
 
     override func rightMouseDown(with event: NSEvent) {
@@ -655,8 +688,19 @@ final class PagedViewerView: NSView, NSDraggingSource {
         (NSApp.delegate as? AppDelegate)?.fileOps?.dragSessionEnded(operation: operation)
     }
 
-    /// 页帧超出视口时平移；没超出时，只有鼠标滚轮（没有相位）翻页，触控板不翻。
+    /// 页帧超出视口时平移；没超出时，只有鼠标滚轮（没有相位）翻页，触控板不翻；先按 `InputBindings` 分派滚轮与横扫。
     override func scrollWheel(with event: NSEvent) {
+        if let result = onScrollWheel?(event, !isHorizontallyOverflowing) {
+            switch result {
+            case .handled:
+                return
+            case let .zoom(factor):
+                zoom(by: factor, around: viewPoint(event))
+                return
+            case .standard:
+                break
+            }
+        }
         let isMouseWheel = event.phase.isEmpty && event.momentumPhase.isEmpty && !event.hasPreciseScrollingDeltas
         if isOverflowing {
             let factor = event.hasPreciseScrollingDeltas ? backing : backing * 16
