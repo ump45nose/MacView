@@ -150,6 +150,8 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
                 menu.addItem(holder(for: submenu))
             case .separator:
                 menu.addItem(.separator())
+            case .dynamic:
+                break
             }
         }
         return menu
