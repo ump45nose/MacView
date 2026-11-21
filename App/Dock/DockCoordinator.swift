@@ -18,10 +18,13 @@ final class DockCoordinator {
     }
 
     static let layoutFileKey = "MVLayoutFile"
+    static let schemesFileName = "layout-schemes.json"
     static let saveDelay: Duration = .milliseconds(500)
 
     let fileURL: URL
+    let schemesFileURL: URL
     private let store: JSONDocumentStore<DockLayout>?
+    private let schemesStore: JSONDocumentStore<LayoutSchemesFile>?
     private(set) var current: DockLayout
     private(set) var docks: [WindowDock] = []
     private(set) weak var active: WindowDock?
@@ -33,6 +36,7 @@ final class DockCoordinator {
     private var pool: [PanelID: any DockPanel] = [:]
     private var saveTask: Task<Void, Never>?
     private var observeTask: Task<Void, Never>?
+    private var observeSchemesTask: Task<Void, Never>?
     private let logger = Logger(category: "dock")
 
     /// `~/Library/Application Support/MacView/layout.json`；自检用 `-MVLayoutFile <路径>` 换成临时文件。
@@ -41,8 +45,14 @@ final class DockCoordinator {
         return URL.applicationSupportDirectory.appending(path: "MacView/layout.json")
     }
 
-    init(fileURL: URL) {
+    static func defaultSchemesFileURL(supportDirectory: URL) -> URL {
+        supportDirectory.appending(path: schemesFileName)
+    }
+
+    init(fileURL: URL, schemesFileURL: URL? = nil) {
         self.fileURL = fileURL
+        let schemesURL = schemesFileURL ?? fileURL.deletingLastPathComponent().appending(path: Self.schemesFileName)
+        self.schemesFileURL = schemesURL
         let known = Set(DockPanels.all.map(\.id))
         do {
             let store = try JSONDocumentStore(fileURL: fileURL, version: 1, defaultValue: DockPanels.defaultLayout)
@@ -57,10 +67,24 @@ final class DockCoordinator {
                 detail: ErrorText.describe(error) + "\n" + String(localized: "停靠布局不会保存。")
             )
         }
+        do {
+            schemesStore = try JSONDocumentStore(fileURL: schemesURL, version: 1, defaultValue: LayoutSchemesFile())
+        } catch {
+            schemesStore = nil
+            logger.error("无法打开 layout-schemes.json：\(String(describing: error), privacy: .public)")
+        }
         observeTask = Task { [weak self, store = self.store] in
             guard let store else { return }
             for await change in store.changes() {
                 self?.documentChanged(change)
+            }
+        }
+        observeSchemesTask = Task { [weak self, schemesStore = self.schemesStore] in
+            guard let schemesStore else { return }
+            for await change in schemesStore.changes() {
+                if case let .fileError(message) = change {
+                    self?.logger.error("layout-schemes.json：\(message, privacy: .public)")
+                }
             }
         }
     }
@@ -342,6 +366,44 @@ final class DockCoordinator {
             togglePanel(type, in: dock)
         }.item)
         return menu
+    }
+
+    // MARK: 布局方案
+
+    var schemes: [LayoutScheme] {
+        schemesStore?.value().schemes ?? []
+    }
+
+    func scheme(named name: String) -> LayoutScheme? {
+        schemes.first { $0.name == name }
+    }
+
+    /// 把指定窗口（缺省为当前活动窗口）的停靠布局按名称保存到 `layout-schemes.json`；同名覆盖。
+    func saveScheme(named rawName: String, from dock: WindowDock?) async throws {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, let schemesStore else { return }
+        let snapshot = layout(of: dock ?? active)
+        try await schemesStore.update { file in
+            if let index = file.schemes.firstIndex(where: { $0.name == name }) {
+                file.schemes[index].layout = snapshot
+            } else {
+                file.schemes.append(LayoutScheme(name: name, layout: snapshot))
+            }
+        }
+    }
+
+    /// 套用指定名称的布局方案到当前窗口，并立即持久化 `layout.json`。
+    @discardableResult
+    func applyScheme(named name: String, to dock: WindowDock?) async -> Bool {
+        guard let scheme = scheme(named: name) else { return false }
+        let known = Set(DockPanels.all.map(\.id))
+        let targetLayout = scheme.layout.sanitized(knownPanels: known)
+        let targetDock = dock ?? active
+        commit(targetDock.map { [($0, targetLayout)] } ?? [], current: targetLayout, render: true, save: false)
+        saveTask?.cancel()
+        saveTask = nil
+        await write()
+        return true
     }
 
     // MARK: 保存

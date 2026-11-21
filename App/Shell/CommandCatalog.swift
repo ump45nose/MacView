@@ -1,5 +1,7 @@
+import AppKit
 import Foundation
 import MVCommands
+import MVFoundation
 import MVReading
 import MVSettings
 
@@ -60,6 +62,7 @@ struct CommandCatalog {
     let menu: MenuModel
     let viewerContextMenu: [MenuNode]
     let toolbar: [ToolbarItemID]
+    let symbolCommands: [CommandDescriptor]
     private let descriptors: [CommandID: CommandDescriptor]
 
     /// `file` 是完整的 keybindings.json 文档（含键盘与鼠标/触控板/点击区域/滚轮绑定）；`menuFile` 是 menus.json 文档。
@@ -77,6 +80,10 @@ struct CommandCatalog {
     ) {
         let all = CoreCommands.all + Self.appCommands
         descriptors = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        symbolCommands = all.filter { descriptor in
+            guard let symbol = descriptor.symbol else { return false }
+            return !symbol.isEmpty
+        }
         bindings = KeyBinding.effective(defaults: all, user: user)
         self.inputBindings = inputBindings
         menu = menuFile.mainMenu.map(MenuModel.init(roots:)) ?? Self.defaultMainMenu()
@@ -103,7 +110,7 @@ struct CommandCatalog {
                 }
                 return [.submenu(titleKey: titleKey, children: viewChildren + [.separator] + Self.dockMenu), .submenu(titleKey: "图像", children: Self.imageMenu)]
             case "书": return [.submenu(titleKey: titleKey, children: Self.removing([.searchFocus, .searchIndexFolder], from: children))]
-            case "窗口": return [.submenu(titleKey: titleKey, children: Self.removing(dockCommands, from: children))]
+            case "窗口": return [.submenu(titleKey: titleKey, children: Self.removing(dockCommands.union([.layoutSchemeApply]), from: children))]
             default: return [root]
             }
         })
@@ -180,6 +187,81 @@ extension AppDelegate {
             .nextFrame
         default:
             .nextFrame
+        }
+    }
+
+    /// 注册命名布局方案的保存与套用命令（`layout.scheme.save` / `layout.scheme.apply`）。
+    func registerLayoutSchemeCommands(in registry: CommandRegistry) {
+        if let saveDescriptor = catalog.descriptor(.layoutSchemeSave) {
+            registry.register(saveDescriptor, isEnabled: { [weak self] context in
+                guard let self, dock != nil, NSApp.modalWindow == nil else { return false }
+                return (controller(for: context.session) ?? mainController ?? controllers.first) != nil
+            }) { [weak self] context, arguments in
+                guard let self, let dock,
+                      let target = controller(for: context.session) ?? mainController ?? controllers.first else { return }
+                if case let .string(rawName) = arguments?["name"] {
+                    let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !name.isEmpty else { return }
+                    try await dock.saveScheme(named: name, from: target.dock)
+                    target.content.statusBar.showMessage(String(localized: "已保存布局方案“\(name)”"))
+                    return
+                }
+                presentSaveLayoutSchemeSheet(in: target)
+            }
+        }
+        if let applyDescriptor = catalog.descriptor(.layoutSchemeApply) {
+            registry.register(applyDescriptor, isEnabled: { [weak self] context in
+                guard let self, let dock, !dock.schemes.isEmpty else { return false }
+                return (controller(for: context.session) ?? mainController ?? controllers.first) != nil
+            }) { [weak self] context, arguments in
+                guard let self, let dock,
+                      let target = controller(for: context.session) ?? mainController ?? controllers.first,
+                      case let .string(rawName) = arguments?["name"] else { return }
+                let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty else { return }
+                if await dock.applyScheme(named: name, to: target.dock) {
+                    target.content.statusBar.showMessage(String(localized: "已套用布局方案“\(name)”"))
+                }
+            }
+        }
+    }
+
+    private func presentSaveLayoutSchemeSheet(in target: ReaderWindowController) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "保存为布局方案")
+        alert.informativeText = String(localized: "为当前窗口的停靠布局输入一个名称。")
+        alert.addButton(withTitle: String(localized: "保存"))
+        alert.addButton(withTitle: String(localized: "取消"))
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.placeholderString = String(localized: "方案名称")
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        let commit: (NSApplication.ModalResponse) -> Void = { [weak self, weak target] response in
+            guard response == .alertFirstButtonReturn, let self, let dock = self.dock, let target else { return }
+            let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { return }
+            Task { @MainActor [weak target] in
+                guard let target else { return }
+                do {
+                    try await dock.saveScheme(named: name, from: target.dock)
+                    target.content.statusBar.showMessage(String(localized: "已保存布局方案“\(name)”"))
+                } catch {
+                    let errorAlert = NSAlert()
+                    errorAlert.messageText = String(localized: "无法完成操作")
+                    errorAlert.informativeText = ErrorText.describe(error)
+                    if let window = target.window {
+                        errorAlert.beginSheetModal(for: window, completionHandler: nil)
+                    } else {
+                        errorAlert.runModal()
+                    }
+                }
+            }
+        }
+        if let window = target.window {
+            alert.beginSheetModal(for: window, completionHandler: commit)
+        } else {
+            commit(alert.runModal())
         }
     }
 }
