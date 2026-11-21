@@ -21,7 +21,7 @@ final class SelfTest {
 
     /// 自检不读不写用户的会话，会话自检除外。
     static var isRunningExceptSession: Bool {
-        ["MVSelfTest", "MVDockSelfTest", "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", "MVFileOpsSelfTest", LibrarySelfTest.launchKey, SearchSelfTest.launchKey, EffectsSelfTest.launchKey, InputSelfTest.launchKey].contains {
+        ["MVSelfTest", "MVDockSelfTest", "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", "MVFileOpsSelfTest", LibrarySelfTest.launchKey, SearchSelfTest.launchKey, EffectsSelfTest.launchKey, InputSelfTest.launchKey, AppearanceSelfTest.launchKey].contains {
             UserDefaults.standard.object(forKey: $0) != nil
         }
     }

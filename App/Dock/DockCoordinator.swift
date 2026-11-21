@@ -34,6 +34,7 @@ final class DockCoordinator {
         didSet { docks.forEach { $0.showProblem(problem) } }
     }
     private var pool: [PanelID: any DockPanel] = [:]
+    private var keepOnTop = false
     private var saveTask: Task<Void, Never>?
     private var observeTask: Task<Void, Never>?
     private var observeSchemesTask: Task<Void, Never>?
@@ -223,6 +224,14 @@ final class DockCoordinator {
 
     // MARK: 浮动面板
 
+    /// 更新浮动面板的置顶跟随状态；之后新建的浮动面板也会立即套用。
+    func setKeepOnTop(_ on: Bool) {
+        keepOnTop = on
+        for window in floatingWindows.values {
+            window.setKeepOnTop(on)
+        }
+    }
+
     private func syncFloating() {
         for item in current.floating {
             let window: FloatingPanelWindow
@@ -231,6 +240,7 @@ final class DockCoordinator {
             } else {
                 guard let type = DockPanels.type(item.panel), let panel = obtain(item.panel, settings: item.settings, for: nil) else { continue }
                 window = FloatingPanelWindow(type: type, panel: panel, coordinator: self)
+                window.setKeepOnTop(keepOnTop)
                 floatingWindows[item.panel] = window
             }
             window.place(item.frame)

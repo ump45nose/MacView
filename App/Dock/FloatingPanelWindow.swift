@@ -10,6 +10,8 @@ final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
     let type: DockPanelType
     let panel: any DockPanel
     private unowned let coordinator: DockCoordinator
+    private var defaultLevel: NSWindow.Level = .floating
+    private var defaultHidesOnDeactivate = true
 
     init(type: DockPanelType, panel: any DockPanel, coordinator: DockCoordinator) {
         self.type = type
@@ -25,6 +27,8 @@ final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
         titlebarAppearsTransparent = true
         isFloatingPanel = true
         hidesOnDeactivate = true
+        defaultLevel = level
+        defaultHidesOnDeactivate = hidesOnDeactivate
         becomesKeyOnlyIfNeeded = true
         isReleasedWhenClosed = false
         // 也能浮在全屏窗口之上。
@@ -52,6 +56,17 @@ final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
         dockButton.setAccessibilityLabel(dockButton.toolTip)
         dockButton.frame.size = CGSize(width: 22, height: 22)
         contentView = PanelFrameView(tab: tab, content: panel.view, accessory: dockButton, isFloating: true)
+    }
+
+    /// 跟随主窗口的置顶设置：置顶时保证层级在 `.floating` 以上且失活不隐藏，关闭时恢复原值。
+    func setKeepOnTop(_ on: Bool) {
+        if on {
+            level = NSWindow.Level(rawValue: max(defaultLevel.rawValue, NSWindow.Level.floating.rawValue + 1))
+            hidesOnDeactivate = false
+        } else {
+            level = defaultLevel
+            hidesOnDeactivate = defaultHidesOnDeactivate
+        }
     }
 
     /// 按布局中的 frame 摆放；与当前位置相同时不动。

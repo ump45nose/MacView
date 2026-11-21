@@ -16,9 +16,37 @@ final class ReaderWindow: NSWindow {
     var router: InputRouter?
     weak var fileOps: FileOperationController?
     weak var statusBar: StatusBarView?
+    #if DEBUG
+    private(set) var performDragCallCount = 0
+    #endif
 
     override var undoManager: UndoManager? {
         (delegate as? ReaderWindowController)?.windowWillReturnUndoManager(self) ?? super.undoManager
+    }
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown,
+           event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command),
+           let controller = delegate as? ReaderWindowController,
+           controller.chrome.isBorderlessActive,
+           let hit = contentView?.hitTest(event.locationInWindow),
+           hit.isDescendant(of: controller.viewer) {
+            performDrag(with: event)
+            return
+        }
+        super.sendEvent(event)
+    }
+
+    override func performDrag(with event: NSEvent) {
+        #if DEBUG
+        performDragCallCount += 1
+        #endif
+        super.performDrag(with: event)
+    }
+
+    override func toggleFullScreen(_ sender: Any?) {
+        (delegate as? ReaderWindowController)?.chrome.prepareForFullScreenToggle()
+        super.toggleFullScreen(sender)
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -142,6 +170,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private(set) var router: InputRouter
     let viewer: ViewerContainerView
     let content: ReaderContentView
+    let chrome: WindowChrome
     let pendingView: PendingSequenceView
     /// 本窗口的停靠区；页面视图在中间栏。
     let dock: WindowDock
@@ -252,6 +281,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         window.router = router
         window.fileOps = fileOps
         window.statusBar = statusBar
+        let toolbar = NSToolbar(identifier: "MacView.reader")
+        chrome = WindowChrome(window: window, toolbar: toolbar, content: content)
         super.init(window: window)
         let recordOpened = session.onBookOpened
         session.onBookOpened = { [weak self] location in
@@ -269,7 +300,6 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             self?.updateDockToggles()
             self?.onSessionChange?()
         }
-        let toolbar = NSToolbar(identifier: "MacView.reader")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.autosavesConfiguration = false
@@ -762,11 +792,26 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     func windowWillEnterFullScreen(_ notification: Notification) {
+        chrome.willEnterFullScreen()
         dock.setAutoHide(true)
     }
 
-    func windowWillExitFullScreen(_ notification: Notification) {
+    func windowDidEnterFullScreen(_ notification: Notification) {
+        chrome.didEnterFullScreen()
+    }
+
+    func windowDidFailToEnterFullScreen(_ window: NSWindow) {
+        chrome.didFailToEnterFullScreen()
         dock.setAutoHide(false)
+    }
+
+    func windowWillExitFullScreen(_ notification: Notification) {
+        chrome.willExitFullScreen()
+        dock.setAutoHide(false)
+    }
+
+    func windowDidExitFullScreen(_ notification: Notification) {
+        chrome.didExitFullScreen()
     }
 
     func windowDidMove(_ notification: Notification) {

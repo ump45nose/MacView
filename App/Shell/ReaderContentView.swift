@@ -42,6 +42,8 @@ final class ReaderContentView: NSView {
     /// 拖入了文件 URL。
     var onDrop: (([URL]) -> Void)?
     private let mainView: NSView
+    private let topBackdrop = NSView()
+    private var topInsetConstraint: NSLayoutConstraint!
     private let banners = NSStackView()
     private let volumeBanner = VolumeStatusView()
     /// 按文件各一条。
@@ -57,20 +59,28 @@ final class ReaderContentView: NSView {
         self.mainView = mainView
         super.init(frame: .zero)
         wantsLayer = true
+        topBackdrop.wantsLayer = true
+        topBackdrop.layer?.backgroundColor = Theme.ground.cgColor
         banners.orientation = .vertical
         banners.alignment = .width
         banners.spacing = 0
         banners.addArrangedSubview(volumeBanner)
-        for view in [banners, mainView, statusBar] {
+        for view in [topBackdrop, banners, mainView, statusBar] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
         let emptyBanners = banners.heightAnchor.constraint(equalToConstant: 0)
         emptyBanners.priority = .init(1)
+        let topInset = banners.topAnchor.constraint(equalTo: topAnchor, constant: 0)
+        topInsetConstraint = topInset
         NSLayoutConstraint.activate([
+            topBackdrop.leadingAnchor.constraint(equalTo: leadingAnchor),
+            topBackdrop.trailingAnchor.constraint(equalTo: trailingAnchor),
+            topBackdrop.topAnchor.constraint(equalTo: topAnchor),
+            topBackdrop.bottomAnchor.constraint(equalTo: banners.topAnchor),
             banners.leadingAnchor.constraint(equalTo: leadingAnchor),
             banners.trailingAnchor.constraint(equalTo: trailingAnchor),
-            banners.topAnchor.constraint(equalTo: topAnchor),
+            topInset,
             emptyBanners,
             mainView.leadingAnchor.constraint(equalTo: leadingAnchor),
             mainView.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -88,8 +98,17 @@ final class ReaderContentView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// 为多标签时的原生标签栏在顶部留出高度，并在该区域绘制实色底。
+    func setTopInset(_ inset: CGFloat) {
+        let clamped = max(0, inset)
+        guard topInsetConstraint.constant != clamped else { return }
+        topInsetConstraint.constant = clamped
+        needsLayout = true
+    }
+
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
+        topBackdrop.layer?.backgroundColor = Theme.ground.cgColor
         updateDropBorder()
     }
 

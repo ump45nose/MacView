@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var services: CoreServices?
     private(set) var dispatcher: CommandDispatcher?
     private(set) var dock: DockCoordinator?
+    private(set) var appearance: AppearanceController?
     private(set) var fileOps: FileOperationController?
     private(set) var metadataWriter: MetadataWriteController?
     var isMock: Bool {
@@ -120,12 +121,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.metadataWriter?.handleDisabledCommand(id, in: controller) ?? false
             }
             self.dispatcher = dispatcher
-            dock = DockCoordinator(
+            let dock = DockCoordinator(
                 fileURL: DockCoordinator.defaultFileURL(),
                 schemesFileURL: DockCoordinator.defaultSchemesFileURL(supportDirectory: supportDirectory)
             )
+            self.dock = dock
+            let appearance = AppearanceController(store: services.settings)
+            appearance.attach(dock: dock)
+            appearance.start()
+            self.appearance = appearance
             registerCommands(in: services.commands)
             registerFrameDirectionCommands(in: services.commands)
+            registerWindowAppearanceCommands(in: services.commands)
             registerLayoutSchemeCommands(in: services.commands)
             observeSettingsErrors()
         } catch {
@@ -172,6 +179,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SearchSelfTest.runIfRequested(app: self)
         EffectsSelfTest.runIfRequested(app: self)
         InputSelfTest.runIfRequested(app: self)
+        AppearanceSelfTest.runIfRequested(app: self)
         debugSocket = DebugSocket.startIfRequested(app: self)
         #endif
     }
@@ -536,6 +544,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         cascadePoint = window.cascadeTopLeft(from: cascadePoint)
         controllers.append(controller)
+        appearance?.register(controller)
         showFileProblems(in: controller)
         return controller
     }

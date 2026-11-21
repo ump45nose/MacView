@@ -237,8 +237,19 @@ extension AppDelegate {
     }
 
     func menuState(for id: CommandID) -> NSControl.StateValue? {
-        guard id == .effectsToggle, let controller = mainController ?? controllers.first else { return nil }
-        return controller.effectsEnabled ? .on : .off
+        switch id {
+        case .effectsToggle:
+            guard let controller = mainController ?? controllers.first else { return nil }
+            return controller.effectsEnabled ? .on : .off
+        case .windowKeepOnTopToggle:
+            return appearance?.current.window.keepOnTop == true ? .on : .off
+        case .windowTitleBarAutoHideToggle:
+            return appearance?.current.window.titleBar == .autoHide ? .on : .off
+        case .windowBorderlessToggle:
+            return appearance?.current.window.titleBar == .borderless ? .on : .off
+        default:
+            return nil
+        }
     }
 
     func updateSubmenu(key: String, menu: NSMenu) -> Bool {

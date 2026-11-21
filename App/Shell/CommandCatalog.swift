@@ -190,6 +190,29 @@ extension AppDelegate {
         }
     }
 
+    /// 注册窗口外观命令（置顶、自动隐藏标题栏、无边框）：作用于全局设置，在任意输入作用域下均可执行。
+    func registerWindowAppearanceCommands(in registry: CommandRegistry) {
+        func register(_ id: CommandID, mutate: @escaping @Sendable (inout AppearanceSettings) -> Void) {
+            guard let descriptor = catalog.descriptor(id) else {
+                preconditionFailure("命令清单中没有 \(id.rawValue)")
+            }
+            registry.register(descriptor, isEnabled: { [weak self] _ in
+                self?.appearance != nil
+            }) { [weak self] _, _ in
+                self?.appearance?.update(mutate)
+            }
+        }
+        register(.windowKeepOnTopToggle) { settings in
+            settings.window.keepOnTop.toggle()
+        }
+        register(.windowTitleBarAutoHideToggle) { settings in
+            settings.window.titleBar = settings.window.titleBar == .autoHide ? .shown : .autoHide
+        }
+        register(.windowBorderlessToggle) { settings in
+            settings.window.titleBar = settings.window.titleBar == .borderless ? .shown : .borderless
+        }
+    }
+
     /// 注册命名布局方案的保存与套用命令（`layout.scheme.save` / `layout.scheme.apply`）。
     func registerLayoutSchemeCommands(in registry: CommandRegistry) {
         if let saveDescriptor = catalog.descriptor(.layoutSchemeSave) {
