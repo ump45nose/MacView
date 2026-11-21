@@ -307,14 +307,16 @@ public struct GlobalSettings: Codable, Sendable, Hashable {
     public var maxDecodeLongSide: Int
     public var fileOperations: FileOperationSettings
     public var historyLimit: Int
+    public var appearance: AppearanceSettings
 
-    public init(defaultBook: ResolvedBookSettings, cache: CacheBudgets, prefetch: PrefetchRanges, maxDecodeLongSide: Int, fileOperations: FileOperationSettings = .default, historyLimit: Int = 1000) {
+    public init(defaultBook: ResolvedBookSettings, cache: CacheBudgets, prefetch: PrefetchRanges, maxDecodeLongSide: Int, fileOperations: FileOperationSettings = .default, historyLimit: Int = 1000, appearance: AppearanceSettings = .default) {
         self.defaultBook = defaultBook
         self.cache = cache
         self.prefetch = prefetch
         self.maxDecodeLongSide = maxDecodeLongSide
         self.fileOperations = fileOperations
         self.historyLimit = historyLimit
+        self.appearance = appearance
     }
 
     public init(from decoder: any Decoder) throws {
@@ -324,7 +326,8 @@ public struct GlobalSettings: Codable, Sendable, Hashable {
                   prefetch: try values.decode(PrefetchRanges.self, forKey: .prefetch),
                   maxDecodeLongSide: try values.decode(Int.self, forKey: .maxDecodeLongSide),
                   fileOperations: try values.decodeIfPresent(FileOperationSettings.self, forKey: .fileOperations) ?? .default,
-                  historyLimit: try values.decodeIfPresent(Int.self, forKey: .historyLimit) ?? 1000)
+                  historyLimit: try values.decodeIfPresent(Int.self, forKey: .historyLimit) ?? 1000,
+                  appearance: try values.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .default)
         guard historyLimit > 0 else {
             throw DecodingError.dataCorruptedError(forKey: .historyLimit, in: values,
                 debugDescription: String(localized: "\("historyLimit") 必须大于 0，现在是 \(historyLimit)", bundle: .main))

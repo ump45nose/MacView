@@ -245,7 +245,7 @@ public final class FileSettingsStore: SettingsStore {
     }
 
     private static let optionalGlobalFields: Set<String> = [
-        "fileOperations", "historyLimit", "defaultBook.effects", "defaultBook.background",
+        "fileOperations", "historyLimit", "appearance", "defaultBook.effects", "defaultBook.background",
     ]
 
     private static func filling(_ object: Any, defaults: Any, path: String, missing: inout [String]) -> Any {
@@ -253,7 +253,10 @@ public final class FileSettingsStore: SettingsStore {
         for (key, value) in defaults {
             let field = path.isEmpty ? key : path + "." + key
             if let present = object[key] { object[key] = filling(present, defaults: value, path: field, missing: &missing) }
-            else { object[key] = value; if !optionalGlobalFields.contains(field) { missing.append(field) } }
+            else {
+                object[key] = value
+                if !optionalGlobalFields.contains(field), !field.hasPrefix("appearance.") { missing.append(field) }
+            }
         }
         return object
     }

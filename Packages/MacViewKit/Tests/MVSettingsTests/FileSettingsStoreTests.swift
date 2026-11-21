@@ -379,6 +379,110 @@ private final class SettingsDirectory: Sendable {
     deinit { try? FileManager.default.removeItem(at: url) }
 }
 
+@Test("C1.1 旧设置缺 appearance 时安静使用默认外观")
+func legacySettingsUseDefaultAppearanceWithoutWarning() async throws {
+    let directory = try SettingsDirectory()
+    let file = directory.url.appending(path: "settings.json")
+    var legacy = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(GlobalSettings.default)) as? [String: Any])
+    legacy.removeValue(forKey: "appearance")
+    let data = try JSONSerialization.data(withJSONObject: ["version": 1, "value": legacy])
+    try data.write(to: file)
+    let direct = try JSONDecoder().decode(GlobalSettings.self, from: JSONSerialization.data(withJSONObject: legacy))
+    #expect(direct.appearance == .default)
+    let store = try FileSettingsStore(directory: directory.url)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+    #expect(await store.global().appearance == .default)
+    #expect(try Data(contentsOf: file) == data)
+    try await store.updateGlobal { $0.appearance = .default }
+    try await settingsWait { events.values.contains(.global) }
+    #expect(!events.values.contains { if case .fileError = $0 { true } else { false } })
+}
+
+@Test("C1.2 外观子字段缺省逐层取默认且无缺字段提示", arguments: [
+    #"{}"#,
+    #"{"window":{"keepOnTop":true}}"#,
+    #"{"fonts":{"panels":{},"overlays":{"family":"Helvetica"},"menus":{"size":18}}}"#,
+])
+func partialAppearanceFieldsUseDefaultsWithoutWarning(_ json: String) async throws {
+    let appearance = try JSONDecoder().decode(AppearanceSettings.self, from: Data(json.utf8))
+    #expect(appearance.mode == .system)
+    #expect(appearance.accent == .clay)
+    #expect(appearance.window.titleBar == .shown)
+    #expect(appearance.window.opacity == 1)
+    #expect(appearance.window.keepOnTop == json.contains("keepOnTop"))
+    if json.contains("fonts") {
+        #expect(appearance.fonts[.panels] == FontSpec())
+        #expect(appearance.fonts[.overlays] == FontSpec(family: "Helvetica"))
+        #expect(appearance.fonts[.menus] == FontSpec(size: 18))
+    } else { #expect(appearance.fonts.isEmpty) }
+
+    let directory = try SettingsDirectory()
+    let file = directory.url.appending(path: "settings.json")
+    var global = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(GlobalSettings.default)) as? [String: Any])
+    global["appearance"] = try JSONSerialization.jsonObject(with: Data(json.utf8))
+    try JSONSerialization.data(withJSONObject: ["version": 1, "value": global]).write(to: file)
+    let store = try FileSettingsStore(directory: directory.url)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+    #expect(await store.global().appearance == appearance)
+    try await store.updateGlobal { $0.maxDecodeLongSide = 4096 }
+    try await settingsWait { events.values.contains(.global) }
+    #expect(!events.values.contains { if case .fileError = $0 { true } else { false } })
+}
+
+@Test("C1.3 无效外观报 fileError 并保留上一份设置", arguments: [
+    #"{"window":{"opacity":0.2}}"#,
+    #"{"window":{"opacity":1.1}}"#,
+    #"{"fonts":{"panels":{"size":40}}}"#,
+    #"{"fonts":{"panels":{"size":7}}}"#,
+    #"{"mode":"unknown"}"#,
+    #"{"accent":"unknown"}"#,
+    #"{"window":{"titleBar":"unknown"}}"#,
+])
+func invalidAppearanceReportsErrorAndKeepsLastGoodSettings(_ json: String) async throws {
+    #expect(throws: DecodingError.self) {
+        try JSONDecoder().decode(AppearanceSettings.self, from: Data(json.utf8))
+    }
+    let directory = try SettingsDirectory()
+    let file = directory.url.appending(path: "settings.json")
+    var good = GlobalSettings.default
+    good.appearance.mode = .dark
+    try writeSettingsDocument(good, to: file)
+    let store = try FileSettingsStore(directory: directory.url)
+    let events = ChangeRecorder(store.changes())
+    defer { events.cancel() }
+    var invalid = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(good)) as? [String: Any])
+    invalid["appearance"] = try JSONSerialization.jsonObject(with: Data(json.utf8))
+    try JSONSerialization.data(withJSONObject: ["version": 1, "value": invalid]).write(to: file, options: .atomic)
+    try await settingsWait {
+        events.values.contains { if case let .fileError(name, _) = $0 { name == "settings.json" } else { false } }
+    }
+    #expect(await store.global() == good)
+}
+
+@Test("C1.4 updateGlobal 持久化全部外观字段且字体使用具名对象键")
+func appearanceUpdatesRoundTripWithNamedFontKeys() async throws {
+    let directory = try SettingsDirectory()
+    let store = try FileSettingsStore(directory: directory.url)
+    let appearance = AppearanceSettings(mode: .light, accent: .system, fonts: [
+        .panels: FontSpec(family: "Helvetica", size: 8),
+        .overlays: FontSpec(size: 32),
+        .menus: FontSpec(family: "Menlo"),
+    ], window: WindowAppearance(titleBar: .borderless, keepOnTop: true, opacity: 0.3))
+    try await store.updateGlobal { $0.appearance = appearance }
+    let reopened = try FileSettingsStore(directory: directory.url)
+    #expect(await reopened.global().appearance == appearance)
+    let envelope = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: directory.url.appending(path: "settings.json"))) as? [String: Any])
+    let value = try #require(envelope["value"] as? [String: Any])
+    let encodedAppearance = try #require(value["appearance"] as? [String: Any])
+    let fonts = try #require(encodedAppearance["fonts"] as? [String: Any])
+    #expect(Set(fonts.keys) == ["panels", "overlays", "menus"])
+    #expect((fonts["panels"] as? [String: Any])?["family"] as? String == "Helvetica")
+    #expect((fonts["overlays"] as? [String: Any])?["size"] as? Double == 32)
+    #expect(try JSONDecoder().decode(WindowAppearance.self, from: Data(#"{"opacity":1}"#.utf8)).opacity == 1)
+}
+
 @Test func relocateBookMemoryKeepsDestinationAndPersists() async throws {
     let directory = try SettingsDirectory()
     let old = Location(root: .local, layers: [["book"]]), target = Location(root: .local, layers: [["renamed"]])
