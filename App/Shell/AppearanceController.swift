@@ -146,10 +146,39 @@ final class AppearanceController {
         }
 
         if isInitial || previous.window != next.window {
-            for registration in registrations.values {
-                registration.controller?.chrome.apply(next.window, animated: animated)
-            }
+            applyWindowAppearance(next.window, animated: animated)
             dock?.setKeepOnTop(next.window.keepOnTop)
+        }
+    }
+
+    /// 统一向所有阅读窗口套用窗口外观。
+    ///
+    /// 多标签共享同一个 `NSWindowTabGroup`：变更前按标签组当前选中窗口快照目标 frame，
+    /// 再按“先非选中标签、后选中标签/独立窗口”顺序套用，最后按同一顺序恢复被 AppKit 隐式调整过的 frame，
+    /// 避免标签组内窗口在切换 `styleMask` / `toolbar.isVisible` 时互相覆盖尺寸。
+    private func applyWindowAppearance(_ windowAppearance: WindowAppearance, animated: Bool) {
+        let controllers = registrations.values.compactMap(\.controller)
+        let savedFrames: [(ReaderWindowController, NSRect)] = controllers.compactMap { controller in
+            guard let window = controller.window else { return nil }
+            let reference = window.tabGroup?.selectedWindow ?? window
+            return (controller, reference.frame)
+        }
+        let ordered = controllers.sorted { lhs, rhs in
+            let lhsSelected = lhs.window.map { $0.tabGroup == nil || $0.tabGroup?.selectedWindow === $0 } ?? false
+            let rhsSelected = rhs.window.map { $0.tabGroup == nil || $0.tabGroup?.selectedWindow === $0 } ?? false
+            return !lhsSelected && rhsSelected
+        }
+        for controller in ordered {
+            controller.chrome.apply(windowAppearance, animated: animated)
+        }
+        for isSelectedPass in [false, true] {
+            for (controller, savedFrame) in savedFrames {
+                guard !controller.chrome.isFullScreen, let window = controller.window,
+                      !window.styleMask.contains(.fullScreen) else { continue }
+                let isSelected = window.tabGroup == nil || window.tabGroup?.selectedWindow === window
+                guard isSelected == isSelectedPass, window.frame != savedFrame else { continue }
+                window.setFrame(savedFrame, display: isSelected)
+            }
         }
     }
 

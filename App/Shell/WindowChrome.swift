@@ -183,7 +183,7 @@ final class WindowChrome {
 
     private func applyEffectiveState() {
         guard let window else { return }
-        let savedFrame = window.frame
+        let savedFrame = window.tabGroup?.selectedWindow?.frame ?? window.frame
 
         window.level = appearance.keepOnTop ? .floating : .normal
         window.alphaValue = CGFloat(min(max(appearance.opacity, 0.3), 1.0))
@@ -194,10 +194,12 @@ final class WindowChrome {
             cancelAutoHideTimers()
             isToolbarRevealed = false
             removeTopTracking()
+            // 先在 fullSizeContentView 下恢复工具栏可见，再移除 fullSizeContentView，
+            // 与隐藏路径对称，避免 AppKit 为工具栏额外增高窗口。
+            toolbar.isVisible = true
             if window.styleMask.contains(.fullSizeContentView) {
                 window.styleMask.remove(.fullSizeContentView)
             }
-            toolbar.isVisible = true
             setStandardButtonsHidden(false)
 
         case .autoHide:
