@@ -30,7 +30,7 @@ final class ViewerGestureRecognizer {
 
     private unowned let trailView: GestureTrailView
     private var rightDrag: RightDragState?
-    private var escapeMonitor: Any?
+    private nonisolated(unsafe) var escapeMonitor: Any?
     private var wheelCommandAccumulator: CGFloat = 0
     private var isTrackingSwipe = false
     private var swipeTriggered = false
@@ -51,6 +51,12 @@ final class ViewerGestureRecognizer {
 
     init(trailView: GestureTrailView) {
         self.trailView = trailView
+    }
+
+    deinit {
+        if let escapeMonitor {
+            NSEvent.removeMonitor(escapeMonitor)
+        }
     }
 
     var inputBindings: InputBindings {

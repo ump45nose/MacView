@@ -15,17 +15,17 @@ final class CommandDispatcher {
         self.registry = registry
     }
 
-    private func context(_ controller: ReaderWindowController?, scope: InputScope) -> CommandContext {
-        CommandContext(session: controller?.session.id, scope: scope)
+    private func context(_ controller: ReaderWindowController?, scope: InputScope, selection: [Location] = []) -> CommandContext {
+        CommandContext(session: controller?.session.id, scope: scope, selection: selection)
     }
 
-    func isEnabled(_ id: CommandID, in controller: ReaderWindowController?, scope: InputScope) -> Bool {
-        registry.isEnabled(id, context: context(controller, scope: scope))
+    func isEnabled(_ id: CommandID, in controller: ReaderWindowController?, scope: InputScope, selection: [Location] = []) -> Bool {
+        registry.isEnabled(id, context: context(controller, scope: scope, selection: selection))
     }
 
     /// 命令没登记或当前不可用时提示音；处理器抛出的错误显示在所在窗口上。
-    func run(_ id: CommandID, arguments: [String: JSONValue]? = nil, in controller: ReaderWindowController?, scope: InputScope) {
-        let context = context(controller, scope: scope)
+    func run(_ id: CommandID, arguments: [String: JSONValue]? = nil, in controller: ReaderWindowController?, scope: InputScope, selection: [Location] = []) {
+        let context = context(controller, scope: scope, selection: selection)
         Task {
             do {
                 try await registry.perform(id, arguments: arguments, context: context)

@@ -75,18 +75,15 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
     private let catalog: CommandCatalog
     private let isEnabled: (CommandID) -> Bool
     private let perform: (CommandID) -> Void
-    private let populateLayoutSchemes: ((NSMenu) -> Bool)?
 
     init(
         catalog: CommandCatalog,
         isEnabled: @escaping (CommandID) -> Bool,
-        perform: @escaping (CommandID) -> Void,
-        populateLayoutSchemes: ((NSMenu) -> Bool)? = nil
+        perform: @escaping (CommandID) -> Void
     ) {
         self.catalog = catalog
         self.isEnabled = isEnabled
         self.perform = perform
-        self.populateLayoutSchemes = populateLayoutSchemes
     }
 
     /// 按菜单树和上下文条目提供者生成查看器右键菜单；自动合并相邻和首尾分隔线。
@@ -227,8 +224,8 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
                 .command(.ratingSet3), .command(.ratingSet4), .command(.ratingSet5),
             ]))
         case .layoutSchemes:
-            populateLayoutSchemes.map { populate in
-                dynamicSubmenuItem(title: String(localized: "布局方案"), populate: populate)
+            dynamicSubmenuItem(title: String(localized: "布局方案")) { submenu in
+                (NSApp.delegate as? AppDelegate)?.populateLayoutSchemesMenu(submenu) ?? false
             }
         }
     }

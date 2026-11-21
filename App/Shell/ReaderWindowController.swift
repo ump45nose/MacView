@@ -866,17 +866,35 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        if identifier == Self.toolbarTitle { return makeTitleItem() }
-        if identifier == Self.toolbarBrowse { return viewItem(identifier, browseControl, label: String(localized: "浏览方式")) }
+        if identifier == Self.toolbarTitle {
+            return flag ? makeTitleItem() : paletteItem(identifier, label: String(localized: "书名"), symbol: "text.alignleft")
+        }
+        if identifier == Self.toolbarBrowse {
+            let label = String(localized: "浏览方式")
+            return flag ? viewItem(identifier, browseControl, label: label) : paletteItem(identifier, label: label, symbol: "square.grid.2x2")
+        }
         if identifier == Self.toolbarWaterfall {
+            let label = String(localized: "瀑布流选项")
+            guard flag else { return paletteItem(identifier, label: label, symbol: "arrow.up.arrow.down") }
             let stack = NSStackView(views: [sortButton, sizeSlider])
             stack.spacing = 8
-            return viewItem(identifier, stack, label: String(localized: "瀑布流选项"))
+            return viewItem(identifier, stack, label: label)
         }
-        if identifier == Self.toolbarOptions { return viewItem(identifier, optionsButton, label: String(localized: "显示")) }
-        if identifier == Self.toolbarFullScreen { return viewItem(identifier, fullScreenButton, label: catalog.title(of: .fullScreenToggle)) }
-        if identifier == Self.toolbarEffectsToggle { return viewItem(identifier, effectsToggleButton, label: catalog.title(of: .effectsToggle)) }
-        if let entry = Self.dockToggleItems[identifier] { return makeDockToggleItem(identifier, entry) }
+        if identifier == Self.toolbarOptions {
+            let label = String(localized: "显示")
+            return flag ? viewItem(identifier, optionsButton, label: label) : paletteItem(identifier, label: label, symbol: "slider.horizontal.3")
+        }
+        if identifier == Self.toolbarFullScreen {
+            let label = catalog.title(of: .fullScreenToggle)
+            return flag ? viewItem(identifier, fullScreenButton, label: label) : paletteItem(identifier, label: label, symbol: "arrow.up.left.and.arrow.down.right")
+        }
+        if identifier == Self.toolbarEffectsToggle {
+            let label = catalog.title(of: .effectsToggle)
+            return flag ? viewItem(identifier, effectsToggleButton, label: label) : paletteItem(identifier, label: label, symbol: "circle.lefthalf.filled")
+        }
+        if let entry = Self.dockToggleItems[identifier] {
+            return flag ? makeDockToggleItem(identifier, entry) : paletteItem(identifier, label: catalog.title(of: entry.command), symbol: entry.symbol)
+        }
         if let entry = Self.toolbarCommands[identifier] {
             let title = catalog.title(of: entry.command)
             let item = NSToolbarItem(itemIdentifier: identifier)
@@ -948,6 +966,17 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         updateBrowseControls()
         updateDockToggles()
         toolbar.validateVisibleItems()
+    }
+
+    private func paletteItem(_ identifier: NSToolbarItem.Identifier, label: String, symbol: String) -> NSToolbarItem {
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+        item.label = label
+        item.paletteLabel = label
+        item.toolTip = label
+        item.isBordered = true
+        item.autovalidates = false
+        return item
     }
 
     private func viewItem(_ identifier: NSToolbarItem.Identifier, _ view: NSView, label: String) -> NSToolbarItem {
@@ -1089,7 +1118,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     private func makeDockToggleItem(_ identifier: NSToolbarItem.Identifier, _ entry: DockToggleItem) -> NSToolbarItem {
         let item = NSToolbarItem(itemIdentifier: identifier)
-        item.label = catalog.title(of: entry.command)
+        let title = catalog.title(of: entry.command)
+        item.label = title
+        item.paletteLabel = title
         item.view = dockToggles[entry.edge]
         item.isBordered = false
         item.autovalidates = false
