@@ -28,6 +28,7 @@ final class SettingsModel {
     let supportDirectory: URL
     let cacheDirectory: URL
     let shortcuts: ShortcutsModel
+    let pointer: PointerModel
 
     init(
         store: any SettingsStore,
@@ -42,6 +43,7 @@ final class SettingsModel {
         self.cacheDirectory = cacheDirectory
         let resolvedKeyBindings = keyBindings ?? (NSApp.delegate as? AppDelegate)?.services?.keyBindings
         self.shortcuts = ShortcutsModel(store: resolvedKeyBindings)
+        self.pointer = PointerModel(store: resolvedKeyBindings)
         let changes = store.changes()
         changesTask = Task { [weak self] in
             await self?.loadAll()
@@ -65,6 +67,7 @@ final class SettingsModel {
         rules = await store.pathRules()
         if launchBrowseCacheEnabled == nil { launchBrowseCacheEnabled = global.cache.browseCacheEnabled }
         shortcuts.reload()
+        pointer.reload()
     }
 
     // MARK: 全局

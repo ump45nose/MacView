@@ -876,7 +876,136 @@ final class InputSelfTest {
             "C3.1 全部恢复默认后回到原始默认键并清空 keybindings.json 的键盘覆盖"
         )
         log.snapshot(settingsWindow, "shortcuts-default")
+
+        // MARK: C3.2 设置窗口 · 鼠标与触控板页
+        await checkPointerSettingsPage(settings: settings, settingsWindow: settingsWindow, keyBindingsURL: keyBindingsURL)
+
         settingsWindow.close()
+    }
+
+    private func checkPointerSettingsPage(
+        settings: SettingsWindowController,
+        settingsWindow: NSWindow,
+        keyBindingsURL: URL
+    ) async {
+        settings.state.page = .pointer
+        await settle()
+
+        let pointer = settings.state.model.pointer
+        log.check(settings.state.page == .pointer, "C3.2 设置窗口已切换到鼠标与触控板页")
+
+        // 1. 修改中间点击区域与 ⌥ 鼠标滚轮绑定，验证写入 keybindings.json 并热重载生效。
+        let customOptionWheel = WheelAction.commands(up: .bookPrevious, down: .bookNext)
+        pointer.setClickZone(.fullScreenToggle, for: .center)
+        pointer.setWheelAction(customOptionWheel, device: .mouse, modifiers: .option)
+
+        for _ in 0..<100 where app.catalog.inputBindings.command(for: .center)?.0 != .fullScreenToggle
+            || app.catalog.inputBindings.wheelAction(device: .mouse, modifiers: .option) != customOptionWheel {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let persistedAfterZoneWheel = readStoredKeyBindings(at: keyBindingsURL)
+        log.check(
+            app.catalog.inputBindings.command(for: .center)?.0 == .fullScreenToggle
+                && persistedAfterZoneWheel?.clickZones?.contains(ClickZoneBinding(zone: .center, command: .fullScreenToggle)) == true,
+            "C3.2 修改中间点击区域后写入 keybindings.json 并热重载生效"
+        )
+        log.check(
+            app.catalog.inputBindings.wheelAction(device: .mouse, modifiers: .option) == customOptionWheel
+                && persistedAfterZoneWheel?.wheel?.contains(WheelBinding(device: .mouse, modifiers: .option, action: customOptionWheel)) == true,
+            "C3.2 修改 ⌥ 滚轮绑定后写入 keybindings.json 并热重载生效"
+        )
+
+        // 2. 删除默认 ↓← 后，在鼠标手势录制区经真实右键拖动事件录制“↓←”并选择命令，验证写入 keybindings.json 并生效。
+        pointer.removeGesture([.down, .left])
+        for _ in 0..<100 where app.catalog.inputBindings.command(forGesture: [.down, .left]) != nil {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        log.check(
+            app.catalog.inputBindings.command(forGesture: [.down, .left]) == nil,
+            "C3.2 删除单个默认手势 ↓← 后立即生效"
+        )
+
+        guard let contentView = settingsWindow.contentView,
+              let padView = findView(accessibilityID: "pointer.gestureRecorderPad", in: contentView) else {
+            log.check(false, "C3.2 未找到鼠标手势录制区视图")
+            return
+        }
+        padView.scrollToVisible(padView.bounds)
+        await settle()
+
+        let padOrigin = windowPoint(in: padView, xFraction: 0.7, yFraction: 0.78)
+        let padDown = NSPoint(x: padOrigin.x, y: padOrigin.y - 44)
+        let padDownLeft = NSPoint(x: padDown.x - 48, y: padDown.y)
+        sendRightDragPath([padOrigin, padDown, padDownLeft], in: settingsWindow)
+        await settle()
+
+        log.check(
+            pointer.recordedDirections == [.down, .left] && pointer.pendingGestureConflict == nil,
+            "C3.2 录制区真实右键拖动识别出 ↓← 手势：\(pointer.recordedDirections)"
+        )
+
+        pointer.assignRecordedGesture(command: .effectsToggle)
+        for _ in 0..<100 where app.catalog.inputBindings.command(forGesture: [.down, .left])?.0 != .effectsToggle {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let persistedAfterGesture = readStoredKeyBindings(at: keyBindingsURL)
+        log.check(
+            app.catalog.inputBindings.command(forGesture: [.down, .left])?.0 == .effectsToggle
+                && persistedAfterGesture?.mouseGestures?.contains(MouseGestureBinding(directions: [.down, .left], command: .effectsToggle)) == true,
+            "C3.2 录制 ↓← 并选择命令后写入 keybindings.json 且被解析生效"
+        )
+
+        // 3. 再次录制已存在的重复手势 ↓←，验证出现冲突提示并可取消。
+        padView.scrollToVisible(padView.bounds)
+        await settle()
+        let padOrigin2 = windowPoint(in: padView, xFraction: 0.7, yFraction: 0.78)
+        let padDown2 = NSPoint(x: padOrigin2.x, y: padOrigin2.y - 44)
+        let padDownLeft2 = NSPoint(x: padDown2.x - 48, y: padDown2.y)
+        sendRightDragPath([padOrigin2, padDown2, padDownLeft2], in: settingsWindow)
+        await settle()
+        log.check(
+            pointer.pendingGestureConflict?.directions == [.down, .left]
+                && pointer.pendingGestureConflict?.existingCommand == .effectsToggle,
+            "C3.2 录制已存在的重复手势 ↓← 时触发冲突提示"
+        )
+        log.snapshot(settingsWindow, "pointer-conflict")
+        pointer.cancelRecordedGesture()
+
+        // 4. 执行全部恢复默认，验证回到默认绑定。
+        pointer.resetAll()
+        for _ in 0..<100 where app.catalog.inputBindings != PointerModel.defaultBindings {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let persistedAfterReset = readStoredKeyBindings(at: keyBindingsURL)
+        log.check(
+            app.catalog.inputBindings == PointerModel.defaultBindings
+                && persistedAfterReset?.clickZones == nil
+                && persistedAfterReset?.wheel == nil
+                && persistedAfterReset?.trackpad == nil
+                && persistedAfterReset?.mouseGestures == nil,
+            "C3.2 恢复默认后鼠标与触控板绑定回到默认值并清空 keybindings.json 对应覆盖"
+        )
+        log.snapshot(settingsWindow, "pointer-default")
+    }
+
+    private func findView(accessibilityID: String, in root: NSView) -> NSView? {
+        if root.accessibilityIdentifier() == accessibilityID { return root }
+        for child in root.subviews {
+            if let found = findView(accessibilityID: accessibilityID, in: child) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func sendRightDragPath(_ points: [NSPoint], in window: NSWindow) {
+        guard let first = points.first, let last = points.last else { return }
+        let number = nextEventNumber()
+        sendMouse(.rightMouseDown, at: first, in: window, eventNumber: number)
+        for point in points.dropFirst() {
+            sendMouse(.rightMouseDragged, at: point, in: window, eventNumber: number)
+        }
+        sendMouse(.rightMouseUp, at: last, in: window, eventNumber: number)
     }
 
     private func readStoredKeyBindings(at url: URL) -> KeyBindingsFile? {
