@@ -24,29 +24,28 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     }
 }
 
-/// 窗口内容：顶部是当前页的标题和分类，下面是页面，错误显示在最上面。
+/// 窗口内容：顶部是分类页签，下面是页面，错误显示在最上面。
 struct SettingsRootView: View {
     @Bindable var state: SettingsWindowState
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text(state.page.title).font(.system(size: 13, weight: .semibold))
-                Spacer()
-                HStack(spacing: 4) {
-                    ForEach(SettingsPage.allCases) { page in
-                        Button(page.title) { state.page = page }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 12, weight: state.page == page ? .semibold : .regular))
-                            .foregroundStyle(Color(nsColor: state.page == page ? Theme.text : Theme.text2))
-                            .padding(.horizontal, 10)
-                            .frame(height: 26)
-                            .background(state.page == page ? Color(nsColor: Theme.selected) : .clear, in: RoundedRectangle(cornerRadius: 7))
-                            .contentShape(Rectangle())
-                    }
+            HStack(spacing: 2) {
+                ForEach(SettingsPage.allCases) { page in
+                    Button(page.title) { state.page = page }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: state.page == page ? .semibold : .regular))
+                        .foregroundStyle(Color(nsColor: state.page == page ? Theme.text : Theme.text2))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .padding(.horizontal, 8)
+                        .frame(height: 26)
+                        .background(state.page == page ? Color(nsColor: Theme.selected) : .clear, in: RoundedRectangle(cornerRadius: 7))
+                        .contentShape(Rectangle())
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity)
             .frame(height: 44)
             SettingsDivider()
             if let error = state.model.errorMessage {

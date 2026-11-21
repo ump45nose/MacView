@@ -65,7 +65,10 @@ final class MenusModel {
         let title: String
         let detail: String
         let symbol: String
-        let isDynamic: Bool
+
+        var isDynamic: Bool {
+            if case .dynamic = source { true } else { false }
+        }
 
         var id: String { pasteboardString }
         var pasteboardString: String {
@@ -101,46 +104,49 @@ final class MenusModel {
     private(set) var treeVersion = 0
     private(set) var file: MenuFile
     private(set) var errorMessage: String?
-    private(set) var hasReaderWindow = false
+    private(set) var canCustomizeToolbar = false
     private(set) var viewerNodes: [EditableMenuNode] = []
     private(set) var mainMenuNodes: [EditableMenuNode] = []
 
-    @ObservationIgnored private let store: JSONDocumentStore<MenuFile>?
-    @ObservationIgnored private let descriptors: [CommandDescriptor]
-    @ObservationIgnored private let descriptorsByID: [CommandID: CommandDescriptor]
-    @ObservationIgnored private var changesTask: Task<Void, Never>?
+    @ObservationIgnored private var bridge: DocumentStoreBridge<MenuFile>?
     @ObservationIgnored private var windowTasks: [Task<Void, Never>] = []
 
+    private static let builtInSubmenuKeys: Set<String> = {
+        func collect(from nodes: [MenuNode], into result: inout Set<String>) {
+            for node in nodes {
+                if case let .submenu(titleKey, children) = node {
+                    result.insert(titleKey)
+                    collect(from: children, into: &result)
+                }
+            }
+        }
+        var keys: Set<String> = []
+        collect(from: CommandCatalog.defaultMainMenu().roots, into: &keys)
+        collect(from: CoreCommands.defaultViewerContextMenu, into: &keys)
+        return keys
+    }()
+
     init(store: JSONDocumentStore<MenuFile>?) {
-        self.store = store
         let initial = store?.value() ?? MenuFile()
         self.file = initial
-        let all = CoreCommands.all + CommandCatalog.appCommands
-        self.descriptors = all
-        self.descriptorsByID = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         self.viewerNodes = initial.resolvedViewerContextMenu.map(EditableMenuNode.init(node:))
         self.mainMenuNodes = (initial.mainMenu ?? CommandCatalog.defaultMainMenu().roots).map(EditableMenuNode.init(node:))
         refreshReaderWindowAvailability()
 
-        if let store {
-            let changes = store.changes()
-            changesTask = Task { [weak self] in
-                for await change in changes {
-                    guard let self, !Task.isCancelled else { return }
-                    if case .reloaded = change { self.applyExternalReload(store.value()) }
-                }
-            }
-        }
+        self.bridge = DocumentStoreBridge(
+            store: store,
+            onSync: { [weak self] in self?.applyExternalReload($0) },
+            onError: { [weak self] in self?.errorMessage = $0 }
+        )
         observeReaderWindows()
     }
 
     deinit {
-        changesTask?.cancel()
         windowTasks.forEach { $0.cancel() }
     }
 
     func reload() {
-        if let store { applyExternalReload(store.value()) }
+        bridge?.reload()
         refreshReaderWindowAvailability()
     }
 
@@ -165,11 +171,9 @@ final class MenusModel {
         return app.mainController ?? app.controllers.first
     }
 
-    var canCustomizeToolbar: Bool { hasReaderWindow && targetReaderController != nil }
-
     func refreshReaderWindowAvailability(excluding closingWindow: NSWindow? = nil) {
-        guard let app = NSApp.delegate as? AppDelegate else { hasReaderWindow = false; return }
-        hasReaderWindow = app.controllers.contains { closingWindow == nil || $0.window !== closingWindow }
+        guard let app = NSApp.delegate as? AppDelegate else { canCustomizeToolbar = false; return }
+        canCustomizeToolbar = app.controllers.contains { closingWindow == nil || $0.window !== closingWindow }
     }
 
     func customizeToolbar() {
@@ -178,18 +182,14 @@ final class MenusModel {
         target.runToolbarCustomization()
     }
 
+    func isBuiltInSubmenu(_ node: EditableMenuNode) -> Bool {
+        if case let .submenu(titleKey) = node.kind {
+            return Self.builtInSubmenuKeys.contains(titleKey)
+        }
+        return false
+    }
+
     // MARK: 标题与图标
-
-    func commandTitle(of id: CommandID) -> String {
-        if id == .fileRename { return String(localized: "重命名…") }
-        if id == .searchIndexFolder { return String(localized: "为此文件夹建立索引") }
-        return descriptorsByID[id].map { String(localized: $0.title) } ?? id.rawValue
-    }
-
-    func commandSymbol(of id: CommandID) -> String {
-        if let symbol = descriptorsByID[id]?.symbol, !symbol.isEmpty { return symbol }
-        return "command"
-    }
 
     static func dynamicTitle(of id: DynamicMenuID) -> String {
         switch id {
@@ -204,7 +204,7 @@ final class MenusModel {
 
     func nodeTitle(of node: EditableMenuNode) -> String {
         switch node.kind {
-        case let .command(id): commandTitle(of: id)
+        case let .command(id): SettingsCommandCatalog.title(of: id)
         case .separator: String(localized: "分隔线")
         case let .dynamic(id): Self.dynamicTitle(of: id)
         case let .submenu(titleKey): Bundle.main.localizedString(forKey: titleKey, value: nil, table: nil)
@@ -213,7 +213,7 @@ final class MenusModel {
 
     func nodeSymbol(of node: EditableMenuNode) -> String {
         switch node.kind {
-        case let .command(id): commandSymbol(of: id)
+        case let .command(id): SettingsCommandCatalog.symbol(of: id)
         case .separator: "minus"
         case .dynamic: "sparkles"
         case .submenu: "folder"
@@ -222,10 +222,10 @@ final class MenusModel {
 
     var filteredPaletteItems: [PaletteItem] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let all = descriptors.map {
-            PaletteItem(source: .command($0.id), title: commandTitle(of: $0.id), detail: $0.id.rawValue, symbol: commandSymbol(of: $0.id), isDynamic: false)
+        let all = SettingsCommandCatalog.all.map {
+            PaletteItem(source: .command($0.id), title: SettingsCommandCatalog.title(of: $0.id), detail: $0.id.rawValue, symbol: SettingsCommandCatalog.symbol(of: $0.id))
         } + DynamicMenuID.allCases.map {
-            PaletteItem(source: .dynamic($0), title: Self.dynamicTitle(of: $0), detail: $0.rawValue, symbol: "sparkles", isDynamic: true)
+            PaletteItem(source: .dynamic($0), title: Self.dynamicTitle(of: $0), detail: $0.rawValue, symbol: "sparkles")
         }
         guard !query.isEmpty else { return all }
         return all.filter { $0.title.lowercased().contains(query) || $0.detail.lowercased().contains(query) }
@@ -242,22 +242,17 @@ final class MenusModel {
         switch itemID {
         case .flexibleSpace: return (String(localized: "弹性空白"), "arrow.left.and.right", true)
         case .space: return (String(localized: "空白"), "space", true)
-        case .dockLeft: return (commandTitle(of: .dockLeftToggle), "sidebar.left", false)
-        case .dockRight: return (commandTitle(of: .dockRightToggle), "sidebar.right", false)
+        case .dockLeft: return (SettingsCommandCatalog.title(of: .dockLeftToggle), "sidebar.left", false)
+        case .dockRight: return (SettingsCommandCatalog.title(of: .dockRightToggle), "sidebar.right", false)
         case .bookTitle: return (String(localized: "书名"), "text.alignleft", false)
         case .viewWaterfallOptions: return (String(localized: "瀑布流选项"), "arrow.up.arrow.down", false)
         case .viewBrowse: return (String(localized: "浏览方式"), "square.grid.2x2", false)
         case .viewOptions: return (String(localized: "显示"), "slider.horizontal.3", false)
-        case .windowFullScreen: return (commandTitle(of: .fullScreenToggle), "arrow.up.left.and.arrow.down.right", false)
-        case ToolbarItemID(command: .bookPrevious): return (commandTitle(of: .bookPrevious), "chevron.left", false)
-        case ToolbarItemID(command: .bookNext): return (commandTitle(of: .bookNext), "chevron.right", false)
-        case ToolbarItemID(command: .effectsToggle): return (commandTitle(of: .effectsToggle), "circle.lefthalf.filled", false)
+        case .windowFullScreen: return (SettingsCommandCatalog.title(of: .fullScreenToggle), "arrow.up.left.and.arrow.down.right", false)
+        case ToolbarItemID(command: .effectsToggle): return (SettingsCommandCatalog.title(of: .effectsToggle), "circle.lefthalf.filled", false)
         default:
             let commandID = CommandID(itemID.rawValue)
-            if let descriptor = descriptorsByID[commandID] {
-                return (commandTitle(of: commandID), descriptor.symbol ?? "command", false)
-            }
-            return (itemID.rawValue, "command", false)
+            return (SettingsCommandCatalog.title(of: commandID), SettingsCommandCatalog.symbol(of: commandID), false)
         }
     }
 
@@ -265,18 +260,18 @@ final class MenusModel {
 
     @discardableResult
     func insertNode(_ menuNode: MenuNode, parentID: UUID? = nil, at index: Int? = nil) -> EditableMenuNode? {
-        guard selectedTab == .viewerContext || selectedTab == .mainMenu else { return nil }
+        guard selectedTab != .toolbar else { return nil }
         let newNode = EditableMenuNode(node: menuNode)
 
         if let parentID {
-            guard let parent = findNode(id: parentID, in: currentTreeRoots), parent.isSubmenu else { return nil }
+            guard let parent = locate(id: parentID, in: currentTreeRoots)?.node, parent.isSubmenu else { return nil }
             parent.children.insert(newNode, at: clamped(index ?? parent.children.count, count: parent.children.count))
         } else if let index {
             insertAtRoot(newNode, at: index)
         } else if let selectedID = selectedNodeID, let loc = locate(id: selectedID, in: currentTreeRoots) {
             if loc.node.isSubmenu {
                 loc.node.children.append(newNode)
-            } else if let parent = loc.parent {
+            } else if let parent = loc.ancestors.last {
                 parent.children.insert(newNode, at: loc.index + 1)
             } else {
                 insertAtRoot(newNode, at: loc.index + 1)
@@ -304,14 +299,17 @@ final class MenusModel {
 
     func renameSubmenu(id: UUID, to newTitle: String) {
         let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let node = findNode(id: id, in: currentTreeRoots),
-              case let .submenu(currentTitle) = node.kind, currentTitle != trimmed else { return }
+        guard !trimmed.isEmpty,
+              let node = locate(id: id, in: currentTreeRoots)?.node,
+              !isBuiltInSubmenu(node),
+              case let .submenu(currentTitle) = node.kind,
+              trimmed != currentTitle, trimmed != nodeTitle(of: node) else { return }
         node.kind = .submenu(titleKey: trimmed)
         commitCurrentMenuTree()
     }
 
     func removeNode(id: UUID) {
-        guard (selectedTab == .viewerContext || selectedTab == .mainMenu), removeNodeRecursive(id: id) != nil else { return }
+        guard selectedTab != .toolbar, removeNodeRecursive(id: id) != nil else { return }
         if selectedNodeID == id { selectedNodeID = nil }
         commitCurrentMenuTree()
     }
@@ -322,18 +320,18 @@ final class MenusModel {
 
     @discardableResult
     func moveNode(id: UUID, toParentID: UUID?, index: Int) -> Bool {
-        guard selectedTab == .viewerContext || selectedTab == .mainMenu,
+        guard selectedTab != .toolbar,
               let source = locate(id: id, in: currentTreeRoots) else { return false }
         if let toParentID {
-            if toParentID == id || contains(id: toParentID, in: source.node.children) { return false }
-            guard let targetParent = findNode(id: toParentID, in: currentTreeRoots), targetParent.isSubmenu else { return false }
+            if toParentID == id || locate(id: toParentID, in: source.node.children) != nil { return false }
+            guard let targetParent = locate(id: toParentID, in: currentTreeRoots)?.node, targetParent.isSubmenu else { return false }
         }
 
         var adjustedIndex = index
-        if source.parent?.id == toParentID, source.index < adjustedIndex { adjustedIndex -= 1 }
+        if source.ancestors.last?.id == toParentID, source.index < adjustedIndex { adjustedIndex -= 1 }
         guard let removed = removeNodeRecursive(id: id) else { return false }
 
-        if let toParentID, let targetParent = findNode(id: toParentID, in: currentTreeRoots) {
+        if let toParentID, let targetParent = locate(id: toParentID, in: currentTreeRoots)?.node {
             targetParent.children.insert(removed, at: clamped(adjustedIndex, count: targetParent.children.count))
         } else {
             insertAtRoot(removed, at: clamped(adjustedIndex, count: currentTreeRoots.count))
@@ -360,14 +358,14 @@ final class MenusModel {
         }
     }
 
-    func contains(id: UUID, in nodes: [EditableMenuNode]) -> Bool {
-        nodes.contains { $0.id == id || contains(id: id, in: $0.children) }
-    }
-
-    func findNode(id: UUID, in nodes: [EditableMenuNode]) -> EditableMenuNode? {
-        for node in nodes {
-            if node.id == id { return node }
-            if let nested = findNode(id: id, in: node.children) { return nested }
+    func locate(
+        id: UUID,
+        in nodes: [EditableMenuNode],
+        ancestors: [EditableMenuNode] = []
+    ) -> (node: EditableMenuNode, ancestors: [EditableMenuNode], index: Int)? {
+        for (index, node) in nodes.enumerated() {
+            if node.id == id { return (node, ancestors, index) }
+            if let found = locate(id: id, in: node.children, ancestors: ancestors + [node]) { return found }
         }
         return nil
     }
@@ -375,19 +373,15 @@ final class MenusModel {
     // MARK: 内部辅助
 
     private func insertAtRoot(_ node: EditableMenuNode, at index: Int) {
-        switch selectedTab {
-        case .viewerContext: viewerNodes.insert(node, at: clamped(index, count: viewerNodes.count))
-        case .mainMenu: mainMenuNodes.insert(node, at: clamped(index, count: mainMenuNodes.count))
-        case .toolbar: break
+        if selectedTab == .viewerContext {
+            viewerNodes.insert(node, at: clamped(index, count: viewerNodes.count))
+        } else {
+            mainMenuNodes.insert(node, at: clamped(index, count: mainMenuNodes.count))
         }
     }
 
     private func removeNodeRecursive(id: UUID) -> EditableMenuNode? {
-        switch selectedTab {
-        case .viewerContext: remove(id: id, from: &viewerNodes)
-        case .mainMenu: remove(id: id, from: &mainMenuNodes)
-        case .toolbar: nil
-        }
+        selectedTab == .viewerContext ? remove(id: id, from: &viewerNodes) : remove(id: id, from: &mainMenuNodes)
     }
 
     private func remove(id: UUID, from list: inout [EditableMenuNode]) -> EditableMenuNode? {
@@ -398,30 +392,16 @@ final class MenusModel {
         return nil
     }
 
-    private func locate(
-        id: UUID,
-        in nodes: [EditableMenuNode],
-        parent: EditableMenuNode? = nil
-    ) -> (node: EditableMenuNode, parent: EditableMenuNode?, index: Int)? {
-        for (index, node) in nodes.enumerated() {
-            if node.id == id { return (node, parent, index) }
-            if let found = locate(id: id, in: node.children, parent: node) { return found }
-        }
-        return nil
-    }
-
     private func clamped(_ index: Int, count: Int) -> Int { max(0, min(index, count)) }
 
     private func commitCurrentMenuTree() {
         treeVersion &+= 1
-        switch selectedTab {
-        case .viewerContext:
+        if selectedTab == .viewerContext {
             let serialized = viewerNodes.map { $0.toMenuNode() }
             persist { $0.viewerContextMenu = serialized }
-        case .mainMenu:
+        } else {
             let serialized = mainMenuNodes.map { $0.toMenuNode() }
             persist { $0.mainMenu = serialized }
-        case .toolbar: break
         }
     }
 
@@ -441,15 +421,7 @@ final class MenusModel {
 
     private func persist(_ mutate: @escaping @Sendable (inout MenuFile) -> Void) {
         mutate(&file)
-        guard let store else { return }
-        Task { [weak self] in
-            do {
-                try await store.update(mutate)
-                self?.errorMessage = nil
-            } catch {
-                self?.errorMessage = ErrorText.describe(error)
-            }
-        }
+        bridge?.persist(mutate)
     }
 
     private func observeReaderWindows() {
@@ -487,14 +459,7 @@ struct MenusSettingsPage: View {
                     .disabled(!model.isCurrentTabModified)
             }
 
-            if let error = model.errorMessage {
-                Text(error)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color(nsColor: Theme.danger))
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(nsColor: Theme.dangerSoft), in: RoundedRectangle(cornerRadius: 6))
-            }
+            SettingsErrorBanner(message: model.errorMessage)
 
             switch model.selectedTab {
             case .viewerContext, .mainMenu: menuEditorContent
@@ -515,7 +480,6 @@ struct MenusSettingsPage: View {
                 MenuTreeOutlineView(model: model, treeVersion: model.treeVersion)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(nsColor: Theme.raised), in: RoundedRectangle(cornerRadius: 8))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: Theme.line), lineWidth: 0.5))
 
                 HStack(spacing: 6) {
@@ -536,13 +500,7 @@ struct MenusSettingsPage: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Color(nsColor: Theme.text2))
 
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Color(nsColor: Theme.text2))
-                    TextField(String(localized: "搜索命令"), text: $model.searchText).textFieldStyle(.plain).font(.system(size: 12))
-                }
-                .padding(.horizontal, 8).frame(height: 24)
-                .background(Color(nsColor: Theme.raised), in: RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: Theme.line), lineWidth: 0.5))
+                SettingsSearchField(placeholder: String(localized: "搜索命令"), text: $model.searchText)
 
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 2) {
@@ -746,11 +704,14 @@ private struct MenuTreeOutlineView: NSViewRepresentable {
             isSyncingSelection = true
             defer { isSyncingSelection = false }
             guard let selectedID = model.selectedNodeID,
-                  let node = model.findNode(id: selectedID, in: model.currentTreeRoots) else {
+                  let loc = model.locate(id: selectedID, in: model.currentTreeRoots) else {
                 if outlineView.selectedRow >= 0 { outlineView.deselectAll(nil) }
                 return
             }
-            let row = outlineView.row(forItem: node)
+            if outlineView.row(forItem: loc.node) < 0 {
+                for ancestor in loc.ancestors { outlineView.expandItem(ancestor) }
+            }
+            let row = outlineView.row(forItem: loc.node)
             if row >= 0, outlineView.selectedRow != row {
                 outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
                 outlineView.scrollRowToVisible(row)
@@ -786,8 +747,8 @@ private struct MenuTreeOutlineView: NSViewRepresentable {
             if payload.hasPrefix(MenusModel.nodePasteboardPrefix) {
                 let uuidString = String(payload.dropFirst(MenusModel.nodePasteboardPrefix.count))
                 guard let movingID = UUID(uuidString: uuidString),
-                      let movingNode = model.findNode(id: movingID, in: model.currentTreeRoots) else { return [] }
-                if let targetNode, targetNode.id == movingID || model.contains(id: targetNode.id, in: movingNode.children) { return [] }
+                      let movingNode = model.locate(id: movingID, in: model.currentTreeRoots)?.node else { return [] }
+                if let targetNode, targetNode.id == movingID || model.locate(id: targetNode.id, in: movingNode.children) != nil { return [] }
                 return .move
             }
             if payload.hasPrefix(MenusModel.commandPasteboardPrefix) || payload.hasPrefix(MenusModel.dynamicPasteboardPrefix) {
@@ -859,7 +820,7 @@ private struct MenuTreeOutlineView: NSViewRepresentable {
             titleField.textColor = Theme.text
             titleField.lineBreakMode = .byTruncatingTail
             titleField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-            if node.isSubmenu {
+            if node.isSubmenu && !model.isBuiltInSubmenu(node) {
                 titleField.isEditable = true
                 titleField.isSelectable = true
                 titleField.delegate = self
