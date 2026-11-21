@@ -4,9 +4,9 @@ import MVMedia
 import MVSettings
 import SwiftUI
 
-/// 设置窗口的五页。
+/// 设置窗口的各页。
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case browse, display, cache, rules, files
+    case browse, display, cache, rules, files, shortcuts
 
     var id: String { rawValue }
 
@@ -17,6 +17,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .cache: String(localized: "缓存")
         case .rules: String(localized: "路径规则")
         case .files: String(localized: "文件")
+        case .shortcuts: String(localized: "快捷键")
         }
     }
 }
@@ -62,6 +63,7 @@ struct SettingsRootView: View {
                 case .cache: CacheSettingsPage(model: state.model)
                 case .rules: PathRulesPage(model: state.model)
                 case .files: FileSettingsPage(model: state.model)
+                case .shortcuts: ShortcutsSettingsPage(model: state.model.shortcuts)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

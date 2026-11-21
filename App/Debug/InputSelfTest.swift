@@ -1,5 +1,6 @@
 #if DEBUG
 import AppKit
+import Carbon.HIToolbox
 import MVCommands
 import MVFoundation
 import MVLayout
@@ -42,6 +43,8 @@ final class InputSelfTest {
         switch mode {
         case "viewer":
             await runViewerSuite(controller: controller, window: window)
+        case "settings":
+            await runSettingsSuite(controller: controller, window: window)
         default:
             log.check(false, "未知的 -MVInputSelfTest 模式：\(mode)")
             exit(log.summarize())
@@ -750,6 +753,158 @@ final class InputSelfTest {
                 && controller.dock.dockLayout.right.isCollapsed == layoutB.right.isCollapsed,
             "C2.4 layout.scheme.apply 套用方案B 后窗口停靠区状态一致"
         )
+    }
+
+    // MARK: C3.1 设置窗口 · 快捷键页
+
+    private func runSettingsSuite(controller: ReaderWindowController, window: NSWindow) async {
+        let keyBindingsURL = app.supportDirectory.appending(path: "keybindings.json")
+        let previousData = try? Data(contentsOf: keyBindingsURL)
+        defer { restoreKeyBindings(at: keyBindingsURL, previousData: previousData) }
+
+        guard let settings = app.openSettings(), let settingsWindow = settings.window else {
+            log.check(false, "C3.1 打不开设置窗口")
+            return
+        }
+        settings.state.page = .shortcuts
+        TestPresentation.place(settingsWindow)
+        settingsWindow.makeKeyAndOrderFront(nil)
+        await settle()
+
+        let shortcuts = settings.state.model.shortcuts
+        log.check(settings.state.page == .shortcuts, "C3.1 设置窗口已切换到快捷键页")
+        log.check(
+            shortcuts.sections.contains(where: { $0.scope == .viewer }) && shortcuts.sections.contains(where: { $0.scope == .global }),
+            "C3.1 快捷键页按作用域分组展示命令（共 \(shortcuts.sections.count) 组）"
+        )
+
+        // 搜索过滤验证（按 ID 与按键显示文本）。
+        shortcuts.searchText = "page.first"
+        log.check(
+            shortcuts.sections.flatMap(\.rows).contains(where: { $0.command == .pageFirst })
+                && !shortcuts.sections.flatMap(\.rows).contains(where: { $0.command == .frameNext }),
+            "C3.1 搜索支持按命令 ID 过滤"
+        )
+        shortcuts.searchText = ""
+
+        // 1. 录制多键序列（k l），验证写入 keybindings.json 且被 InputRouter 正确解析。
+        let multiSequence = [KeyChord("k"), KeyChord("l")]
+        let expectedMultiBinding = KeyBinding(sequence: multiSequence, command: .pageModeToggle, scope: .viewer)
+        shortcuts.startRecording(command: .pageModeToggle, scope: .viewer)
+        await settle()
+        sendKey(kVK_ANSI_K, in: settingsWindow)
+        sendKey(kVK_ANSI_L, in: settingsWindow)
+        sendEscapeKey(in: settingsWindow)
+
+        for _ in 0..<100 where !app.catalog.bindings.contains(expectedMultiBinding) {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        log.check(app.catalog.bindings.contains(expectedMultiBinding), "C3.1 录制多键序列 k l 后立即重载生效")
+
+        let persistedAfterMulti = readStoredKeyBindings(at: keyBindingsURL)
+        log.check(
+            persistedAfterMulti?.bindings.contains(expectedMultiBinding) == true,
+            "C3.1 多键序列 k l 已持久化写入 keybindings.json"
+        )
+
+        // 用真实 InputRouter 验证新绑定的多键序列可正确解析。
+        let router = InputRouter(catalog: app.catalog)
+        var routedCommand: CommandID?
+        router.onCommand = { id, _, _ in routedCommand = id }
+        window.makeFirstResponder(controller.viewer)
+        if let kEvent = makeKeyDownEvent(kVK_ANSI_K, in: window),
+           let lEvent = makeKeyDownEvent(kVK_ANSI_L, in: window) {
+            let firstHandled = router.handle(kEvent, in: window)
+            let pendingAfterFirst = router.pending?.typed == [KeyChord("k")]
+            let secondHandled = router.handle(lEvent, in: window)
+            log.check(
+                firstHandled && pendingAfterFirst && secondHandled && routedCommand == .pageModeToggle,
+                "C3.1 InputRouter 正确解析录制的多键序列 k l → \(routedCommand?.rawValue ?? "nil")"
+            )
+        } else {
+            log.check(false, "C3.1 无法构造测试按键事件")
+        }
+
+        // 2. 录制已被其他命令占用的按键（z 默认属于 magnifierToggle），验证冲突提示并执行“替换”。
+        let conflictBindingForTarget = KeyBinding(sequence: [KeyChord("z")], command: .effectsToggle, scope: .viewer)
+        let originalMagnifierBinding = KeyBinding(sequence: [KeyChord("z")], command: .magnifierToggle, scope: .viewer)
+        shortcuts.searchText = "effects.toggle"
+        shortcuts.startRecording(command: .effectsToggle, scope: .viewer)
+        await settle()
+        sendKey(kVK_ANSI_Z, in: settingsWindow)
+        sendEscapeKey(in: settingsWindow)
+        await settle()
+
+        let hasConflict = shortcuts.pendingConflict?.target == ShortcutsModel.RowID(command: .effectsToggle, scope: .viewer)
+            && shortcuts.pendingConflict?.conflicts.contains(originalMagnifierBinding) == true
+        log.check(hasConflict, "C3.1 录制已被占用的按键 z 时检测到冲突（与放大镜冲突）")
+        log.snapshot(settingsWindow, "shortcuts-conflict")
+
+        shortcuts.resolveConflictByReplacing()
+        shortcuts.searchText = ""
+        for _ in 0..<100 where !app.catalog.bindings.contains(conflictBindingForTarget) || app.catalog.bindings.contains(originalMagnifierBinding) {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        log.check(
+            app.catalog.bindings.contains(conflictBindingForTarget) && !app.catalog.bindings.contains(originalMagnifierBinding),
+            "C3.1 执行“替换”后放大镜失去 z 且效果开关获得 z"
+        )
+
+        // 3. 执行单项恢复默认与全部恢复默认，验证回到原始默认键。
+        let defaultEffectsBinding = KeyBinding(sequence: [KeyChord("e")], command: .effectsToggle, scope: .viewer)
+        shortcuts.resetCommand(.effectsToggle, scope: .viewer)
+        for _ in 0..<100 where !app.catalog.bindings.contains(defaultEffectsBinding) || app.catalog.bindings.contains(conflictBindingForTarget) {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        log.check(
+            app.catalog.bindings.contains(defaultEffectsBinding)
+                && !app.catalog.bindings.contains(conflictBindingForTarget)
+                && app.catalog.bindings.contains(expectedMultiBinding),
+            "C3.1 单项恢复默认使效果开关回到 e，且保留其他命令的自定义多键序列"
+        )
+
+        shortcuts.resetAll()
+        let defaultBindings = CommandCatalog().bindings
+        for _ in 0..<100 where app.catalog.bindings != defaultBindings {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let persistedAfterReset = readStoredKeyBindings(at: keyBindingsURL)
+        log.check(
+            app.catalog.bindings == defaultBindings
+                && app.catalog.bindings.contains(originalMagnifierBinding)
+                && persistedAfterReset?.bindings.isEmpty == true,
+            "C3.1 全部恢复默认后回到原始默认键并清空 keybindings.json 的键盘覆盖"
+        )
+        log.snapshot(settingsWindow, "shortcuts-default")
+        settingsWindow.close()
+    }
+
+    private func readStoredKeyBindings(at url: URL) -> KeyBindingsFile? {
+        guard let data = try? Data(contentsOf: url),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let value = object["value"],
+              let valueData = try? JSONSerialization.data(withJSONObject: value) else { return nil }
+        return try? JSONDecoder().decode(KeyBindingsFile.self, from: valueData)
+    }
+
+    private func makeKeyDownEvent(_ keyCode: Int, flags: NSEvent.ModifierFlags = [], in window: NSWindow) -> NSEvent? {
+        var cgFlags = CGEventFlags()
+        if flags.contains(.command) { cgFlags.insert(.maskCommand) }
+        if flags.contains(.option) { cgFlags.insert(.maskAlternate) }
+        if flags.contains(.control) { cgFlags.insert(.maskControl) }
+        if flags.contains(.shift) { cgFlags.insert(.maskShift) }
+        guard let cgEvent = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(keyCode), keyDown: true) else { return nil }
+        cgEvent.flags = cgFlags.union(cgEvent.flags.intersection([.maskSecondaryFn, .maskNumericPad]))
+        return NSEvent(cgEvent: cgEvent)
+    }
+
+    private func sendKey(_ keyCode: Int, flags: NSEvent.ModifierFlags = [], in window: NSWindow) {
+        guard let event = makeKeyDownEvent(keyCode, flags: flags, in: window) else { return }
+        if NSApp.keyWindow === window {
+            NSApp.sendEvent(event)
+        } else if !window.performKeyEquivalent(with: event) {
+            window.sendEvent(event)
+        }
     }
 
     private func presentViewerContextMenu(_ controller: ReaderWindowController, window: NSWindow) async -> NSMenu? {

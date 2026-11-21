@@ -661,12 +661,32 @@
         }
       }
     },
+    "· 已改": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· Modified"
+          }
+        }
+      }
+    },
     "“%@”上建不了回收目录：%@\n永久删除后不能撤销，也不能从回收目录找回。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Cannot create recycle folder on “%1$@”: %2$@\nPermanently deleted items cannot be undone or recovered."
+          }
+        }
+      }
+    },
+    "“%@”与“%@”等 %lld 项绑定冲突（%@）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%1$@” conflicts with %3$lld bindings including “%2$@” (%4$@)"
           }
         }
       }
@@ -687,6 +707,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "“%1$@” is damaged: %2$@"
+          }
+        }
+      }
+    },
+    "“%@”已用于“%@”（%@）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%1$@” is already used by “%2$@” (%3$@)"
           }
         }
       }
@@ -1245,6 +1275,16 @@
         }
       }
     },
+    "作用域": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scope"
+          }
+        }
+      }
+    },
     "保存": {
       "localizations": {
         "en": {
@@ -1397,6 +1437,16 @@
         }
       }
     },
+    "全局": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Global"
+          }
+        }
+      }
+    },
     "全局：%@": {
       "localizations": {
         "en": {
@@ -1437,12 +1487,32 @@
         }
       }
     },
+    "全部作用域": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Scopes"
+          }
+        }
+      }
+    },
     "全部复位": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Reset All"
+          }
+        }
+      }
+    },
+    "全部恢复默认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset All to Defaults"
           }
         }
       }
@@ -3173,6 +3243,16 @@
         }
       }
     },
+    "快捷键": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcuts"
+          }
+        }
+      }
+    },
     "快门": {
       "localizations": {
         "en": {
@@ -3189,6 +3269,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restore Original Name"
+          }
+        }
+      }
+    },
+    "恢复默认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset to Default"
           }
         }
       }
@@ -3445,6 +3535,16 @@
         }
       }
     },
+    "按下新的按键…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press a key…"
+          }
+        }
+      }
+    },
     "按修改时间排序": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -3553,6 +3653,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Search"
+          }
+        }
+      }
+    },
+    "搜索命令或按键": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search commands or keys"
           }
         }
       }
@@ -3841,6 +3951,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wait for file operations to finish before undoing"
+          }
+        }
+      }
+    },
+    "文本输入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text Input"
           }
         }
       }
@@ -4343,6 +4463,16 @@
         }
       }
     },
+    "替换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace"
+          }
+        }
+      }
+    },
     "最小化": {
       "localizations": {
         "en": {
@@ -4423,6 +4553,16 @@
         }
       }
     },
+    "未设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unset"
+          }
+        }
+      }
+    },
     "未评分": {
       "localizations": {
         "en": {
@@ -4481,6 +4621,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Find"
+          }
+        }
+      }
+    },
+    "查看器": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Viewer"
           }
         }
       }
@@ -4693,6 +4843,16 @@
         }
       }
     },
+    "每个命令可以有多个快捷键，支持多键序列（依次按下）。改动立即生效并写入 keybindings.json。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each command can have multiple shortcuts, including multi-key sequences (pressed in order). Changes take effect immediately and are saved to keybindings.json."
+          }
+        }
+      }
+    },
     "永久删除": {
       "localizations": {
         "en": {
@@ -4769,6 +4929,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Items not listed follow the level above"
+          }
+        }
+      }
+    },
+    "没有匹配的命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching commands"
           }
         }
       }
@@ -4965,6 +5135,16 @@
         }
       }
     },
+    "添加快捷键": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Shortcut"
+          }
+        }
+      }
+    },
     "添加标签“%@”": {
       "localizations": {
         "en": {
@@ -5139,6 +5319,16 @@
         }
       }
     },
+    "点击删除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to remove"
+          }
+        }
+      }
+    },
     "点击移除“%@”": {
       "localizations": {
         "en": {
@@ -5155,6 +5345,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Click to enter value"
+          }
+        }
+      }
+    },
+    "点按键标签可删除；“＋”开始录制，1 秒内继续按键组成序列，Esc 结束录制。恢复默认按钮可还原这一项的默认值。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click a key cap to remove; click “+” to record, press another key within 1s to form a sequence, or press Esc to finish. The reset button restores defaults for that item."
           }
         }
       }
