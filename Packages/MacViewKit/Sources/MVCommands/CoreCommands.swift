@@ -70,6 +70,9 @@ extension CommandID {
     public static let windowNew = CommandID("window.new")
     public static let windowNewTab = CommandID("window.newTab")
     public static let fullScreenToggle = CommandID("window.fullScreen.toggle")
+    public static let windowKeepOnTopToggle = CommandID("window.keepOnTop.toggle")
+    public static let windowTitleBarAutoHideToggle = CommandID("window.titleBar.autoHide.toggle")
+    public static let windowBorderlessToggle = CommandID("window.borderless.toggle")
     public static let bookshelfToggle = CommandID("panel.bookshelf.toggle")
     public static let pageListToggle = CommandID("panel.pageList.toggle")
     public static let docksToggle = CommandID("panel.docks.toggle")
@@ -90,6 +93,7 @@ extension CommandID {
     public static let effectsPanelToggle = CommandID("panel.effects.toggle")
     public static let layoutSchemeSave = CommandID("layout.scheme.save")
     public static let layoutSchemeApply = CommandID("layout.scheme.apply")
+    public static let layoutSchemeManage = CommandID("layout.scheme.manage")
 }
 
 /// P0 的命令元数据与默认菜单。处理器由 MVServices 和 App 注册。
@@ -326,6 +330,11 @@ public enum CoreCommands {
                         keys: [KeyChord("f", modifiers: [.control, .command])], symbol: "arrow.up.left.and.arrow.down.right"),
             ]),
             Section([
+                command(.windowKeepOnTopToggle, .init("置顶", bundle: .main), "window", scope: .global),
+                command(.windowTitleBarAutoHideToggle, .init("自动隐藏标题栏", bundle: .main), "window", scope: .global),
+                command(.windowBorderlessToggle, .init("无边框", bundle: .main), "window", scope: .global),
+            ]),
+            Section([
                 command(.bookshelfToggle, .init("显示或隐藏书架", bundle: .main), "window", scope: .global,
                         keys: [KeyChord("1", modifiers: [.command, .option])], symbol: "books.vertical"),
                 command(.pageListToggle, .init("显示或隐藏页面列表", bundle: .main), "window", scope: .global,
@@ -347,6 +356,7 @@ public enum CoreCommands {
             Section([
                 command(.layoutSchemeSave, .init("保存为布局方案…", bundle: .main), "window", scope: .global),
                 command(.layoutSchemeApply, .init("套用布局方案", bundle: .main), "window", scope: .global),
+                command(.layoutSchemeManage, .init("管理布局方案…", bundle: .main), "window", scope: .global),
             ], trailingNodes: [.dynamic(.layoutSchemes)]),
         ]),
     ]

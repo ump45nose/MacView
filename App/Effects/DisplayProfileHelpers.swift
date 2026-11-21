@@ -73,6 +73,8 @@ enum DisplayProfileHelpers {
             case .gray: return String(localized: "灰")
             case .white: return String(localized: "白")
             case .checkerboard: return String(localized: "棋盘格")
+            case .frostedGlass: return String(localized: "毛玻璃")
+            case .imageColor: return String(localized: "按图取色")
             case .custom: return String(localized: "自定义")
             }
         }

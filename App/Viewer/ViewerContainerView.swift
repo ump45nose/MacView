@@ -230,7 +230,7 @@ final class ViewerContainerView: NSView, InputScoped {
 
     private static func backgroundColor(for background: ViewerBackground, isEmptyState: Bool, appearance: NSAppearance) -> CGColor {
         switch background {
-        case .auto:
+        case .auto, .frostedGlass, .imageColor:
             return (isEmptyState ? Theme.ground : Theme.canvas).cgColor
         case .black:
             return NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 1).cgColor

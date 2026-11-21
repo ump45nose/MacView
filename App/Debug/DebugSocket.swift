@@ -624,6 +624,8 @@ final class DebugCommands: Sendable {
         case .gray: .string("gray")
         case .white: .string("white")
         case .checkerboard: .string("checkerboard")
+        case .frostedGlass: .string("frostedGlass")
+        case .imageColor: .string("imageColor")
         case let .custom(red, green, blue):
             .object(["type": .string("custom"), "red": .number(red), "green": .number(green), "blue": .number(blue)])
         }

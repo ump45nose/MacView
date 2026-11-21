@@ -134,3 +134,38 @@ func newCommandsAndSymbolsAreRegistered() {
         #expect(symbol != nil && !symbol!.isEmpty, "命令 \(id.rawValue) 应有 symbol")
     }
 }
+
+@Test("C1.6 外观与布局管理命令标题、分类及默认按键符合约定")
+func appearanceWindowCommandsAreRegisteredWithoutDefaultKeys() throws {
+    let expected: [(CommandID, String, String)] = [
+        (.windowKeepOnTopToggle, "window.keepOnTop.toggle", "置顶"),
+        (.windowTitleBarAutoHideToggle, "window.titleBar.autoHide.toggle", "自动隐藏标题栏"),
+        (.windowBorderlessToggle, "window.borderless.toggle", "无边框"),
+        (.layoutSchemeManage, "layout.scheme.manage", "管理布局方案…"),
+    ]
+    for (id, raw, title) in expected {
+        #expect(id.rawValue == raw)
+        let descriptor = try #require(CoreCommands.all.first { $0.id == id })
+        #expect(descriptor.category == "window")
+        #expect(String(localized: descriptor.title) == title)
+        #expect(descriptor.defaultBindings.isEmpty)
+    }
+}
+
+@Test("C1.6 窗口新命令独立成节，布局管理位于套用与动态子菜单之间")
+func appearanceWindowCommandsHaveExpectedMenuPositions() throws {
+    let window = try #require(CoreCommands.defaultMenu.roots.first {
+        if case .submenu("窗口", _) = $0 { true } else { false }
+    })
+    guard case let .submenu(_, children) = window else { return }
+    #expect(Array(children.prefix(7)) == [
+        .command(.fullScreenToggle), .separator,
+        .command(.windowKeepOnTopToggle), .command(.windowTitleBarAutoHideToggle),
+        .command(.windowBorderlessToggle), .separator, .command(.bookshelfToggle),
+    ])
+    #expect(Array(children.suffix(5)) == [
+        .separator, .command(.layoutSchemeSave), .command(.layoutSchemeApply),
+        .command(.layoutSchemeManage), .dynamic(.layoutSchemes),
+    ])
+    #expect(MenuFile().resolvedMainMenu == CoreCommands.defaultMenu.roots)
+}

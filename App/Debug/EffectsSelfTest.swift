@@ -531,7 +531,7 @@ final class EffectsSelfTest {
             case .white: matched = colorMatches(layerColor, r: 1, g: 1, b: 1)
             case .custom: matched = colorMatches(layerColor, r: 0.2, g: 0.4, b: 0.6)
             case .checkerboard: matched = layerColor?.colorSpace?.model == .pattern
-            case .auto: matched = layerColor != nil && layerColor?.colorSpace?.model != .pattern
+            case .auto, .frostedGlass, .imageColor: matched = layerColor != nil && layerColor?.colorSpace?.model != .pattern
             }
             log.check(controller.session.settings.background == bg && matched, "C2.4 背景 \(name) 与背景层颜色对应")
             if bg == .checkerboard {

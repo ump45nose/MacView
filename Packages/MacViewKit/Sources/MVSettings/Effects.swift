@@ -132,7 +132,7 @@ public struct EffectChain: Codable, Sendable, Hashable {
 
 /// 阅读画布背景；预设编码为字符串，自定义颜色编码为带 sRGB 分量的对象。
 public enum ViewerBackground: Codable, Sendable, Hashable {
-    case auto, black, gray, white, checkerboard
+    case auto, black, gray, white, checkerboard, frostedGlass, imageColor
     case custom(red: Double, green: Double, blue: Double)   // sRGB 0…1
 
     private enum CodingKeys: String, CodingKey {
@@ -148,6 +148,8 @@ public enum ViewerBackground: Codable, Sendable, Hashable {
             case "gray": self = .gray
             case "white": self = .white
             case "checkerboard": self = .checkerboard
+            case "frostedGlass": self = .frostedGlass
+            case "imageColor": self = .imageColor
             default:
                 throw DecodingError.dataCorruptedError(
                     in: single,
@@ -187,6 +189,12 @@ public enum ViewerBackground: Codable, Sendable, Hashable {
         case .checkerboard:
             var container = encoder.singleValueContainer()
             try container.encode("checkerboard")
+        case .frostedGlass:
+            var container = encoder.singleValueContainer()
+            try container.encode("frostedGlass")
+        case .imageColor:
+            var container = encoder.singleValueContainer()
+            try container.encode("imageColor")
         case let .custom(red, green, blue):
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("custom", forKey: .type)
