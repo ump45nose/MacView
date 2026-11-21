@@ -114,6 +114,10 @@ final class CanvasView: NSScrollView {
     /// 双击；没有设置时走 `onActivate`。
     var onDoubleClick: ((Int) -> Void)?
     var onContextMenu: ((Int?) -> NSMenu?)?
+    /// 右键按下/拖动/松开拦截：返回 true 表示由外部接管（例如查看器右键手势），否则走默认右键菜单。
+    var onRightMouseDown: ((NSEvent, NSView) -> Bool)?
+    var onRightMouseDragged: ((NSEvent) -> Bool)?
+    var onRightMouseUp: ((NSEvent) -> Bool)?
     var onDraggingWriters: ((Int) -> [(index: Int, writer: any NSPasteboardWriting)])?
     var onDragSessionBegan: ((NSDraggingSession, [any NSPasteboardWriting]) -> Void)?
     var onDragSessionEnded: ((NSDragOperation) -> Void)?
@@ -852,6 +856,24 @@ private final class CanvasDocumentView: NSView, NSDraggingSource {
 
     override func mouseUp(with event: NSEvent) {
         canvas?.release(event)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        if canvas?.onRightMouseDown?(event, self) != true {
+            super.rightMouseDown(with: event)
+        }
+    }
+
+    override func rightMouseDragged(with event: NSEvent) {
+        if canvas?.onRightMouseDragged?(event) != true {
+            super.rightMouseDragged(with: event)
+        }
+    }
+
+    override func rightMouseUp(with event: NSEvent) {
+        if canvas?.onRightMouseUp?(event) != true {
+            super.rightMouseUp(with: event)
+        }
     }
 
     override func keyDown(with event: NSEvent) {
