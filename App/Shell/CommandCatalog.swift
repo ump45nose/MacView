@@ -30,8 +30,8 @@ struct CommandCatalog {
     /// “文件”菜单结构：包含打开、剪贴板、用指定应用打开、移动到、复制到、重命名、删除、建立索引、回收目录、窗口、设置与关闭。
     static let fileMenu: [MenuNode] = [
         .command(.fileOpen), .separator,
-        .command(.fileCopy), .command(.fileCopyPath), .command(.fileReveal), .submenu(titleKey: "用指定应用打开", children: []), .separator,
-        .submenu(titleKey: "移动到", children: []), .submenu(titleKey: "复制到", children: []),
+        .command(.fileCopy), .command(.fileCopyPath), .command(.fileReveal), .dynamic(.openWith), .separator,
+        .dynamic(.moveTo), .dynamic(.copyTo),
         .command(.fileRename), .command(.fileDelete), .separator,
         .command(.searchIndexFolder), .command(.recycleEmpty), .separator,
         .command(.windowNew), .command(.windowNewTab), .separator,
@@ -58,25 +58,38 @@ struct CommandCatalog {
     let bindings: [KeyBinding]
     let inputBindings: InputBindings
     let menu: MenuModel
+    let viewerContextMenu: [MenuNode]
+    let toolbar: [ToolbarItemID]
     private let descriptors: [CommandID: CommandDescriptor]
 
-    /// `file` 是完整的 keybindings.json 文档（含键盘与鼠标/触控板/点击区域/滚轮绑定）。
+    /// `file` 是完整的 keybindings.json 文档（含键盘与鼠标/触控板/点击区域/滚轮绑定）；`menuFile` 是 menus.json 文档。
     @MainActor
-    init(file: KeyBindingsFile) {
-        self.init(user: file.bindings, inputBindings: InputBindings.effective(user: file))
+    init(file: KeyBindingsFile, menuFile: MenuFile = MenuFile()) {
+        self.init(user: file.bindings, inputBindings: InputBindings.effective(user: file), menuFile: menuFile)
     }
 
-    /// `user` 是 keybindings.json 中的键盘绑定。
+    /// `user` 是 keybindings.json 中的键盘绑定，`menuFile` 是 menus.json 中的自定义菜单与工具栏配置。
     @MainActor
-    init(user: [KeyBinding] = [], inputBindings: InputBindings = InputBindings.effective(user: KeyBindingsFile())) {
+    init(
+        user: [KeyBinding] = [],
+        inputBindings: InputBindings = InputBindings.effective(user: KeyBindingsFile()),
+        menuFile: MenuFile = MenuFile()
+    ) {
         let all = CoreCommands.all + Self.appCommands
         descriptors = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         bindings = KeyBinding.effective(defaults: all, user: user)
         self.inputBindings = inputBindings
+        menu = menuFile.mainMenu.map(MenuModel.init(roots:)) ?? Self.defaultMainMenu()
+        viewerContextMenu = menuFile.resolvedViewerContextMenu
+        toolbar = menuFile.resolvedToolbar
+    }
+
+    @MainActor
+    static func defaultMainMenu() -> MenuModel {
         let dockCommands = Set(Self.dockMenu.compactMap { node -> CommandID? in
             if case let .command(id) = node { id } else { nil }
         })
-        menu = MenuModel(roots: CoreCommands.defaultMenu.roots.flatMap { root -> [MenuNode] in
+        return MenuModel(roots: CoreCommands.defaultMenu.roots.flatMap { root -> [MenuNode] in
             guard case let .submenu(titleKey, children) = root else { return [root] }
             switch titleKey {
             // 撤销与重做在“编辑”菜单；“文件”按文件操作规范排布。
@@ -84,7 +97,7 @@ struct CommandCatalog {
             case "显示":
                 let viewChildren = children.map { node -> MenuNode in
                     if case .command(.displayProfileApply) = node {
-                        return .submenu(titleKey: "套用显示配置", children: [])
+                        return .dynamic(.displayProfiles)
                     }
                     return node
                 }

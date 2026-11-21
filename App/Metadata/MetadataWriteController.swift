@@ -347,7 +347,16 @@ final class MetadataWriteController {
         }
     }
 
-    func contextMenuItems(for origin: FileOrigin) -> [NSMenuItem] {
+    func registerContextMenuProviders(in provider: ContextMenuProvider) {
+        provider.register(dynamic: .rating) { [weak self] target in
+            self?.ratingMenuItem(for: target.origin)
+        }
+        provider.register(command: .metadataTagsEdit) { [weak self] target in
+            self?.editTagsMenuItem(for: target.origin)
+        }
+    }
+
+    func ratingMenuItem(for origin: FileOrigin) -> NSMenuItem {
         let enabled = canEdit(origin)
         let ratingSub = NSMenu(title: String(localized: "评分"))
         ratingSub.autoenablesItems = false
@@ -364,11 +373,19 @@ final class MetadataWriteController {
         }
         let ratingHolder = NSMenuItem(title: String(localized: "评分"), action: nil, keyEquivalent: "")
         ratingHolder.submenu = ratingSub; ratingHolder.isEnabled = enabled
+        return ratingHolder
+    }
 
+    func editTagsMenuItem(for origin: FileOrigin) -> NSMenuItem {
+        let enabled = canEdit(origin)
         let tagItem = MenuAction(String(localized: "编辑标签…")) { [weak self] in self?.presentTagEditor(origin: origin) }.item
         tagItem.isEnabled = enabled
         applyShortcut(.metadataTagsEdit, to: tagItem)
-        return [ratingHolder, tagItem]
+        return tagItem
+    }
+
+    func contextMenuItems(for origin: FileOrigin) -> [NSMenuItem] {
+        [ratingMenuItem(for: origin), editTagsMenuItem(for: origin)]
     }
 
     private func applyShortcut(_ id: CommandID, to item: NSMenuItem) {
