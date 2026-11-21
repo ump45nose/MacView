@@ -638,7 +638,7 @@ public struct RecursionSpec: Codable, Sendable, Hashable { public var enabled: B
 public struct ColorAdjust: Codable, Sendable, Hashable { public var brightness: Double; public var contrast: Double; public var saturation: Double; public var gamma: Double; public var temperature: Double; public var tint: Double; public static let identity: ColorAdjust; public var isIdentity: Bool { get } }   // 除 gamma 为 0.25…4（默认 1）外均为 −1…1（默认 0），解码时夹到范围
 public enum Effect: Codable, Sendable, Hashable { case colorAdjust(ColorAdjust) }   // JSON：{"type":"colorAdjust", ...字段}
 public struct EffectChain: Codable, Sendable, Hashable { public var effects: [Effect]; public static let empty: EffectChain; public var isIdentity: Bool { get }; public var colorAdjust: ColorAdjust { get set } }   // 写 identity 时移除该项
-public enum ViewerBackground: Codable, Sendable, Hashable { case auto, black, gray, white, checkerboard; case custom(red: Double, green: Double, blue: Double) }   // custom sRGB 0…1，解码时夹到范围
+public enum ViewerBackground: Codable, Sendable, Hashable { case auto, black, gray, white, checkerboard, frostedGlass, imageColor; case custom(red: Double, green: Double, blue: Double) }   // 预设编码为同名字符串；custom sRGB 0…1，解码时夹到范围
 public enum DisplayProfileGroup: String, Codable, Sendable, CaseIterable { case layout, scale, effects, background }
 public struct DisplayProfile: Codable, Sendable, Hashable, Identifiable { public var id: UUID; public var name: String; public var settings: BookSettings; public var groups: Set<DisplayProfileGroup> { get }; public init(id: UUID = UUID(), name: String, capturing resolved: ResolvedBookSettings, groups: Set<DisplayProfileGroup>) }   // settings 只含所选组字段，groups 由非空字段推出
 public struct BookSettings: Codable, Sendable, Hashable {   // 每层只写自己覆盖的字段
@@ -652,7 +652,15 @@ public struct BookSettings: Codable, Sendable, Hashable {   // 每层只写自�
 public struct ResolvedBookSettings: Codable, Sendable, Hashable { /* 与 BookSettings 字段相同，全部非可选；effects 默认 .empty，background 默认 .auto；applying(_:) 同步合并 */ }
 public struct ClassifyTarget: Codable, Sendable, Hashable { public var location: Location; public var listsSubfolders: Bool }
 public struct FileOperationSettings: Codable, Sendable, Hashable { public var nameConflict: ConflictPolicy; public var classifyMode: TransferMode; public var classifyTargets: [ClassifyTarget] }   // 默认 appendNumber、move、空列表
-public struct GlobalSettings: Codable, Sendable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int; public var fileOperations: FileOperationSettings; public var historyLimit: Int }   // historyLimit 默认 1000；CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
+public enum AppearanceMode: String, Codable, Sendable, CaseIterable { case system, light, dark }
+public enum AccentColorMode: String, Codable, Sendable, CaseIterable { case clay, system }
+public enum FontRole: String, Codable, Sendable, CaseIterable, CodingKeyRepresentable { case panels, overlays, menus }
+public struct FontSpec: Codable, Sendable, Hashable { public var family: String?; public var size: Double?; public init(family: String? = nil, size: Double? = nil) }   // nil 使用系统字体或该组默认字号；解码时 size 须在 8…32
+public enum TitleBarMode: String, Codable, Sendable, CaseIterable { case shown, autoHide, borderless }
+public struct WindowAppearance: Codable, Sendable, Hashable { public var titleBar: TitleBarMode; public var keepOnTop: Bool; public var opacity: Double; public init(titleBar: TitleBarMode = .shown, keepOnTop: Bool = false, opacity: Double = 1) }   // 解码时 opacity 须在 0.3…1
+public struct AppearanceSettings: Codable, Sendable, Hashable { public var mode: AppearanceMode; public var accent: AccentColorMode; public var fonts: [FontRole: FontSpec]; public var window: WindowAppearance; public init(mode: AppearanceMode = .system, accent: AccentColorMode = .clay, fonts: [FontRole: FontSpec] = [:], window: WindowAppearance = WindowAppearance()); public static let `default`: AppearanceSettings }   // fonts 缺少某组时使用该组默认字体，以角色名为 JSON 对象键
+public struct GlobalSettings: Codable, Sendable, Hashable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int; public var fileOperations: FileOperationSettings; public var historyLimit: Int; public var appearance: AppearanceSettings }   // historyLimit 默认 1000，appearance 默认 .default；CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
+// appearance 及其子字段缺省时使用各自默认值，不触发全局字段缺失提示；未知枚举值或字号、不透明度超范围时解码失败，经 SettingsChange.fileError 报告并保留上一份可用设置。
 extension PathRule { public static func matching(_ rules: [PathRule], for book: Location) -> [PathRule] }   // 越具体越靠后，相同时按原顺序；解析和设置窗口共用
 public struct PathRule: Codable, Sendable { public var id: UUID; public var name: String; public var prefix: Location; public var settings: BookSettings }
 public struct BookMemory: Codable, Sendable { public var book: Location; public var settings: BookSettings; public var lastPage: Location?; public var lastPageIndex: Int?; public var openedAt: Date }
@@ -688,6 +696,8 @@ public struct CommandID: RawRepresentable, Hashable, Codable, Sendable { public 
 // file.reveal 默认 ⌥⌘R（viewer、list）；viewer 的 ⇧⌘R 仍用于递归。
 // 搜索与评分标签：rating.set.0–5（⌥0–⌥5）、metadata.tags.edit（⌥T）、search.focus（⌘F）、search.indexFolder、panel.info.toggle（⌥⌘I）；zoomDevicePixel 默认绑定调整为 ⌥⇧1 以避免与 rating.set.1（⌥1）冲突。
 // 显示配置与效果：displayProfile.apply（⌃1–⌃9，viewer/list，参数 slot 1–9）、effects.toggle（E，viewer）、panel.effects.toggle（⌥⌘E，global）。
+// 窗口外观与布局：window.keepOnTop.toggle（置顶）、window.titleBar.autoHide.toggle（自动隐藏标题栏）、window.borderless.toggle（无边框）、layout.scheme.manage（管理布局方案…）均属 window 分类，无默认按键；按窗口命令的 global 作用域配置绑定。作用域保存在 KeyBinding 中，这些无默认绑定的 CommandDescriptor 不单独保存作用域。
+// 默认“窗口”菜单中，前三项位于全屏一节后的新节；布局方案管理位于 layout.scheme.apply 后、动态布局方案子菜单前，动态子菜单保持不变。
 public enum InputScope: String, Codable, Sendable { case global, viewer, list, textInput, classify }
 public struct KeyModifiers: OptionSet, Hashable, Codable, Sendable { public let rawValue: UInt8 /* command, option, control, shift, function */ }
 public struct KeyChord: Hashable, Codable, Sendable { public var key: String; public var modifiers: KeyModifiers }   // key 为逻辑键名，如 "Right"、"a"
@@ -744,7 +754,8 @@ extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources
     public static let zoomAllowUpscaleToggle, magnifierToggle, keepZoomOnPageTurnToggle: CommandID
     public static let sortName, sortModified, sortCreated, sortSize, sortType, sortRandom, sortAscending, sortDescending, sortFoldersFirstToggle, recursionToggle: CommandID
     public static let windowNew, windowNewTab, fullScreenToggle, bookshelfToggle, pageListToggle, docksToggle, retryFailed, settingsOpen: CommandID
-    public static let layoutSchemeSave, layoutSchemeApply: CommandID
+    public static let windowKeepOnTopToggle, windowTitleBarAutoHideToggle, windowBorderlessToggle: CommandID
+    public static let layoutSchemeSave, layoutSchemeApply, layoutSchemeManage: CommandID
     public static let ratingSet0, ratingSet1, ratingSet2, ratingSet3, ratingSet4, ratingSet5, metadataTagsEdit, searchFocus, searchIndexFolder, infoPanelToggle: CommandID
     public static let displayProfileApply, effectsToggle, effectsPanelToggle: CommandID
 }
