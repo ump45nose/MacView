@@ -1,4 +1,5 @@
 import AppKit
+import MVCommands
 import MVFoundation
 import MVIO
 import MVSettings
@@ -26,12 +27,21 @@ final class SettingsModel {
 
     let supportDirectory: URL
     let cacheDirectory: URL
+    let shortcuts: ShortcutsModel
 
-    init(store: any SettingsStore, sources: any SourceRegistry, supportDirectory: URL, cacheDirectory: URL) {
+    init(
+        store: any SettingsStore,
+        sources: any SourceRegistry,
+        supportDirectory: URL,
+        cacheDirectory: URL,
+        keyBindings: JSONDocumentStore<KeyBindingsFile>? = nil
+    ) {
         self.store = store
         self.sources = sources
         self.supportDirectory = supportDirectory
         self.cacheDirectory = cacheDirectory
+        let resolvedKeyBindings = keyBindings ?? (NSApp.delegate as? AppDelegate)?.services?.keyBindings
+        self.shortcuts = ShortcutsModel(store: resolvedKeyBindings)
         let changes = store.changes()
         changesTask = Task { [weak self] in
             await self?.loadAll()
@@ -54,6 +64,7 @@ final class SettingsModel {
         global = await store.global()
         rules = await store.pathRules()
         if launchBrowseCacheEnabled == nil { launchBrowseCacheEnabled = global.cache.browseCacheEnabled }
+        shortcuts.reload()
     }
 
     // MARK: 全局
