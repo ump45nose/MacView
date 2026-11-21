@@ -157,6 +157,24 @@ final class ViewerContainerView: NSView, InputScoped {
         continuous.canvas.onRightMouseUp = { [weak self] event in
             self?.gestureRecognizer.rightMouseUp(event) ?? false
         }
+        continuous.canvas.onScrollWheel = { [weak self] event in
+            guard let self else { return false }
+            switch gestureRecognizer.handleScrollWheel(event, canSwipeHorizontally: false) {
+            case .standard:
+                return false
+            case let .zoom(factor):
+                continuous.canvas.zoom(by: factor)
+                return true
+            case .handled:
+                return true
+            }
+        }
+        paged.onClickZone = { [weak self] point, width in
+            self?.gestureRecognizer.handleClickZone(at: point, in: width)
+        }
+        paged.onScrollWheel = { [weak self] event, canSwipeHorizontally in
+            self?.gestureRecognizer.handleScrollWheel(event, canSwipeHorizontally: canSwipeHorizontally) ?? .standard
+        }
         paged.onPageFailure = { [weak self] location in self?.recheckAvailability { $0 == location } }
         // 外部变化没有通知：App 重新激活、卷挂载或卸载时重查。
         let recheck: @Sendable (Notification) -> Void = { [weak self] _ in
@@ -254,6 +272,18 @@ final class ViewerContainerView: NSView, InputScoped {
     override func keyDown(with event: NSEvent) {
         if gestureRecognizer.handleKeyDown(event) { return }
         super.keyDown(with: event)
+    }
+
+    override func smartMagnify(with event: NSEvent) {
+        if !gestureRecognizer.handleSmartMagnify(event) {
+            super.smartMagnify(with: event)
+        }
+    }
+
+    override func rotate(with event: NSEvent) {
+        if !gestureRecognizer.handleRotate(event) {
+            super.rotate(with: event)
+        }
     }
 
     override func viewDidMoveToWindow() {

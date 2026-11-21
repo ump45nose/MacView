@@ -3,11 +3,22 @@ import MVCommands
 import MVFoundation
 
 /// 查看器非键盘输入的统一识别器：持有当前 `InputBindings`，管理右键手势状态机与浮层更新，
-/// 并在未拖动即松开右键时弹出右键菜单；后续扩展点击区域、滚轮与触控板横扫。
+/// 并在未拖动即松开右键时弹出右键菜单；同时分派点击区域、滚轮动作与触控板手势。
 @MainActor
 final class ViewerGestureRecognizer {
+    enum WheelDispatchResult {
+        /// 按现有标准滚动/翻页行为处理。
+        case standard
+        /// 按给定倍率缩放。
+        case zoom(Double)
+        /// 已由识别器处理（执行了命令、触发了横扫或绑定为 `.none`）。
+        case handled
+    }
+
     private static let escapeKeyCode: UInt16 = 53
     private static let minTrailStep: CGFloat = 2
+    private static let wheelCommandThreshold: CGFloat = 40
+    private static let rotationThreshold: CGFloat = 25
 
     private struct RightDragState {
         var tracker: MouseGestureTracker
@@ -20,6 +31,11 @@ final class ViewerGestureRecognizer {
     private unowned let trailView: GestureTrailView
     private var rightDrag: RightDragState?
     private var escapeMonitor: Any?
+    private var wheelCommandAccumulator: CGFloat = 0
+    private var isTrackingSwipe = false
+    private var swipeTriggered = false
+    private var rotationAccumulator: CGFloat = 0
+    private var rotationTriggered = false
 
     /// 动态提供当前生效的非键盘绑定（随 `keybindings.json` 变更自动更新）。
     var inputBindingsProvider: (() -> InputBindings)?
@@ -120,8 +136,178 @@ final class ViewerGestureRecognizer {
         trailView.clear()
     }
 
+    // MARK: - 点击区域
+
+    static func clickZone(at x: CGFloat, width: CGFloat) -> ClickZone? {
+        guard width > 0 else { return nil }
+        let fraction = x / width
+        if fraction < 1.0 / 3.0 {
+            return .left
+        } else if fraction < 2.0 / 3.0 {
+            return .center
+        } else {
+            return .right
+        }
+    }
+
+    @discardableResult
+    func handleClickZone(at point: CGPoint, in width: CGFloat) -> Bool {
+        guard let zone = Self.clickZone(at: point.x, width: width),
+              let (command, arguments) = inputBindings.command(for: zone) else {
+            return false
+        }
+        onCommand?(command, arguments)
+        return true
+    }
+
+    // MARK: - 滚轮与触控板横扫
+
+    func handleScrollWheel(_ event: NSEvent, canSwipeHorizontally: Bool) -> WheelDispatchResult {
+        let device: WheelDevice = event.hasPreciseScrollingDeltas ? .trackpad : .mouse
+        let modifiers = KeyMapping.modifiers(for: event.modifierFlags)
+        let action = inputBindings.wheelAction(device: device, modifiers: modifiers)
+
+        switch action {
+        case .none:
+            wheelCommandAccumulator = 0
+            return .handled
+        case .zoom:
+            guard event.momentumPhase.isEmpty else { return .handled }
+            let delta = Double(event.scrollingDeltaY)
+            guard delta != 0 else { return .handled }
+            let sensitivity = event.hasPreciseScrollingDeltas ? 0.005 : 0.1
+            let factor = min(max(exp(delta * sensitivity), 0.5), 2.0)
+            return .zoom(factor)
+        case let .commands(up, down):
+            guard event.momentumPhase.isEmpty else { return .handled }
+            if event.hasPreciseScrollingDeltas {
+                if event.phase == .began {
+                    wheelCommandAccumulator = 0
+                }
+                wheelCommandAccumulator += event.scrollingDeltaY
+                if abs(wheelCommandAccumulator) >= Self.wheelCommandThreshold {
+                    let command = wheelCommandAccumulator > 0 ? up : down
+                    wheelCommandAccumulator = 0
+                    onCommand?(command, nil)
+                } else if event.phase.isEmpty, event.scrollingDeltaY != 0 {
+                    let command = event.scrollingDeltaY > 0 ? up : down
+                    wheelCommandAccumulator = 0
+                    onCommand?(command, nil)
+                }
+                if event.phase == .ended || event.phase == .cancelled {
+                    wheelCommandAccumulator = 0
+                }
+            } else if event.scrollingDeltaY != 0 {
+                let command = event.scrollingDeltaY > 0 ? up : down
+                onCommand?(command, nil)
+            }
+            return .handled
+        case .standard:
+            if canSwipeHorizontally,
+               event.hasPreciseScrollingDeltas,
+               event.phase == .began,
+               event.momentumPhase.isEmpty,
+               !isTrackingSwipe,
+               NSEvent.isSwipeTrackingFromScrollEventsEnabled,
+               abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) {
+                let allowLeft = inputBindings.command(for: .swipeLeft) != nil
+                let allowRight = inputBindings.command(for: .swipeRight) != nil
+                if allowLeft || allowRight {
+                    beginHorizontalSwipe(with: event, allowLeft: allowLeft, allowRight: allowRight)
+                    return .handled
+                }
+            }
+            if isTrackingSwipe {
+                return .handled
+            }
+            return .standard
+        }
+    }
+
+    private func beginHorizontalSwipe(with event: NSEvent, allowLeft: Bool, allowRight: Bool) {
+        isTrackingSwipe = true
+        swipeTriggered = false
+        let minThreshold: CGFloat = allowRight ? -1 : 0
+        let maxThreshold: CGFloat = allowLeft ? 1 : 0
+        event.trackSwipeEvent(
+            options: [.lockDirection, .clampGestureAmount],
+            dampenAmountThresholdMin: minThreshold,
+            max: maxThreshold
+        ) { [weak self] gestureAmount, phase, isComplete, _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if phase == .ended, !self.swipeTriggered {
+                    if gestureAmount > 0, allowLeft, let (command, arguments) = self.inputBindings.command(for: .swipeLeft) {
+                        self.swipeTriggered = true
+                        self.onCommand?(command, arguments)
+                    } else if gestureAmount < 0, allowRight, let (command, arguments) = self.inputBindings.command(for: .swipeRight) {
+                        self.swipeTriggered = true
+                        self.onCommand?(command, arguments)
+                    }
+                }
+                if isComplete || phase == .cancelled {
+                    self.isTrackingSwipe = false
+                    self.swipeTriggered = false
+                }
+            }
+        }
+    }
+
+    // MARK: - 触控板双指轻点与旋转
+
+    @discardableResult
+    func handleSmartMagnify(_ event: NSEvent) -> Bool {
+        guard let (command, arguments) = inputBindings.command(for: .doubleTap) else { return false }
+        onCommand?(command, arguments)
+        return true
+    }
+
+    @discardableResult
+    func handleRotate(_ event: NSEvent) -> Bool {
+        let hasLeft = inputBindings.command(for: .rotateLeft) != nil
+        let hasRight = inputBindings.command(for: .rotateRight) != nil
+        guard hasLeft || hasRight else { return false }
+
+        if event.phase == .began {
+            rotationAccumulator = 0
+            rotationTriggered = false
+            return true
+        }
+        if event.phase == .ended || event.phase == .cancelled {
+            rotationAccumulator = 0
+            rotationTriggered = false
+            return true
+        }
+
+        if event.phase.isEmpty {
+            let angle = CGFloat(event.rotation)
+            if abs(angle) >= Self.rotationThreshold {
+                let input: TrackpadInput = angle > 0 ? .rotateLeft : .rotateRight
+                if let (command, arguments) = inputBindings.command(for: input) {
+                    onCommand?(command, arguments)
+                }
+            }
+            return true
+        }
+
+        rotationAccumulator += CGFloat(event.rotation)
+        if !rotationTriggered, abs(rotationAccumulator) >= Self.rotationThreshold {
+            let input: TrackpadInput = rotationAccumulator > 0 ? .rotateLeft : .rotateRight
+            rotationTriggered = true
+            if let (command, arguments) = inputBindings.command(for: input) {
+                onCommand?(command, arguments)
+            }
+        }
+        return true
+    }
+
     func reset() {
         rightDrag = nil
+        wheelCommandAccumulator = 0
+        isTrackingSwipe = false
+        swipeTriggered = false
+        rotationAccumulator = 0
+        rotationTriggered = false
         removeEscapeMonitor()
         trailView.clear()
     }
