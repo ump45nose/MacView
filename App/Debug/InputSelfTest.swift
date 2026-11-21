@@ -880,6 +880,9 @@ final class InputSelfTest {
         // MARK: C3.2 设置窗口 · 鼠标与触控板页
         await checkPointerSettingsPage(settings: settings, settingsWindow: settingsWindow, keyBindingsURL: keyBindingsURL)
 
+        // MARK: C3.3 设置窗口 · 菜单与工具栏页
+        await checkMenusSettingsPage(controller: controller, window: window, settings: settings, settingsWindow: settingsWindow)
+
         settingsWindow.close()
     }
 
@@ -986,6 +989,152 @@ final class InputSelfTest {
             "C3.2 恢复默认后鼠标与触控板绑定回到默认值并清空 keybindings.json 对应覆盖"
         )
         log.snapshot(settingsWindow, "pointer-default")
+    }
+
+    private func checkMenusSettingsPage(
+        controller: ReaderWindowController,
+        window: NSWindow,
+        settings: SettingsWindowController,
+        settingsWindow: NSWindow
+    ) async {
+        let menusURL = app.supportDirectory.appending(path: "menus.json")
+        let previousMenusData = try? Data(contentsOf: menusURL)
+        defer { restoreKeyBindings(at: menusURL, previousData: previousMenusData) }
+
+        do {
+            try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+            let book = try makeBook(count: 2)
+            await openBook(controller, url: book, expectedCount: 2)
+            controller.session.update {
+                $0.browseMode = .paged
+                $0.pageMode = .single
+                $0.scaleMode = .fitWindow
+            }
+            controller.viewer.paged.resetTransform()
+            await settle()
+        } catch {
+            log.check(false, "C3.3 创建测试书失败：\(error)")
+            return
+        }
+
+        settings.state.page = .menus
+        await settle()
+        let menus = settings.state.model.menus
+        log.check(settings.state.page == .menus, "C3.3 设置窗口已切换到菜单与工具栏页")
+
+        // 1. 右键菜单：加入命令、调换顺序、加分隔线，验证写入 menus.json 且查看器右键菜单按新顺序出现。
+        menus.selectedTab = .viewerContext
+        await settle()
+
+        let hasDynamicLeaf = menus.viewerNodes.contains { node in
+            if case .dynamic = node.kind { !node.isSubmenu } else { false }
+        }
+        log.check(hasDynamicLeaf, "C3.3 右键菜单树将 MenuNode.dynamic 作为整体叶子节点展示")
+
+        let addedNext = menus.insertNode(.command(.frameNext), parentID: nil, at: 0)
+        let copyNode = menus.viewerNodes.first { $0.kind == .command(.fileCopy) }
+        var movedCopy = false
+        if let copyNode {
+            movedCopy = menus.moveNode(id: copyNode.id, toParentID: nil, index: 0)
+        }
+        let addedSep = menus.insertNode(.separator, parentID: nil, at: 2)
+        // 调换前两项顺序，使 frameNext 排在 fileCopy 之前。
+        var swapped = false
+        if let addedNext {
+            swapped = menus.moveNode(id: addedNext.id, toParentID: nil, index: 0)
+        }
+        let expectedViewerNodes = menus.viewerNodes.map { $0.toMenuNode() }
+        for _ in 0..<100 where app.catalog.viewerContextMenu != expectedViewerNodes {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let persistedAfterViewer = readStoredMenus(at: menusURL)
+        log.check(
+            addedNext != nil && addedSep != nil && movedCopy && swapped
+                && persistedAfterViewer?.viewerContextMenu == expectedViewerNodes,
+            "C3.3 右键菜单加命令、调序、加分隔线后写入 menus.json"
+        )
+
+        let customContextMenu = await presentViewerContextMenu(controller, window: window)
+        let customContextTitles = menuTitles(of: customContextMenu)
+        let expectedPrefix = [app.catalog.title(of: .frameNext), String(localized: "复制"), "-"]
+        log.check(
+            Array(customContextTitles.prefix(3)) == expectedPrefix,
+            "C3.3 查看器右键菜单按新顺序生效：\(Array(customContextTitles.prefix(4)).joined(separator: "、"))"
+        )
+        log.snapshot(settingsWindow, "menus-context")
+
+        // 2. 主菜单：在“图像”子菜单头部加入命令，验证 NSApp.mainMenu 自动重建且保留右键菜单覆盖。
+        menus.selectedTab = .mainMenu
+        await settle()
+        let imageSubmenuNode = menus.mainMenuNodes.first { $0.kind == .submenu(titleKey: "图像") }
+        let insertedInMain = imageSubmenuNode.flatMap { menus.insertNode(.command(.frameNext), parentID: $0.id, at: 0) }
+        let expectedFirstImageTitle = app.catalog.title(of: .frameNext)
+        for _ in 0..<100 where NSApp.mainMenu?.item(withTitle: String(localized: "图像"))?.submenu?.items.first?.title != expectedFirstImageTitle {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let imageTitlesAfterEdit = menuTitles(of: NSApp.mainMenu?.item(withTitle: String(localized: "图像"))?.submenu)
+        let persistedAfterMain = readStoredMenus(at: menusURL)
+        log.check(
+            insertedInMain != nil
+                && imageTitlesAfterEdit.first == expectedFirstImageTitle
+                && persistedAfterMain?.mainMenu != nil
+                && persistedAfterMain?.viewerContextMenu == expectedViewerNodes,
+            "C3.3 改动主菜单后 NSApp.mainMenu 自动重建并保留其余字段：\(imageTitlesAfterEdit.joined(separator: "、"))"
+        )
+
+        // 3. 恢复默认：主菜单与右键菜单分别恢复默认并清空 menus.json 对应覆盖。
+        menus.resetCurrentTab()
+        let defaultMainRoots = CommandCatalog.defaultMainMenu().roots
+        for _ in 0..<100 where app.catalog.menu.roots != defaultMainRoots {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let imageTitlesAfterReset = menuTitles(of: NSApp.mainMenu?.item(withTitle: String(localized: "图像"))?.submenu)
+        let persistedAfterMainReset = readStoredMenus(at: menusURL)
+        log.check(
+            app.catalog.menu.roots == defaultMainRoots
+                && imageTitlesAfterReset == [String(localized: "评分"), String(localized: "编辑标签…")]
+                && persistedAfterMainReset?.mainMenu == nil,
+            "C3.3 主菜单恢复默认后重建默认主菜单并清空 mainMenu 覆盖"
+        )
+
+        menus.selectedTab = .viewerContext
+        await settle()
+        menus.resetCurrentTab()
+        for _ in 0..<100 where app.catalog.viewerContextMenu != CoreCommands.defaultViewerContextMenu {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let persistedAfterViewerReset = readStoredMenus(at: menusURL)
+        log.check(
+            app.catalog.viewerContextMenu == CoreCommands.defaultViewerContextMenu
+                && persistedAfterViewerReset?.viewerContextMenu == nil,
+            "C3.3 右键菜单恢复默认后回到默认菜单树并清空 viewerContextMenu 覆盖"
+        )
+
+        // 4. 工具栏分段：预览与当前工具栏列表一致，且“自定义工具栏…”在有/无查看器窗口时可用状态正确。
+        menus.selectedTab = .toolbar
+        await settle()
+        let currentToolbarIDs = window.toolbar.map(ReaderWindowController.toolbarItemIDs(of:)) ?? []
+        log.check(
+            menus.toolbarPreviewItems.map(\.itemID) == currentToolbarIDs,
+            "C3.3 工具栏分段预览与当前工具栏列表一致（共 \(currentToolbarIDs.count) 项）"
+        )
+        log.check(menus.canCustomizeToolbar, "C3.3 有查看器窗口时“自定义工具栏…”可用")
+        log.snapshot(settingsWindow, "menus-toolbar")
+
+        window.close()
+        await settle()
+        log.check(
+            app.controllers.isEmpty && !menus.canCustomizeToolbar,
+            "C3.3 无查看器窗口时“自定义工具栏…”禁用"
+        )
+    }
+
+    private func readStoredMenus(at url: URL) -> MenuFile? {
+        guard let data = try? Data(contentsOf: url),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let value = object["value"],
+              let valueData = try? JSONSerialization.data(withJSONObject: value) else { return nil }
+        return try? JSONDecoder().decode(MenuFile.self, from: valueData)
     }
 
     private func findView(accessibilityID: String, in root: NSView) -> NSView? {
