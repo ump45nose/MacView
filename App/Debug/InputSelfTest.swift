@@ -2,12 +2,13 @@
 import AppKit
 import MVCommands
 import MVFoundation
+import MVLayout
 import MVReading
 import MVSettings
 
 /// 查看器输入与自定义自检（`-MVInputSelfTest viewer`）。
 ///
-/// 覆盖 C2.1（右键手势与右键菜单共存）、C2.2（点击区域、滚轮分派、自定义滚轮绑定与原有滚轮行为）与 C2.3（`menus.json` 驱动主菜单、右键菜单热重载与损坏文件提示）。
+/// 覆盖 C2.1（右键手势与右键菜单共存）、C2.2（点击区域、滚轮分派、自定义滚轮绑定与原有滚轮行为）、C2.3（`menus.json` 驱动主菜单、右键菜单热重载与损坏文件提示）与 C2.4（模型驱动工具栏与命名布局方案）。
 @MainActor
 final class InputSelfTest {
     static let launchKey = "MVInputSelfTest"
@@ -75,6 +76,7 @@ final class InputSelfTest {
             await checkClickZonesAndDragExclusion(controller, window: window)
             try await checkWheelDispatchAndCustomBinding(controller, window: window)
             try await checkMenusCustomizationAndReload(controller, window: window)
+            try await checkToolbarAndLayoutSchemes(controller, window: window)
         } catch {
             log.check(false, "输入自检异常：\(error)")
         }
@@ -483,7 +485,7 @@ final class InputSelfTest {
         let expectedWindowTitles = [
             String(localized: "最小化"), String(localized: "缩放"), "-",
             String(localized: "切换全屏幕"), "-",
-            String(localized: "保存为布局方案…"), String(localized: "套用布局方案"), "-",
+            String(localized: "保存为布局方案…"), String(localized: "布局方案"), "-",
             String(localized: "前置全部窗口"),
         ]
         log.check(
@@ -598,6 +600,155 @@ final class InputSelfTest {
         log.check(
             menuTitles(of: recoveredMenu) == expectedDefaultContextTitles,
             "C2.3 删除损坏 menus.json 后自动恢复默认查看器右键菜单"
+        )
+    }
+
+    // MARK: C2.4 模型驱动工具栏与命名布局方案
+
+    private func checkToolbarAndLayoutSchemes(_ controller: ReaderWindowController, window: NSWindow) async throws {
+        guard let toolbar = window.toolbar, let services = app.services, let dock = app.dock else {
+            log.check(false, "C2.4 缺少工具栏、核心服务或停靠协调者")
+            return
+        }
+
+        // 1. 工具栏：autosavesConfiguration == false、允许列表包含带 symbol 的通用命令、增删写回 menus.json 且保留其他字段、新窗口顺序一致。
+        log.check(toolbar.autosavesConfiguration == false, "C2.4 工具栏 autosavesConfiguration 为 false")
+
+        let allowed = controller.toolbarAllowedItemIdentifiers(toolbar)
+        let zoomInID = NSToolbarItem.Identifier(CommandID.zoomIn.rawValue)
+        log.check(
+            allowed.contains(zoomInID) && allowed.contains(.space) && allowed.contains(.flexibleSpace),
+            "C2.4 toolbarAllowedItemIdentifiers 包含带 symbol 的通用命令与空格"
+        )
+
+        let menusURL = app.supportDirectory.appending(path: "menus.json")
+        let previousMenusData = try? Data(contentsOf: menusURL)
+        defer { restoreKeyBindings(at: menusURL, previousData: previousMenusData) }
+
+        // 先写入包含自定义 viewerContextMenu 的 menus.json，验证工具栏写回时保留其他字段。
+        let preservedContextMenu: [MenuNode] = [.command(.fileCopy), .command(.fileReveal)]
+        try await services.menus?.update {
+            $0.viewerContextMenu = preservedContextMenu
+            $0.toolbar = nil
+        }
+        for _ in 0..<100 where app.catalog.viewerContextMenu != preservedContextMenu {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+
+        // 插入带 symbol 的通用命令 zoom.in，并移除现有条目 effects.toggle。
+        toolbar.insertItem(withItemIdentifier: zoomInID, at: 0)
+        if let effectsIndex = toolbar.items.firstIndex(where: { $0.itemIdentifier == NSToolbarItem.Identifier(CommandID.effectsToggle.rawValue) }) {
+            toolbar.removeItem(at: effectsIndex)
+        }
+
+        let zoomItem = toolbar.items.first { $0.itemIdentifier == zoomInID }
+        log.check(
+            zoomItem != nil && zoomItem?.label == app.catalog.title(of: .zoomIn)
+                && zoomItem?.toolTip == app.catalog.title(of: .zoomIn) && zoomItem?.image != nil,
+            "C2.4 带 symbol 的通用命令生成工具栏按钮（标题、tooltip、图标齐备）"
+        )
+
+        let expectedToolbar = ReaderWindowController.toolbarItemIDs(of: toolbar)
+        for _ in 0..<100 where services.menus?.value().toolbar != expectedToolbar {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let savedMenus = services.menus?.value()
+        log.check(
+            savedMenus?.toolbar == expectedToolbar,
+            "C2.4 工具栏增删后同步写回 menus.json（共 \(expectedToolbar.count) 项）"
+        )
+        log.check(
+            savedMenus?.viewerContextMenu == preservedContextMenu,
+            "C2.4 工具栏写回 menus.json 时保留 viewerContextMenu 等其他字段"
+        )
+
+        // 重新打开一个新窗口，验证新窗口工具栏顺序与 menus.json 一致。
+        let secondController = app.newWindow()
+        await settle()
+        let secondToolbarIDs = secondController?.window?.toolbar.map(ReaderWindowController.toolbarItemIDs(of:)) ?? []
+        log.check(
+            secondToolbarIDs == expectedToolbar,
+            "C2.4 新窗口工具栏条目顺序与 menus.json 一致"
+        )
+        secondController?.window?.close()
+        await settle()
+
+        // 2. 布局方案：两种停靠布局分别保存为命名方案，验证持久化、layout.scheme.apply 套用与 layout.json 更新，以及主菜单动态子菜单。
+        let schemesURL = dock.schemesFileURL
+        let previousSchemesData = try? Data(contentsOf: schemesURL)
+        defer { restoreKeyBindings(at: schemesURL, previousData: previousSchemesData) }
+
+        let context = CommandContext(session: controller.session.id, scope: .global)
+
+        // 状态 A：左侧展开、右侧隐藏。
+        controller.dock.perform { layout in
+            var next = layout
+            next.left.isCollapsed = false
+            next.right.isCollapsed = true
+            return next
+        }
+        await settle()
+        let layoutA = controller.dock.dockLayout
+        try await services.commands.perform(.layoutSchemeSave, arguments: ["name": .string("方案A")], context: context)
+
+        // 状态 B：左侧隐藏、右侧展开。
+        controller.dock.perform { layout in
+            var next = layout
+            next.left.isCollapsed = true
+            next.right.isCollapsed = false
+            return next
+        }
+        await settle()
+        let layoutB = controller.dock.dockLayout
+        try await services.commands.perform(.layoutSchemeSave, arguments: ["name": .string("方案B")], context: context)
+
+        let schemesDiskData = try? Data(contentsOf: schemesURL)
+        let savedNames = dock.schemes.map(\.name)
+        log.check(
+            schemesDiskData != nil && savedNames.contains("方案A") && savedNames.contains("方案B"),
+            "C2.4 layout-schemes.json 已持久化两个命名方案：\(savedNames.joined(separator: "、"))"
+        )
+
+        // 验证主菜单“窗口”下的“布局方案”动态子菜单包含已保存方案。
+        let windowSubmenu = NSApp.mainMenu?.item(withTitle: String(localized: "窗口"))?.submenu
+        windowSubmenu?.update()
+        let schemesSubmenu = windowSubmenu?.item(withTitle: String(localized: "布局方案"))?.submenu
+        let schemesMenuTitles = menuTitles(of: schemesSubmenu)
+        log.check(
+            schemesMenuTitles.contains("方案A") && schemesMenuTitles.contains("方案B"),
+            "C2.4 主菜单“窗口 → 布局方案”动态子菜单包含已保存方案：\(schemesMenuTitles.joined(separator: "、"))"
+        )
+
+        // 套用“方案A”，验证窗口停靠区状态与 layout.json 同步更新。
+        try await services.commands.perform(.layoutSchemeApply, arguments: ["name": .string("方案A")], context: context)
+        await settle()
+        log.check(
+            controller.dock.dockLayout.left.isCollapsed == layoutA.left.isCollapsed
+                && controller.dock.dockLayout.right.isCollapsed == layoutA.right.isCollapsed,
+            "C2.4 layout.scheme.apply 套用方案A 后窗口停靠区状态一致"
+        )
+
+        let persistedLayoutA: DockLayout? = {
+            guard let data = try? Data(contentsOf: dock.fileURL),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let value = object["value"],
+                  let valueData = try? JSONSerialization.data(withJSONObject: value) else { return nil }
+            return try? JSONDecoder().decode(DockLayout.self, from: valueData)
+        }()
+        log.check(
+            persistedLayoutA != nil
+                && persistedLayoutA?.left.isCollapsed == layoutA.left.isCollapsed
+                && persistedLayoutA?.right.isCollapsed == layoutA.right.isCollapsed,
+            "C2.4 套用方案A 后 layout.json 已同步持久化"
+        )
+
+        // 再套用“方案B”，验证状态可来回切换。
+        try await services.commands.perform(.layoutSchemeApply, arguments: ["name": .string("方案B")], context: context)
+        await settle()
+        log.check(
+            controller.dock.dockLayout.left.isCollapsed == layoutB.left.isCollapsed
+                && controller.dock.dockLayout.right.isCollapsed == layoutB.right.isCollapsed,
+            "C2.4 layout.scheme.apply 套用方案B 后窗口停靠区状态一致"
         )
     }
 

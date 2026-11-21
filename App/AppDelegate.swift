@@ -125,9 +125,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.metadataWriter?.handleDisabledCommand(id, in: controller) ?? false
             }
             self.dispatcher = dispatcher
-            dock = DockCoordinator(fileURL: DockCoordinator.defaultFileURL())
+            dock = DockCoordinator(
+                fileURL: DockCoordinator.defaultFileURL(),
+                schemesFileURL: DockCoordinator.defaultSchemesFileURL(supportDirectory: supportDirectory)
+            )
+            layoutSchemesMenuPopulator = { [weak self] menu in
+                self?.populateLayoutSchemesMenu(menu) ?? false
+            }
             registerCommands(in: services.commands)
             registerFrameDirectionCommands(in: services.commands)
+            registerLayoutSchemeCommands(in: services.commands)
             observeSettingsErrors()
         } catch {
             logger.fault("服务启动失败：\(String(describing: error), privacy: .public)")
@@ -553,6 +560,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func runFromMenu(_ id: CommandID) {
         dispatcher?.run(id, in: mainController, scope: menuScope)
+    }
+
+    private func populateLayoutSchemesMenu(_ menu: NSMenu) -> Bool {
+        menu.removeAllItems()
+        menu.autoenablesItems = false
+        let schemes = dock?.schemes ?? []
+        let hasWindow = (mainController ?? controllers.first) != nil
+        if schemes.isEmpty {
+            let empty = NSMenuItem(title: String(localized: "还没有布局方案"), action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+            return true
+        }
+        for scheme in schemes {
+            let item = NSMenuItem(title: scheme.name, action: #selector(applyLayoutSchemeFromMenu(_:)), keyEquivalent: "")
+            item.target = self
+            item.isEnabled = hasWindow
+            item.representedObject = scheme.name
+            menu.addItem(item)
+        }
+        return true
+    }
+
+    @objc private func applyLayoutSchemeFromMenu(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String else { return }
+        let target = mainController ?? controllers.first
+        dispatcher?.run(.layoutSchemeApply, arguments: ["name": .string(name)], in: target, scope: menuScope)
     }
 
     private var targetReaderWindow: ReaderWindow? {

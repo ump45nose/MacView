@@ -188,6 +188,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private var optionsPopover: NSPopover?
     /// 工具栏的停靠区开关，按下态跟随本窗口的布局。
     private(set) var dockToggles: [DockEdge: NSButton] = [:]
+    /// 程序按 menus.json 重建工具栏期间抑制写回，避免循环。
+    private var isRebuildingToolbar = false
+    private var toolbarSaveTask: Task<Void, Never>?
     private let logger = Logger(category: "window")
     /// 打开时有多个 URL，除第一个外的交给调用方（另开标签页）。
     var onOpenExtra: (([URL]) -> Void)?
@@ -269,8 +272,13 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         let toolbar = NSToolbar(identifier: "MacView.reader")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
+        toolbar.autosavesConfiguration = false
+        toolbar.allowsUserCustomization = true
+        isRebuildingToolbar = true
         window.toolbar = toolbar
         window.toolbarStyle = .unified
+        syncToolbarItems(to: catalog.toolbar)
+        isRebuildingToolbar = false
 
         router.onPendingChange = { [weak self] pending in self?.pendingView.show(pending) }
         viewer.onOpen = { [weak self] in self?.run(.fileOpen) }
@@ -373,6 +381,12 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         router.onPendingChange = { [weak self] pending in self?.pendingView.show(pending) }
         (window as? ReaderWindow)?.router = router
         pendingView.show(nil)
+        syncToolbarItems(to: catalog.toolbar)
+    }
+
+    /// 打开系统工具栏自定义面板（供设置页调用）。
+    func runToolbarCustomization() {
+        window?.toolbar?.runCustomizationPalette(nil)
     }
 
     // MARK: 会话
@@ -778,6 +792,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         openTask?.cancel()
         healthTask?.cancel()
         libraryTask?.cancel()
+        toolbarSaveTask?.cancel()
         // 页码来自书记忆，关窗前落盘。
         Task { [session] in await session.flush() }
         viewer.cancelLoads()
@@ -807,15 +822,47 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private static let toolbarFullScreen = NSToolbarItem.Identifier("window.fullScreen")
     private static let toolbarEffectsToggle = NSToolbarItem.Identifier("effects.toggle")
 
+    static func toolbarIdentifier(for id: ToolbarItemID) -> NSToolbarItem.Identifier {
+        switch id {
+        case .flexibleSpace: .flexibleSpace
+        case .space: .space
+        default: NSToolbarItem.Identifier(id.rawValue)
+        }
+    }
+
+    static func toolbarItemID(for identifier: NSToolbarItem.Identifier) -> ToolbarItemID {
+        switch identifier {
+        case .flexibleSpace: .flexibleSpace
+        case .space: .space
+        default: ToolbarItemID(identifier.rawValue)
+        }
+    }
+
+    static func toolbarItemIDs(of toolbar: NSToolbar) -> [ToolbarItemID] {
+        toolbar.items.map { toolbarItemID(for: $0.itemIdentifier) }
+    }
+
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [
-            .init("dock.left"), .init("book.previous"), .init("book.next"), Self.toolbarTitle, .flexibleSpace,
-            Self.toolbarWaterfall, Self.toolbarBrowse, Self.toolbarOptions, Self.toolbarFullScreen, Self.toolbarEffectsToggle, .init("dock.right"),
-        ]
+        CoreCommands.defaultToolbar.map(Self.toolbarIdentifier(for:))
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        toolbarDefaultItemIdentifiers(toolbar)
+        var seen: Set<NSToolbarItem.Identifier> = []
+        var result: [NSToolbarItem.Identifier] = []
+        func append(_ identifier: NSToolbarItem.Identifier) {
+            if seen.insert(identifier).inserted {
+                result.append(identifier)
+            }
+        }
+        for id in CoreCommands.defaultToolbar where id != .space && id != .flexibleSpace {
+            append(Self.toolbarIdentifier(for: id))
+        }
+        for descriptor in catalog.symbolCommands {
+            append(NSToolbarItem.Identifier(descriptor.id.rawValue))
+        }
+        append(.space)
+        append(.flexibleSpace)
+        return result
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
@@ -830,22 +877,83 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         if identifier == Self.toolbarFullScreen { return viewItem(identifier, fullScreenButton, label: catalog.title(of: .fullScreenToggle)) }
         if identifier == Self.toolbarEffectsToggle { return viewItem(identifier, effectsToggleButton, label: catalog.title(of: .effectsToggle)) }
         if let entry = Self.dockToggleItems[identifier] { return makeDockToggleItem(identifier, entry) }
-        guard let entry = Self.toolbarCommands[identifier] else { return nil }
-        let title = catalog.title(of: entry.command)
+        if let entry = Self.toolbarCommands[identifier] {
+            let title = catalog.title(of: entry.command)
+            let item = NSToolbarItem(itemIdentifier: identifier)
+            item.image = NSImage(systemSymbolName: entry.symbol, accessibilityDescription: title)
+            item.label = title
+            item.paletteLabel = title
+            item.toolTip = title
+            item.isBordered = true
+            item.isNavigational = true
+            item.target = self
+            item.action = #selector(toolbarCommand(_:))
+            return item
+        }
+        let commandID = CommandID(identifier.rawValue)
+        guard let descriptor = catalog.descriptor(commandID), let symbol = descriptor.symbol, !symbol.isEmpty else {
+            return nil
+        }
+        let title = catalog.title(of: commandID)
         let item = NSToolbarItem(itemIdentifier: identifier)
-        item.image = NSImage(systemSymbolName: entry.symbol, accessibilityDescription: title)
+        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
         item.label = title
+        item.paletteLabel = title
         item.toolTip = title
         item.isBordered = true
-        item.isNavigational = true
         item.target = self
         item.action = #selector(toolbarCommand(_:))
         return item
     }
 
+    func toolbarWillAddItem(_ notification: Notification) {
+        guard !isRebuildingToolbar else { return }
+        scheduleToolbarSave()
+    }
+
+    func toolbarDidRemoveItem(_ notification: Notification) {
+        guard !isRebuildingToolbar else { return }
+        scheduleToolbarSave()
+    }
+
+    private func scheduleToolbarSave() {
+        toolbarSaveTask?.cancel()
+        toolbarSaveTask = Task { @MainActor [weak self] in
+            // 等到当前事件循环结束后再读 toolbar.items，确保新增项已落位并合并同一次拖拽的删+增。
+            await Task.yield()
+            guard !Task.isCancelled, let self, let toolbar = window?.toolbar, let menus = services.menus else { return }
+            let items = Self.toolbarItemIDs(of: toolbar)
+            guard menus.value().resolvedToolbar != items else { return }
+            do {
+                try await menus.update { $0.toolbar = items }
+            } catch {
+                logger.error("无法保存工具栏配置到 menus.json：\(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    private func syncToolbarItems(to desired: [ToolbarItemID]) {
+        guard let toolbar = window?.toolbar else { return }
+        guard Self.toolbarItemIDs(of: toolbar) != desired else { return }
+        toolbarSaveTask?.cancel()
+        toolbarSaveTask = nil
+        isRebuildingToolbar = true
+        defer { isRebuildingToolbar = false }
+        for index in stride(from: toolbar.items.count - 1, through: 0, by: -1) {
+            toolbar.removeItem(at: index)
+        }
+        for (index, id) in desired.enumerated() {
+            toolbar.insertItem(withItemIdentifier: Self.toolbarIdentifier(for: id), at: index)
+        }
+        updateBrowseControls()
+        updateDockToggles()
+        toolbar.validateVisibleItems()
+    }
+
     private func viewItem(_ identifier: NSToolbarItem.Identifier, _ view: NSView, label: String) -> NSToolbarItem {
         let item = NSToolbarItem(itemIdentifier: identifier)
         item.label = label
+        item.paletteLabel = label
         item.view = view
         item.isBordered = false
         item.autovalidates = false
@@ -1024,6 +1132,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         // 路径可能很长，不能把后面的工具项挤进溢出菜单。
         stack.widthAnchor.constraint(lessThanOrEqualToConstant: 320).isActive = true
         let item = NSToolbarItem(itemIdentifier: Self.toolbarTitle)
+        item.label = String(localized: "书名")
+        item.paletteLabel = item.label
         item.view = stack
         item.isBordered = false
         item.autovalidates = false
@@ -1032,12 +1142,18 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     }
 
     @objc private func toolbarCommand(_ sender: NSToolbarItem) {
-        guard let entry = Self.toolbarCommands[sender.itemIdentifier] else { return }
-        run(entry.command)
+        if let entry = Self.toolbarCommands[sender.itemIdentifier] {
+            run(entry.command)
+            return
+        }
+        let commandID = CommandID(sender.itemIdentifier.rawValue)
+        guard catalog.descriptor(commandID) != nil else { return }
+        run(commandID)
     }
 
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
-        guard let entry = Self.toolbarCommands[item.itemIdentifier] else { return false }
-        return dispatcher.isEnabled(entry.command, in: self, scope: InputRouter.scope(of: window?.firstResponder))
+        let commandID = Self.toolbarCommands[item.itemIdentifier]?.command ?? CommandID(item.itemIdentifier.rawValue)
+        guard catalog.descriptor(commandID) != nil else { return false }
+        return dispatcher.isEnabled(commandID, in: self, scope: InputRouter.scope(of: window?.firstResponder))
     }
 }

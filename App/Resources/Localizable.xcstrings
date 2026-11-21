@@ -1023,6 +1023,16 @@
         }
       }
     },
+    "为当前窗口的停靠布局输入一个名称。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a name for the current window dock layout."
+          }
+        }
+      }
+    },
     "为此文件夹建立索引": {
       "localizations": {
         "en": {
@@ -1051,6 +1061,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Book"
+          }
+        }
+      }
+    },
+    "书名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Book Title"
           }
         }
       }
@@ -1231,6 +1251,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save"
+          }
+        }
+      }
+    },
+    "保存为布局方案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save as Layout Scheme"
           }
         }
       }
@@ -2761,6 +2791,16 @@
         }
       }
     },
+    "已保存布局方案“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved layout scheme “%@”"
+          }
+        }
+      }
+    },
     "已写入": {
       "localizations": {
         "en": {
@@ -2877,6 +2917,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Settings already applied to books will not be affected."
+          }
+        }
+      }
+    },
+    "已套用布局方案“%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applied layout scheme “%@”"
           }
         }
       }
@@ -3029,6 +3079,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Redid %@"
+          }
+        }
+      }
+    },
+    "布局方案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layout Schemes"
           }
         }
       }
@@ -3939,6 +3999,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "New Profile"
+          }
+        }
+      }
+    },
+    "方案名称": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheme Name"
           }
         }
       }
@@ -6231,6 +6301,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No History Yet"
+          }
+        }
+      }
+    },
+    "还没有布局方案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Layout Schemes"
           }
         }
       }
