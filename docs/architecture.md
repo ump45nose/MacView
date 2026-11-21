@@ -266,6 +266,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     - 滚轮与触控板：按 `hasPreciseScrollingDeltas` 区分鼠标与触控板，结合修饰键分派 `WheelAction`（`.standard` / `.zoom` / `.commands` / `.none`）；分页模式未横向溢出且处于 `.standard` 时以 `trackSwipeEvent` 识别双指横扫；`smartMagnify` 与 `rotate` 分别分派双指轻点与旋转（累计阈值 25°）。
 - 菜单与右键：
   - `CommandCatalog` 从 `MenuFile`（`menus.json`）构建主菜单、查看器右键菜单与工具栏模型，缺省回退默认结构；`menus.json` 支持热重载，解析失败时保留上一份可用配置并在界面提示。
+  - 决定：用户保存的菜单树和工具栏列表整份替换默认值，不做逐项差异合并（“恢复默认”才拿到新增命令）；键盘与非键盘输入绑定同放 `keybindings.json`，冲突检测和导出只看一份文件。改成差异合并要重写菜单模型的合并与编辑器的保存。
   - `MenuBuilder` 将模型渲染成 `NSMenu`（主菜单与查看器右键菜单），支持 `MenuNode.dynamic` 动态子菜单（`openWith`、`moveTo`、`copyTo`、`displayProfiles`、`rating`、`layoutSchemes`），单键绑定同步显示为菜单项快捷键。
   - `ContextMenuProvider` 按命令 ID 或 `DynamicMenuID` 提供查看器右键菜单条目（文件操作、资料库、元数据、显示配置、布局方案注册专门提供者）；未注册专门提供者的命令回退为通用菜单项，执行时经 `CommandRegistry.perform` 并将点中项写入 `CommandContext.selection`。
 
