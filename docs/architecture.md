@@ -254,14 +254,20 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 
 ### 3.7 命令与输入
 
-- 菜单、快捷键、手势、脚本和插件都通过 `CommandRegistry.perform` 执行命令。Core 定义命令清单和默认绑定，App 注册与界面相关的处理器。
+- 菜单、快捷键、手势、脚本和插件都通过 `CommandRegistry.perform` 执行命令。Core 定义命令清单和默认绑定，App 注册与界面相关的处理器；`frame.left` / `frame.right` 按当前阅读方向（左开/右开）换算为上一帧或下一帧，供手势、点击区域与横扫复用。
 - 输入路由：
   - 文本框、弹出层和菜单先在 AppKit 响应链里处理按键。
   - 没被处理的按键由 InputRouter 转成 KeyChord，连同作用域（global/viewer/list/textInput）交给 BindingResolver。这样可以避免移植版那种“在弹出层里按方向键却触发了切书”的问题（`portable/docs/known-issues.md` 的 MAC-INPUT-005）。
   - 多键序列有超时，等待后续按键时界面显示待定提示。
-- 菜单：
-  - 菜单模型由命令清单生成默认树，P1 起可以编辑。
-  - MenuBuilder 把模型渲染成 NSMenu，单键绑定同步显示为菜单项的快捷键。
+- 查看器非键盘输入：
+  - `ViewerGestureRecognizer` 挂在 `ViewerContainerView`（分页与连续模式共享），动态读取生效的 `InputBindings`：
+    - 右键手势与右键菜单共存：`rightMouseDown` 起动 `MouseGestureTracker` 与本地 Esc 监听；拖动超过阈值后在 `GestureTrailView`（`hitTest` 透传）绘制轨迹、方向序列与待执行命令标题，松开执行匹配命令；按 Esc 取消并隐藏浮层且不弹菜单；未拖动即松开时经 `NSMenu.popUpContextMenu` 弹出右键菜单。
+    - 点击区域：分页模式无修饰键左键单击（位移 `< 4 pt`）按视图宽度三等分（左/中/右）命中 `ClickZone` 绑定，单页与双页共用；左键拖动平移或拖出文件时跳过。
+    - 滚轮与触控板：按 `hasPreciseScrollingDeltas` 区分鼠标与触控板，结合修饰键分派 `WheelAction`（`.standard` / `.zoom` / `.commands` / `.none`）；分页模式未横向溢出且处于 `.standard` 时以 `trackSwipeEvent` 识别双指横扫；`smartMagnify` 与 `rotate` 分别分派双指轻点与旋转（累计阈值 25°）。
+- 菜单与右键：
+  - `CommandCatalog` 从 `MenuFile`（`menus.json`）构建主菜单、查看器右键菜单与工具栏模型，缺省回退默认结构；`menus.json` 支持热重载，解析失败时保留上一份可用配置并在界面提示。
+  - `MenuBuilder` 将模型渲染成 `NSMenu`（主菜单与查看器右键菜单），支持 `MenuNode.dynamic` 动态子菜单（`openWith`、`moveTo`、`copyTo`、`displayProfiles`、`rating`、`layoutSchemes`），单键绑定同步显示为菜单项快捷键。
+  - `ContextMenuProvider` 按命令 ID 或 `DynamicMenuID` 提供查看器右键菜单条目（文件操作、资料库、元数据、显示配置、布局方案注册专门提供者）；未注册专门提供者的命令回退为通用菜单项，执行时经 `CommandRegistry.perform` 并将点中项写入 `CommandContext.selection`。
 
 ### 3.8 前端架构
 
@@ -279,17 +285,21 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     - 同一本书开在两个标签时，两者共用一份书记忆，恢复到最后保存的页。全屏不进会话，恢复成全屏前的 frame。
 - 状态与错误：
   - `VolumeStatusView` 显示当前书所在卷的 degraded 和 unavailable，状态栏同时显示一行；书整本打不开时由查看器的提示显示，不重复。探测成功后自动重试失败项。
-  - 配置错误按文件各一条（`settings.json`、`path-rules.json`、`profiles.json`、`keybindings.json`、`session.json`、`state.sqlite`），修好后消失。`layout.json` 的错误由停靠框架显示。
+  - 配置错误按文件各一条（`settings.json`、`path-rules.json`、`profiles.json`、`keybindings.json`、`menus.json`、`session.json`、`state.sqlite`），修好后消失。`layout.json` 的错误由停靠框架显示。
 - `NSApp.terminate` 不能在主队列的块或主 actor 任务里直接调用：`terminateLater` 的嵌套循环排不空主队列，退出流程的主线程任务永远跑不了。用 `perform(_:with:afterDelay:)`。
 - 菜单与快捷键：
-  - 菜单由命令清单生成。global 作用域的绑定是真正的菜单快捷键，焦点在文本框里或没有窗口时也可用。
+  - 主菜单与查看器右键菜单由 `CommandCatalog` 按 `menus.json`（缺省为默认树）生成，经 `MenuBuilder` 与 `ContextMenuProvider` 渲染；`menus.json` 变更后自动热重载。global 作用域的绑定是真正的菜单快捷键，焦点在文本框里或没有窗口时也可用。
   - 其余作用域的绑定只在菜单打开时（`menuWillOpen`）写到菜单项上，关闭后清除，按键一律经 InputRouter 路由。
   - 原因：菜单项一直带着 →、⌘G 这类快捷键时，AppKit 会在按键到达响应链之前匹配它们，菜单项不可用时还会吞掉按键；`menuHasKeyEquivalent` 返回 false 也拦不住（S1-F1 实测）。
+- 工具栏：
+  - `NSToolbar` 设 `autosavesConfiguration = false`、`allowsUserCustomization = true`，由 `MenuFile.resolvedToolbar` 驱动；窗口启动与 `menus.json` 热重载时同步工具栏项（重建期间抑制写回）。
+  - 用户拖放自定义触发 `toolbarWillAddItem` / `toolbarDidRemoveItem` 后，在当前事件循环结束时合并写回 `menus.json`；命令清单中带 `symbol` 的通用命令自动作为可选按钮，可通过 `ReaderWindowController.runToolbarCustomization()` 打开系统自定义面板。
 - 停靠框架：
   - NSSplitView 分出左、中、右三栏，底部区在中间栏下方。
   - 每个区放一个面板栈（标签页或上下分割），面板可以拖到别的区。
   - 浮动面板全应用只有一份，是共享的 NSPanel，作用于当前活动窗口。
   - 全屏时停靠区自动隐藏，鼠标靠近边缘时浮出。
+  - 命名布局方案：`DockCoordinator` 读写 `layout-schemes.json`（v1）；`layout.scheme.save` 按名保存当前窗口停靠布局（同名覆盖，缺参数时弹输入框），`layout.scheme.apply` 套用并立即持久化 `layout.json`；主菜单“窗口 → 布局方案”经动态子菜单列出已保存方案。
   - S1-F2 的结论（[报告](reports/S1-F2.md)）：
     - “折叠”就是隐藏：区不占空间，面板与尺寸保留，没有只剩标题条的形态。区头按钮、显示命令、把分隔线拖到边缘，效果相同。
     - 面板浮动后，其他窗口中停靠着的同一面板随之移走。拖回某个窗口后，其他窗口不会自动出现这个面板。
@@ -345,7 +355,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - `library` 返回 `historyCount`、按时间从新到旧的 `history`（`book`、`openedAt`）、完整 `bookmarks` 树（文件夹为 `folder`、`children`，书为 `book`、`label`）、`playlists`（`id`、`name`、`count`、`recent`）。服务没有资料库时为 `null`；读取失败时为含 `error` 的对象。
   - 合成滚动和屏幕状态有关：屏幕锁定时事件不生效。
   - 首屏计时的状态机和可见缩略图回报（`ReaderWindowController` 的 `beginFirstScreenThumbnails` 等、`CollectionView.onVisibleThumbnails`、`CanvasView.onImageApplied`）只在 Debug 编译，Release 二进制里没有这些符号。
-- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`、`-MVFileOpsSelfTest YES|net-kill|net-verify`（后两个是网络卷验收，见 S3-F2 报告）、`-MVLibrarySelfTest YES`（真实服务，历史、书签、播放列表与虚拟书；必须加 `-MVSelfTestActivate YES`，点击、拖放、按键走真实事件，右键菜单取视图的菜单后执行其动作，弹出按钮选择后发送其动作；详见 [S3-F1 报告](reports/S3-F1.md)）、`-MVEffectsSelfTest render|panel`（`render` 验效果滤镜挂点、背景、开关与复制/拖出调色 PNG；`panel` 验效果面板、调色滑块、背景、显示配置保存/套用/全局/路径规则与 `profiles.json` 错误恢复）。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。自检默认不激活 App，离不开键盘焦点的项走未激活的回退或记 `SKIP`；加 `-MVSelfTestActivate YES` 才激活，留给用户键鼠空闲时跑；这时要经 LaunchServices（`open -n`）启动才拿得到前台，进不了前台的自检直接失败，汇总前打印前台采样比例。自检的临时文件放在 `-MVSupportDirectory` 下的 `selftest-tmp/`，不写持久偏好。结果行是 `SELFTEST OK|FAILED n commit=… cdhash=…`。
+- 自检：`-MVSelfTest`（外壳）、`-MVDockSelfTest <阶段>`、`-MVViewerSelfTest`、`-MVPanelSelfTest`、`-MVSettingsSelfTest`、`-MVSessionSelfTest <阶段>`、`-MVFileOpsSelfTest YES|net-kill|net-verify`（后两个是网络卷验收，见 S3-F2 报告）、`-MVLibrarySelfTest YES`（真实服务，历史、书签、播放列表与虚拟书；必须加 `-MVSelfTestActivate YES`，点击、拖放、按键走真实事件，右键菜单取视图的菜单后执行其动作，弹出按钮选择后发送其动作；详见 [S3-F1 报告](reports/S3-F1.md)）、`-MVEffectsSelfTest render|panel`（`render` 验效果滤镜挂点、背景、开关与复制/拖出调色 PNG；`panel` 验效果面板、调色滑块、背景、显示配置保存/套用/全局/路径规则与 `profiles.json` 错误恢复）、`-MVInputSelfTest viewer`（验右键手势与右键菜单共存、Esc 取消、点击区域与拖动互斥、滚轮分派与自定义绑定、`menus.json` 驱动主菜单/右键菜单热重载与解析失败提示、模型驱动工具栏写回及命名布局方案）。截图输出到 `-MVSelfTestOutput`，`-MVAppearance dark|light` 选外观，`-AppleLanguages '(en)'` 选语言。依赖事件和前台窗口的项要在屏幕解锁时运行。自检默认不激活 App，离不开键盘焦点的项走未激活的回退或记 `SKIP`；加 `-MVSelfTestActivate YES` 才激活，留给用户键鼠空闲时跑；这时要经 LaunchServices（`open -n`）启动才拿得到前台，进不了前台的自检直接失败，汇总前打印前台采样比例。自检的临时文件放在 `-MVSupportDirectory` 下的 `selftest-tmp/`，不写持久偏好。结果行是 `SELFTEST OK|FAILED n commit=… cdhash=…`。
 - 观测：用 os_signpost 标记帧时间和请求延迟，用 Instruments 的 Animation Hitches 验收。
 - 构建身份：构建阶段“记录源码提交”把 `git rev-parse HEAD`（工作树有改动时加 `-dirty`）写进 Info.plist 的 `MVSourceCommit`。验收证据和录制都记 App 的 commit 与 CDHash，`run.py --g2` 只认与被验收 App 一致的证据，见 [S2-T2 报告](reports/S2-T2.md)。
 
