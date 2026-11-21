@@ -432,6 +432,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     private func render() {
         updateTitle()
         viewer.refresh()
+        chrome.setFrostedBackground(session.settings.background == .frostedGlass)
         updateBrowseControls()
         content.statusBar.refresh(session)
         window?.toolbar?.validateVisibleItems()
@@ -793,6 +794,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     func windowWillEnterFullScreen(_ notification: Notification) {
         chrome.willEnterFullScreen()
+        viewer.setFullScreen(true)
         dock.setAutoHide(true)
     }
 
@@ -802,6 +804,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     func windowDidFailToEnterFullScreen(_ window: NSWindow) {
         chrome.didFailToEnterFullScreen()
+        viewer.setFullScreen(false)
         dock.setAutoHide(false)
     }
 
@@ -812,6 +815,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     func windowDidExitFullScreen(_ notification: Notification) {
         chrome.didExitFullScreen()
+        viewer.setFullScreen(false)
     }
 
     func windowDidMove(_ notification: Notification) {

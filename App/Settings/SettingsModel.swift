@@ -245,6 +245,19 @@ struct OverrideField: Identifiable {
     static let scaleModes: [(String, ScaleMode)] = ScaleMode.allModes.map { (ViewerHUD.title(of: $0), $0) }
     static let sortKeys: [(String, SortKey)] = [SortKey.name, .modified, .created, .size, .type, .random].map { (SortMenu.title($0), $0) }
     static let resamples: [(String, ResampleFilter)] = [("Lanczos", .lanczos), (String(localized: "最近邻"), .nearest)]
+    static let backgrounds: [(String, ViewerBackground)] = EffectsPanelView.BackgroundOption.allCases.compactMap { option in
+        let value: ViewerBackground? = switch option {
+        case .auto: .auto
+        case .black: .black
+        case .gray: .gray
+        case .white: .white
+        case .checkerboard: .checkerboard
+        case .frostedGlass: .frostedGlass
+        case .imageColor: .imageColor
+        case .custom: nil
+        }
+        return value.map { (option.title, $0) }
+    }
 
     static let all: [OverrideField] = [
         .enum("browseMode", String(localized: "浏览方式"), \.browseMode, \.browseMode, browseModes),
@@ -281,17 +294,7 @@ struct OverrideField: Identifiable {
             id: "background", title: String(localized: "背景"), isSet: { $0.background != nil }, clear: { $0.background = nil },
             seed: { $0.background = $1.background },
             text: { DisplayProfileHelpers.summary(of: .background, in: $0) },
-            control: .choice(EffectsPanelView.BackgroundOption.allCases.compactMap { option in
-                let value: ViewerBackground? = switch option {
-                case .auto: .auto
-                case .black: .black
-                case .gray: .gray
-                case .white: .white
-                case .checkerboard: .checkerboard
-                case .custom: nil
-                }
-                return value.map { value in (option.title, { $0.background = value }) }
-            })
+            control: .choice(backgrounds.map { option in (option.0, { $0.background = option.1 }) })
         ),
     ]
 }

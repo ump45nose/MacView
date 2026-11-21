@@ -261,6 +261,15 @@ struct DisplaySettingsPage: View {
                         }
                     }
                 }
+                SettingsSection(title: String(localized: "背景")) {
+                    SettingsRow(title: String(localized: "默认背景")) {
+                        SettingsPopup(
+                            label: String(localized: "默认背景"),
+                            options: Self.backgroundOptions(current: model.global.defaultBook.background),
+                            selection: book(model, \.background)
+                        )
+                    }
+                }
                 SettingsSection(title: String(localized: "大图")) {
                     SettingsRow(title: String(localized: "解码尺寸上限"), detail: String(localized: "按屏幕所需尺寸解码，长边不超过此值；放大超过时改用原图，超大图分块显示")) {
                         HStack(spacing: 6) {
@@ -283,6 +292,13 @@ struct DisplaySettingsPage: View {
         .onAppear { decodeText = String(model.global.maxDecodeLongSide) }
         .onChange(of: model.global.maxDecodeLongSide) { _, value in decodeText = String(value) }
         .onDisappear(perform: commitDecode)
+    }
+
+    private static func backgroundOptions(current: ViewerBackground) -> [(String, ViewerBackground)] {
+        if case .custom = current {
+            return OverrideField.backgrounds + [(String(localized: "自定义"), current)]
+        }
+        return OverrideField.backgrounds
     }
 
     private func commitDecode() {

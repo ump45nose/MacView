@@ -5,6 +5,7 @@ import AppKit
 final class FileErrorBanner: NSView {
     private let fileURL: URL
     private let onClose: () -> Void
+    private let tintLayer = CALayer()
     private let bottomLine = CALayer()
 
     init(title: String, detail: String, fileURL: URL, onClose: @escaping () -> Void) {
@@ -12,6 +13,7 @@ final class FileErrorBanner: NSView {
         self.onClose = onClose
         super.init(frame: .zero)
         wantsLayer = true
+        layer?.addSublayer(tintLayer)
         layer?.addSublayer(bottomLine)
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
@@ -79,7 +81,8 @@ final class FileErrorBanner: NSView {
     override var wantsUpdateLayer: Bool { true }
 
     override func updateLayer() {
-        layer?.backgroundColor = Theme.dangerSoft.cgColor
+        layer?.backgroundColor = Theme.ground.cgColor
+        tintLayer.backgroundColor = Theme.dangerSoft.cgColor
         bottomLine.backgroundColor = Theme.line.cgColor
     }
 
@@ -87,6 +90,7 @@ final class FileErrorBanner: NSView {
         super.layout()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        tintLayer.frame = bounds
         bottomLine.frame = CGRect(x: 0, y: 0, width: bounds.width, height: 0.5)
         CATransaction.commit()
     }

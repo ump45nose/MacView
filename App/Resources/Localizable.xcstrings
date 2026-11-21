@@ -3581,6 +3581,16 @@
         }
       }
     },
+    "按图取色": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Image"
+          }
+        }
+      }
+    },
     "按大小排序": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -4853,6 +4863,16 @@
         }
       }
     },
+    "毛玻璃": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frosted"
+          }
+        }
+      }
+    },
     "永久删除": {
       "localizations": {
         "en": {
@@ -6073,6 +6093,16 @@
         }
       }
     },
+    "自动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto"
+          }
+        }
+      }
+    },
     "自定义": {
       "localizations": {
         "en": {
@@ -7209,6 +7239,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Auto"
+          }
+        }
+      }
+    },
+    "默认背景": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default Background"
           }
         }
       }

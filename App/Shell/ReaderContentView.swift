@@ -61,6 +61,8 @@ final class ReaderContentView: NSView {
         wantsLayer = true
         topBackdrop.wantsLayer = true
         topBackdrop.layer?.backgroundColor = Theme.ground.cgColor
+        banners.wantsLayer = true
+        banners.layer?.backgroundColor = Theme.ground.cgColor
         banners.orientation = .vertical
         banners.alignment = .width
         banners.spacing = 0
@@ -109,6 +111,7 @@ final class ReaderContentView: NSView {
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         topBackdrop.layer?.backgroundColor = Theme.ground.cgColor
+        banners.layer?.backgroundColor = Theme.ground.cgColor
         updateDropBorder()
     }
 

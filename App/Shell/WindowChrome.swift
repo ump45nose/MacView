@@ -227,9 +227,11 @@ final class WindowChrome {
         if isFrostedBackground && !isFullScreen {
             window.isOpaque = false
             window.backgroundColor = .clear
+            window.titlebarAppearsTransparent = appearance.titleBar != .shown
         } else {
             window.isOpaque = true
             window.backgroundColor = Theme.ground
+            window.titlebarAppearsTransparent = true
         }
     }
 

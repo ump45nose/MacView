@@ -68,7 +68,7 @@ enum DisplayProfileHelpers {
 
         case .background:
             switch settings.background {
-            case .auto: return String(localized: "默认")
+            case .auto: return String(localized: "自动")
             case .black: return String(localized: "黑")
             case .gray: return String(localized: "灰")
             case .white: return String(localized: "白")

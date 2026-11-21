@@ -70,22 +70,31 @@ final class EffectsPanelView: NSView {
     }
 
     enum BackgroundOption: CaseIterable {
-        case auto, black, gray, white, custom, checkerboard
+        case auto, black, gray, white, checkerboard, frostedGlass, imageColor, custom
 
         var title: String {
             switch self {
-            case .auto: String(localized: "默认")
+            case .auto: String(localized: "自动")
             case .black: String(localized: "黑")
             case .gray: String(localized: "灰")
             case .white: String(localized: "白")
-            case .custom: String(localized: "自定义")
             case .checkerboard: String(localized: "棋盘格")
+            case .frostedGlass: String(localized: "毛玻璃")
+            case .imageColor: String(localized: "按图取色")
+            case .custom: String(localized: "自定义")
             }
         }
 
         func matches(_ background: ViewerBackground) -> Bool {
             switch (self, background) {
-            case (.auto, .auto), (.black, .black), (.gray, .gray), (.white, .white), (.checkerboard, .checkerboard), (.custom, .custom):
+            case (.auto, .auto),
+                 (.black, .black),
+                 (.gray, .gray),
+                 (.white, .white),
+                 (.checkerboard, .checkerboard),
+                 (.frostedGlass, .frostedGlass),
+                 (.imageColor, .imageColor),
+                 (.custom, .custom):
                 true
             default:
                 false
@@ -144,6 +153,12 @@ final class EffectsPanelView: NSView {
     func swatchView(for option: BackgroundOption) -> NSView? {
         swatches[option]
     }
+
+    #if DEBUG
+    func swatchLabel(for option: BackgroundOption) -> NSTextField? {
+        swatches[option]?.labelField
+    }
+    #endif
 
     func apply(
         hasBook: Bool,
@@ -273,36 +288,53 @@ final class EffectsPanelView: NSView {
         section.addArrangedSubview(header)
         section.setCustomSpacing(8, after: header)
 
-        let row = NSStackView()
-        row.orientation = .horizontal
-        row.alignment = .top
-        row.distribution = .fillEqually
-        row.spacing = 4
-        for option in BackgroundOption.allCases {
-            let swatch = BackgroundSwatchView(option: option)
-            swatch.onClick = { [weak self] in
-                guard let self else { return }
-                switch option {
-                case .auto: onSelectBackground?(.auto)
-                case .black: onSelectBackground?(.black)
-                case .gray: onSelectBackground?(.gray)
-                case .white: onSelectBackground?(.white)
-                case .checkerboard: onSelectBackground?(.checkerboard)
-                case .custom:
-                    if let srgb = customColor.usingColorSpace(.sRGB) {
-                        onSelectBackground?(.custom(
-                            red: Double(srgb.redComponent),
-                            green: Double(srgb.greenComponent),
-                            blue: Double(srgb.blueComponent)
-                        ))
+        let rows: [[BackgroundOption]] = [
+            [.auto, .black, .gray, .white],
+            [.checkerboard, .frostedGlass, .imageColor, .custom],
+        ]
+        let grid = NSStackView()
+        grid.orientation = .vertical
+        grid.alignment = .leading
+        grid.spacing = 6
+        grid.setContentHuggingPriority(.init(1), for: .horizontal)
+        for rowOptions in rows {
+            let row = NSStackView()
+            row.orientation = .horizontal
+            row.alignment = .top
+            row.distribution = .fillEqually
+            row.spacing = 4
+            row.setContentHuggingPriority(.init(1), for: .horizontal)
+            for option in rowOptions {
+                let swatch = BackgroundSwatchView(option: option)
+                swatch.onClick = { [weak self] in
+                    guard let self else { return }
+                    switch option {
+                    case .auto: onSelectBackground?(.auto)
+                    case .black: onSelectBackground?(.black)
+                    case .gray: onSelectBackground?(.gray)
+                    case .white: onSelectBackground?(.white)
+                    case .checkerboard: onSelectBackground?(.checkerboard)
+                    case .frostedGlass: onSelectBackground?(.frostedGlass)
+                    case .imageColor: onSelectBackground?(.imageColor)
+                    case .custom:
+                        if let srgb = customColor.usingColorSpace(.sRGB) {
+                            onSelectBackground?(.custom(
+                                red: Double(srgb.redComponent),
+                                green: Double(srgb.greenComponent),
+                                blue: Double(srgb.blueComponent)
+                            ))
+                        }
+                        onPickCustomColor?()
                     }
-                    onPickCustomColor?()
                 }
+                swatches[option] = swatch
+                row.addArrangedSubview(swatch)
             }
-            swatches[option] = swatch
-            row.addArrangedSubview(swatch)
+            grid.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: grid.widthAnchor).isActive = true
         }
-        section.addArrangedSubview(row)
+        section.addArrangedSubview(grid)
+        grid.widthAnchor.constraint(equalTo: section.widthAnchor, constant: -24).isActive = true
         return section
     }
 
@@ -549,8 +581,10 @@ private final class BackgroundSwatchView: NSView {
     var onClick: (() -> Void)?
 
     private let tile = SwatchTileView()
-    private let label = NSTextField(labelWithString: "")
+    private let label = NSTextField(wrappingLabelWithString: "")
     private var isEnabled = true
+
+    var labelField: NSTextField { label }
 
     init(option: EffectsPanelView.BackgroundOption) {
         self.option = option
@@ -561,16 +595,23 @@ private final class BackgroundSwatchView: NSView {
         label.font = .systemFont(ofSize: 10)
         label.textColor = Theme.text2
         label.alignment = .center
-        label.lineBreakMode = .byTruncatingTail
+        label.maximumNumberOfLines = 2
+        label.lineBreakMode = .byWordWrapping
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        label.setContentHuggingPriority(.init(1), for: .horizontal)
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(tile)
         addSubview(label)
+        let tileWidth = tile.widthAnchor.constraint(equalToConstant: 44)
+        tileWidth.priority = .defaultHigh
         NSLayoutConstraint.activate([
             tile.topAnchor.constraint(equalTo: topAnchor, constant: 2),
             tile.centerXAnchor.constraint(equalTo: centerXAnchor),
-            tile.widthAnchor.constraint(equalToConstant: 32),
-            tile.heightAnchor.constraint(equalToConstant: 32),
-            label.topAnchor.constraint(equalTo: tile.bottomAnchor, constant: 4),
+            tile.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor),
+            tile.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            tileWidth,
+            tile.heightAnchor.constraint(equalToConstant: 30),
+            label.topAnchor.constraint(equalTo: tile.bottomAnchor, constant: 3),
             label.leadingAnchor.constraint(equalTo: leadingAnchor),
             label.trailingAnchor.constraint(equalTo: trailingAnchor),
             label.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -588,6 +629,7 @@ private final class BackgroundSwatchView: NSView {
     func update(selected: Bool, isEnabled: Bool, customColor: NSColor) {
         self.isEnabled = isEnabled
         alphaValue = isEnabled ? 1 : 0.45
+        label.textColor = selected ? Theme.text : Theme.text2
         tile.isSelected = selected
         tile.customColor = customColor
         tile.needsDisplay = true
@@ -642,7 +684,7 @@ private final class SwatchTileView: NSView {
             NSColor.white.setFill()
             inner.fill()
             NSColor(srgbRed: 0xCF / 255, green: 0xCD / 255, blue: 0xC4 / 255, alpha: 1).setFill()
-            let step: CGFloat = 6
+            let step: CGFloat = 5
             var y = inner.minY
             var row = 0
             while y < inner.maxY {
@@ -658,6 +700,52 @@ private final class SwatchTileView: NSView {
                 y += step
                 row += 1
             }
+        case .frostedGlass:
+            let isDark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let base = isDark
+                ? NSColor(srgbRed: 0x26 / 255, green: 0x25 / 255, blue: 0x23 / 255, alpha: 1)
+                : NSColor(srgbRed: 0xF0 / 255, green: 0xEE / 255, blue: 0xE6 / 255, alpha: 1)
+            base.setFill()
+            inner.fill()
+            if let ctx = NSGraphicsContext.current?.cgContext,
+               let cs = CGColorSpace(name: CGColorSpace.sRGB) {
+                let blueColors = [
+                    CGColor(srgbRed: 111 / 255, green: 168 / 255, blue: 220 / 255, alpha: isDark ? 0.55 : 0.7),
+                    CGColor(srgbRed: 111 / 255, green: 168 / 255, blue: 220 / 255, alpha: 0),
+                ] as CFArray
+                if let g1 = CGGradient(colorsSpace: cs, colors: blueColors, locations: [0, 1]) {
+                    let c1 = CGPoint(x: inner.minX + inner.width * 0.28, y: inner.maxY - inner.height * 0.35)
+                    ctx.drawRadialGradient(g1, startCenter: c1, startRadius: 0, endCenter: c1, endRadius: inner.width * 0.55, options: [])
+                }
+                let warmColors = [
+                    CGColor(srgbRed: 230 / 255, green: 145 / 255, blue: 56 / 255, alpha: isDark ? 0.5 : 0.6),
+                    CGColor(srgbRed: 230 / 255, green: 145 / 255, blue: 56 / 255, alpha: 0),
+                ] as CFArray
+                if let g2 = CGGradient(colorsSpace: cs, colors: warmColors, locations: [0, 1]) {
+                    let c2 = CGPoint(x: inner.minX + inner.width * 0.74, y: inner.maxY - inner.height * 0.68)
+                    ctx.drawRadialGradient(g2, startCenter: c2, startRadius: 0, endCenter: c2, endRadius: inner.width * 0.55, options: [])
+                }
+            }
+        case .imageColor:
+            let isDark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let tint = isDark
+                ? NSColor(srgbRed: 0x45 / 255, green: 0x3E / 255, blue: 0x34 / 255, alpha: 1)
+                : NSColor(srgbRed: 0xE9 / 255, green: 0xE0 / 255, blue: 0xCF / 255, alpha: 1)
+            tint.setFill()
+            inner.fill()
+            let pageWidth = inner.width * 0.36
+            let pageRect = NSRect(
+                x: inner.midX - pageWidth / 2,
+                y: inner.minY + 3.5,
+                width: pageWidth,
+                height: max(inner.height - 7, 4)
+            )
+            NSColor.white.setFill()
+            pageRect.fill()
+            NSColor.black.withAlphaComponent(0.22).setStroke()
+            let border = NSBezierPath(rect: pageRect.insetBy(dx: 0.25, dy: 0.25))
+            border.lineWidth = 0.5
+            border.stroke()
         }
         NSGraphicsContext.restoreGraphicsState()
 

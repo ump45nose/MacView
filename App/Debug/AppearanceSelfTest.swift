@@ -1,6 +1,9 @@
 #if DEBUG
 import AppKit
+import AVFoundation
 import CoreGraphics
+import CoreMedia
+import CoreVideo
 import ImageIO
 import MVCommands
 import MVFoundation
@@ -10,9 +13,9 @@ import MVServices
 import MVSettings
 import UniformTypeIdentifiers
 
-/// 外观与窗口外观自检（`-MVAppearanceSelfTest chrome` / `restart-verify`）。
+/// 外观与窗口外观自检（`-MVAppearanceSelfTest chrome` / `restart-verify` / `background`）。
 ///
-/// 覆盖阶段 2 检查项 C2.1–C2.10（含 C2.5b）。
+/// 覆盖阶段 2 检查项 C2.1–C2.14（含 C2.5b、C2.12b）。
 @MainActor
 final class AppearanceSelfTest {
     static let launchKey = "MVAppearanceSelfTest"
@@ -54,6 +57,11 @@ final class AppearanceSelfTest {
             exit(log.summarize())
         case "restart-verify":
             await runRestartVerify(window: window)
+            try? FileManager.default.removeItem(at: temporary)
+            await app.services?.shutdown()
+            exit(log.summarize())
+        case "background":
+            await runBackgroundSuite(controller: controller, window: window)
             try? FileManager.default.removeItem(at: temporary)
             await app.services?.shutdown()
             exit(log.summarize())
@@ -981,6 +989,513 @@ final class AppearanceSelfTest {
 
     private func settle(_ ms: Int = 100) async {
         try? await Task.sleep(for: .milliseconds(ms))
+    }
+
+    // MARK: background 自检（C2.11–C2.14）
+
+    private actor AsyncGate {
+        private var entered = false
+        private var released = false
+        private var enterWaiters: [CheckedContinuation<Void, Never>] = []
+        private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+
+        func arriveAndWait() async {
+            entered = true
+            let waiters = enterWaiters
+            enterWaiters.removeAll()
+            waiters.forEach { $0.resume() }
+            if released { return }
+            await withCheckedContinuation { continuation in
+                if released {
+                    continuation.resume()
+                } else {
+                    releaseWaiters.append(continuation)
+                }
+            }
+        }
+
+        func waitUntilEntered() async {
+            if entered { return }
+            await withCheckedContinuation { continuation in
+                if entered {
+                    continuation.resume()
+                } else {
+                    enterWaiters.append(continuation)
+                }
+            }
+        }
+
+        func release() {
+            released = true
+            let waiters = releaseWaiters
+            releaseWaiters.removeAll()
+            waiters.forEach { $0.resume() }
+        }
+    }
+
+    private func runBackgroundSuite(controller: ReaderWindowController, window: NSWindow) async {
+        do {
+            try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+            let fixtures = try await makeBackgroundFixtures()
+
+            window.setContentSize(NSSize(width: 1120, height: 740))
+            TestPresentation.place(window)
+            window.makeKeyAndOrderFront(nil)
+
+            // 打开右侧效果面板并确保停靠区可见，供 C2.11 / C2.13 / C2.14 检查。
+            app.dock?.perform(in: controller.dock) { layout in
+                var next = layout
+                if !next.isPanelVisible(DockPanels.effects) {
+                    next = next.togglingPanel(DockPanels.effects, defaultEdge: .right)
+                }
+                if !next.isShowing(.right) {
+                    next = next.settingCollapsed(.right, false)
+                }
+                return next.selecting(DockPanels.effects)
+            }
+            await openBook(controller, url: fixtures.book1)
+            controller.session.update {
+                $0.browseMode = .paged
+                $0.pageMode = .single
+                $0.background = .auto
+            }
+            await settle(250)
+
+            await checkC211FrostedGlass(controller: controller, window: window)
+            await checkC212bStaleEdgeColorRejected(controller: controller, window: window, fixtures: fixtures)
+            await checkC212ImageEdgeColor(controller: controller, window: window, fixtures: fixtures)
+            await checkC213SwatchesProfilesAndSettings(controller: controller, window: window, fixtures: fixtures)
+            await checkC214BackgroundLayoutNoTruncation(controller: controller, window: window)
+        } catch {
+            log.check(false, "背景自检异常：\(error)")
+        }
+    }
+
+    // MARK: C2.11 毛玻璃
+
+    private func checkC211FrostedGlass(controller: ReaderWindowController, window: NSWindow) async {
+        controller.session.update { $0.background = .frostedGlass }
+        let frostedOn = await waitUntil(timeoutMs: 1500) {
+            !controller.viewer.frostedEffectView.isHidden && !window.isOpaque
+        }
+        await settle(100)
+        window.displayIfNeeded()
+
+        let effectView = controller.viewer.frostedEffectView
+        let blendingOK = effectView.blendingMode == .behindWindow
+        let dockArea = controller.dock.areas[.right]
+        let dockOpaque = (dockArea?.layer?.backgroundColor?.alpha ?? 0) >= 0.99
+        let statusOpaque = (controller.content.statusBar.layer?.backgroundColor?.alpha ?? 0) >= 0.99
+
+        log.check(
+            frostedOn && blendingOK && !window.isOpaque && dockOpaque && statusOpaque,
+            "C2.11 毛玻璃开启：effectVisible=\(!effectView.isHidden)，behindWindow=\(blendingOK)，windowOpaque=\(window.isOpaque)，停靠区不透明=\(dockOpaque)，状态栏不透明=\(statusOpaque)"
+        )
+
+        controller.session.update { $0.background = .auto }
+        let restored = await waitUntil(timeoutMs: 1500) {
+            window.isOpaque && controller.viewer.frostedEffectView.isHidden
+        }
+        log.check(
+            restored && window.isOpaque && controller.viewer.frostedEffectView.isHidden,
+            "C2.11 换回自动后恢复：windowOpaque=\(window.isOpaque)，effectHidden=\(controller.viewer.frostedEffectView.isHidden)"
+        )
+    }
+
+    // MARK: C2.12b 取色进行中切回自动或换书
+
+    private func checkC212bStaleEdgeColorRejected(
+        controller: ReaderWindowController,
+        window: NSWindow,
+        fixtures: (book1: URL, book2: URL)
+    ) async {
+        ImageEdgeColorCache.shared.removeAll()
+        controller.session.go(.index(0))
+        controller.session.update { $0.background = .auto }
+        await settle(100)
+
+        // 1. 取色进行中切回“自动”：迟到的结果不得改背景。
+        let gate1 = AsyncGate()
+        controller.viewer.debugEdgeColorFetchHook = { _ in
+            await gate1.arriveAndWait()
+        }
+        controller.session.update { $0.background = .imageColor }
+        await gate1.waitUntilEntered()
+        controller.session.update { $0.background = .auto }
+        await settle(60)
+        await gate1.release()
+        await settle(180)
+        controller.viewer.debugEdgeColorFetchHook = nil
+
+        let expectedCanvas = resolvedThemeColor(Theme.canvas, in: controller.viewer.effectiveAppearance)
+        let colorAfterCancel = controller.viewer.layer?.backgroundColor.flatMap(srgbColor)
+        let stayedAuto = controller.session.settings.background == .auto
+            && colorsAlmostEqual(colorAfterCancel, expectedCanvas, tolerance: 0.03)
+        log.check(
+            stayedAuto,
+            "C2.12b 取色中切回自动：迟到结果未覆盖背景（matchesAuto=\(stayedAuto)）"
+        )
+
+        // 2. 取色进行中换书：换书后背景先为“自动”，旧书迟到结果不改新书背景。
+        ImageEdgeColorCache.shared.removeAll()
+        // 预先把 Book2 默认背景也设为 imageColor（通过全局默认），这样换到 Book2 后立刻进入按图取色流程。
+        try? await app.services?.settings.updateGlobal { $0.defaultBook.background = .imageColor }
+        await settle(120)
+
+        let book1Gate = AsyncGate()
+        let book2Gate = AsyncGate()
+        controller.viewer.debugEdgeColorFetchHook = { identity in
+            if identity.location.name == "01_white.png" {
+                await book1Gate.arriveAndWait()
+            } else {
+                await book2Gate.arriveAndWait()
+            }
+        }
+        controller.session.go(.index(0))
+        controller.session.update { $0.background = .imageColor }
+        await book1Gate.waitUntilEntered()
+
+        // 切换到 Book2。
+        await openBook(controller, url: fixtures.book2)
+        await book2Gate.waitUntilEntered()
+        let expectedCanvasBook2 = resolvedThemeColor(Theme.canvas, in: controller.viewer.effectiveAppearance)
+        let colorOnNewBookInitial = controller.viewer.layer?.backgroundColor.flatMap(srgbColor)
+        let startsAsAuto = controller.viewer.currentEdgeColor == nil
+            && colorsAlmostEqual(colorOnNewBookInitial, expectedCanvasBook2, tolerance: 0.03)
+
+        // 放行 Book1 的迟到结果，确认不会覆盖 Book2 的背景。
+        await book1Gate.release()
+        await settle(180)
+        let colorAfterStaleBook1 = controller.viewer.layer?.backgroundColor.flatMap(srgbColor)
+        let staleBook1Ignored = controller.viewer.currentEdgeColor == nil
+            && colorsAlmostEqual(colorAfterStaleBook1, expectedCanvasBook2, tolerance: 0.03)
+
+        // 放行 Book2 并还原全局默认背景。
+        await book2Gate.release()
+        controller.viewer.debugEdgeColorFetchHook = nil
+        try? await app.services?.settings.updateGlobal { $0.defaultBook.background = .auto }
+        await settle(150)
+
+        log.check(
+            startsAsAuto && staleBook1Ignored,
+            "C2.12b 取色中换书：新书初始为自动(\(startsAsAuto))，旧书迟到结果未覆盖(\(staleBook1Ignored))"
+        )
+
+        // 切回 Book1 继续 C2.12。
+        await openBook(controller, url: fixtures.book1)
+        await settle(120)
+    }
+
+    // MARK: C2.12 按图取色
+
+    private func checkC212ImageEdgeColor(
+        controller: ReaderWindowController,
+        window: NSWindow,
+        fixtures: (book1: URL, book2: URL)
+    ) async {
+        _ = fixtures
+        controller.session.update { $0.background = .auto }
+        await settle(80)
+        ImageEdgeColorCache.shared.removeAll()
+        controller.viewer.debugResetEdgeColorCounters()
+        controller.session.go(.index(0)) // 01_white.png
+        controller.session.update { $0.background = .imageColor }
+
+        let whiteOK = await waitUntil(timeoutMs: 1000) {
+            guard let edge = controller.viewer.currentEdgeColor,
+                  let layer = controller.viewer.layer?.backgroundColor.flatMap(self.srgbColor) else { return false }
+            let layerLum = 0.2126 * layer.redComponent + 0.7152 * layer.greenComponent + 0.0722 * layer.blueComponent
+            return edge.luminance > 0.85 && layerLum > 0.85
+        }
+        log.check(
+            whiteOK,
+            "C2.12 白底页 1 秒内背景亮度 > 0.85（lum=\(String(format: "%.3f", controller.viewer.currentEdgeColor?.luminance ?? -1))）"
+        )
+
+        controller.session.go(.index(1)) // 02_dark.png
+        let darkOK = await waitUntil(timeoutMs: 1000) {
+            guard let edge = controller.viewer.currentEdgeColor,
+                  let layer = controller.viewer.layer?.backgroundColor.flatMap(self.srgbColor) else { return false }
+            let layerLum = 0.2126 * layer.redComponent + 0.7152 * layer.greenComponent + 0.0722 * layer.blueComponent
+            return edge.luminance < 0.3 && layerLum < 0.3
+        }
+        let darkColor = controller.viewer.currentEdgeColor
+        log.check(
+            darkOK,
+            "C2.12 深色页 1 秒内背景亮度 < 0.3（lum=\(String(format: "%.3f", darkColor?.luminance ?? -1))）"
+        )
+
+        // 翻到视频页：颜色保持不变。
+        controller.session.go(.index(2)) // 03_video.mp4
+        await settle(250)
+        let videoUnchanged = controller.viewer.currentEdgeColor == darkColor
+        log.check(videoUnchanged, "C2.12 翻到视频页背景颜色不变=\(videoUnchanged)")
+
+        // 回到已缓存的白底页：命中缓存不再请求缩略图。
+        let countBeforeCacheHit = controller.viewer.debugEdgeColorThumbnailCount
+        controller.session.go(.index(0)) // 01_white.png
+        let cacheHitApplied = await waitUntil(timeoutMs: 1000) {
+            (controller.viewer.currentEdgeColor?.luminance ?? 0) > 0.85
+        }
+        let countAfterCacheHit = controller.viewer.debugEdgeColorThumbnailCount
+        log.check(
+            cacheHitApplied && countAfterCacheHit == countBeforeCacheHit,
+            "C2.12 命中缓存不再请求缩略图（before=\(countBeforeCacheHit)，after=\(countAfterCacheHit)）"
+        )
+
+        // 连续快速翻 5 页（index 3...7），最终颜色应对应第 7 页（08_purple.png: 155, 55, 220）。
+        for idx in 3...7 {
+            controller.session.go(.index(idx))
+        }
+        let expectedPurple = NSColor(srgbRed: 155 / 255, green: 55 / 255, blue: 220 / 255, alpha: 1)
+        let rapidFinalOK = await waitUntil(timeoutMs: 2000) {
+            guard let edge = controller.viewer.currentEdgeColor else { return false }
+            return self.colorsAlmostEqual(edge.nsColor, expectedPurple, tolerance: 0.08)
+        }
+        log.check(
+            rapidFinalOK,
+            "C2.12 连续快速翻 5 页最终颜色对应最后一页（purple=\(rapidFinalOK)，actual=\(String(describing: controller.viewer.currentEdgeColor))）"
+        )
+        _ = window
+    }
+
+    // MARK: C2.13 效果面板 8 色块、显示配置与设置下拉
+
+    private func checkC213SwatchesProfilesAndSettings(
+        controller: ReaderWindowController,
+        window: NSWindow,
+        fixtures: (book1: URL, book2: URL)
+    ) async {
+        guard let panel = controller.effectsPanel, let services = app.services else {
+            log.check(false, "C2.13 效果面板未打开")
+            return
+        }
+        panel.panelView.layoutSubtreeIfNeeded()
+        await settle(80)
+
+        var allSwatchesClickedOK = true
+        for option in EffectsPanelView.BackgroundOption.allCases {
+            guard let swatch = panel.panelView.swatchView(for: option) else {
+                allSwatchesClickedOK = false
+                continue
+            }
+            let center = swatch.convert(NSPoint(x: swatch.bounds.midX, y: swatch.bounds.midY), to: nil)
+            sendMouseClick(at: center, in: window, modifiers: [])
+            let matched = await waitUntil(timeoutMs: 1000) {
+                option.matches(controller.session.settings.background)
+            }
+            if !matched {
+                allSwatchesClickedOK = false
+            }
+            if option == .custom {
+                NSColorPanel.shared.close()
+            }
+        }
+        log.check(
+            allSwatchesClickedOK && EffectsPanelView.BackgroundOption.allCases.count == 8,
+            "C2.13 效果面板 8 个色块点击全部写入书层 background=\(allSwatchesClickedOK)"
+        )
+
+        // 选中毛玻璃，存为显示配置，切到另一本书并套用。
+        if let frostedSwatch = panel.panelView.swatchView(for: .frostedGlass) {
+            let center = frostedSwatch.convert(NSPoint(x: frostedSwatch.bounds.midX, y: frostedSwatch.bounds.midY), to: nil)
+            sendMouseClick(at: center, in: window, modifiers: [])
+        }
+        _ = await waitUntil(timeoutMs: 1000) { controller.session.settings.background == .frostedGlass }
+
+        let profileName = "C2.13-Frosted"
+        panel.saveProfile(name: profileName, groups: [.background], from: controller.session.settings)
+        let savedProfileReady = await waitUntil(timeoutMs: 1500) {
+            panel.profiles.contains { $0.name == profileName }
+        }
+        let savedProfile = panel.profiles.first { $0.name == profileName }
+
+        await openBook(controller, url: fixtures.book2)
+        controller.session.update { $0.background = .auto }
+        await settle(100)
+        if let savedProfile {
+            DisplayProfileHelpers.applyToBook(savedProfile, in: controller)
+        }
+        let appliedOnBook2 = await waitUntil(timeoutMs: 1000) {
+            controller.session.settings.background == .frostedGlass
+        }
+        if let savedProfile {
+            panel.deleteProfile(id: savedProfile.id)
+        }
+        controller.session.update { $0.background = .auto }
+        await settle(100)
+
+        // 核对设置“显示”页默认背景选项与路径规则背景选项包含两项新值。
+        let displayValues = OverrideField.backgrounds.map(\.1)
+        let displayHasBoth = displayValues.contains(.frostedGlass) && displayValues.contains(.imageColor)
+        let pathRuleHasBoth: Bool = {
+            guard let field = OverrideField.all.first(where: { $0.id == "background" }),
+                  case let .choice(options) = field.control else { return false }
+            var sawFrosted = false
+            var sawImageColor = false
+            for opt in options {
+                var probe = BookSettings()
+                opt.apply(&probe)
+                if probe.background == .frostedGlass { sawFrosted = true }
+                if probe.background == .imageColor { sawImageColor = true }
+            }
+            return sawFrosted && sawImageColor
+        }()
+        var frostedSample = ResolvedBookSettings.default
+        frostedSample.background = .frostedGlass
+        var imageColorSample = ResolvedBookSettings.default
+        imageColorSample.background = .imageColor
+        let summaryOK = DisplayProfileHelpers.summary(of: .background, in: frostedSample) == String(localized: "毛玻璃")
+            && DisplayProfileHelpers.summary(of: .background, in: imageColorSample) == String(localized: "按图取色")
+
+        _ = services
+        log.check(
+            savedProfileReady && appliedOnBook2 && displayHasBoth && pathRuleHasBoth && summaryOK,
+            "C2.13 显示配置跨书套用=\(savedProfileReady && appliedOnBook2)，设置显示页含两新值=\(displayHasBoth)，路径规则含两新值=\(pathRuleHasBoth)，摘要正确=\(summaryOK)"
+        )
+    }
+
+    // MARK: C2.14 浅色/深色、中英文下效果面板背景区无截断
+
+    private func checkC214BackgroundLayoutNoTruncation(controller: ReaderWindowController, window: NSWindow) async {
+        guard let panel = controller.effectsPanel else {
+            log.check(false, "C2.14 效果面板未打开")
+            return
+        }
+        let panelView = panel.panelView
+        let savedAppearance = window.appearance
+        let savedTitles: [EffectsPanelView.BackgroundOption: String] = Dictionary(
+            uniqueKeysWithValues: EffectsPanelView.BackgroundOption.allCases.compactMap { opt in
+                panelView.swatchLabel(for: opt).map { (opt, $0.stringValue) }
+            }
+        )
+
+        let zhTitles: [EffectsPanelView.BackgroundOption: String] = [
+            .auto: "自动", .black: "黑", .gray: "灰", .white: "白",
+            .checkerboard: "棋盘格", .frostedGlass: "毛玻璃", .imageColor: "按图取色", .custom: "自定义",
+        ]
+        let enTitles: [EffectsPanelView.BackgroundOption: String] = [
+            .auto: "Auto", .black: "Black", .gray: "Gray", .white: "White",
+            .checkerboard: "Checker", .frostedGlass: "Frosted", .imageColor: "From Image", .custom: "Custom",
+        ]
+
+        var failures: [String] = []
+        for modeName in ["light", "dark"] {
+            window.appearance = NSAppearance(named: modeName == "dark" ? .darkAqua : .aqua)
+            for (lang, titles) in [("zh", zhTitles), ("en", enTitles)] {
+                for (opt, text) in titles {
+                    panelView.swatchLabel(for: opt)?.stringValue = text
+                }
+                panelView.needsLayout = true
+                panelView.layoutSubtreeIfNeeded()
+                await settle(40)
+
+                for (opt, text) in titles {
+                    guard let label = panelView.swatchLabel(for: opt), let font = label.font else {
+                        failures.append("\(modeName)/\(lang)/\(opt): missing label")
+                        continue
+                    }
+                    let availableWidth = label.bounds.width
+                    let availableHeight = label.bounds.height
+                    let attrs: [NSAttributedString.Key: Any] = [.font: font]
+                    let singleLineHeight = ceil(("Ag" as NSString).size(withAttributes: attrs).height)
+                    // 每个单词宽度不能超过可用宽度，否则会被硬截断。
+                    for word in text.split(separator: " ") {
+                        let wordWidth = ceil((String(word) as NSString).size(withAttributes: attrs).width)
+                        if wordWidth > availableWidth + 1.0 {
+                            failures.append("\(modeName)/\(lang)/\(text): wordWidth(\(wordWidth)) > \(availableWidth)")
+                        }
+                    }
+                    let wrapped = (text as NSString).boundingRect(
+                        with: NSSize(width: max(availableWidth, 1), height: 200),
+                        options: [.usesLineFragmentOrigin, .usesFontLeading],
+                        attributes: attrs
+                    )
+                    let maxLines = (lang == "en" && opt == .imageColor) ? 2 : 1
+                    let maxAllowedHeight = singleLineHeight * CGFloat(maxLines) + 2.0
+                    if wrapped.height > maxAllowedHeight || wrapped.height > availableHeight + 2.0 {
+                        failures.append("\(modeName)/\(lang)/\(text): wrappedH=\(wrapped.height), availH=\(availableHeight), maxH=\(maxAllowedHeight)")
+                    }
+                }
+            }
+        }
+
+        // 还原外观与文案。
+        for (opt, text) in savedTitles {
+            panelView.swatchLabel(for: opt)?.stringValue = text
+        }
+        window.appearance = savedAppearance
+        panelView.layoutSubtreeIfNeeded()
+
+        log.check(
+            failures.isEmpty,
+            "C2.14 浅色/深色、中英文效果面板背景区布局无截断（failures=\(failures.joined(separator: "; "))）"
+        )
+    }
+
+    private func resolvedThemeColor(_ color: NSColor, in appearance: NSAppearance) -> NSColor? {
+        var resolved: NSColor?
+        appearance.performAsCurrentDrawingAppearance {
+            resolved = color.usingColorSpace(.sRGB)
+        }
+        return resolved
+    }
+
+    private func makeBackgroundFixtures() async throws -> (book1: URL, book2: URL) {
+        let root = temporary.appending(path: "bg-books", directoryHint: .isDirectory)
+        let book1 = root.appending(path: "BgBook1", directoryHint: .isDirectory)
+        let book2 = root.appending(path: "BgBook2", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: book1, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: book2, withIntermediateDirectories: true)
+
+        try writeSolidPNG(to: book1.appending(path: "01_white.png"), r: 250, g: 250, b: 250)
+        try writeSolidPNG(to: book1.appending(path: "02_dark.png"), r: 24, g: 24, b: 24)
+        try await Self.writeMinimalMP4(to: book1.appending(path: "03_video.mp4"))
+        try writeSolidPNG(to: book1.appending(path: "04_red.png"), r: 230, g: 45, b: 45)
+        try writeSolidPNG(to: book1.appending(path: "05_green.png"), r: 45, g: 210, b: 70)
+        try writeSolidPNG(to: book1.appending(path: "06_blue.png"), r: 40, g: 95, b: 235)
+        try writeSolidPNG(to: book1.appending(path: "07_amber.png"), r: 235, g: 170, b: 35)
+        try writeSolidPNG(to: book1.appending(path: "08_purple.png"), r: 155, g: 55, b: 220)
+
+        try writeSolidPNG(to: book2.appending(path: "01_cyan.png"), r: 30, g: 200, b: 210)
+        return (book1, book2)
+    }
+
+    private nonisolated static func writeMinimalMP4(to url: URL) async throws {
+        try? FileManager.default.removeItem(at: url)
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: 160,
+            AVVideoHeightKey: 120,
+        ])
+        let receiver = writer.inputPixelBufferReceiver(
+            for: input,
+            pixelBufferAttributes: CVPixelBufferCreationAttributes(
+                pixelFormatType: CVPixelFormatType(rawValue: kCVPixelFormatType_32BGRA),
+                size: CVImageSize(width: 160, height: 120)
+            )
+        )
+        try writer.start()
+        writer.startSession(atSourceTime: .zero)
+        for index in 0..<2 {
+            guard let pool = receiver.pixelBufferPool else {
+                throw NSError(domain: "AppearanceSelfTest", code: 11)
+            }
+            var buffer = try pool.makeMutablePixelBuffer()
+            buffer.accessUnsafeMutableRawPlaneBytes { planes in
+                for plane in planes {
+                    plane.bytes.initializeMemory(as: UInt8.self, repeating: UInt8(80 + index * 40))
+                }
+            }
+            try await receiver.append(CVReadOnlyPixelBuffer(buffer), with: CMTime(value: Int64(index), timescale: 2))
+        }
+        receiver.finish()
+        writer.endSession(atSourceTime: CMTime(value: 1, timescale: 1))
+        await writer.finishWriting()
+        guard writer.status == .completed else {
+            throw writer.error ?? NSError(domain: "AppearanceSelfTest", code: 12)
+        }
     }
 }
 #endif

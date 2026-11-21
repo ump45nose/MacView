@@ -3,14 +3,18 @@ import MVCommands
 import MVFoundation
 import MVIO
 import MVLibraryData
+import MVMedia
 import MVPipeline
 import MVReading
 import MVSettings
+import QuartzCore
 
 /// 主区的查看器：按浏览方式切换分页和连续视图，回报视口，显示没有书、读取中和打开失败的提示。
 @MainActor
 final class ViewerContainerView: NSView, InputScoped {
     private let session: ReaderSession
+    private let pipeline: any ImagePipeline
+    private let frostedView = NSVisualEffectView()
     let paged: PagedViewerView
     let continuous: ContinuousViewer
     let hud: ViewerHUD
@@ -39,6 +43,23 @@ final class ViewerContainerView: NSView, InputScoped {
     private(set) var effectsEnabled = true
     private var appliedEffects: EffectChain = .empty
     private var appliedBackground: ViewerBackground = .auto
+    private(set) var isFullScreen = false
+    private var edgeColorBook: Location?
+    private var edgeColorGeneration: UInt64 = 0
+    private var edgeColorTask: Task<Void, Never>?
+    private var lastImageColor: EdgeColor?
+    private var lastSampledIdentity: ContentIdentity?
+
+    #if DEBUG
+    var frostedEffectView: NSVisualEffectView { frostedView }
+    var currentEdgeColor: EdgeColor? { lastImageColor }
+    private(set) var debugEdgeColorThumbnailCount = 0
+    var debugEdgeColorFetchHook: (@Sendable (ContentIdentity) async -> Void)?
+
+    func debugResetEdgeColorCounters() {
+        debugEdgeColorThumbnailCount = 0
+    }
+    #endif
 
     var inputScope: InputScope { .viewer }
 
@@ -52,6 +73,7 @@ final class ViewerContainerView: NSView, InputScoped {
 
     init(session: ReaderSession, services: ViewerServices) {
         self.session = session
+        pipeline = services.pipeline
         checker = services.availability
         paged = PagedViewerView(session: session, pipeline: services.pipeline, sources: services.sources)
         continuous = ContinuousViewer(session: session, pipeline: services.pipeline, settings: services.settings, bookshelf: services.bookshelf)
@@ -60,6 +82,18 @@ final class ViewerContainerView: NSView, InputScoped {
         super.init(frame: .zero)
         wantsLayer = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
+        frostedView.blendingMode = .behindWindow
+        frostedView.material = .underWindowBackground
+        frostedView.state = .active
+        frostedView.isHidden = true
+        frostedView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(frostedView)
+        NSLayoutConstraint.activate([
+            frostedView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            frostedView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            frostedView.topAnchor.constraint(equalTo: topAnchor),
+            frostedView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
         for view in [paged, continuous] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
@@ -199,11 +233,59 @@ final class ViewerContainerView: NSView, InputScoped {
     override var wantsUpdateLayer: Bool { true }
 
     override func updateLayer() {
-        layer?.backgroundColor = Self.backgroundColor(
-            for: appliedBackground,
-            isEmptyState: isEmptyState,
-            appearance: effectiveAppearance
-        )
+        applyBackgroundColor(animated: false)
+    }
+
+    func setFullScreen(_ fullScreen: Bool) {
+        guard isFullScreen != fullScreen else { return }
+        isFullScreen = fullScreen
+        updateFrostedVisibility()
+        applyBackgroundColor(animated: false)
+    }
+
+    private func updateFrostedVisibility() {
+        frostedView.isHidden = !(appliedBackground == .frostedGlass && !isFullScreen)
+    }
+
+    private func resolvedBackgroundColor() -> CGColor {
+        if appliedBackground == .frostedGlass && !isFullScreen {
+            return NSColor.clear.cgColor
+        }
+        if appliedBackground == .imageColor {
+            if let lastImageColor {
+                return lastImageColor.cgColor
+            }
+            return Self.backgroundColor(for: .auto, isEmptyState: isEmptyState, appearance: effectiveAppearance)
+        }
+        return Self.backgroundColor(for: appliedBackground, isEmptyState: isEmptyState, appearance: effectiveAppearance)
+    }
+
+    private func applyBackgroundColor(animated: Bool) {
+        guard let layer else { return }
+        let targetColor = resolvedBackgroundColor()
+        if animated,
+           appliedBackground == .imageColor,
+           let fromColor = layer.presentation()?.backgroundColor ?? layer.backgroundColor,
+           fromColor != targetColor,
+           fromColor.colorSpace?.model != .pattern,
+           targetColor.colorSpace?.model != .pattern {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            layer.backgroundColor = targetColor
+            CATransaction.commit()
+            let animation = CABasicAnimation(keyPath: "backgroundColor")
+            animation.fromValue = fromColor
+            animation.toValue = targetColor
+            animation.duration = 0.2
+            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            layer.add(animation, forKey: "backgroundColor")
+        } else {
+            layer.removeAnimation(forKey: "backgroundColor")
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            layer.backgroundColor = targetColor
+            CATransaction.commit()
+        }
     }
 
     private static let lightCheckerboard = makeCheckerboardColor(
@@ -307,10 +389,7 @@ final class ViewerContainerView: NSView, InputScoped {
         updateSourcePill()
         checkAvailability()
         applyEffectsIfNeeded()
-        if appliedBackground != session.settings.background {
-            appliedBackground = session.settings.background
-            needsDisplay = true
-        }
+        updateBackgroundState()
         if session.settings.browseMode == .paged {
             continuous.isHidden = true
             continuous.leave()
@@ -326,6 +405,134 @@ final class ViewerContainerView: NSView, InputScoped {
         }
         hud.refresh()
         hud.updateZoom(percent: paged.displayPercent)
+    }
+
+    private func updateBackgroundState() {
+        let currentBook = session.book?.location
+        if currentBook != edgeColorBook {
+            edgeColorBook = currentBook
+            edgeColorGeneration &+= 1
+            edgeColorTask?.cancel()
+            edgeColorTask = nil
+            lastImageColor = nil
+            lastSampledIdentity = nil
+            if appliedBackground == .imageColor {
+                applyBackgroundColor(animated: false)
+            }
+        }
+
+        let newBackground = session.settings.background
+        if appliedBackground != newBackground {
+            let involvesImageColor = appliedBackground == .imageColor || newBackground == .imageColor
+            appliedBackground = newBackground
+            if involvesImageColor {
+                edgeColorGeneration &+= 1
+                edgeColorTask?.cancel()
+                edgeColorTask = nil
+                lastImageColor = nil
+                lastSampledIdentity = nil
+            }
+            updateFrostedVisibility()
+            applyBackgroundColor(animated: false)
+        }
+
+        if appliedBackground == .imageColor {
+            updateImageEdgeColorIfNeeded()
+        }
+    }
+
+    private func targetPageForEdgeColor() -> Page? {
+        guard let book = session.book else { return nil }
+        let pageIndex: Int
+        if session.settings.browseMode == .paged,
+           session.frames.indices.contains(session.currentFrame),
+           let firstInReadingOrder = session.frames[session.currentFrame].elements.map(\.page).min() {
+            pageIndex = firstInReadingOrder
+        } else {
+            pageIndex = session.currentPage
+        }
+        guard book.pages.indices.contains(pageIndex) else { return nil }
+        return book.pages[pageIndex]
+    }
+
+    private func updateImageEdgeColorIfNeeded() {
+        guard let page = targetPageForEdgeColor() else { return }
+        if page.entry.kind == .video {
+            if lastSampledIdentity != page.entry.identity {
+                lastSampledIdentity = page.entry.identity
+                edgeColorGeneration &+= 1
+                edgeColorTask?.cancel()
+                edgeColorTask = nil
+            }
+            return
+        }
+        let identity = page.entry.identity
+        guard lastSampledIdentity != identity else { return }
+        lastSampledIdentity = identity
+        edgeColorGeneration &+= 1
+        edgeColorTask?.cancel()
+        edgeColorTask = nil
+
+        if let cached = ImageEdgeColorCache.shared.color(for: identity) {
+            let changed = lastImageColor != cached
+            lastImageColor = cached
+            if changed {
+                applyBackgroundColor(animated: true)
+            }
+            return
+        }
+
+        let generation = edgeColorGeneration
+        let sessionID = session.id
+        let pipeline = self.pipeline
+        #if DEBUG
+        debugEdgeColorThumbnailCount += 1
+        let fetchHook = debugEdgeColorFetchHook
+        #endif
+        edgeColorTask = Task.detached(priority: .userInitiated) { [weak self] in
+            let rendered: RenderedImage
+            do {
+                rendered = try await pipeline.thumbnail(
+                    for: identity,
+                    maxPixel: ImageEdgeColor.thumbnailMaxPixel,
+                    priority: .visible
+                )
+            } catch {
+                return
+            }
+            let sampled = ImageEdgeColor.sample(from: rendered.image)
+            #if DEBUG
+            if let fetchHook {
+                await fetchHook(identity)
+            } else if Task.isCancelled {
+                return
+            }
+            #else
+            if Task.isCancelled { return }
+            #endif
+            await MainActor.run { [weak self] in
+                self?.receiveEdgeColor(sampled, sessionID: sessionID, identity: identity, generation: generation)
+            }
+        }
+    }
+
+    private func receiveEdgeColor(_ color: EdgeColor?, sessionID: SessionID, identity: ContentIdentity, generation: UInt64) {
+        if let color {
+            ImageEdgeColorCache.shared.store(color, for: identity)
+        }
+        guard session.id == sessionID,
+              edgeColorGeneration == generation,
+              appliedBackground == .imageColor,
+              lastSampledIdentity == identity else {
+            return
+        }
+        edgeColorTask = nil
+        guard let color else { return }
+        let changed = lastImageColor != color
+        lastImageColor = color
+        if changed {
+            applyBackgroundColor(animated: true)
+        }
     }
 
     func setEffectsEnabled(_ enabled: Bool) {
@@ -349,6 +556,9 @@ final class ViewerContainerView: NSView, InputScoped {
     /// 窗口关闭时取消全部请求。
     func cancelLoads() {
         gestureRecognizer.reset()
+        edgeColorGeneration &+= 1
+        edgeColorTask?.cancel()
+        edgeColorTask = nil
         checkTasks.values.forEach { $0.cancel() }
         checkTasks = [:]
         for (center, token) in activationTokens { center.removeObserver(token) }
