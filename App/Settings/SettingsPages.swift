@@ -6,7 +6,7 @@ import SwiftUI
 
 /// 设置窗口的各页。
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case browse, display, cache, rules, files, shortcuts, pointer
+    case browse, display, cache, rules, files, shortcuts, pointer, menus
 
     var id: String { rawValue }
 
@@ -19,6 +19,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .files: String(localized: "文件")
         case .shortcuts: String(localized: "快捷键")
         case .pointer: String(localized: "鼠标与触控板")
+        case .menus: String(localized: "菜单与工具栏")
         }
     }
 }
@@ -66,6 +67,7 @@ struct SettingsRootView: View {
                 case .files: FileSettingsPage(model: state.model)
                 case .shortcuts: ShortcutsSettingsPage(model: state.model.shortcuts)
                 case .pointer: PointerSettingsPage(model: state.model.pointer)
+                case .menus: MenusSettingsPage(model: state.model.menus)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

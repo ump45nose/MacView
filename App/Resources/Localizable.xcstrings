@@ -7592,6 +7592,196 @@
           }
         }
       }
+    },
+    "菜单与工具栏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menus & Toolbar"
+          }
+        }
+      }
+    },
+    "右键菜单": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context Menu"
+          }
+        }
+      }
+    },
+    "主菜单": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Main Menu"
+          }
+        }
+      }
+    },
+    "工具栏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toolbar"
+          }
+        }
+      }
+    },
+    "菜单与工具栏分段": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menus and Toolbar Section"
+          }
+        }
+      }
+    },
+    "当前菜单": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current Menu"
+          }
+        }
+      }
+    },
+    "全部命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Commands"
+          }
+        }
+      }
+    },
+    "搜索命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Commands"
+          }
+        }
+      }
+    },
+    "子菜单": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submenu"
+          }
+        }
+      }
+    },
+    "新建子菜单": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Submenu"
+          }
+        }
+      }
+    },
+    "分隔线": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Separator"
+          }
+        }
+      }
+    },
+    "动态": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dynamic"
+          }
+        }
+      }
+    },
+    "拖到左侧加入菜单，或双击直接加入；拖动左侧条目可调整顺序与层级。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag to the left to add to the menu, or double-click to append. Drag items on the left to reorder or nest."
+          }
+        }
+      }
+    },
+    "工具栏预览": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toolbar Preview"
+          }
+        }
+      }
+    },
+    "自定义工具栏…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize Toolbar…"
+          }
+        }
+      }
+    },
+    "弹性空白": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flexible Space"
+          }
+        }
+      }
+    },
+    "空白": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Space"
+          }
+        }
+      }
+    },
+    "需要至少打开一个查看器窗口才能自定义工具栏。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open at least one viewer window to customize the toolbar."
+          }
+        }
+      }
+    },
+    "点“自定义工具栏…”打开系统自定义面板拖放条目，结果自动保存到 menus.json。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click “Customize Toolbar…” to open the system customization sheet. Changes are saved to menus.json."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
