@@ -11,7 +11,6 @@ import QuartzCore
 final class VideoPageView: NSView {
     let identity: ContentIdentity
     private let sources: any SourceRegistry
-    private let pipeline: any ImagePipeline
     private var pendingStartTime: Double?
     private let playerLayer = AVPlayerLayer()
     private(set) var player: AVPlayer?
@@ -38,7 +37,6 @@ final class VideoPageView: NSView {
     init(identity: ContentIdentity, sources: any SourceRegistry, pipeline: any ImagePipeline, startTime: Double? = nil) {
         self.identity = identity
         self.sources = sources
-        self.pipeline = pipeline
         self.pendingStartTime = startTime.flatMap { $0.isFinite ? max(0, $0) : nil }
         self.previewLoader = VideoPreviewLoader(pipeline: pipeline)
         super.init(frame: .zero)
@@ -341,6 +339,7 @@ final class VideoPageView: NSView {
     }
 
     private func stopHoverPreview() {
+        guard isHoveringSlider || isDraggingSlider || !hoverPopover.isHidden || previewLoader.identity != nil else { return }
         isHoveringSlider = false
         isDraggingSlider = false
         hoverPopover.isHidden = true

@@ -166,6 +166,7 @@ final class CanvasView: NSScrollView {
     private var lastScroll = ContinuousClock.now - .seconds(1)
     /// 去抖用的计时器：每次更新把触发时间推后，停止 `settleDelay` 秒后触发一次。
     private var settleTimer: Timer?
+    private var settingsTask: Task<Void, Never>?
     private var videoHoverPreviewEnabled = true
     private var hover: HoverState?
     private var hoverTimer: Timer?
@@ -226,6 +227,8 @@ final class CanvasView: NSScrollView {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    deinit { settingsTask?.cancel() }
 
     #if DEBUG
     override class var isCompatibleWithResponsiveScrolling: Bool { !SyntheticScroll.isInUse }
@@ -591,13 +594,7 @@ final class CanvasView: NSScrollView {
     }
 
     private func setOverlays(_ item: CanvasItem, on layer: CALayer) {
-        let badgeFont = Theme.font(fontRole, size: 11, weight: .medium, monospacedDigits: true)
-        setOverlay("badge", text: item.badge, on: layer) { overlay in
-            overlay.font = badgeFont
-            overlay.fontSize = badgeFont.pointSize
-            overlay.alignmentMode = .center
-            overlay.cornerRadius = 4
-        }
+        setBadge(item.badge, on: layer, layout: false)
         let labelFont = Theme.font(fontRole, size: 11)
         setOverlay("label", text: item.label, on: layer) { overlay in
             overlay.font = labelFont
@@ -864,16 +861,14 @@ final class CanvasView: NSScrollView {
     }
 
     private func observeVideoHoverPreviewSetting(_ settings: any SettingsStore) {
+        settingsTask?.cancel()
         let changes = settings.changes()
-        Task { [weak self] in
+        settingsTask = Task { [weak self] in
             let initial = await settings.global().videoHoverPreview
             self?.setVideoHoverPreviewEnabled(initial)
-            for await change in changes {
-                guard let self else { return }
-                if change == .global {
-                    let enabled = await settings.global().videoHoverPreview
-                    self.setVideoHoverPreviewEnabled(enabled)
-                }
+            for await change in changes where change == .global {
+                guard !Task.isCancelled, let self else { return }
+                self.setVideoHoverPreviewEnabled(await settings.global().videoHoverPreview)
             }
         }
     }
@@ -974,7 +969,7 @@ final class CanvasView: NSScrollView {
         }
         ensureScrubBar(on: tile.layer)
         if let duration = previewLoader.duration {
-            setBadge(Self.formatTime(state.fraction * duration), on: tile.layer)
+            setBadge(CollectionFormat.duration(max(0, state.fraction * duration)), on: tile.layer)
         } else {
             positionOverlays(in: tile.layer)
         }
@@ -999,7 +994,7 @@ final class CanvasView: NSScrollView {
         layer.addSublayer(track)
     }
 
-    private func setBadge(_ text: String?, on layer: CALayer) {
+    private func setBadge(_ text: String?, on layer: CALayer, layout: Bool = true) {
         let badgeFont = Theme.font(fontRole, size: 11, weight: .medium, monospacedDigits: true)
         setOverlay("badge", text: text, on: layer) { overlay in
             overlay.font = badgeFont
@@ -1007,7 +1002,7 @@ final class CanvasView: NSScrollView {
             overlay.alignmentMode = .center
             overlay.cornerRadius = 4
         }
-        positionOverlays(in: layer)
+        if layout { positionOverlays(in: layer) }
     }
 
     private func stopHoverPreview() {
@@ -1029,18 +1024,14 @@ final class CanvasView: NSScrollView {
                 let cached = loader.cached(state.identity)?.contents
                 tile.layer.contentsGravity = contentGravity
                 tile.layer.contents = cached
-                tile.layer.backgroundColor = cached == nil ? NSColor.quaternaryLabelColor.cgColor : nil
+                tile.layer.backgroundColor = nil
+                if cached == nil {
+                    effectiveAppearance.performAsCurrentDrawingAppearance { tile.layer.backgroundColor = NSColor.quaternaryLabelColor.cgColor }
+                }
             }
             setBadge(item.badge, on: tile.layer)
         }
         CATransaction.commit()
-    }
-
-    private static func formatTime(_ seconds: Double) -> String {
-        let total = max(0, Int(seconds.rounded()))
-        return total >= 3600
-            ? String(format: "%d:%02d:%02d", total / 3600, total / 60 % 60, total % 60)
-            : String(format: "%d:%02d", total / 60, total % 60)
     }
 
     // MARK: - 交互

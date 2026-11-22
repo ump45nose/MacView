@@ -35,8 +35,8 @@ final class VideoPreviewLoader {
         task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 for try await frame in pipeline.videoPreviewFrames(for: identity, priority: .near) {
-                    guard !Task.isCancelled else { break }
-                    await self?.receive(frame, generation: gen)
+                    guard !Task.isCancelled, let self else { break }
+                    if !(await self.receive(frame, generation: gen)) { break }
                 }
             } catch {
                 // 取帧失败或取消时保持封面，不向界面报错。
@@ -70,14 +70,15 @@ final class VideoPreviewLoader {
         return nil
     }
 
-    private func receive(_ frame: VideoPreviewFrame, generation gen: UInt64) {
-        guard gen == generation else { return }
-        guard frame.index >= 0, frame.index < VideoPreview.frameCount else { return }
+    private func receive(_ frame: VideoPreviewFrame, generation gen: UInt64) -> Bool {
+        guard gen == generation else { return false }
+        guard frame.index >= 0, frame.index < VideoPreview.frameCount else { return true }
         frames[frame.index] = frame
         if frame.duration > 0 {
             duration = frame.duration
         }
         onFrame?()
+        return true
     }
 
     private func finish(generation gen: UInt64) {
