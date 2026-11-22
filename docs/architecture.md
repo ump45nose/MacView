@@ -172,7 +172,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 按 LRU 淘汰。
   - 写入时先写临时文件再改名，最后更新索引。
   - 启动时不扫描缓存目录。
-- 视频预览先查缩略图内存缓存（每帧键 `<cacheKey>|preview|<index>`），再查 L2 缩略图缓存（键 `<cacheKey>|preview`，20 帧横向拼成一张 JPEG），最后只取缺帧；取齐后独立持有帧集并登记后台拼图写入，临时内存计入在途额度，取消前取到的帧保留在内存，取齐后取消仍写完 L2。每次请求独立打开视频桥，未取齐时取消不写 L2，网络卷同时 `invalidate()` 切断读取；不加入预取计划。
+- 视频预览先查缩略图内存缓存（每帧键 `<cacheKey>|preview|<index>`），再查 L2 缩略图缓存（键 `<cacheKey>|preview`，20 帧横向拼成一张 JPEG），最后只取缺帧；取齐后独立持有帧集并登记后台拼图写入；帧集与拼图的临时内存不计入在途额度（单个视频约 37 MB，只有一个鼠标，同一时刻实际只有一个预览在取，S4-T3 决定），取消前取到的帧保留在内存，取齐后取消仍写完 L2。每次请求独立打开视频桥，未取齐时取消不写 L2，网络卷同时 `invalidate()` 切断读取（只取消生成器时 AVFoundation 仍会继续要数据，S4-T3 前置验证实测）；不加入预取计划，只在悬停时取（NAS 上视频多，预生成太费读取）。从画廊点开的起播时间只在 App 内按「视频身份 + 秒数」传一次，不进 ReaderSession 或书记忆。
 - 元数据索引用定长列，按容器查询，不做泛型存储：泛型 Codable 逐条解码 JSON，1 万项约 28 ms，超出 20 ms 的预算。
 - 内存预算：`CacheBudgets.rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes` 分别控制以上四块内存。`visible` 命中预载时搬到解码缓存；低于 `near` 的基础图和显示图不进缓存。App 的缩略图 `NSCache` 按图像字节计成本，与管线主要共享图像对象；额度在创建时从 `SettingsStore` 读 `thumbnailMemoryBytes` 设上，收到 `.global` 变更时重设（`followThumbnailMemoryBudget`），不另设下限或默认值。`settings.json` 里非正的容量预算在解析时拒绝（`CacheBudgets.init(from:)`），整份文件按配置错误显示并保留上次的值。
 - 内存压力：收到系统的内存压力事件时，把四块内存同时收缩到各自预算的 50% 或 25%。
