@@ -87,56 +87,60 @@ public final class ImageDecoder: Sendable {
 
     /// 一次请求所有时间点，按时间顺序逐帧交付；返回的下标对应输入数组。
     public func videoFrames(_ asset: AVAsset, times: [Double], maxPixel: Int) -> AsyncThrowingStream<(index: Int, image: RenderedImage), any Error> {
-        AsyncThrowingStream { continuation in
-            guard !times.isEmpty else {
-                continuation.finish()
-                return
-            }
-            let holder = VideoFrameGenerator(asset: asset)
-            let generator = holder.value
-            generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: maxPixel, height: maxPixel)
-            generator.requestedTimeToleranceBefore = .zero
-            generator.requestedTimeToleranceAfter = .zero
-            let task = Task {
-                do {
-                    try await limiter.runAsync {
+        videoFrameJob(asset, times: times, maxPixel: maxPixel).frames
+    }
+
+    /// 管线除消费帧流外，还需在取消和关停时等待生成任务真正退出。
+    package func videoFrameJob(_ asset: AVAsset, times: [Double], maxPixel: Int) -> VideoFrameJob {
+        let (frames, continuation) = AsyncThrowingStream<(index: Int, image: RenderedImage), any Error>.makeStream()
+        let holder = VideoFrameGenerator(asset: asset)
+        let generator = holder.value
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: maxPixel, height: maxPixel)
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = .zero
+        let task = Task {
+            do {
+                guard !times.isEmpty else { continuation.finish(); return }
+                try await limiter.runAsync {
+                    try Task.checkCancellation()
+                    let generator = holder.value
+                    let requests = times.enumerated().map { (index: $0.offset, time: CMTime(seconds: $0.element, preferredTimescale: 600_000)) }
+                        .sorted { CMTimeCompare($0.time, $1.time) < 0 }
+                    var remaining = requests
+                    var ready: [Int: RenderedImage] = [:]
+                    var next = 0
+                    for await result in generator.images(for: requests.map(\.time)) {
                         try Task.checkCancellation()
-                        let generator = holder.value
-                        let requests = times.enumerated().map { (index: $0.offset, time: CMTime(seconds: $0.element, preferredTimescale: 600_000)) }
-                            .sorted { CMTimeCompare($0.time, $1.time) < 0 }
-                        var remaining = requests
-                        var ready: [Int: RenderedImage] = [:]
-                        var next = 0
-                        for await result in generator.images(for: requests.map(\.time)) {
-                            try Task.checkCancellation()
-                            guard let position = remaining.firstIndex(where: { CMTimeCompare($0.time, result.requestedTime) == 0 }) else {
-                                throw MediaError.decodeFailed("视频返回了未请求的时间点")
-                            }
-                            let request = remaining.remove(at: position)
-                            let image = try result.image
-                            let rendered = try await self.limiter.runOnQueue { try Bitmap.normalized(image, quality: .exact) }
-                            try Task.checkCancellation()
-                            ready[request.index] = rendered
-                            while next < requests.count, let image = ready.removeValue(forKey: requests[next].index) {
-                                if case .terminated = continuation.yield((requests[next].index, image)) { return }
-                                next += 1
-                            }
+                        guard let position = remaining.firstIndex(where: { CMTimeCompare($0.time, result.requestedTime) == 0 }) else {
+                            throw MediaError.decodeFailed("视频返回了未请求的时间点")
                         }
+                        let request = remaining.remove(at: position)
+                        let image = try result.image
+                        let rendered = try await self.limiter.runOnQueue { try Bitmap.normalized(image, quality: .exact) }
                         try Task.checkCancellation()
-                        guard next == requests.count else { throw MediaError.decodeFailed("视频预览帧不完整") }
+                        ready[request.index] = rendered
+                        while next < requests.count, let image = ready.removeValue(forKey: requests[next].index) {
+                            if case .terminated = continuation.yield((requests[next].index, image)) { return }
+                            next += 1
+                        }
                     }
-                    continuation.finish()
-                } catch {
-                    generator.cancelAllCGImageGeneration()
-                    continuation.finish(throwing: error)
+                    try Task.checkCancellation()
+                    guard next == requests.count else { throw MediaError.decodeFailed("视频预览帧不完整") }
                 }
-            }
-            continuation.onTermination = { @Sendable _ in
-                task.cancel()
-                holder.cancel()
+                continuation.finish()
+            } catch {
+                generator.cancelAllCGImageGeneration()
+                // 消费方取消是正常终止，不能与 AsyncThrowingStream 的取消回调争抢错误结果。
+                if error is CancellationError || Task.isCancelled { continuation.finish() }
+                else { continuation.finish(throwing: error) }
             }
         }
+        continuation.onTermination = { @Sendable _ in
+            task.cancel()
+            holder.cancel()
+        }
+        return VideoFrameJob(frames: frames, task: task, cancel: { holder.cancel() })
     }
 
     package static func source(_ data: Data) throws(MediaError) -> CGImageSource {
@@ -180,6 +184,27 @@ public final class ImageDecoder: Sendable {
             throw .decodeFailed("ImageIO 解码失败")
         }
         return image
+    }
+}
+
+/// 仅包内使用的取帧生命周期句柄；帧流终止并不表示生成任务已经返回。
+package struct VideoFrameJob: Sendable {
+    package let frames: AsyncThrowingStream<(index: Int, image: RenderedImage), any Error>
+    private let task: Task<Void, Never>
+    private let cancel: @Sendable () -> Void
+
+    fileprivate init(frames: AsyncThrowingStream<(index: Int, image: RenderedImage), any Error>, task: Task<Void, Never>, cancel: @escaping @Sendable () -> Void) {
+        self.frames = frames
+        self.task = task
+        self.cancel = cancel
+    }
+
+    package func waitForCompletion() async { await task.value }
+
+    package func cancelAndWait() async {
+        task.cancel()
+        cancel()
+        await task.value
     }
 }
 
@@ -256,9 +281,11 @@ final class WorkLimiter: Sendable {
                     let priority = Task.currentPriority
                     let start: @Sendable () -> Void = { [self] in
                         let task = Task(priority: priority) {
-                            do { continuation.resume(returning: try await body()) }
-                            catch { continuation.resume(throwing: error) }
+                            let result: Result<T, any Error>
+                            do { result = .success(try await body()) }
+                            catch { result = .failure(error) }
                             self.finish(id)
+                            continuation.resume(with: result)
                         }
                         runningTask.withLock { state in
                             state.task = task

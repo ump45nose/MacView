@@ -824,21 +824,28 @@ extension FileImagePipeline {
 #endif
         // videoFrames 自己取得解码限流名额，此处不能持有 decoder.perform 的同一个名额。
         try await withVideo(identity, priority: priority) { asset, _ in
-            for try await frame in self.decoder.videoFrames(asset, times: times, maxPixel: VideoPreview.longSide) {
-                try self.lifetime.checkRunning()
-                guard missing.indices.contains(frame.index) else { throw MediaError.decodeFailed("视频预览帧下标无效") }
-                let index = missing[frame.index]
-                frames[index] = frame.image
-                try self.remember(frame.image, for: key + "|\(index)", priority: priority, thumbnail: true)
-                if frames.count == VideoPreview.frameCount {
-                    try self.writePreview(frames, key: key, reservedBytes: bytes, priority: priority)
-                    ownsReservation = false
-                }
-                try self.deliverPreview(frame.image, index: index, duration: duration, continuation: continuation)
+            let job = self.decoder.videoFrameJob(asset, times: times, maxPixel: VideoPreview.longSide)
+            do {
+                for try await frame in job.frames {
+                    try self.lifetime.checkRunning()
+                    guard missing.indices.contains(frame.index) else { throw MediaError.decodeFailed("视频预览帧下标无效") }
+                    let index = missing[frame.index]
+                    frames[index] = frame.image
+                    try self.remember(frame.image, for: key + "|\(index)", priority: priority, thumbnail: true)
+                    if frames.count == VideoPreview.frameCount {
+                        try self.writePreview(frames, key: key, reservedBytes: bytes, priority: priority)
+                        ownsReservation = false
+                    }
+                    try self.deliverPreview(frame.image, index: index, duration: duration, continuation: continuation)
 #if DEBUG
-                try await self.previewFrameDelivered.withLock { $0 }?(index)
+                    try await self.previewFrameDelivered.withLock { $0 }?(index)
 #endif
+                }
+            } catch {
+                await job.cancelAndWait()
+                throw error
             }
+            await job.waitForCompletion()
         }
         guard frames.count == VideoPreview.frameCount else { throw MediaError.decodeFailed("视频预览帧不完整") }
     }

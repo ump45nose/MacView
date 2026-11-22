@@ -221,7 +221,7 @@ import Testing
     #expect(try FileManager.default.contentsOfDirectory(atPath: env.root.appendingPathComponent("thumbnails/tmp").path).isEmpty)
 }
 
-@Test func videoPreviewShutdownStopsActiveGeneratorAndReaders() async throws {
+@Test(.serialized, arguments: 0..<20) func videoPreviewShutdownStopsActiveGeneratorAndReaders(iteration: Int) async throws {
     let env = try PreviewEnvironment(network: true)
     defer { env.clean() }
     _ = try await env.pipeline.metadata(for: env.registry.identity, priority: .near)

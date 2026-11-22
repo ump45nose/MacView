@@ -218,8 +218,8 @@ func videoPreviewFramesAreOrderedAndDistinct(_ fixture: Fixture) async throws {
     }
 }
 
-@Test("C1.4 第五帧取消后不再交付且一秒内结束", .enabled(if: Fixtures.hasLocal(), "运行夹具生成器生成本地视频"))
-func cancelVideoPreviewAfterFiveFrames() async throws {
+@Test("C1.4 第五帧取消后不再交付且一秒内结束", .enabled(if: Fixtures.hasLocal(), "运行夹具生成器生成本地视频"), .serialized, arguments: 0..<10)
+func cancelVideoPreviewAfterFiveFrames(iteration: Int) async throws {
     let fixture = try #require(videoFixtures().first)
     let asset = AVURLAsset(url: Fixtures.url(fixture.path))
     let duration = try await asset.load(.duration).seconds
@@ -239,6 +239,27 @@ func cancelVideoPreviewAfterFiveFrames() async throws {
     let (count, elapsed) = try await task.value
     #expect(count == 5)
     #expect(try #require(elapsed) < .seconds(1))
+}
+
+@Test("C1.4 取消作业后等待真实生成任务和解码名额释放", .enabled(if: Fixtures.hasLocal(), "运行夹具生成器生成本地视频"))
+func cancelledVideoFrameJobWaitsForActualCompletion() async throws {
+    let fixture = try #require(videoFixtures().first)
+    let asset = AVURLAsset(url: Fixtures.url(fixture.path))
+    let duration = try await asset.load(.duration).seconds
+    let decoder = ImageDecoder(maxConcurrentDecodes: 1)
+    let job = decoder.videoFrameJob(asset, times: (0..<20).map { (Double($0) + 0.5) / 20 * duration }, maxPixel: 640)
+    let consumer = Task {
+        var count = 0
+        for try await _ in job.frames {
+            count += 1
+            if count == 5 { withUnsafeCurrentTask { $0?.cancel() } }
+        }
+        return count
+    }
+    #expect(try await consumer.value == 5)
+    await job.cancelAndWait()
+    #expect(decoder.limiter.runningCount == 0)
+    #expect(decoder.limiter.waitingCount == 0)
 }
 
 @Test("视频预览保持输入下标并按时间排序", .enabled(if: Fixtures.hasLocal(), "运行夹具生成器生成本地视频"))
@@ -281,6 +302,7 @@ func videoPreviewPropagatesFrameFailure() async throws {
     try await blocker.value
     let value = try await limiter.runAsync { try await limiter.runOnQueue { 42 } }
     #expect(value == 42)
+    #expect(limiter.runningCount == 0)
 }
 
 @Test func waitingDecodesStartByTaskPriority() async throws {
