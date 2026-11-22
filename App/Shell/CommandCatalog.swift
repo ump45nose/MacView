@@ -110,7 +110,7 @@ struct CommandCatalog {
                 }
                 return [.submenu(titleKey: titleKey, children: viewChildren + [.separator] + Self.dockMenu), .submenu(titleKey: "图像", children: Self.imageMenu)]
             case "书": return [.submenu(titleKey: titleKey, children: Self.removing([.searchFocus, .searchIndexFolder], from: children))]
-            case "窗口": return [.submenu(titleKey: titleKey, children: Self.removing(dockCommands.union([.layoutSchemeApply]), from: children))]
+            case "窗口": return [.submenu(titleKey: titleKey, children: Self.removing(dockCommands.union([.layoutSchemeApply, .layoutSchemeManage]), from: children))]
             default: return [root]
             }
         })
@@ -235,16 +235,23 @@ extension AppDelegate {
         if let applyDescriptor = catalog.descriptor(.layoutSchemeApply) {
             registry.register(applyDescriptor, isEnabled: { [weak self] context in
                 guard let self, let dock, !dock.schemes.isEmpty else { return false }
-                return (controller(for: context.session) ?? mainController ?? controllers.first) != nil
+                return (controller(for: context.session) ?? activeReaderController) != nil
             }) { [weak self] context, arguments in
                 guard let self, let dock,
-                      let target = controller(for: context.session) ?? mainController ?? controllers.first,
+                      let target = controller(for: context.session) ?? activeReaderController,
                       case let .string(rawName) = arguments?["name"] else { return }
                 let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !name.isEmpty else { return }
                 if await dock.applyScheme(named: name, to: target.dock) {
                     target.content.statusBar.showMessage(String(localized: "已套用布局方案“\(name)”"))
                 }
+            }
+        }
+        if let manageDescriptor = catalog.descriptor(.layoutSchemeManage) {
+            registry.register(manageDescriptor, isEnabled: { _ in
+                NSApp.modalWindow == nil
+            }) { [weak self] _, _ in
+                self?.openSettings(page: .appearance, scrollTo: AppearanceSettingsSection.schemes.rawValue)
             }
         }
     }

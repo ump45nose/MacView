@@ -70,6 +70,16 @@ final class AppearanceSelfTest {
             try? FileManager.default.removeItem(at: temporary)
             await app.services?.shutdown()
             exit(log.summarize())
+        case "settings":
+            await runSettingsSuite(controller: controller, window: window)
+            try? FileManager.default.removeItem(at: temporary)
+            await app.services?.shutdown()
+            exit(log.summarize())
+        case "settings-c310":
+            await runSettingsC310Snapshots(controller: controller, window: window)
+            try? FileManager.default.removeItem(at: temporary)
+            await app.services?.shutdown()
+            exit(log.summarize())
         default:
             log.check(false, "未知的 -MVAppearanceSelfTest 模式：\(mode)")
             try? FileManager.default.removeItem(at: temporary)
@@ -1923,6 +1933,796 @@ final class AppearanceSelfTest {
             if let found = findView(in: sub, identifier: identifier) { return found }
         }
         return nil
+    }
+
+    // MARK: settings 自检（C3.5–C3.9）
+
+    private func runSettingsSuite(controller: ReaderWindowController, window: NSWindow) async {
+        guard let services = app.services, let dock = app.dock else {
+            log.check(false, "settings 自检需要真实服务与 DockCoordinator")
+            return
+        }
+        do {
+            try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+            _ = await waitUntil(timeoutMs: 2500) { self.app.appearance?.hasApplied == true }
+
+            let books = try makeTestBooks()
+            window.setContentSize(NSSize(width: 1000, height: 700))
+            TestPresentation.place(window)
+            window.makeKeyAndOrderFront(nil)
+            await openBook(controller, url: books.book1)
+            await settle(200)
+
+            guard let settings = app.openSettings(), let settingsWindow = settings.window else {
+                log.check(false, "无法打开设置窗口")
+                return
+            }
+            settingsWindow.setContentSize(NSSize(width: 680, height: 620))
+            TestPresentation.activateIfAllowed()
+            settingsWindow.makeKeyAndOrderFront(nil)
+            _ = await waitUntil(timeoutMs: 2500) {
+                self.findAXElement(in: settingsWindow, identifier: "settings.tab.appearance") != nil
+            }
+            await settle(150)
+
+            // 经真实事件点击第 9 个页签“外观”。
+            let clickedAppearanceTab = clickAX(identifier: "settings.tab.appearance", in: settingsWindow)
+            let onAppearancePage = await waitUntil(timeoutMs: 1500) { settings.state.page == .appearance }
+            await settle(200)
+            log.check(clickedAppearanceTab && onAppearancePage, "设置窗口点击第 9 个页签切到外观页（clicked=\(clickedAppearanceTab)）")
+
+            await checkC35AppearanceControls(controller: controller, readerWindow: window, settings: settings, settingsWindow: settingsWindow, services: services)
+            await checkC36FontControls(controller: controller, settingsWindow: settingsWindow, services: services)
+            await checkC37LayoutSchemes(controller: controller, settings: settings, settingsWindow: settingsWindow, dock: dock)
+            await checkC37bMultiWindowAndNoWindow(controllerA: controller, settings: settings, settingsWindow: settingsWindow, dock: dock)
+            await checkC38InvalidSchemesFile(settings: settings, settingsWindow: settingsWindow, dock: dock)
+            await checkC39WindowMenuManageSchemes(settings: settings, settingsWindow: settingsWindow, dock: dock)
+        } catch {
+            log.check(false, "settings 自检异常：\(error)")
+        }
+    }
+
+    // MARK: C3.5 主题、标题栏、置顶、不透明度
+
+    private func checkC35AppearanceControls(
+        controller: ReaderWindowController,
+        readerWindow: NSWindow,
+        settings: SettingsWindowController,
+        settingsWindow: NSWindow,
+        services: CoreServices
+    ) async {
+        let clickedDark = clickAX(identifier: "appearance.mode.dark", in: settingsWindow)
+        await settle(80)
+        let clickedAccent = clickAX(identifier: "appearance.accent.system", in: settingsWindow)
+        await settle(80)
+        let clickedAutoHide = clickAX(identifier: "appearance.titlebar.autoHide", in: settingsWindow)
+        await settle(80)
+        let clickedKeepOnTop = clickAX(identifier: "appearance.keepOnTop", in: settingsWindow)
+        await settle(80)
+        // 不透明度滑块 30...100%，拖到 60% -> fraction = 30 / 70。
+        let draggedOpacity = dragAXSlider(identifier: "appearance.opacity", fraction: 30.0 / 70.0, in: settingsWindow)
+        await settle(350)
+
+        let applied = await waitUntil(timeoutMs: 2500) {
+            self.isDarkAppearance(NSApp.effectiveAppearance)
+                && Theme.accentMode == .system
+                && readerWindow.toolbar?.isVisible == false
+                && readerWindow.level == .floating
+                && abs(readerWindow.alphaValue - 0.6) <= 0.04
+        }
+        await settle(250)
+
+        let saved = await services.settings.global().appearance
+        let jsonText = (try? String(contentsOf: app.supportDirectory.appending(path: "settings.json"), encoding: .utf8)) ?? ""
+        let fieldsOK = saved.mode == .dark
+            && saved.accent == .system
+            && saved.window.titleBar == .autoHide
+            && saved.window.keepOnTop == true
+            && abs(saved.window.opacity - 0.6) <= 0.04
+            && jsonText.contains("\"dark\"")
+            && jsonText.contains("\"autoHide\"")
+            && jsonText.contains("\"keepOnTop\" : true")
+
+        log.check(
+            clickedDark && clickedAccent && clickedAutoHide && clickedKeepOnTop && draggedOpacity && applied && fieldsOK,
+            "C3.5 外观页控件真实事件生效：dark=\(clickedDark), accent=\(clickedAccent), autoHide=\(clickedAutoHide), keepOnTop=\(clickedKeepOnTop), opacityDrag=\(draggedOpacity), 窗口同步=\(applied)(alpha=\(String(format: "%.2f", readerWindow.alphaValue))), settings.json=\(fieldsOK)"
+        )
+
+        // 恢复默认，避免干扰后续检查项。
+        try? await services.settings.updateGlobal {
+            $0.appearance.mode = .system
+            $0.appearance.accent = .clay
+            $0.appearance.window = WindowAppearance()
+        }
+        _ = await waitUntil(timeoutMs: 1500) {
+            readerWindow.toolbar?.isVisible == true
+                && readerWindow.level == .normal
+                && abs(readerWindow.alphaValue - 1.0) < 0.01
+                && Theme.accentMode == .clay
+        }
+        await settle(150)
+    }
+
+    // MARK: C3.6 字体行选 Menlo、字号 +2、恢复默认
+
+    private func checkC36FontControls(
+        controller: ReaderWindowController,
+        settingsWindow: NSWindow,
+        services: CoreServices
+    ) async {
+        // 确保书架可见并加载完毕。
+        app.dock?.perform(in: controller.dock) { layout in
+            layout.isPanelVisible(DockPanels.bookshelf) ? layout : layout.togglingPanel(DockPanels.bookshelf, defaultEdge: .left)
+        }
+        _ = await waitUntil(timeoutMs: 1500) { controller.bookshelfPanel != nil }
+        guard let bookshelf = controller.bookshelfPanel else {
+            log.check(false, "C3.6 找不到书架面板")
+            return
+        }
+        bookshelf.setStyle(.list)
+        await settle(150)
+        let baselineSamples = collectPanelFontSamples(in: bookshelf.view, prefix: "c36.shelf")
+
+        // 字体族下拉选 Menlo。
+        let selectedMenlo = selectPopupItem(identifier: "appearance.font.panels.family", title: "Menlo", in: settingsWindow)
+        await settle(100)
+        // 字号步进 +2（点两次上箭头）。
+        let inc1 = clickAXStepperIncrement(identifier: "appearance.font.panels.stepper", in: settingsWindow)
+        await settle(80)
+        let inc2 = clickAXStepperIncrement(identifier: "appearance.font.panels.stepper", in: settingsWindow)
+        await settle(350)
+
+        let fontApplied = await waitUntil(timeoutMs: 2000) {
+            Theme.fonts[.panels]?.family == "Menlo" && Theme.fonts[.panels]?.size == 14
+        }
+        await settle(150)
+
+        let shelfChanged = !baselineSamples.isEmpty && baselineSamples.allSatisfy { sample in
+            guard let cur = sample.readCurrent() else { return true }
+            let expectedSize = (sample.font.pointSize * (14.0 / 12.0) * 2).rounded() / 2
+            return cur.familyName == "Menlo" && abs(cur.pointSize - expectedSize) <= 0.5
+        }
+        let previewOK = findAXElement(in: settingsWindow, identifier: "appearance.font.panels.preview") != nil
+        let resetAppeared = await waitUntil(timeoutMs: 1500) {
+            self.findAXElement(in: settingsWindow, identifier: "appearance.font.panels.reset") != nil
+        }
+
+        // 点击“恢复默认”。
+        let clickedReset = clickAX(identifier: "appearance.font.panels.reset", in: settingsWindow)
+        let cleared = await waitUntil(timeoutMs: 2000) {
+            Theme.fonts[.panels] == nil
+        }
+        await settle(250)
+        let jsonAfterReset = (try? String(contentsOf: app.supportDirectory.appending(path: "settings.json"), encoding: .utf8)) ?? ""
+        let removedFromFile = !jsonAfterReset.contains("\"panels\"")
+        let shelfRestored = baselineSamples.allSatisfy { sample in
+            guard let cur = sample.readCurrent() else { return true }
+            return cur == sample.font
+        }
+
+        log.check(
+            selectedMenlo && inc1 && inc2 && fontApplied && shelfChanged && previewOK && resetAppeared && clickedReset && cleared && removedFromFile && shelfRestored,
+            "C3.6 字体控件：选Menlo=\(selectedMenlo), +2=\(inc1 && inc2), 生效=\(fontApplied), 书架变Menlo=\(shelfChanged), 恢复默认出现=\(resetAppeared), 点击恢复=\(clickedReset), 清空并移除字段=\(cleared && removedFromFile), 书架复原=\(shelfRestored)"
+        )
+    }
+
+    // MARK: C3.7 布局方案保存、改名、覆盖、删除、套用
+
+    private func checkC37LayoutSchemes(
+        controller: ReaderWindowController,
+        settings: SettingsWindowController,
+        settingsWindow: NSWindow,
+        dock: DockCoordinator
+    ) async {
+        // 先滚到布局方案节。
+        settings.show(page: .appearance, scrollTo: AppearanceSettingsSection.schemes.rawValue)
+        await settle(250)
+
+        // 1. 设当前窗口停靠布局 1（仅左侧书架），通过 UI“保存当前布局…”保存为“阅读”。
+        dock.perform(in: controller.dock) { _ in
+            DockLayout(left: DockArea(panels: [DockPanels.bookshelf], size: 240), right: DockArea(size: 260), bottom: DockArea(size: 200))
+        }
+        await settle(150)
+        let layoutReading = controller.dock.dockLayout
+
+        let savedReading = await saveSchemeViaSheet(named: "阅读", in: settingsWindow)
+        let readingInFile = await waitUntil(timeoutMs: 1500) {
+            self.storedSchemes().contains { $0.name == "阅读" && DockCoordinator.docked($0.layout) == layoutReading }
+        }
+
+        // 2. 改停靠区（左侧书架 + 右侧信息），再保存为“整理”。
+        dock.perform(in: controller.dock) { _ in
+            DockLayout(left: DockArea(panels: [DockPanels.bookshelf], size: 240), right: DockArea(panels: [DockPanels.info], size: 260), bottom: DockArea(size: 200))
+        }
+        await settle(150)
+        let layoutOrganizing = controller.dock.dockLayout
+        let savedOrganizing = await saveSchemeViaSheet(named: "整理", in: settingsWindow)
+        let organizingInFile = await waitUntil(timeoutMs: 1500) {
+            self.storedSchemes().contains { $0.name == "整理" && DockCoordinator.docked($0.layout) == layoutOrganizing }
+        }
+
+        // 3. 改名“整理”为“阅读”：就地提示重名、不写文件。
+        let fileDataBeforeDup = try? Data(contentsOf: dock.schemesFileURL)
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "beginRename", "name": "整理"])
+        await settle(100)
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "setRenameText", "name": "整理", "newName": "阅读"])
+        await settle(80)
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "commitRename", "name": "整理"])
+        let dupErrorShown = await waitUntil(timeoutMs: 1000) {
+            self.findAXElement(in: settingsWindow, identifier: "appearance.scheme.renameError") != nil
+        }
+        await settle(120)
+        let fileUnchangedOnDup = (try? Data(contentsOf: dock.schemesFileURL)) == fileDataBeforeDup
+
+        // 改为“整理2”成功。
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "setRenameText", "name": "整理", "newName": "整理2"])
+        await settle(80)
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "commitRename", "name": "整理"])
+        let renamedOK = await waitUntil(timeoutMs: 1500) {
+            let names = self.storedSchemes().map(\.name)
+            return names.contains("整理2") && !names.contains("整理")
+        }
+
+        // 4. 改当前停靠区后，“用当前布局覆盖”整理2。
+        dock.perform(in: controller.dock) { _ in
+            DockLayout(left: DockArea(panels: [DockPanels.bookshelf, DockPanels.pageList], size: 250), right: DockArea(panels: [DockPanels.effects], size: 280), bottom: DockArea(size: 200))
+        }
+        await settle(150)
+        let layoutReplaced = controller.dock.dockLayout
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "replace", "name": "整理2"])
+        let replacedOK = await waitUntil(timeoutMs: 1500) {
+            self.storedSchemes().first { $0.name == "整理2" }.map { DockCoordinator.docked($0.layout) == layoutReplaced } ?? false
+        }
+
+        // 5. 删除“整理2”，经确认弹窗点“删除”后从 layout-schemes.json 消失。
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "delete", "name": "整理2"])
+        let alertShown = await waitUntil(timeoutMs: 1500) {
+            settingsWindow.attachedSheet != nil
+        }
+        var confirmedDelete = false
+        if let sheet = settingsWindow.attachedSheet {
+            await settle(100)
+            confirmedDelete = clickButton(titled: String(localized: "删除"), in: sheet)
+        }
+        let deletedFromFile = await waitUntil(timeoutMs: 1500) {
+            !self.storedSchemes().contains { $0.name == "整理2" }
+        }
+
+        // 6. 经真实事件点“套用”套用“阅读”，验证窗口停靠布局等于“阅读”。
+        settings.show(page: .appearance, scrollTo: AppearanceSettingsSection.schemes.rawValue)
+        await settle(200)
+        let clickedApply = clickAX(identifier: "appearance.scheme.阅读.apply", in: settingsWindow)
+        let appliedOK = await waitUntil(timeoutMs: 1500) {
+            controller.dock.dockLayout == layoutReading
+        }
+
+        log.check(
+            savedReading && readingInFile && savedOrganizing && organizingInFile
+                && dupErrorShown && fileUnchangedOnDup && renamedOK
+                && replacedOK && alertShown && confirmedDelete && deletedFromFile
+                && clickedApply && appliedOK,
+            "C3.7 布局方案：存阅读=\(savedReading && readingInFile), 存整理=\(savedOrganizing && organizingInFile), 重名提示且未写盘=\(dupErrorShown && fileUnchangedOnDup), 改名整理2=\(renamedOK), 覆盖=\(replacedOK), 删除确认=\(alertShown && confirmedDelete && deletedFromFile), 套用=\(clickedApply && appliedOK)"
+        )
+    }
+
+    // MARK: C3.7b 双阅读窗口目标切换 + 关闭全部阅读窗口
+
+    private func checkC37bMultiWindowAndNoWindow(
+        controllerA: ReaderWindowController,
+        settings: SettingsWindowController,
+        settingsWindow: NSWindow,
+        dock: DockCoordinator
+    ) async {
+        guard let controllerB = app.newWindow(), let windowA = controllerA.window, let windowB = controllerB.window else {
+            log.check(false, "C3.7b 创建第二个阅读窗口失败")
+            return
+        }
+        await settle(150)
+
+        let layoutA = DockLayout(left: DockArea(panels: [DockPanels.bookshelf], size: 220), right: DockArea(panels: [DockPanels.classify], size: 260), bottom: DockArea(size: 200))
+        let layoutB = DockLayout(left: DockArea(size: 240), right: DockArea(panels: [DockPanels.pageList], size: 270), bottom: DockArea(size: 200))
+        dock.perform(in: controllerA.dock) { _ in layoutA }
+        dock.perform(in: controllerB.dock) { _ in layoutB }
+        await settle(150)
+
+        // 先激活 A，再激活设置窗口：保存的应是 A 的布局。
+        TestPresentation.activateIfAllowed()
+        windowA.makeKeyAndOrderFront(nil)
+        NotificationCenter.default.post(name: NSWindow.didBecomeMainNotification, object: windowA)
+        await settle(120)
+        settingsWindow.makeKeyAndOrderFront(nil)
+        await settle(120)
+        let savedFromA = await saveSchemeViaSheet(named: "来自A", in: settingsWindow)
+        let savedMatchesA = await waitUntil(timeoutMs: 1500) {
+            self.storedSchemes().first { $0.name == "来自A" }.map { DockCoordinator.docked($0.layout) == layoutA } ?? false
+        }
+
+        // 激活 B，再切回设置窗口点“套用”：应作用于 B。
+        TestPresentation.activateIfAllowed()
+        windowB.makeKeyAndOrderFront(nil)
+        NotificationCenter.default.post(name: NSWindow.didBecomeMainNotification, object: windowB)
+        await settle(120)
+        settings.show(page: .appearance, scrollTo: AppearanceSettingsSection.schemes.rawValue)
+        await settle(200)
+        let clickedApplyB = clickAX(identifier: "appearance.scheme.来自A.apply", in: settingsWindow)
+        let appliedToB = await waitUntil(timeoutMs: 1500) {
+            controllerB.dock.dockLayout == layoutA
+        }
+
+        // 关闭所有阅读窗口：套用/保存/覆盖不可用，改名/删除仍可用并写文件。
+        windowA.close()
+        windowB.close()
+        let noReaderWindow = await waitUntil(timeoutMs: 1500) {
+            self.app.controllers.isEmpty && !settings.state.model.layoutSchemes.hasReaderWindow
+        }
+        await settle(200)
+
+        let applyDisabled: Bool = {
+            if isButtonDisabled(identifier: "appearance.scheme.来自A.apply", title: String(localized: "套用"), in: settingsWindow) {
+                return true
+            }
+            return !settings.state.model.layoutSchemes.hasReaderWindow
+        }()
+        // 真实点击禁用的“保存当前布局…”按钮，确认不会弹出 sheet。
+        _ = clickAX(identifier: "appearance.schemes.save", in: settingsWindow)
+        await settle(150)
+        let saveDisabled = settingsWindow.attachedSheet == nil && !settings.state.model.layoutSchemes.hasReaderWindow
+
+        // 无阅读窗口时改名“来自A”为“无窗方案”，再删除之。
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "beginRename", "name": "来自A"])
+        await settle(80)
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "setRenameText", "name": "来自A", "newName": "无窗方案"])
+        await settle(80)
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "commitRename", "name": "来自A"])
+        let renamedNoWin = await waitUntil(timeoutMs: 1500) {
+            self.storedSchemes().contains { $0.name == "无窗方案" }
+        }
+
+        NotificationCenter.default.post(name: AppearanceSettingsPage.debugSchemeActionNotification, object: nil, userInfo: ["action": "delete", "name": "无窗方案"])
+        _ = await waitUntil(timeoutMs: 1500) { settingsWindow.attachedSheet != nil }
+        if let sheet = settingsWindow.attachedSheet {
+            await settle(80)
+            _ = clickButton(titled: String(localized: "删除"), in: sheet)
+        }
+        let deletedNoWin = await waitUntil(timeoutMs: 1500) {
+            !self.storedSchemes().contains { $0.name == "无窗方案" }
+        }
+
+        log.check(
+            savedFromA && savedMatchesA && clickedApplyB && appliedToB && noReaderWindow && applyDisabled && saveDisabled && renamedNoWin && deletedNoWin,
+            "C3.7b 多窗与无窗：存A=\(savedFromA && savedMatchesA), 套用到B=\(clickedApplyB && appliedToB), 关全部窗=\(noReaderWindow), 禁用套用=\(applyDisabled)/保存=\(saveDisabled), 无窗改名=\(renamedNoWin), 无窗删除=\(deletedNoWin)"
+        )
+
+        // 重新开一个阅读窗口供后续检查项使用。
+        _ = app.newWindow()
+        await settle(150)
+    }
+
+    // MARK: C3.8 layout-schemes.json 非法 JSON 错误条与恢复
+
+    private func checkC38InvalidSchemesFile(
+        settings: SettingsWindowController,
+        settingsWindow: NSWindow,
+        dock: DockCoordinator
+    ) async {
+        settingsWindow.makeKeyAndOrderFront(nil)
+        await settle(100)
+        let validData = (try? Data(contentsOf: dock.schemesFileURL)) ?? Data()
+        let beforeNames = settings.state.model.layoutSchemes.schemes.map(\.name)
+
+        // 写入非法 JSON。
+        try? Data("{ invalid json".utf8).write(to: dock.schemesFileURL, options: .atomic)
+        let errAppeared = await waitUntil(timeoutMs: 2500) {
+            dock.schemesProblem != nil
+                && settings.state.model.layoutSchemes.problem != nil
+                && self.findAXElement(in: settingsWindow, identifier: "appearance.schemes.error") != nil
+        }
+        let listKept = settings.state.model.layoutSchemes.schemes.map(\.name) == beforeNames && !beforeNames.isEmpty
+
+        // 写回合法 JSON，错误条消失。
+        try? validData.write(to: dock.schemesFileURL, options: .atomic)
+        let errCleared = await waitUntil(timeoutMs: 2500) {
+            dock.schemesProblem == nil
+                && settings.state.model.layoutSchemes.problem == nil
+                && self.findAXElement(in: settingsWindow, identifier: "appearance.schemes.error") == nil
+        }
+
+        log.check(
+            errAppeared && listKept && errCleared,
+            "C3.8 layout-schemes.json 容错：非法JSON显示错误条=\(errAppeared), 保留上一份(\(beforeNames))=\(listKept), 修好后消失=\(errCleared)"
+        )
+    }
+
+    // MARK: C3.9 “窗口 › 布局方案 › 管理布局方案…”
+
+    private func checkC39WindowMenuManageSchemes(
+        settings: SettingsWindowController,
+        settingsWindow: NSWindow,
+        dock: DockCoordinator
+    ) async {
+        let schemesSubmenu = NSMenu(title: String(localized: "布局方案"))
+        _ = app.populateLayoutSchemesMenu(schemesSubmenu)
+        let hasTrailingManageWithSchemes = schemesSubmenu.items.count >= 2
+            && schemesSubmenu.items[schemesSubmenu.items.count - 2].isSeparatorItem
+            && schemesSubmenu.items.last?.title == String(localized: "管理布局方案…")
+
+        // 先切到 browse 页并关闭设置窗口，再执行 layout.scheme.manage 命令。
+        settings.state.page = .browse
+        settingsWindow.close()
+        await settle(120)
+
+        app.dispatcher?.run(.layoutSchemeManage, in: app.activeReaderController, scope: .global)
+        let openedOnAppearance = await waitUntil(timeoutMs: 1500) {
+            settingsWindow.isVisible && settings.state.page == .appearance
+        }
+        await settle(300)
+
+        // 检查布局方案节是否已滚动到设置窗口可见区域内。
+        let schemesVisible: Bool = {
+            guard let el = findAXElement(in: settingsWindow, identifier: "appearance.schemes.save"),
+                  let rect = axFrameInWindow(el, window: settingsWindow) else { return false }
+            let visibleBounds = NSRect(origin: .zero, size: settingsWindow.contentLayoutRect.size)
+            return visibleBounds.intersects(rect)
+        }()
+
+        log.check(
+            hasTrailingManageWithSchemes && openedOnAppearance && schemesVisible,
+            "C3.9 窗口›布局方案子菜单末尾含“管理布局方案…”=\(hasTrailingManageWithSchemes), 执行后打开外观页=\(openedOnAppearance), 布局方案节可见=\(schemesVisible)"
+        )
+    }
+
+    // MARK: C3.10 英文浅色/深色截图与宽度核对
+
+    private func runSettingsC310Snapshots(controller: ReaderWindowController, window: NSWindow) async {
+        guard let dock = app.dock else { return }
+        _ = await waitUntil(timeoutMs: 2500) { self.app.appearance?.hasApplied == true }
+
+        // 准备两个示例方案，便于截图展示与设计稿第 1 节一致的完整外观页。
+        dock.perform(in: controller.dock) { _ in
+            DockLayout(left: DockArea(panels: [DockPanels.bookshelf, DockPanels.pageList], size: 240), right: DockArea(panels: [DockPanels.info], size: 260), bottom: DockArea(size: 200))
+        }
+        await settle(100)
+        try? await dock.saveScheme(named: "Reading", from: controller.dock)
+        dock.perform(in: controller.dock) { _ in
+            DockLayout(left: DockArea(panels: [DockPanels.bookshelf], size: 240), right: DockArea(panels: [DockPanels.classify, DockPanels.effects], size: 260), bottom: DockArea(panels: [PanelID("history")], size: 180))
+        }
+        await settle(100)
+        try? await dock.saveScheme(named: "Organizing", from: controller.dock)
+
+        guard let settings = app.openSettings(page: .appearance), let settingsWindow = settings.window else {
+            log.check(false, "C3.10 无法打开设置窗口")
+            return
+        }
+        settingsWindow.makeKeyAndOrderFront(nil)
+        await settle(250)
+
+        let modeTag = isDarkAppearance(settingsWindow.effectiveAppearance) ? "dark" : "light"
+        let outDirPath = UserDefaults.standard.string(forKey: "MVAppearanceScreenshotsDir")
+        let outDir = outDirPath.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        if let outDir {
+            try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+        }
+
+        for width in [680.0, 560.0] {
+            settingsWindow.setContentSize(NSSize(width: width, height: 620))
+            await settle(250)
+            let tabsOK = checkTabsSingleRow(in: settingsWindow)
+            log.check(tabsOK, "C3.10(\(modeTag)) 宽 \(Int(width)) 下 9 个页签单行无截断=\(tabsOK)")
+
+            if let outDir {
+                if let img = log.snapshot(settingsWindow, "c310-\(modeTag)-\(Int(width))-top", captureImage: true) {
+                    savePNG(img, to: outDir.appending(path: "c310-\(modeTag)-\(Int(width))-top.png"))
+                }
+                settings.show(page: .appearance, scrollTo: AppearanceSettingsSection.schemes.rawValue)
+                await settle(250)
+                if let img = log.snapshot(settingsWindow, "c310-\(modeTag)-\(Int(width))-schemes", captureImage: true) {
+                    savePNG(img, to: outDir.appending(path: "c310-\(modeTag)-\(Int(width))-schemes.png"))
+                }
+                settings.show(page: .appearance, scrollTo: AppearanceSettingsSection.theme.rawValue)
+                await settle(150)
+            }
+        }
+
+        // 核对英文“窗口”菜单新项与“管理布局方案…”。
+        let windowMenu = NSApp.windowsMenu
+        let titles = windowMenu?.items.map(\.title) ?? []
+        let schemesSub = NSMenu(title: String(localized: "布局方案"))
+        _ = app.populateLayoutSchemesMenu(schemesSub)
+        let subTitles = schemesSub.items.map(\.title)
+        let menuOK = titles.contains("Keep on Top")
+            && titles.contains("Auto-hide Title Bar")
+            && titles.contains("Borderless")
+            && subTitles.contains("Manage Layout Schemes…")
+        log.check(menuOK, "C3.10(\(modeTag)) 英文窗口菜单新项与 Manage Layout Schemes… 完整（window=\(titles.filter { ["Keep on Top", "Auto-hide Title Bar", "Borderless"].contains($0) }), submenuLast=\(subTitles.last ?? "nil")）")
+    }
+
+    // MARK: settings 自检辅助
+
+    private func checkTabsSingleRow(in window: NSWindow) -> Bool {
+        var frames: [NSRect] = []
+        for page in SettingsPage.allCases {
+            guard let el = findAXElement(in: window, identifier: "settings.tab.\(page.rawValue)"),
+                  let rect = axFrameInWindow(el, window: window) else {
+                return false
+            }
+            frames.append(rect)
+        }
+        guard let first = frames.first else { return false }
+        let sameRow = frames.allSatisfy { abs($0.midY - first.midY) <= 2.0 && $0.height >= 20 }
+        let withinBounds = frames.allSatisfy { $0.minX >= 0 && $0.maxX <= window.frame.width }
+        let nonOverlapping = zip(frames, frames.dropFirst()).allSatisfy { $0.maxX <= $1.minX + 0.5 }
+        return sameRow && withinBounds && nonOverlapping
+    }
+
+    private func savePNG(_ image: CGImage, to url: URL) {
+        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else { return }
+        CGImageDestinationAddImage(dest, image, nil)
+        CGImageDestinationFinalize(dest)
+    }
+
+    private func storedSchemes() -> [LayoutScheme] {
+        guard let url = app.dock?.schemesFileURL,
+              let data = try? Data(contentsOf: url),
+              let doc = try? JSONDecoder().decode(StoredSchemesDoc.self, from: data) else {
+            return []
+        }
+        return doc.value.schemes
+    }
+
+    private struct StoredSchemesDoc: Decodable {
+        let value: LayoutSchemesFile
+    }
+
+    private func saveSchemeViaSheet(named name: String, in settingsWindow: NSWindow) async -> Bool {
+        guard clickAX(identifier: "appearance.schemes.save", in: settingsWindow) else { return false }
+        let opened = await waitUntil(timeoutMs: 1500) { settingsWindow.attachedSheet != nil }
+        guard opened, let sheet = settingsWindow.attachedSheet else { return false }
+        await settle(120)
+        guard let fieldEl = findAXElement(in: sheet, identifier: "appearance.saveSheet.nameField"),
+              let fieldRect = axFrameInWindow(fieldEl, window: sheet) else {
+            return false
+        }
+        sendMouseClick(at: NSPoint(x: fieldRect.midX, y: fieldRect.midY), in: sheet, modifiers: [])
+        await settle(80)
+        if let editor = sheet.firstResponder as? NSTextView {
+            editor.insertText(name, replacementRange: NSRange(location: 0, length: editor.string.count))
+        } else if let field = findTextField(in: sheet.contentView, matchingFrameInWindow: fieldRect) {
+            sheet.makeFirstResponder(field)
+            if let editor = field.currentEditor() as? NSTextView {
+                editor.insertText(name, replacementRange: NSRange(location: 0, length: editor.string.count))
+            } else {
+                field.stringValue = name
+                NotificationCenter.default.post(name: NSControl.textDidChangeNotification, object: field)
+            }
+        } else {
+            return false
+        }
+        await settle(100)
+        let clicked = clickAX(identifier: "appearance.saveSheet.confirm", in: sheet)
+        let closed = await waitUntil(timeoutMs: 1500) { settingsWindow.attachedSheet == nil }
+        await settle(120)
+        return clicked && closed
+    }
+
+    private func findTextField(in root: NSView?, matchingFrameInWindow rect: NSRect) -> NSTextField? {
+        guard let root else { return nil }
+        let targetCenter = NSPoint(x: rect.midX, y: rect.midY)
+        if let field = root as? NSTextField {
+            let f = field.convert(field.bounds, to: nil)
+            if f.insetBy(dx: -4, dy: -4).contains(targetCenter) { return field }
+        }
+        for sub in root.subviews {
+            if let found = findTextField(in: sub, matchingFrameInWindow: rect) { return found }
+        }
+        return nil
+    }
+
+    private func selectPopupItem(identifier: String, title: String, in window: NSWindow) -> Bool {
+        guard let root = window.contentView else { return false }
+        let popup: NSPopUpButton? = {
+            if let direct = findPopUpButton(in: root, identifier: identifier) { return direct }
+            if let el = findAXElement(in: window, identifier: identifier),
+               let rect = axFrameInWindow(el, window: window) {
+                return findPopUpButton(in: root, matchingFrameInWindow: rect)
+            }
+            return nil
+        }()
+        guard let popup else { return false }
+        let index = popup.indexOfItem(withTitle: title)
+        guard index >= 0 else { return false }
+        popup.selectItem(at: index)
+        if let action = popup.action {
+            NSApp.sendAction(action, to: popup.target, from: popup)
+        }
+        return true
+    }
+
+    private func findPopUpButton(in root: NSView, identifier: String) -> NSPopUpButton? {
+        if let popup = root as? NSPopUpButton,
+           popup.accessibilityIdentifier() == identifier || popup.identifier?.rawValue == identifier {
+            return popup
+        }
+        for sub in root.subviews {
+            if let found = findPopUpButton(in: sub, identifier: identifier) { return found }
+        }
+        return nil
+    }
+
+    private func findPopUpButton(in root: NSView, matchingFrameInWindow rect: NSRect) -> NSPopUpButton? {
+        let center = NSPoint(x: rect.midX, y: rect.midY)
+        if let popup = root as? NSPopUpButton {
+            let f = popup.convert(popup.bounds, to: nil)
+            if f.insetBy(dx: -4, dy: -4).contains(center) { return popup }
+        }
+        for sub in root.subviews {
+            if let found = findPopUpButton(in: sub, matchingFrameInWindow: rect) { return found }
+        }
+        return nil
+    }
+
+    private func clickButton(titled title: String, in window: NSWindow) -> Bool {
+        guard let root = window.contentView else { return false }
+        if let button = findNSButton(in: root, titled: title) {
+            let center = button.convert(NSPoint(x: button.bounds.midX, y: button.bounds.midY), to: nil)
+            sendMouseClick(at: center, in: window, modifiers: [])
+            return true
+        }
+        guard let button = findButton(in: root, matchingTitleOrToolTip: title) else { return false }
+        let center = button.convert(NSPoint(x: button.bounds.midX, y: button.bounds.midY), to: nil)
+        sendMouseClick(at: center, in: window, modifiers: [])
+        return true
+    }
+
+    private func findNSButton(in root: NSView, titled title: String) -> NSButton? {
+        if let button = root as? NSButton, button.title == title {
+            return button
+        }
+        for sub in root.subviews {
+            if let found = findNSButton(in: sub, titled: title) { return found }
+        }
+        return nil
+    }
+
+    private func findAXElement(in root: AnyObject, identifier: String) -> AnyObject? {
+        if let proto = root as? NSAccessibilityProtocol, proto.accessibilityIdentifier() == identifier {
+            return root
+        }
+        if let id = (root as? NSAccessibilityElementProtocol)?.accessibilityIdentifier?(), id == identifier {
+            return root
+        }
+        if let view = root as? NSView, view.accessibilityIdentifier() == identifier {
+            return view
+        }
+        var children: [AnyObject] = []
+        if let win = root as? NSWindow {
+            if let content = win.contentView { children.append(content) }
+        }
+        if let proto = root as? NSAccessibilityProtocol,
+           let axChildren = proto.accessibilityChildren() as? [AnyObject] {
+            children.append(contentsOf: axChildren)
+        }
+        if let view = root as? NSView {
+            if let axChildren = view.accessibilityChildren() as? [AnyObject] {
+                children.append(contentsOf: axChildren)
+            }
+            children.append(contentsOf: view.subviews)
+        }
+        var seen = Set<ObjectIdentifier>()
+        for child in children {
+            guard seen.insert(ObjectIdentifier(child)).inserted else { continue }
+            if let found = findAXElement(in: child, identifier: identifier) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func axFrameInWindow(_ element: AnyObject, window: NSWindow) -> NSRect? {
+        if let view = element as? NSView {
+            return view.convert(view.bounds, to: nil)
+        }
+        if let proto = element as? NSAccessibilityProtocol {
+            let screenFrame = proto.accessibilityFrame()
+            if !screenFrame.isEmpty {
+                return window.convertFromScreen(screenFrame)
+            }
+        }
+        if let axEl = element as? NSAccessibilityElementProtocol {
+            let screenFrame = axEl.accessibilityFrame()
+            if !screenFrame.isEmpty {
+                return window.convertFromScreen(screenFrame)
+            }
+        }
+        return nil
+    }
+
+    private func isButtonDisabled(identifier: String, title: String, in window: NSWindow) -> Bool {
+        if isAXDisabled(identifier: identifier, in: window) { return true }
+        if let root = window.contentView, let button = findNSButton(in: root, titled: title) {
+            return !button.isEnabled
+        }
+        return false
+    }
+
+    private func isAXDisabled(identifier: String, in window: NSWindow) -> Bool {
+        guard let el = findAXElement(in: window, identifier: identifier) else { return false }
+        if let control = el as? NSControl { return !control.isEnabled }
+        if let proto = el as? NSAccessibilityProtocol {
+            if !proto.isAccessibilityEnabled() { return true }
+            if let children = proto.accessibilityChildren() as? [AnyObject], !children.isEmpty {
+                for child in children {
+                    if let c = child as? NSControl, !c.isEnabled { return true }
+                    if let cp = child as? NSAccessibilityProtocol, !cp.isAccessibilityEnabled() { return true }
+                }
+            }
+        }
+        if let rect = axFrameInWindow(el, window: window), let root = window.contentView,
+           let button = findControl(in: root, matchingFrameInWindow: rect) {
+            return !button.isEnabled
+        }
+        return false
+    }
+
+    private func findControl(in root: NSView, matchingFrameInWindow rect: NSRect) -> NSControl? {
+        let center = NSPoint(x: rect.midX, y: rect.midY)
+        if let control = root as? NSControl {
+            let f = control.convert(control.bounds, to: nil)
+            if f.insetBy(dx: -4, dy: -4).contains(center) { return control }
+        }
+        for sub in root.subviews {
+            if let found = findControl(in: sub, matchingFrameInWindow: rect) { return found }
+        }
+        return nil
+    }
+
+    private func clickAX(identifier: String, in window: NSWindow) -> Bool {
+        guard let el = findAXElement(in: window, identifier: identifier),
+              let rect = axFrameInWindow(el, window: window) else { return false }
+        sendMouseClick(at: NSPoint(x: rect.midX, y: rect.midY), in: window, modifiers: [])
+        return true
+    }
+
+    private func clickAXStepperIncrement(identifier: String, in window: NSWindow) -> Bool {
+        guard let el = findAXElement(in: window, identifier: identifier),
+              let rect = axFrameInWindow(el, window: window) else { return false }
+        let upPoint = NSPoint(x: rect.midX, y: rect.minY + rect.height * 0.75)
+        sendMouseClick(at: upPoint, in: window, modifiers: [])
+        return true
+    }
+
+    private func dragAXSlider(identifier: String, fraction: CGFloat, in window: NSWindow) -> Bool {
+        guard let el = findAXElement(in: window, identifier: identifier),
+              let rect = axFrameInWindow(el, window: window) else { return false }
+        let start = NSPoint(x: rect.maxX - 6, y: rect.midY)
+        let targetX = rect.minX + 6 + (rect.width - 12) * min(max(fraction, 0), 1)
+        let end = NSPoint(x: targetX, y: rect.midY)
+        let now = ProcessInfo.processInfo.systemUptime
+        if let down = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: start, modifierFlags: [],
+            timestamp: now, windowNumber: window.windowNumber, context: nil,
+            eventNumber: 20, clickCount: 1, pressure: 1
+        ) {
+            NSApp.sendEvent(down)
+        }
+        for step in 1...4 {
+            let t = CGFloat(step) / 4.0
+            let pt = NSPoint(x: start.x + (end.x - start.x) * t, y: start.y)
+            if let drag = NSEvent.mouseEvent(
+                with: .leftMouseDragged, location: pt, modifierFlags: [],
+                timestamp: now + 0.01 * Double(step), windowNumber: window.windowNumber, context: nil,
+                eventNumber: 20, clickCount: 1, pressure: 1
+            ) {
+                NSApp.sendEvent(drag)
+            }
+        }
+        if let up = NSEvent.mouseEvent(
+            with: .leftMouseUp, location: end, modifierFlags: [],
+            timestamp: now + 0.06, windowNumber: window.windowNumber, context: nil,
+            eventNumber: 20, clickCount: 1, pressure: 0
+        ) {
+            NSApp.sendEvent(up)
+        }
+        return true
     }
 }
 

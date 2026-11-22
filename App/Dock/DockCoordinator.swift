@@ -33,6 +33,10 @@ final class DockCoordinator {
     private(set) var problem: Problem? {
         didSet { docks.forEach { $0.showProblem(problem) } }
     }
+    /// `layout-schemes.json` 解析失败的说明；修好后为 nil。
+    private(set) var schemesProblem: String?
+    /// 方案文件或方案列表变化后调用（供设置页刷新）。
+    var onSchemesChange: (() -> Void)?
     private var pool: [PanelID: any DockPanel] = [:]
     private var keepOnTop = false
     private var saveTask: Task<Void, Never>?
@@ -72,6 +76,7 @@ final class DockCoordinator {
             schemesStore = try JSONDocumentStore(fileURL: schemesURL, version: 1, defaultValue: LayoutSchemesFile())
         } catch {
             schemesStore = nil
+            schemesProblem = ErrorText.describe(error)
             logger.error("无法打开 layout-schemes.json：\(String(describing: error), privacy: .public)")
         }
         observeTask = Task { [weak self, store = self.store] in
@@ -83,8 +88,15 @@ final class DockCoordinator {
         observeSchemesTask = Task { [weak self, schemesStore = self.schemesStore] in
             guard let schemesStore else { return }
             for await change in schemesStore.changes() {
-                if case let .fileError(message) = change {
-                    self?.logger.error("layout-schemes.json：\(message, privacy: .public)")
+                guard let self, !Task.isCancelled else { return }
+                switch change {
+                case let .fileError(message):
+                    self.logger.error("layout-schemes.json：\(message, privacy: .public)")
+                    self.schemesProblem = message
+                    self.onSchemesChange?()
+                case .reloaded:
+                    self.schemesProblem = nil
+                    self.onSchemesChange?()
                 }
             }
         }
@@ -380,6 +392,22 @@ final class DockCoordinator {
 
     // MARK: 布局方案
 
+    enum SchemeError: LocalizedError, Equatable {
+        case emptyName
+        case duplicateName(String)
+        case notFound(String)
+        case storeUnavailable
+
+        var errorDescription: String? {
+            switch self {
+            case .emptyName: String(localized: "方案名称不能为空")
+            case .duplicateName: String(localized: "已有同名方案")
+            case let .notFound(name): String(localized: "找不到布局方案“\(name)”")
+            case .storeUnavailable: String(localized: "无法写入 layout-schemes.json")
+            }
+        }
+    }
+
     var schemes: [LayoutScheme] {
         schemesStore?.value().schemes ?? []
     }
@@ -391,7 +419,8 @@ final class DockCoordinator {
     /// 把指定窗口（缺省为当前活动窗口）的停靠布局按名称保存到 `layout-schemes.json`；同名覆盖。
     func saveScheme(named rawName: String, from dock: WindowDock?) async throws {
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty, let schemesStore else { return }
+        guard !name.isEmpty else { throw SchemeError.emptyName }
+        guard let schemesStore else { throw SchemeError.storeUnavailable }
         let snapshot = layout(of: dock ?? active)
         try await schemesStore.update { file in
             if let index = file.schemes.firstIndex(where: { $0.name == name }) {
@@ -400,6 +429,40 @@ final class DockCoordinator {
                 file.schemes.append(LayoutScheme(name: name, layout: snapshot))
             }
         }
+        schemesProblem = nil
+        onSchemesChange?()
+    }
+
+    /// 改名布局方案；新名去首尾空白，空名或重名抛错。
+    func renameScheme(_ old: String, to new: String) async throws {
+        let trimmed = new.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw SchemeError.emptyName }
+        guard let schemesStore else { throw SchemeError.storeUnavailable }
+        let currentSchemes = schemesStore.value().schemes
+        guard currentSchemes.contains(where: { $0.name == old }) else {
+            throw SchemeError.notFound(old)
+        }
+        if trimmed == old { return }
+        guard !currentSchemes.contains(where: { $0.name == trimmed }) else {
+            throw SchemeError.duplicateName(trimmed)
+        }
+        try await schemesStore.update { file in
+            guard let index = file.schemes.firstIndex(where: { $0.name == old }),
+                  !file.schemes.contains(where: { $0.name == trimmed }) else { return }
+            file.schemes[index].name = trimmed
+        }
+        schemesProblem = nil
+        onSchemesChange?()
+    }
+
+    /// 删除指定名称的布局方案。
+    func deleteScheme(named name: String) async throws {
+        guard let schemesStore else { throw SchemeError.storeUnavailable }
+        try await schemesStore.update { file in
+            file.schemes.removeAll { $0.name == name }
+        }
+        schemesProblem = nil
+        onSchemesChange?()
     }
 
     /// 套用指定名称的布局方案到当前窗口，并立即持久化 `layout.json`。

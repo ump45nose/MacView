@@ -46,6 +46,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var cachedProfiles: [DisplayProfile] = []
     /// NSWindow 不持有自己的控制器，由这里保留到窗口关闭。
     private(set) var controllers: [ReaderWindowController] = []
+    /// 最近成为活动窗口的阅读窗口，供设置窗口等非阅读窗打开时定位目标。
+    private weak var recentReaderController: ReaderWindowController?
+    private var readerActivationObservers: [NSObjectProtocol] = []
     /// 服务就绪之前收到的打开请求（例如拖到 Dock 图标启动）。
     private var pendingURLs: [URL] = []
     private var cascadePoint = NSPoint.zero
@@ -135,6 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             registerWindowAppearanceCommands(in: services.commands)
             registerLayoutSchemeCommands(in: services.commands)
             observeSettingsErrors()
+            observeReaderActivation()
         } catch {
             logger.fault("服务启动失败：\(String(describing: error), privacy: .public)")
             let alert = NSAlert()
@@ -193,6 +197,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         settingsWindow = controller
         controller.show()
+        return controller
+    }
+
+    /// 打开设置窗口并切到指定页签（可选滚到指定节）。
+    @discardableResult
+    func openSettings(page: SettingsPage, scrollTo section: String? = nil) -> SettingsWindowController? {
+        guard let controller = openSettings() else { return nil }
+        controller.show(page: page, scrollTo: section)
         return controller
     }
 
@@ -473,6 +485,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainWindow?.windowController as? ReaderWindowController
     }
 
+    /// 最近活动的阅读窗口：设置窗口打开时仍指向之前激活的阅读窗口；所有阅读窗口关闭时为 nil。
+    var activeReaderController: ReaderWindowController? {
+        if let main = mainController, controllers.contains(where: { $0 === main }) {
+            return main
+        }
+        if let recent = recentReaderController,
+           controllers.contains(where: { $0 === recent }),
+           recent.window != nil {
+            return recent
+        }
+        if let ordered = NSApp.orderedWindows
+            .compactMap({ $0.windowController as? ReaderWindowController })
+            .first(where: { candidate in controllers.contains(where: { $0 === candidate }) }) {
+            return ordered
+        }
+        return controllers.first
+    }
+
+    private func observeReaderActivation() {
+        guard readerActivationObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(handleReaderWindowActivated(_:)), name: NSWindow.didBecomeMainNotification, object: nil)
+        center.addObserver(self, selector: #selector(handleReaderWindowActivated(_:)), name: NSWindow.didBecomeKeyNotification, object: nil)
+        center.addObserver(self, selector: #selector(handleReaderWindowWillClose(_:)), name: NSWindow.willCloseNotification, object: nil)
+        readerActivationObservers = [NSObject()]
+    }
+
+    @objc private func handleReaderWindowActivated(_ note: Notification) {
+        guard let window = note.object as? NSWindow,
+              let reader = window.windowController as? ReaderWindowController,
+              controllers.contains(where: { $0 === reader }) else { return }
+        recentReaderController = reader
+        dock?.activate(reader.dock)
+    }
+
+    @objc private func handleReaderWindowWillClose(_ note: Notification) {
+        guard let window = note.object as? NSWindow,
+              let reader = window.windowController as? ReaderWindowController else { return }
+        if recentReaderController === reader {
+            recentReaderController = controllers.last { $0 !== reader }
+        }
+    }
+
     func controller(for session: SessionID?) -> ReaderWindowController? {
         controllers.first { $0.session.id == session }
     }
@@ -567,27 +622,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.removeAllItems()
         menu.autoenablesItems = false
         let schemes = dock?.schemes ?? []
-        let hasWindow = (mainController ?? controllers.first) != nil
+        let hasWindow = activeReaderController != nil
         if schemes.isEmpty {
             let empty = NSMenuItem(title: String(localized: "还没有布局方案"), action: nil, keyEquivalent: "")
             empty.isEnabled = false
             menu.addItem(empty)
-            return true
+        } else {
+            for scheme in schemes {
+                let item = NSMenuItem(title: scheme.name, action: #selector(applyLayoutSchemeFromMenu(_:)), keyEquivalent: "")
+                item.target = self
+                item.isEnabled = hasWindow
+                item.representedObject = scheme.name
+                menu.addItem(item)
+            }
         }
-        for scheme in schemes {
-            let item = NSMenuItem(title: scheme.name, action: #selector(applyLayoutSchemeFromMenu(_:)), keyEquivalent: "")
-            item.target = self
-            item.isEnabled = hasWindow
-            item.representedObject = scheme.name
-            menu.addItem(item)
-        }
+        menu.addItem(.separator())
+        let manage = NSMenuItem(title: String(localized: "管理布局方案…"), action: #selector(manageLayoutSchemesFromMenu(_:)), keyEquivalent: "")
+        manage.target = self
+        manage.isEnabled = NSApp.modalWindow == nil
+        menu.addItem(manage)
         return true
     }
 
     @objc private func applyLayoutSchemeFromMenu(_ sender: NSMenuItem) {
         guard let name = sender.representedObject as? String else { return }
-        let target = mainController ?? controllers.first
+        let target = activeReaderController
         dispatcher?.run(.layoutSchemeApply, arguments: ["name": .string(name)], in: target, scope: menuScope)
+    }
+
+    @objc private func manageLayoutSchemesFromMenu(_ sender: Any?) {
+        dispatcher?.run(.layoutSchemeManage, in: mainController, scope: menuScope)
     }
 
     private var targetReaderWindow: ReaderWindow? {

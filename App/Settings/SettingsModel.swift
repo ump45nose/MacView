@@ -2,6 +2,7 @@ import AppKit
 import MVCommands
 import MVFoundation
 import MVIO
+import MVLayout
 import MVSettings
 import Observation
 
@@ -22,14 +23,18 @@ final class SettingsModel {
     @ObservationIgnored private let sources: any SourceRegistry
     @ObservationIgnored private var changesTask: Task<Void, Never>?
     @ObservationIgnored private var globalWrite: Task<Void, Never>?
+    @ObservationIgnored private var throttledGlobalWrite: Task<Void, Never>?
+    @ObservationIgnored private var lastGlobalWriteTime: ContinuousClock.Instant?
     @ObservationIgnored private var rulesWrite: Task<Void, Never>?
     private static let writeDelay = Duration.milliseconds(150)
+    private static let throttleInterval = Duration.milliseconds(100)
 
     let supportDirectory: URL
     let cacheDirectory: URL
     let shortcuts: ShortcutsModel
     let pointer: PointerModel
     let menus: MenusModel
+    let layoutSchemes: LayoutSchemesModel
 
     init(
         store: any SettingsStore,
@@ -43,18 +48,20 @@ final class SettingsModel {
         self.sources = sources
         self.supportDirectory = supportDirectory
         self.cacheDirectory = cacheDirectory
-        let resolvedKeyBindings = keyBindings ?? (NSApp.delegate as? AppDelegate)?.services?.keyBindings
-        let resolvedMenus = menus ?? (NSApp.delegate as? AppDelegate)?.services?.menus
+        let appDelegate = NSApp.delegate as? AppDelegate
+        let resolvedKeyBindings = keyBindings ?? appDelegate?.services?.keyBindings
+        let resolvedMenus = menus ?? appDelegate?.services?.menus
         self.shortcuts = ShortcutsModel(store: resolvedKeyBindings)
         self.pointer = PointerModel(store: resolvedKeyBindings)
         self.menus = MenusModel(store: resolvedMenus)
+        self.layoutSchemes = LayoutSchemesModel(dock: appDelegate?.dock, app: appDelegate)
         let changes = store.changes()
         changesTask = Task { [weak self] in
             await self?.loadAll()
             for await change in changes {
                 guard let self, !Task.isCancelled else { return }
                 switch change {
-                case .global: if globalWrite == nil { global = await store.global() }
+                case .global: if globalWrite == nil && throttledGlobalWrite == nil { global = await store.global() }
                 case .pathRules: if rulesWrite == nil { rules = await store.pathRules() }
                 default: break
                 }
@@ -73,12 +80,15 @@ final class SettingsModel {
         shortcuts.reload()
         pointer.reload()
         menus.reload()
+        layoutSchemes.reload()
     }
 
     // MARK: 全局
 
     func updateGlobal(_ change: (inout GlobalSettings) -> Void) {
         change(&global)
+        throttledGlobalWrite?.cancel()
+        throttledGlobalWrite = nil
         globalWrite?.cancel()
         let value = global
         globalWrite = Task { [weak self, store] in
@@ -87,10 +97,42 @@ final class SettingsModel {
             do {
                 try await store.updateGlobal { $0 = value }
                 self?.errorMessage = nil
+                self?.lastGlobalWriteTime = ContinuousClock.now
             } catch {
                 self?.errorMessage = ErrorText.describe(error)
             }
             self?.globalWrite = nil
+        }
+    }
+
+    /// 节流写盘（约 0.1 秒间隔）：用于不透明度滑块等连续拖动，拖动中实时落盘并驱动窗口更新，结束时保证终值落盘。
+    func updateGlobalThrottled(_ change: (inout GlobalSettings) -> Void) {
+        change(&global)
+        globalWrite?.cancel()
+        globalWrite = nil
+        guard throttledGlobalWrite == nil else { return }
+        throttledGlobalWrite = Task { [weak self, store] in
+            while let self, !Task.isCancelled {
+                if let last = self.lastGlobalWriteTime {
+                    let elapsed = ContinuousClock.now - last
+                    if elapsed < Self.throttleInterval {
+                        try? await Task.sleep(for: Self.throttleInterval - elapsed)
+                    }
+                }
+                guard !Task.isCancelled else { break }
+                let value = self.global
+                do {
+                    try await store.updateGlobal { $0 = value }
+                    self.errorMessage = nil
+                } catch {
+                    self.errorMessage = ErrorText.describe(error)
+                }
+                self.lastGlobalWriteTime = ContinuousClock.now
+                if self.global == value {
+                    break
+                }
+            }
+            self?.throttledGlobalWrite = nil
         }
     }
 
@@ -301,4 +343,128 @@ struct OverrideField: Identifiable {
 
 extension ScaleMode {
     static let allModes: [ScaleMode] = [.fitWindow, .fitWidth, .fitHeight, .fill, .original, .devicePixel, .fixed]
+}
+
+/// 布局方案设置页模型：桥接 `DockCoordinator` 方案列表/错误与最近活动阅读窗口状态。
+@MainActor
+@Observable
+final class LayoutSchemesModel {
+    private(set) var schemes: [LayoutScheme] = []
+    private(set) var problem: String?
+    private(set) var hasReaderWindow = false
+
+    @ObservationIgnored private weak var dock: DockCoordinator?
+    @ObservationIgnored private weak var app: AppDelegate?
+    @ObservationIgnored private var windowObservers: [NSObjectProtocol] = []
+
+    var fileURL: URL? { dock?.schemesFileURL }
+
+    init(dock: DockCoordinator?, app: AppDelegate?) {
+        self.dock = dock
+        self.app = app
+        dock?.onSchemesChange = { [weak self] in
+            self?.reload()
+        }
+        let center = NotificationCenter.default
+        let names: [Notification.Name] = [
+            NSWindow.didBecomeMainNotification,
+            NSWindow.didBecomeKeyNotification,
+            NSWindow.willCloseNotification,
+        ]
+        windowObservers = names.map { name in
+            center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                nonisolated(unsafe) let closingObject = name == NSWindow.willCloseNotification ? note.object : nil
+                MainActor.assumeIsolated {
+                    let closing = closingObject as? NSWindow
+                    self?.refreshReaderWindowState(excluding: closing)
+                    if closing != nil {
+                        Task { @MainActor [weak self] in
+                            await Task.yield()
+                            self?.refreshReaderWindowState(excluding: nil)
+                        }
+                    }
+                }
+            }
+        }
+        reload()
+    }
+
+    isolated deinit {
+        for observer in windowObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    func reload() {
+        schemes = dock?.schemes ?? []
+        problem = dock?.schemesProblem
+        refreshReaderWindowState(excluding: nil)
+    }
+
+    private func refreshReaderWindowState(excluding closingWindow: NSWindow?) {
+        guard let app else {
+            hasReaderWindow = false
+            return
+        }
+        let available = app.controllers.contains { controller in
+            guard let window = controller.window else { return false }
+            return window !== closingWindow
+        }
+        hasReaderWindow = available
+    }
+
+    private func resolvedTargetReader() -> ReaderWindowController? {
+        guard let app, let target = app.activeReaderController,
+              app.controllers.contains(where: { $0 === target }),
+              target.window != nil else {
+            refreshReaderWindowState(excluding: nil)
+            return nil
+        }
+        return target
+    }
+
+    func hasScheme(named rawName: String, excluding ignored: String? = nil) -> Bool {
+        let trimmed = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        return schemes.contains { $0.name == trimmed && $0.name != ignored }
+    }
+
+    @discardableResult
+    func apply(_ name: String) async -> Bool {
+        guard let dock, let target = resolvedTargetReader() else { return false }
+        let applied = await dock.applyScheme(named: name, to: target.dock)
+        if applied {
+            target.content.statusBar.showMessage(String(localized: "已套用布局方案“\(name)”"))
+        }
+        return applied
+    }
+
+    func saveCurrent(named name: String) async throws {
+        guard let dock, let target = resolvedTargetReader() else { return }
+        try await dock.saveScheme(named: name, from: target.dock)
+        reload()
+    }
+
+    func replaceWithCurrent(named name: String) async throws {
+        guard let dock, let target = resolvedTargetReader() else { return }
+        try await dock.saveScheme(named: name, from: target.dock)
+        reload()
+    }
+
+    func rename(_ old: String, to new: String) async throws {
+        guard let dock else { return }
+        try await dock.renameScheme(old, to: new)
+        reload()
+    }
+
+    func delete(_ name: String) async throws {
+        guard let dock else { return }
+        try await dock.deleteScheme(named: name)
+        reload()
+    }
+
+    func openSchemesFile() {
+        guard let url = fileURL else { return }
+        NSWorkspace.shared.open(url)
+    }
 }

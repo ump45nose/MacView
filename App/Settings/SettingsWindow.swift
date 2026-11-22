@@ -4,11 +4,17 @@ import MVSettings
 import Observation
 import SwiftUI
 
-/// 窗口的状态：当前页。
+/// 窗口的状态：当前页与待滚动的节。
 @MainActor
 @Observable
 final class SettingsWindowState {
+    struct ScrollTarget: Equatable {
+        let section: String
+        let token: UUID
+    }
+
     var page = SettingsPage.browse
+    var scrollTarget: ScrollTarget?
     let model: SettingsModel
 
     init(model: SettingsModel) {
@@ -54,5 +60,13 @@ final class SettingsWindowController: NSWindowController {
         #if DEBUG
         TestPresentation.present(window)
         #endif
+    }
+
+    func show(page: SettingsPage, scrollTo section: String? = nil) {
+        state.page = page
+        if let section {
+            state.scrollTarget = SettingsWindowState.ScrollTarget(section: section, token: UUID())
+        }
+        show()
     }
 }

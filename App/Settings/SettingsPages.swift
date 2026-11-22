@@ -6,7 +6,7 @@ import SwiftUI
 
 /// 设置窗口的各页。
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case browse, display, cache, rules, files, shortcuts, pointer, menus
+    case browse, display, cache, rules, files, shortcuts, pointer, menus, appearance
 
     var id: String { rawValue }
 
@@ -20,6 +20,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .shortcuts: String(localized: "快捷键")
         case .pointer: String(localized: "鼠标与触控板")
         case .menus: String(localized: "菜单与工具栏")
+        case .appearance: String(localized: "外观")
         }
     }
 }
@@ -42,6 +43,7 @@ struct SettingsRootView: View {
                         .frame(height: 26)
                         .background(state.page == page ? Color(nsColor: Theme.selected) : .clear, in: RoundedRectangle(cornerRadius: 7))
                         .contentShape(Rectangle())
+                        .accessibilityIdentifier("settings.tab.\(page.rawValue)")
                 }
             }
             .padding(.horizontal, 12)
@@ -67,6 +69,7 @@ struct SettingsRootView: View {
                 case .shortcuts: ShortcutsSettingsPage(model: state.model.shortcuts)
                 case .pointer: PointerSettingsPage(model: state.model.pointer)
                 case .menus: MenusSettingsPage(model: state.model.menus)
+                case .appearance: AppearanceSettingsPage(model: state.model, scrollTarget: state.scrollTarget)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
