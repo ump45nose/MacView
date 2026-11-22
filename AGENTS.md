@@ -56,7 +56,6 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 | `make bench ARGS="…"` | 以 release 构建运行 mvbench，`ARGS` 原样传入，例如 `ARGS="env --path /Volumes/Picture"` |
 
 - Swift 6 语言模式，完整并发检查，零警告。
-- 前台自检（激活 App 或发送鼠标键盘事件）只在用户空闲时跑：运行前用 `ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000); exit}'` 查空闲秒数，不到 300 秒或屏幕锁定时不跑；跑完空闲秒数小于自检耗时说明用户中途动过，结果作废，空闲后重跑。等待期间先做不需要前台的工作，每 5 分钟复查一次。
 - 单元测试用 Swift Testing。
 - 性能数据来自 mvbench 与 signpost；界面性能用 `xctrace`（Animation Hitches）采集。
 - App 没有测试目标，界面行为用 `-MVSelfTest`、`-MVDockSelfTest`、`-MVFileOpsSelfTest` 等自检（参数见 architecture.md）。要前台的自检加 `-MVSelfTestActivate YES` 并经 `open -n -W -a <App> --args …` 启动，从终端直接起的进程拿不到前台；每次运行用独立的 `-MVSupportDirectory`、`-MVCacheDirectory`、`-MVLayoutFile`。点击和拖动要走真实事件路径（经 `NSApp.sendEvent` 发送），`performClick` 测不到依赖当前事件的逻辑；读模型也证明不了屏幕上的显示，这类结果由用户确认。访问网络卷的自检和冒烟直接执行 `MacView.app/Contents/MacOS/MacView`：ad-hoc 签名每次构建都变，经 `open` 启动后第一次读网络卷要等系统授权弹窗，9 秒后被判超时、卷降级；要前台又要网络卷时，由用户在场点“允许”。
