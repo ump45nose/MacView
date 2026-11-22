@@ -5,7 +5,7 @@ import MVSettings
 @MainActor
 final class ProfileListSectionView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private static let dragType = NSPasteboard.PasteboardType("io.github.ump45nose.MacView.displayProfileRow")
-    private static let rowHeight: CGFloat = 46
+    private static var rowHeight: CGFloat { ceil(46 * Theme.fontScale(.panels)) }
 
     var onApplyToBook: ((DisplayProfile) -> Void)?
     var onApplyToGlobal: ((DisplayProfile) -> Void)?
@@ -25,18 +25,20 @@ final class ProfileListSectionView: NSView, NSTableViewDataSource, NSTableViewDe
     let tableView = NSTableView()
     private var tableHeightConstraint: NSLayoutConstraint?
 
+    private let titleLabel = NSTextField(labelWithString: String(localized: "显示配置"))
+    private let hintLabel = NSTextField(labelWithString: String(localized: "套用默认写入当前书"))
     private let emptyBox = RoundedBoxView()
     private let emptyTitle = NSTextField(labelWithString: String(localized: "还没有显示配置"))
     private let emptyBody = NSTextField(wrappingLabelWithString: String(localized: "把现在的浏览方式、缩放、效果和背景存成一个配置，以后一键或按 ⌃1 套用。"))
 
     let applyButton = FlatButton(
-        font: .systemFont(ofSize: 12, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 24, padding: 10
+        font: Theme.font(.panels, size: 12, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 24, padding: 10
     )
     let saveButton = FlatButton(
-        font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10
+        font: Theme.font(.panels, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10
     )
     let emptySaveButton = FlatButton(
-        font: .systemFont(ofSize: 12, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 24, padding: 10
+        font: Theme.font(.panels, size: 12, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 24, padding: 10
     )
     private let dragHint = NSTextField(labelWithString: String(localized: "拖动排序"))
     private let normalFooter = NSStackView()
@@ -45,6 +47,25 @@ final class ProfileListSectionView: NSView, NSTableViewDataSource, NSTableViewDe
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         buildUI()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        titleLabel.font = Theme.font(.panels, size: 12, weight: .semibold)
+        let smallFont = Theme.font(.panels, size: 11)
+        hintLabel.font = smallFont
+        dragHint.font = smallFont
+        emptyBody.font = Theme.font(.panels, size: 12)
+        let semibold12 = Theme.font(.panels, size: 12, weight: .semibold)
+        applyButton.applyFont(semibold12)
+        emptySaveButton.applyFont(semibold12)
+        saveButton.applyFont(Theme.font(.panels, size: 12))
+        tableView.rowHeight = Self.rowHeight
+        tableHeightConstraint?.constant = max(CGFloat(profiles.count) * Self.rowHeight, 1)
+        tableView.enumerateAvailableRowViews { rowView, _ in
+            (rowView.view(atColumn: 0) as? ProfileRowCellView)?.applyFonts()
+        }
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -137,7 +158,7 @@ final class ProfileListSectionView: NSView, NSTableViewDataSource, NSTableViewDe
         deleteItem.representedObject = profile.id
         deleteItem.isEnabled = true
         menu.addItem(deleteItem)
-
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 
@@ -149,19 +170,17 @@ final class ProfileListSectionView: NSView, NSTableViewDataSource, NSTableViewDe
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
 
-        let title = NSTextField(labelWithString: String(localized: "显示配置"))
-        title.font = .systemFont(ofSize: 12, weight: .semibold)
-        title.textColor = Theme.text
-        title.setContentHuggingPriority(.required, for: .horizontal)
+        titleLabel.font = Theme.font(.panels, size: 12, weight: .semibold)
+        titleLabel.textColor = Theme.text
+        titleLabel.setContentHuggingPriority(.required, for: .horizontal)
 
-        let hint = NSTextField(labelWithString: String(localized: "套用默认写入当前书"))
-        hint.font = .systemFont(ofSize: 11)
-        hint.textColor = Theme.text2
-        hint.lineBreakMode = .byTruncatingTail
+        hintLabel.font = Theme.font(.panels, size: 11)
+        hintLabel.textColor = Theme.text2
+        hintLabel.lineBreakMode = .byTruncatingTail
 
         let headerSpacer = NSView()
         headerSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let header = NSStackView(views: [title, hint, headerSpacer])
+        let header = NSStackView(views: [titleLabel, hintLabel, headerSpacer])
         header.orientation = .horizontal
         header.alignment = .firstBaseline
         header.spacing = 6
@@ -201,7 +220,7 @@ final class ProfileListSectionView: NSView, NSTableViewDataSource, NSTableViewDe
         emptyTitle.font = Theme.serif(14, weight: .medium)
         emptyTitle.textColor = Theme.text
         emptyTitle.alignment = .center
-        emptyBody.font = .systemFont(ofSize: 12)
+        emptyBody.font = Theme.font(.panels, size: 12)
         emptyBody.textColor = Theme.text2
         emptyBody.alignment = .center
         let emptyStack = NSStackView(views: [emptyTitle, emptyBody])
@@ -226,7 +245,7 @@ final class ProfileListSectionView: NSView, NSTableViewDataSource, NSTableViewDe
         saveButton.setText(String(localized: "存为配置…"))
         saveButton.target = self
         saveButton.action = #selector(saveClicked(_:))
-        dragHint.font = .systemFont(ofSize: 11)
+        dragHint.font = Theme.font(.panels, size: 11)
         dragHint.textColor = Theme.text2
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
@@ -413,7 +432,7 @@ private final class ProfileRowCellView: NSView {
         wantsLayer = true
         layer?.addSublayer(divider)
 
-        nameLabel.font = .systemFont(ofSize: 12.5, weight: .medium)
+        nameLabel.font = Theme.font(.panels, size: 12.5, weight: .medium)
         nameLabel.textColor = Theme.text
         nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -478,6 +497,15 @@ private final class ProfileRowCellView: NSView {
         needsDisplay = true
     }
 
+    func applyFonts() {
+        nameLabel.font = Theme.font(.panels, size: 12.5, weight: .medium)
+        shortcutBadge.applyFonts()
+        for view in chipsStack.arrangedSubviews {
+            (view as? GroupChipView)?.applyFonts()
+        }
+        needsLayout = true
+    }
+
     override var wantsUpdateLayer: Bool { true }
 
     override func updateLayer() {
@@ -518,7 +546,7 @@ private final class GroupChipView: NSView {
         layer?.cornerRadius = 4
         layer?.borderWidth = 0.5
         label.stringValue = text
-        label.font = .systemFont(ofSize: 10)
+        label.font = Theme.font(.panels, size: 10)
         label.textColor = Theme.text2
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
@@ -528,6 +556,11 @@ private final class GroupChipView: NSView {
             label.topAnchor.constraint(equalTo: topAnchor, constant: 0.5),
             label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -0.5),
         ])
+    }
+
+    func applyFonts() {
+        label.font = Theme.font(.panels, size: 10)
+        invalidateIntrinsicContentSize()
     }
 
     @available(*, unavailable)

@@ -10,6 +10,8 @@ final class FileOperationBanner: NSView {
     private(set) var retryButton: FlatButton?
     let closeButton: NSButton
     private let onRetry: (() -> Void)?, onClose: () -> Void, bottomLine = CALayer()
+    private var nameLabels: [NSTextField] = []
+    private var detailLabels: [NSTextField] = []
 
     init(title: String, failures: [FileFailure], onRetry: (() -> Void)?, onClose: @escaping () -> Void) {
         self.onRetry = onRetry; self.onClose = onClose
@@ -19,23 +21,25 @@ final class FileOperationBanner: NSView {
         setAccessibilityElement(true); setAccessibilityRole(.group); setAccessibilityLabel(title)
         let icon = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: nil) ?? NSImage())
         icon.symbolConfiguration = .init(pointSize: 16, weight: .regular); icon.contentTintColor = Theme.danger
-        titleLabel.stringValue = title; titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        titleLabel.stringValue = title; titleLabel.font = Theme.font(.overlays, size: 13, weight: .semibold)
         titleLabel.textColor = Theme.text; titleLabel.lineBreakMode = .byTruncatingTail
 
         var textViews: [NSView] = [titleLabel]
         for failure in failures.prefix(5) {
             let name = NSTextField(labelWithString: failure.location.name)
-            name.font = .monospacedSystemFont(ofSize: 11.5, weight: .regular); name.textColor = Theme.text
+            name.font = Theme.font(.overlays, size: 11.5, weight: .regular, monospacedDigits: true); name.textColor = Theme.text
             name.lineBreakMode = .byTruncatingMiddle; name.widthAnchor.constraint(greaterThanOrEqualToConstant: 150).isActive = true
+            nameLabels.append(name)
             let reason = NSTextField(labelWithString: ErrorText.describe(failure.error))
-            reason.font = .systemFont(ofSize: 12); reason.textColor = Theme.text2; reason.lineBreakMode = .byTruncatingTail
+            reason.font = Theme.font(.overlays, size: 12); reason.textColor = Theme.text2; reason.lineBreakMode = .byTruncatingTail
             reason.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            detailLabels.append(reason)
             let line = NSStackView(views: [name, reason]); line.alignment = .firstBaseline; line.spacing = 8
             textViews.append(line)
         }
         if failures.count > 5 {
             let more = NSTextField(labelWithString: String(localized: "还有 \(failures.count - 5) 项"))
-            more.font = .systemFont(ofSize: 12); more.textColor = Theme.text2; textViews.append(more)
+            more.font = Theme.font(.overlays, size: 12); more.textColor = Theme.text2; detailLabels.append(more); textViews.append(more)
         }
         let textStack = NSStackView(views: textViews)
         textStack.orientation = .vertical; textStack.alignment = .leading; textStack.spacing = 2
@@ -48,7 +52,7 @@ final class FileOperationBanner: NSView {
         let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
         var rowViews: [NSView] = [icon, textStack, spacer]
         if onRetry != nil {
-            let retry = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
+            let retry = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
             retry.setText(String(localized: "重试 \(max(1, failures.count)) 项"))
             retry.target = self; retry.action = #selector(retryClicked(_:))
             retryButton = retry; rowViews.append(retry)
@@ -64,6 +68,17 @@ final class FileOperationBanner: NSView {
             row.topAnchor.constraint(equalTo: topAnchor), row.bottomAnchor.constraint(equalTo: bottomAnchor),
             textStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -10),
         ])
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        titleLabel.font = Theme.font(.overlays, size: 13, weight: .semibold)
+        let nameFont = Theme.font(.overlays, size: 11.5, weight: .regular, monospacedDigits: true)
+        let detailFont = Theme.font(.overlays, size: 12)
+        nameLabels.forEach { $0.font = nameFont }
+        detailLabels.forEach { $0.font = detailFont }
+        retryButton?.applyFont(detailFont)
+        needsLayout = true
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
@@ -79,8 +94,8 @@ final class FileOperationBanner: NSView {
 final class PermanentDeleteSheet: NSWindow {
     let headingLabel = NSTextField(labelWithString: "")
     let detailLabel = NSTextField(wrappingLabelWithString: "")
-    let cancelButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
-    let confirmButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.danger, foreground: Theme.onDanger, radius: 7, height: 26, padding: 11)
+    let cancelButton = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
+    let confirmButton = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.danger, foreground: Theme.onDanger, radius: 7, height: 26, padding: 11)
     private var onDecision: ((Bool) -> Void)?
 
     convenience init(count: Int, volumeName: String, reason: String, onDecision: @escaping (Bool) -> Void) {
@@ -97,9 +112,9 @@ final class PermanentDeleteSheet: NSWindow {
         isReleasedWhenClosed = false; backgroundColor = Theme.ground
         let icon = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) ?? NSImage())
         icon.symbolConfiguration = .init(pointSize: 18, weight: .regular); icon.contentTintColor = Theme.danger
-        headingLabel.stringValue = heading; headingLabel.font = .systemFont(ofSize: 13, weight: .semibold); headingLabel.textColor = Theme.text
+        headingLabel.stringValue = heading; headingLabel.font = Theme.font(.overlays, size: 13, weight: .semibold); headingLabel.textColor = Theme.text
         let headerRow = NSStackView(views: [icon, headingLabel]); headerRow.spacing = 10
-        detailLabel.stringValue = detail; detailLabel.font = .systemFont(ofSize: 12); detailLabel.textColor = Theme.text2
+        detailLabel.stringValue = detail; detailLabel.font = Theme.font(.overlays, size: 12); detailLabel.textColor = Theme.text2
         cancelButton.setText(String(localized: "取消")); cancelButton.keyEquivalent = "\u{1b}"
         cancelButton.target = self; cancelButton.action = #selector(cancelPressed(_:))
         confirmButton.setText(String(localized: "永久删除")); confirmButton.target = self; confirmButton.action = #selector(confirmPressed(_:))
@@ -148,9 +163,9 @@ final class EmptyRecycleBinsSheet: NSWindow {
             checkIcon.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
             checkIcon.symbolConfiguration = .init(pointSize: 9, weight: .bold); checkIcon.contentTintColor = .white
             checkIcon.translatesAutoresizingMaskIntoConstraints = false; checkBox.addSubview(checkIcon)
-            nameLabel.stringValue = item.volumeName; nameLabel.font = .systemFont(ofSize: 13, weight: .medium); nameLabel.textColor = Theme.text
-            pathLabel.stringValue = item.mountPath; pathLabel.font = .systemFont(ofSize: 11); pathLabel.textColor = Theme.text2; pathLabel.lineBreakMode = .byTruncatingMiddle
-            countLabel.stringValue = String(localized: "\(item.batchCount) 次删除"); countLabel.font = .systemFont(ofSize: 12); countLabel.textColor = Theme.text2
+            nameLabel.stringValue = item.volumeName; nameLabel.font = Theme.font(.overlays, size: 13, weight: .medium); nameLabel.textColor = Theme.text
+            pathLabel.stringValue = item.mountPath; pathLabel.font = Theme.font(.overlays, size: 11); pathLabel.textColor = Theme.text2; pathLabel.lineBreakMode = .byTruncatingMiddle
+            countLabel.stringValue = String(localized: "\(item.batchCount) 次删除"); countLabel.font = Theme.font(.overlays, size: 12); countLabel.textColor = Theme.text2
             let textStack = NSStackView(views: [nameLabel, pathLabel]); textStack.orientation = .vertical; textStack.alignment = .leading; textStack.spacing = 1
             let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
             let row = NSStackView(views: [checkBox, textStack, spacer, countLabel])
@@ -181,9 +196,9 @@ final class EmptyRecycleBinsSheet: NSWindow {
 
     private(set) var items: [Item]
     private(set) var rowButtons: [VolumeRow] = []
-    let cancelButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
-    let revealButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
-    let emptyButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.danger, foreground: Theme.onDanger, radius: 7, height: 26, padding: 11)
+    let cancelButton = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
+    let revealButton = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
+    let emptyButton = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.danger, foreground: Theme.onDanger, radius: 7, height: 26, padding: 11)
     private let listBox = NSStackView()
     private let onReveal: (Item) -> Void
     private var onConfirm: (([Item]) -> Void)?
@@ -194,9 +209,9 @@ final class EmptyRecycleBinsSheet: NSWindow {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 420, height: initialHeight), styleMask: [.titled], backing: .buffered, defer: false)
         isReleasedWhenClosed = false; backgroundColor = Theme.ground
         let heading = NSTextField(labelWithString: String(localized: "清空回收目录"))
-        heading.font = .systemFont(ofSize: 13, weight: .semibold); heading.textColor = Theme.text
+        heading.font = Theme.font(.overlays, size: 13, weight: .semibold); heading.textColor = Theme.text
         let detail = NSTextField(wrappingLabelWithString: String(localized: "删到回收目录的项在清空前都能手动找回。只列出当前已连接的卷。"))
-        detail.font = .systemFont(ofSize: 12); detail.textColor = Theme.text2
+        detail.font = Theme.font(.overlays, size: 12); detail.textColor = Theme.text2
 
         listBox.orientation = .vertical; listBox.alignment = .leading; listBox.spacing = 0
         listBox.wantsLayer = true; listBox.layer?.cornerRadius = 8; listBox.layer?.borderWidth = 0.5
@@ -259,8 +274,8 @@ final class RenameSheet: NSWindow, NSTextFieldDelegate {
     let textField = NSTextField(string: "")
     let errorLabel = NSTextField(labelWithString: "")
     let errorRow: NSStackView
-    let cancelButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
-    let confirmButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.primary, foreground: Theme.onPrimary, radius: 7, height: 26, padding: 11)
+    let cancelButton = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
+    let confirmButton = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.primary, foreground: Theme.onPrimary, radius: 7, height: 26, padding: 11)
     private weak var fileOps: FileOperationController?
     private let inputBox = NSView()
     private var hasError = false, isSubmitting = false
@@ -273,14 +288,14 @@ final class RenameSheet: NSWindow, NSTextFieldDelegate {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 420, height: 156), styleMask: [.titled], backing: .buffered, defer: false)
         isReleasedWhenClosed = false; backgroundColor = Theme.ground
         let heading = NSTextField(labelWithString: String(localized: "重命名“\(entry.name)”"))
-        heading.font = .systemFont(ofSize: 13, weight: .semibold); heading.textColor = Theme.text; heading.lineBreakMode = .byTruncatingMiddle
+        heading.font = Theme.font(.overlays, size: 13, weight: .semibold); heading.textColor = Theme.text; heading.lineBreakMode = .byTruncatingMiddle
 
         inputBox.wantsLayer = true; inputBox.layer?.cornerRadius = 7; inputBox.layer?.borderWidth = 1
-        textField.stringValue = entry.name; textField.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+        textField.stringValue = entry.name; textField.font = Theme.font(.overlays, size: 13, weight: .regular, monospacedDigits: true)
         textField.textColor = Theme.text; textField.isBordered = false; textField.drawsBackground = false
         textField.focusRingType = .none; textField.delegate = self; textField.translatesAutoresizingMaskIntoConstraints = false
         inputBox.addSubview(textField)
-        errorLabel.font = .systemFont(ofSize: 12); errorLabel.textColor = Theme.danger; errorLabel.lineBreakMode = .byTruncatingTail
+        errorLabel.font = Theme.font(.overlays, size: 12); errorLabel.textColor = Theme.danger; errorLabel.lineBreakMode = .byTruncatingTail
 
         cancelButton.setText(String(localized: "取消")); cancelButton.keyEquivalent = "\u{1b}"
         cancelButton.target = self; cancelButton.action = #selector(cancelPressed(_:))

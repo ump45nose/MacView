@@ -116,8 +116,10 @@ final class EffectsPanelView: NSView {
     private let effectsStateLabel = NSTextField(labelWithString: "")
     private let shortcutBadge = KeyBadgeView(text: "E")
     private var sliderRows: [AdjustField: AdjustSliderRow] = [:]
+    private var sectionTitleLabels: [NSTextField] = []
+    private let sliderHintLabel = NSTextField(labelWithString: String(localized: "双击滑块复位单项"))
     let resetButton = FlatButton(
-        font: .systemFont(ofSize: 12), fill: .clear, foreground: Theme.text2, border: nil, radius: 6, height: 24, padding: 6
+        font: Theme.font(.panels, size: 12), fill: .clear, foreground: Theme.text2, border: nil, radius: 6, height: 24, padding: 6
     )
 
     // 背景段
@@ -133,6 +135,20 @@ final class EffectsPanelView: NSView {
         super.init(frame: frameRect)
         wantsLayer = true
         buildUI()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        let titleFont = Theme.font(.panels, size: 12, weight: .semibold)
+        let smallFont = Theme.font(.panels, size: 11)
+        sectionTitleLabels.forEach { $0.font = titleFont }
+        effectsStateLabel.font = smallFont
+        sliderHintLabel.font = smallFont
+        resetButton.applyFont(Theme.font(.panels, size: 12))
+        shortcutBadge.applyFonts()
+        sliderRows.values.forEach { $0.applyFonts() }
+        swatches.values.forEach { $0.applyFonts() }
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -231,7 +247,7 @@ final class EffectsPanelView: NSView {
         let section = makeSectionStack()
 
         let title = makeSectionTitle(String(localized: "调色"))
-        effectsStateLabel.font = .systemFont(ofSize: 11)
+        effectsStateLabel.font = Theme.font(.panels, size: 11)
         effectsStateLabel.textColor = Theme.text2
         effectsStateLabel.setContentHuggingPriority(.required, for: .horizontal)
 
@@ -261,13 +277,12 @@ final class EffectsPanelView: NSView {
         resetButton.setText(String(localized: "全部复位"))
         resetButton.target = self
         resetButton.action = #selector(resetClicked(_:))
-        let hint = NSTextField(labelWithString: String(localized: "双击滑块复位单项"))
-        hint.font = .systemFont(ofSize: 11)
-        hint.textColor = Theme.text2
-        hint.lineBreakMode = .byTruncatingTail
+        sliderHintLabel.font = Theme.font(.panels, size: 11)
+        sliderHintLabel.textColor = Theme.text2
+        sliderHintLabel.lineBreakMode = .byTruncatingTail
         let footSpacer = NSView()
         footSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        let footer = NSStackView(views: [resetButton, footSpacer, hint])
+        let footer = NSStackView(views: [resetButton, footSpacer, sliderHintLabel])
         footer.orientation = .horizontal
         footer.alignment = .centerY
         footer.spacing = 6
@@ -358,9 +373,10 @@ final class EffectsPanelView: NSView {
 
     private func makeSectionTitle(_ text: String) -> NSTextField {
         let label = NSTextField(labelWithString: text)
-        label.font = .systemFont(ofSize: 12, weight: .semibold)
+        label.font = Theme.font(.panels, size: 12, weight: .semibold)
         label.textColor = Theme.text
         label.setContentHuggingPriority(.required, for: .horizontal)
+        sectionTitleLabels.append(label)
         return label
     }
 
@@ -410,7 +426,7 @@ final class KeyBadgeView: NSView {
         layer?.cornerRadius = 4
         layer?.borderWidth = 0.5
         label.stringValue = text
-        label.font = .monospacedSystemFont(ofSize: 10.5, weight: .regular)
+        label.font = Theme.font(.panels, size: 10.5, weight: .regular, monospacedDigits: true)
         label.textColor = Theme.text2
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
@@ -422,6 +438,11 @@ final class KeyBadgeView: NSView {
         ])
         setContentHuggingPriority(.required, for: .horizontal)
         setContentCompressionResistancePriority(.required, for: .horizontal)
+    }
+
+    func applyFonts() {
+        label.font = Theme.font(.panels, size: 10.5, weight: .regular, monospacedDigits: true)
+        invalidateIntrinsicContentSize()
     }
 
     @available(*, unavailable)
@@ -473,7 +494,7 @@ private final class AdjustSliderRow: NSView, NSTextFieldDelegate {
         self.label = NSTextField(labelWithString: field.title)
         super.init(frame: .zero)
 
-        label.font = .systemFont(ofSize: 12)
+        label.font = Theme.font(.panels, size: 12)
         label.textColor = Theme.text2
         label.lineBreakMode = .byTruncatingTail
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -491,7 +512,7 @@ private final class AdjustSliderRow: NSView, NSTextFieldDelegate {
         }
         slider.translatesAutoresizingMaskIntoConstraints = false
 
-        valueField.font = .monospacedSystemFont(ofSize: 11.5, weight: .regular)
+        valueField.font = Theme.font(.panels, size: 11.5, weight: .regular, monospacedDigits: true)
         valueField.textColor = Theme.text
         valueField.alignment = .right
         valueField.isBordered = false
@@ -523,6 +544,12 @@ private final class AdjustSliderRow: NSView, NSTextFieldDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    func applyFonts() {
+        label.font = Theme.font(.panels, size: 12)
+        valueField.font = Theme.font(.panels, size: 11.5, weight: .regular, monospacedDigits: true)
+        needsLayout = true
     }
 
     func update(value: Double, isEnabled: Bool) {
@@ -592,7 +619,7 @@ private final class BackgroundSwatchView: NSView {
         tile.option = option
         tile.translatesAutoresizingMaskIntoConstraints = false
         label.stringValue = option.title
-        label.font = .systemFont(ofSize: 10)
+        label.font = Theme.font(.panels, size: 10)
         label.textColor = Theme.text2
         label.alignment = .center
         label.maximumNumberOfLines = 2
@@ -619,6 +646,11 @@ private final class BackgroundSwatchView: NSView {
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
         setAccessibilityLabel(option.title)
+    }
+
+    func applyFonts() {
+        label.font = Theme.font(.panels, size: 10)
+        needsLayout = true
     }
 
     @available(*, unavailable)

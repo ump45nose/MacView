@@ -269,6 +269,7 @@ enum SortMenu {
         menu.addItem(.separator())
         add(String(localized: "文件夹在前"), on: !isFollowing && shown.foldersFirst) { $0.foldersFirst = true }
         add(String(localized: "与文件混排"), on: !isFollowing && !shown.foldersFirst) { $0.foldersFirst = false }
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 }
@@ -296,6 +297,7 @@ private final class CollectionPanelView: NSView {
     private var showsSlider = false
     private var showsUp = false
     private var showsNote = false
+    private var lastSortTitle = ""
     private var onUp: (() -> Void)?
 
     private static let controlHeight: CGFloat = 32
@@ -313,8 +315,8 @@ private final class CollectionPanelView: NSView {
             styleButtons[style] = button
             addSubview(button)
         }
+        sortButton.identifier = NSUserInterfaceItemIdentifier("collection.sortButton")
         sortButton.isBordered = false
-        sortButton.font = .systemFont(ofSize: 11)
         sortButton.imagePosition = .imageTrailing
         sortButton.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)
         sortButton.symbolConfiguration = .init(pointSize: 8, weight: .medium)
@@ -332,11 +334,9 @@ private final class CollectionPanelView: NSView {
         upButton.target = self
         upButton.action = #selector(upClicked(_:))
         addSubview(upButton)
-        pathLabel.font = .systemFont(ofSize: 12)
         pathLabel.textColor = Theme.text2
         pathLabel.lineBreakMode = .byTruncatingHead
         addSubview(pathLabel)
-        countLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         countLabel.textColor = Theme.text2
         countLabel.alignment = .right
         addSubview(countLabel)
@@ -346,11 +346,12 @@ private final class CollectionPanelView: NSView {
         noteBox.fillColor = Theme.well
         noteBox.isHidden = true
         addSubview(noteBox)
-        noteLabel.font = .systemFont(ofSize: 11)
         noteLabel.textColor = Theme.text2
         noteLabel.lineBreakMode = .byTruncatingTail
         noteLabel.isHidden = true
         addSubview(noteLabel)
+        applyFonts()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
 
         for (icon, symbol) in [(smallIcon, "photo"), (largeIcon, "photo.fill")] {
             icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
@@ -443,7 +444,10 @@ private final class CollectionPanelView: NSView {
             }
             button.setAccessibilityValue(isOn ? String(localized: "已选中") : nil)
         }
-        sortButton.attributedTitle = NSAttributedString(string: sortTitle + " ", attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: Theme.text2])
+        lastSortTitle = sortTitle
+        let sortFont = Theme.font(.menus, size: Theme.defaultSize(.menus))
+        sortButton.font = sortFont
+        sortButton.attributedTitle = NSAttributedString(string: sortTitle + " ", attributes: [.font: sortFont, .foregroundColor: Theme.text2])
         sortButton.isEnabled = sortNote == nil
         sortButton.alphaValue = sortNote == nil ? 1 : 0.5
         showsNote = sortNote != nil
@@ -451,6 +455,18 @@ private final class CollectionPanelView: NSView {
         slider.doubleValue = settings.itemExtent
         showsSlider = settings.style.usesCanvas
         updateContentVisibility()
+        needsLayout = true
+    }
+
+    @objc private func applyFonts() {
+        let sortFont = Theme.font(.menus, size: Theme.defaultSize(.menus))
+        sortButton.font = sortFont
+        if !lastSortTitle.isEmpty {
+            sortButton.attributedTitle = NSAttributedString(string: lastSortTitle + " ", attributes: [.font: sortFont, .foregroundColor: Theme.text2])
+        }
+        pathLabel.font = Theme.font(.panels, size: 12)
+        countLabel.font = Theme.font(.panels, size: 11, weight: .regular, monospacedDigits: true)
+        noteLabel.font = Theme.font(.panels, size: 11)
         needsLayout = true
     }
 

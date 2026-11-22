@@ -28,8 +28,8 @@ extension Location.Root {
 final class VolumeStatusView: NSView {
     private let titleLabel = NSTextField(labelWithString: "")
     private let detailLabel = NSTextField(labelWithString: "")
-    private let retry = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 10)
-    private let connect = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 10)
+    private let retry = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 10)
+    private let connect = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 10)
     private let bottomLine = CALayer()
     private var mountURL: URL?
     var onRetry: (() -> Void)?
@@ -43,9 +43,9 @@ final class VolumeStatusView: NSView {
         let icon = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) ?? NSImage())
         icon.symbolConfiguration = .init(pointSize: 14, weight: .regular)
         icon.contentTintColor = Theme.accent
-        titleLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        titleLabel.font = Theme.font(.overlays, size: 12, weight: .semibold)
         titleLabel.textColor = Theme.text
-        detailLabel.font = .systemFont(ofSize: 12)
+        detailLabel.font = Theme.font(.overlays, size: 12)
         detailLabel.textColor = Theme.text2
         detailLabel.lineBreakMode = .byTruncatingTail
         retry.setText(String(localized: "重试"))
@@ -54,6 +54,7 @@ final class VolumeStatusView: NSView {
         connect.setText(String(localized: "连接…"))
         connect.target = self
         connect.action = #selector(connectPressed(_:))
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
         let text = NSStackView(views: [titleLabel, detailLabel])
         text.orientation = .vertical
         text.alignment = .leading
@@ -135,5 +136,14 @@ final class VolumeStatusView: NSView {
 
     @objc private func connectPressed(_ sender: Any?) {
         if let mountURL { NSWorkspace.shared.open(mountURL) }
+    }
+
+    @objc private func applyFonts() {
+        titleLabel.font = Theme.font(.overlays, size: 12, weight: .semibold)
+        detailLabel.font = Theme.font(.overlays, size: 12)
+        let buttonFont = Theme.font(.overlays, size: 12)
+        retry.applyFont(buttonFont)
+        connect.applyFont(buttonFont)
+        needsLayout = true
     }
 }

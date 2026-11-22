@@ -37,11 +37,11 @@ final class GestureTrailView: NSView {
         pill.layer?.shadowRadius = 12
         pill.layer?.shadowOffset = CGSize(width: 0, height: -4)
 
-        directionsLabel.font = .systemFont(ofSize: 14, weight: .semibold)
+        directionsLabel.font = Theme.font(.overlays, size: 14, weight: .semibold)
         directionsLabel.textColor = Theme.accent
         directionsLabel.setContentHuggingPriority(.required, for: .horizontal)
 
-        commandLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        commandLabel.font = Theme.font(.overlays, size: 13, weight: .medium)
         commandLabel.textColor = Theme.text
         commandLabel.lineBreakMode = .byTruncatingTail
         commandLabel.setContentHuggingPriority(.required, for: .horizontal)
@@ -63,6 +63,13 @@ final class GestureTrailView: NSView {
         addSubview(pill)
         isHidden = true
         updateAppearanceColors()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        directionsLabel.font = Theme.font(.overlays, size: 14, weight: .semibold)
+        commandLabel.font = Theme.font(.overlays, size: 13, weight: .medium)
+        pill.needsLayout = true
     }
 
     @available(*, unavailable)

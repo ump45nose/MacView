@@ -12,10 +12,10 @@ final class SaveProfilePopover: NSObject, NSTextFieldDelegate {
     private let warningLabel = NSTextField(wrappingLabelWithString: String(localized: "已有同名配置，保存会覆盖它。"))
     private var checkboxes: [DisplayProfileGroup: NSButton] = [:]
     let saveButton = FlatButton(
-        font: .systemFont(ofSize: 12, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 24, padding: 12
+        font: Theme.font(.panels, size: 12, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 24, padding: 12
     )
     let cancelButton = FlatButton(
-        font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10
+        font: Theme.font(.panels, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10
     )
 
     init(
@@ -75,19 +75,19 @@ final class SaveProfilePopover: NSObject, NSTextFieldDelegate {
         root.addSubview(stack)
 
         let title = NSTextField(labelWithString: String(localized: "存为显示配置"))
-        title.font = .systemFont(ofSize: 13, weight: .semibold)
+        title.font = Theme.font(.panels, size: 13, weight: .semibold)
         title.textColor = Theme.text
         stack.addArrangedSubview(title)
 
         nameField.stringValue = String(localized: "新配置")
         nameField.placeholderString = String(localized: "名称")
-        nameField.font = .systemFont(ofSize: 12.5)
+        nameField.font = Theme.font(.panels, size: 12.5)
         nameField.bezelStyle = .roundedBezel
         nameField.delegate = self
         nameField.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(nameField)
 
-        warningLabel.font = .systemFont(ofSize: 11)
+        warningLabel.font = Theme.font(.panels, size: 11)
         warningLabel.textColor = Theme.danger
         warningLabel.isHidden = true
         stack.addArrangedSubview(warningLabel)
@@ -95,11 +95,11 @@ final class SaveProfilePopover: NSObject, NSTextFieldDelegate {
         for group in DisplayProfileHelpers.orderedGroups {
             let box = NSButton(checkboxWithTitle: DisplayProfileHelpers.title(of: group), target: self, action: #selector(groupToggled(_:)))
             box.state = .on
-            box.font = .systemFont(ofSize: 12)
+            box.font = Theme.font(.panels, size: 12)
             checkboxes[group] = box
 
             let summary = NSTextField(wrappingLabelWithString: DisplayProfileHelpers.summary(of: group, in: settings))
-            summary.font = .systemFont(ofSize: 11)
+            summary.font = Theme.font(.panels, size: 11)
             summary.textColor = Theme.text2
             summary.maximumNumberOfLines = 2
 

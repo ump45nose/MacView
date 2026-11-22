@@ -1052,15 +1052,23 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         fullScreenButton.contentTintColor = Theme.text
         fullScreenButton.toolTip = catalog.title(of: .fullScreenToggle)
         sortButton.isBordered = false
-        sortButton.font = .systemFont(ofSize: 12)
+        sortButton.font = Theme.font(.menus, size: Theme.defaultSize(.menus))
         sortButton.pullsDown = true
         sortButton.menu = viewerSortMenu()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyMenuFonts), name: Theme.fontsDidChange, object: nil)
         sizeSlider.controlSize = .small
         sizeSlider.minValue = 120
         sizeSlider.maxValue = 480
         sizeSlider.target = self
         sizeSlider.action = #selector(sizeChanged(_:))
         sizeSlider.widthAnchor.constraint(equalToConstant: 96).isActive = true
+    }
+
+    @objc private func applyMenuFonts() {
+        sortButton.font = Theme.font(.menus, size: Theme.defaultSize(.menus))
+        if let menu = sortButton.menu {
+            Theme.applyMenuFont(to: menu)
+        }
     }
 
     /// 瀑布流工具项的排序菜单：第一项是按钮的标题。
@@ -1073,6 +1081,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             item.representedObject = id.rawValue
             menu.addItem(item)
         }
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 

@@ -416,10 +416,16 @@ private final class DropIndicatorView: NSView {
     init() {
         super.init(frame: .zero)
         wantsLayer = true
-        label.font = .systemFont(ofSize: 12, weight: .semibold)
+        label.font = Theme.font(.panels, size: 12, weight: .semibold)
         label.textColor = Theme.text
         label.alignment = .center
         addSubview(label)
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        label.font = Theme.font(.panels, size: 12, weight: .semibold)
+        needsLayout = true
     }
 
     @available(*, unavailable)

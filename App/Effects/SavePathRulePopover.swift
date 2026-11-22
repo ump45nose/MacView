@@ -11,10 +11,10 @@ final class SavePathRulePopover: NSObject {
 
     let pathPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     let saveButton = FlatButton(
-        font: .systemFont(ofSize: 12, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 24, padding: 12
+        font: Theme.font(.panels, size: 12, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 24, padding: 12
     )
     let cancelButton = FlatButton(
-        font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10
+        font: Theme.font(.panels, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10
     )
 
     init(
@@ -75,12 +75,12 @@ final class SavePathRulePopover: NSObject {
         root.addSubview(stack)
 
         let title = NSTextField(labelWithString: String(localized: "存为路径规则"))
-        title.font = .systemFont(ofSize: 13, weight: .semibold)
+        title.font = Theme.font(.panels, size: 13, weight: .semibold)
         title.textColor = Theme.text
         stack.addArrangedSubview(title)
 
         pathPopup.controlSize = .small
-        pathPopup.font = .systemFont(ofSize: 12)
+        pathPopup.font = Theme.font(.menus, size: Theme.defaultSize(.menus))
         pathPopup.lineBreakMode = .byTruncatingMiddle
         for (index, location) in candidates.enumerated() {
             let label: String
@@ -93,6 +93,9 @@ final class SavePathRulePopover: NSObject {
             }
             pathPopup.addItem(withTitle: label)
         }
+        if let menu = pathPopup.menu {
+            Theme.applyMenuFont(to: menu)
+        }
         if candidates.count > 1 {
             pathPopup.selectItem(at: 1)
         }
@@ -102,7 +105,7 @@ final class SavePathRulePopover: NSObject {
         let note = NSTextField(wrappingLabelWithString: String(
             localized: "位置在这个路径下的书按“\(profile.name)”的值显示；书里单独改过的值仍优先。已有同一路径的规则时，并入那条规则。"
         ))
-        note.font = .systemFont(ofSize: 11)
+        note.font = Theme.font(.panels, size: 11)
         note.textColor = Theme.text2
         stack.addArrangedSubview(note)
 

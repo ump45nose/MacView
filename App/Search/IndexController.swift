@@ -94,7 +94,7 @@ final class IndexController {
 @MainActor
 final class IndexProgressBanner: NSView {
     let titleLabel = NSTextField(labelWithString: "")
-    let cancelButton = FlatButton(font: .systemFont(ofSize: 11.5), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 5, height: 22, padding: 9)
+    let cancelButton = FlatButton(font: Theme.font(.panels, size: 11.5), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 5, height: 22, padding: 9)
     let step1Detail = NSTextField(labelWithString: "")
     let step2Detail = NSTextField(labelWithString: "")
     let errorLabel = NSTextField(wrappingLabelWithString: "")
@@ -102,6 +102,8 @@ final class IndexProgressBanner: NSView {
     var onCancel: (() -> Void)?
     var onDismiss: (() -> Void)?
 
+    private let step1Label = NSTextField(labelWithString: String(localized: "① 文件名"))
+    private let step2Label = NSTextField(labelWithString: String(localized: "② 评分与标签"))
     private let step1Bar = NSProgressIndicator()
     private let step2Bar = NSProgressIndicator()
     private let bottomLine = CALayer()
@@ -113,7 +115,6 @@ final class IndexProgressBanner: NSView {
         wantsLayer = true
         layer?.addSublayer(bottomLine)
 
-        titleLabel.font = .systemFont(ofSize: 12, weight: .semibold)
         titleLabel.textColor = Theme.text
         titleLabel.lineBreakMode = .byTruncatingMiddle
         titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -124,20 +125,21 @@ final class IndexProgressBanner: NSView {
             bar.style = .bar; bar.controlSize = .small; bar.minValue = 0; bar.maxValue = 1
         }
         for detail in [step1Detail, step2Detail] {
-            detail.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
             detail.textColor = Theme.text2; detail.alignment = .right; detail.lineBreakMode = .byTruncatingTail
             detail.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         }
-        errorLabel.font = .systemFont(ofSize: 11.5); errorLabel.textColor = Theme.danger; errorLabel.isHidden = true
+        errorLabel.textColor = Theme.danger; errorLabel.isHidden = true
 
         func row(_ left: NSView, _ right: NSView) -> NSStackView {
             let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
             let view = NSStackView(views: [left, spacer, right]); view.alignment = .centerY; view.spacing = 6
             return view
         }
-        let s1 = NSTextField(labelWithString: String(localized: "① 文件名")); s1.font = .systemFont(ofSize: 11.5); s1.textColor = Theme.text
-        let s2 = NSTextField(labelWithString: String(localized: "② 评分与标签")); s2.font = .systemFont(ofSize: 11.5); s2.textColor = Theme.text
-        let rows: [NSView] = [row(titleLabel, cancelButton), row(s1, step1Detail), step1Bar, row(s2, step2Detail), step2Bar, errorLabel]
+        step1Label.textColor = Theme.text
+        step2Label.textColor = Theme.text
+        applyFonts()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+        let rows: [NSView] = [row(titleLabel, cancelButton), row(step1Label, step1Detail), step1Bar, row(step2Label, step2Detail), step2Bar, errorLabel]
         let stack = NSStackView(views: rows)
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 4
         stack.edgeInsets = NSEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
@@ -195,4 +197,17 @@ final class IndexProgressBanner: NSView {
     }
 
     @objc private func actionPressed(_ sender: Any?) { if showsClose { onDismiss?() } else { onCancel?() } }
+
+    @objc private func applyFonts() {
+        titleLabel.font = Theme.font(.panels, size: 12, weight: .semibold)
+        let small = Theme.font(.panels, size: 11.5)
+        cancelButton.applyFont(small)
+        errorLabel.font = small
+        step1Label.font = small
+        step2Label.font = small
+        let detailFont = Theme.font(.panels, size: 11, weight: .regular, monospacedDigits: true)
+        step1Detail.font = detailFont
+        step2Detail.font = detailFont
+        needsLayout = true
+    }
 }

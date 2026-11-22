@@ -64,7 +64,6 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         wantsLayer = true
         layer?.addSublayer(topLine)
         for label in [position, pixelSize, jumpLabel, jumpTotal, messageLabel, progressLabel, volume, pagePath, badge] {
-            label.font = .systemFont(ofSize: 11)
             label.textColor = Theme.text2
             label.lineBreakMode = .byTruncatingTail
         }
@@ -74,8 +73,6 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         }
         pagePath.lineBreakMode = .byTruncatingHead
         pagePath.setContentCompressionResistancePriority(.init(249), for: .horizontal)
-        pixelSize.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
-        jumpField.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         jumpField.controlSize = .small
         jumpField.placeholderString = String(localized: "页码")
         jumpField.delegate = self
@@ -83,7 +80,8 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         jumpField.setAccessibilityLabel(String(localized: "页码"))
         badge.stringValue = serviceBadge
         badge.toolTip = badgeToolTip
-        badge.font = .systemFont(ofSize: 11, weight: .semibold)
+        applyFonts()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
         let badgeIcon = NSImageView(image: NSImage(systemSymbolName: "testtube.2", accessibilityDescription: nil) ?? NSImage())
         badgeIcon.symbolConfiguration = .init(pointSize: 11, weight: .regular)
         badgeIcon.contentTintColor = Theme.text2
@@ -241,5 +239,17 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
 
     func controlTextDidEndEditing(_ notification: Notification) {
         endJump()
+    }
+
+    @objc private func applyFonts() {
+        let regular = Theme.font(.overlays, size: 11)
+        for label in [position, jumpLabel, jumpTotal, messageLabel, progressLabel, volume, pagePath] {
+            label.font = regular
+        }
+        let mono = Theme.font(.overlays, size: 11, weight: .regular, monospacedDigits: true)
+        pixelSize.font = mono
+        jumpField.font = mono
+        badge.font = Theme.font(.overlays, size: 11, weight: .semibold)
+        needsLayout = true
     }
 }

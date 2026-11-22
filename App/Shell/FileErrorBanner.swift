@@ -7,10 +7,18 @@ final class FileErrorBanner: NSView {
     private let onClose: () -> Void
     private let tintLayer = CALayer()
     private let bottomLine = CALayer()
+    private let titleLabel: NSTextField
+    private let detailLabel: NSTextField
+    private let openButton: FlatButton
 
     init(title: String, detail: String, fileURL: URL, onClose: @escaping () -> Void) {
         self.fileURL = fileURL
         self.onClose = onClose
+        self.titleLabel = NSTextField(labelWithString: title)
+        self.detailLabel = NSTextField(wrappingLabelWithString: detail)
+        self.openButton = FlatButton(
+            font: Theme.font(.overlays, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 10
+        )
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(tintLayer)
@@ -23,12 +31,10 @@ final class FileErrorBanner: NSView {
         icon.symbolConfiguration = .init(pointSize: 16, weight: .regular)
         icon.imageScaling = .scaleProportionallyDown
         icon.contentTintColor = Theme.danger
-        let titleLabel = NSTextField(labelWithString: title)
-        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        titleLabel.font = Theme.font(.overlays, size: 13, weight: .semibold)
         titleLabel.textColor = Theme.text
         titleLabel.lineBreakMode = .byTruncatingTail
-        let detailLabel = NSTextField(wrappingLabelWithString: detail)
-        detailLabel.font = .systemFont(ofSize: 12)
+        detailLabel.font = Theme.font(.overlays, size: 12)
         detailLabel.textColor = Theme.text2
         detailLabel.isSelectable = true
         let text = NSStackView(views: [titleLabel, detailLabel])
@@ -38,12 +44,11 @@ final class FileErrorBanner: NSView {
         text.setContentHuggingPriority(.defaultLow, for: .horizontal)
         text.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let open = FlatButton(
-            font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 10
-        )
+        let open = openButton
         open.setText(String(localized: "打开文件"))
         open.target = self
         open.action = #selector(openFile(_:))
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
         let close = NSButton(image: NSImage(systemSymbolName: "xmark", accessibilityDescription: String(localized: "关闭提示")) ?? NSImage(),
                              target: self, action: #selector(close(_:)))
         close.isBordered = false
@@ -101,5 +106,12 @@ final class FileErrorBanner: NSView {
 
     @objc private func close(_ sender: Any?) {
         onClose()
+    }
+
+    @objc private func applyFonts() {
+        titleLabel.font = Theme.font(.overlays, size: 13, weight: .semibold)
+        detailLabel.font = Theme.font(.overlays, size: 12)
+        openButton.applyFont(Theme.font(.overlays, size: 12))
+        needsLayout = true
     }
 }

@@ -39,14 +39,13 @@ final class ViewerHUD: NSView {
         slider.action = #selector(slid)
         slider.trackFillColor = Theme.accent
         slider.setContentHuggingPriority(.init(1), for: .horizontal)
-        position.font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
         position.textColor = Theme.text
-        total.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         total.textColor = Theme.text2
-        scaleLabel.font = .systemFont(ofSize: 12)
         scaleLabel.textColor = Theme.text
         scaleLabel.alignment = .center
         scaleLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 116).isActive = true
+        applyFonts()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
         let line = NSBox()
         line.boxType = .separator
         line.widthAnchor.constraint(equalToConstant: 1).isActive = true
@@ -178,6 +177,14 @@ final class ViewerHUD: NSView {
 
     @objc private func zoomIn() { onZoom?(1.25) }
     @objc private func zoomOut() { onZoom?(0.8) }
+
+    @objc private func applyFonts() {
+        position.font = Theme.font(.overlays, size: 12, weight: .semibold, monospacedDigits: true)
+        total.font = Theme.font(.overlays, size: 12, weight: .regular, monospacedDigits: true)
+        scaleLabel.font = Theme.font(.overlays, size: 12)
+        cells.forEach { $0.applyFonts() }
+        needsLayout = true
+    }
 }
 
 /// HUD 里的一个页帧：48 点高的缩略图和页码，当前页帧有陶土色的环。
@@ -202,13 +209,19 @@ private final class FrameCell: NSView {
         wantsLayer = true
         layer?.cornerRadius = 7
         layer?.addSublayer(thumbs)
-        label.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        label.font = Theme.font(.overlays, size: 11, weight: .regular, monospacedDigits: true)
         label.alignment = .center
         label.frame = .zero
         addSubview(label)
         width = widthAnchor.constraint(equalToConstant: 42)
         width.isActive = true
         heightAnchor.constraint(equalToConstant: 72).isActive = true
+    }
+
+    func applyFonts() {
+        label.font = Theme.font(.overlays, size: 11, weight: isCurrent ? .semibold : .regular, monospacedDigits: true)
+        let labelHeight = max(14, ceil(label.intrinsicContentSize.height))
+        label.frame = CGRect(x: 0, y: 56, width: width.constant, height: labelHeight)
     }
 
     @available(*, unavailable)
@@ -230,7 +243,7 @@ private final class FrameCell: NSView {
         if self.isCurrent != isCurrent {
             self.isCurrent = isCurrent
             needsDisplay = true
-            label.font = .monospacedSystemFont(ofSize: 11, weight: isCurrent ? .semibold : .regular)
+            label.font = Theme.font(.overlays, size: 11, weight: isCurrent ? .semibold : .regular, monospacedDigits: true)
         }
         label.textColor = isCurrent ? Theme.text : Theme.text2
         thumbs.borderWidth = isCurrent ? 2 : 0

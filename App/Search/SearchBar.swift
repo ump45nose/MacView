@@ -25,17 +25,20 @@ final class SearchBar: NSView, NSSearchFieldDelegate, NSMenuDelegate {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true; layer?.addSublayer(bottomLine)
-        searchField.controlSize = .small; searchField.font = .systemFont(ofSize: 12)
+        searchField.controlSize = .small; searchField.font = Theme.font(.panels, size: 12)
         searchField.placeholderString = String(localized: "搜索文件名…")
         searchField.sendsSearchStringImmediately = false; searchField.sendsWholeSearchString = true; searchField.maximumRecents = 10
         searchField.delegate = self; searchField.target = self; searchField.action = #selector(searchFieldAction(_:))
         searchField.searchMenuTemplate = makeRecentsMenu()
 
+        let menuFont = Theme.font(.menus, size: Theme.defaultSize(.menus))
         for button in [ratingButton, tagsButton, kindButton] {
-            button.controlSize = .small; button.font = .systemFont(ofSize: 11.5); button.bezelStyle = .recessed
+            button.controlSize = .small; button.font = menuFont; button.bezelStyle = .recessed
             button.showsBorderOnlyWhileMouseInside = false; button.menu?.delegate = self
+            if let menu = button.menu { Theme.applyMenuFont(to: menu) }
         }
         rebuildMenus()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
 
         let filters = NSStackView(views: [ratingButton, tagsButton, kindButton]); filters.spacing = 4
         let stack = NSStackView(views: [searchField, filters])
@@ -53,6 +56,16 @@ final class SearchBar: NSView, NSSearchFieldDelegate, NSMenuDelegate {
     override var wantsUpdateLayer: Bool { true }
     override func updateLayer() { layer?.backgroundColor = Theme.ground.cgColor; bottomLine.backgroundColor = Theme.line.cgColor }
     override func layout() { super.layout(); bottomLine.frame = CGRect(x: 0, y: 0, width: bounds.width, height: 0.5) }
+
+    @objc private func applyFonts() {
+        searchField.font = Theme.font(.panels, size: 12)
+        let menuFont = Theme.font(.menus, size: Theme.defaultSize(.menus))
+        for button in [ratingButton, tagsButton, kindButton] {
+            button.font = menuFont
+            if let menu = button.menu { Theme.applyMenuFont(to: menu) }
+        }
+        needsLayout = true
+    }
 
     func focusSearchField() { window?.makeFirstResponder(searchField); searchField.currentEditor()?.selectAll(nil) }
     func setQueryText(_ text: String) { searchField.stringValue = text }

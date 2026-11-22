@@ -283,6 +283,7 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         menu.addItem(MenuAction(String(localized: "隐藏停靠区")) {
             dock.perform { $0.togglingArea(edge) }
         }.item)
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 

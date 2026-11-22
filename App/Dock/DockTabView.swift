@@ -38,7 +38,7 @@ final class DockTabView: NSView, NSDraggingSource {
         layer?.cornerRadius = 6
         icon.symbolConfiguration = .init(pointSize: 10, weight: .regular)
         icon.contentTintColor = Theme.text2
-        label.font = .systemFont(ofSize: 11, weight: .semibold)
+        label.font = Theme.font(.panels, size: 11, weight: .semibold)
         label.textColor = Theme.text
         label.lineBreakMode = .byTruncatingTail
         addSubview(icon)
@@ -47,6 +47,13 @@ final class DockTabView: NSView, NSDraggingSource {
         setAccessibilityLabel(type.title)
         toolTip = type.title
         registerForDraggedTypes([.locations])
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        label.font = Theme.font(.panels, size: 11, weight: .semibold)
+        needsLayout = true
+        superview?.needsLayout = true
     }
 
     @available(*, unavailable)

@@ -179,12 +179,32 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         tableScroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(tableScrolled(_:)), name: NSView.boundsDidChangeNotification, object: tableScroll.contentView)
 
-        messageLabel.font = .systemFont(ofSize: 12)
+        messageLabel.font = Theme.font(.panels, size: 12)
         messageLabel.textColor = Theme.text2
         messageLabel.alignment = .center
         messageLabel.isHidden = true
         addSubview(messageLabel)
+        canvas.fontRole = .panels
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
         styleChanged()
+    }
+
+    @objc private func applyFonts() {
+        messageLabel.font = Theme.font(.panels, size: 12)
+        guard !style.usesCanvas else { return }
+        let savedSelection = table.selectedRowIndexes
+        let savedOrigin = scrollOrigin
+        let isList = style == .list
+        table.rowHeight = isList ? ceil(max(thumbSize.height + 8, 48 * Theme.fontScale(.panels))) : ceil(24 * Theme.fontScale(.panels))
+        table.enumerateAvailableRowViews { rowView, _ in
+            for column in 0..<rowView.numberOfColumns {
+                (rowView.view(atColumn: column) as? CollectionCell)?.applyFonts()
+            }
+        }
+        if table.selectedRowIndexes != savedSelection {
+            table.selectRowIndexes(savedSelection, byExtendingSelection: false)
+        }
+        scrollOrigin = savedOrigin
     }
 
     @available(*, unavailable)
@@ -242,7 +262,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
     private func configureTable() {
         let isList = style == .list
         table.headerView = isList ? nil : NSTableHeaderView()
-        table.rowHeight = isList ? thumbSize.height + 8 : 24
+        table.rowHeight = isList ? ceil(max(thumbSize.height + 8, 48 * Theme.fontScale(.panels))) : ceil(24 * Theme.fontScale(.panels))
         for id in [Self.tableColumn, Self.sizeColumn] {
             table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(id.rawValue))?.isHidden = isList
         }
@@ -644,6 +664,7 @@ private final class CollectionRowBackground: NSTableRowView {
 @MainActor
 private protocol CollectionCell: NSView {
     func setCurrent(_ isCurrent: Bool)
+    func applyFonts()
     var texts: [String] { get }
 }
 
@@ -654,6 +675,7 @@ private final class CollectionListCell: NSView, CollectionCell {
     private let thumb = CALayer()
     private let name = NSTextField(labelWithString: "")
     private let detail = NSTextField(labelWithString: "")
+    private var isCurrentRow = false
 
     init(thumbSize: CGSize) {
         self.thumbSize = thumbSize
@@ -667,7 +689,7 @@ private final class CollectionListCell: NSView, CollectionCell {
         name.lineBreakMode = .byTruncatingTail
         name.textColor = Theme.text
         detail.lineBreakMode = .byTruncatingTail
-        detail.font = .systemFont(ofSize: 11)
+        detail.font = Theme.font(.panels, size: 11)
         addSubview(name)
         addSubview(detail)
     }
@@ -692,20 +714,30 @@ private final class CollectionListCell: NSView, CollectionCell {
         CATransaction.commit()
         let x = 14 + thumbSize.width + 10
         let width = max(bounds.width - x - 14, 0)
-        let middle = bounds.height / 2
-        name.frame = CGRect(x: x, y: middle - 18, width: width, height: 17)
-        detail.frame = CGRect(x: x, y: middle + 1, width: width, height: 15)
+        let nameH = max(17, ceil(name.intrinsicContentSize.height))
+        let detailH = max(15, ceil(detail.intrinsicContentSize.height))
+        let top = (bounds.height - (nameH + detailH + 2)) / 2
+        name.frame = CGRect(x: x, y: top, width: width, height: nameH)
+        detail.frame = CGRect(x: x, y: top + nameH + 2, width: width, height: detailH)
     }
 
     func show(name text: String, detail detailText: String, isError: Bool, isCurrent: Bool) {
         name.stringValue = text
         detail.stringValue = detailText
         detail.textColor = isError ? Theme.danger : Theme.text2
+        detail.font = Theme.font(.panels, size: 11)
         setCurrent(isCurrent)
     }
 
     func setCurrent(_ isCurrent: Bool) {
-        name.font = .systemFont(ofSize: 13, weight: isCurrent ? .semibold : .regular)
+        isCurrentRow = isCurrent
+        name.font = Theme.font(.panels, size: 13, weight: isCurrent ? .semibold : .regular)
+    }
+
+    func applyFonts() {
+        detail.font = Theme.font(.panels, size: 11)
+        name.font = Theme.font(.panels, size: 13, weight: isCurrentRow ? .semibold : .regular)
+        needsLayout = true
     }
 
     func setImage(_ image: CGImage?) {
@@ -723,6 +755,7 @@ private final class CollectionListCell: NSView, CollectionCell {
 private final class CollectionTextCell: NSView, CollectionCell {
     private let label = NSTextField(labelWithString: "")
     private var monospaced = false
+    private var isCurrentRow = false
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -750,9 +783,15 @@ private final class CollectionTextCell: NSView, CollectionCell {
     }
 
     func setCurrent(_ isCurrent: Bool) {
+        isCurrentRow = isCurrent
         label.font = monospaced
-            ? .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-            : .systemFont(ofSize: 12, weight: isCurrent ? .semibold : .regular)
+            ? Theme.font(.panels, size: 11, weight: .regular, monospacedDigits: true)
+            : Theme.font(.panels, size: 12, weight: isCurrent ? .semibold : .regular)
+    }
+
+    func applyFonts() {
+        setCurrent(isCurrentRow)
+        needsLayout = true
     }
 
     var texts: [String] { [label.stringValue] }

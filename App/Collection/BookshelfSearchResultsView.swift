@@ -12,7 +12,7 @@ final class BookshelfSearchResultsView: NSView, NSTableViewDataSource, NSTableVi
     let table = SearchResultsTableView()
     let scopeLabel = NSTextField(labelWithString: "")
     let footerLabel = NSTextField(labelWithString: "")
-    let indexEmptyButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 26, padding: 12)
+    let indexEmptyButton = FlatButton(font: Theme.font(.panels, size: 12), fill: Theme.primary, foreground: Theme.onPrimary, radius: 6, height: 26, padding: 12)
 
     var onActivate: ((SearchHit) -> Void)?
     var onCancelSearch: (() -> Void)?
@@ -39,11 +39,11 @@ final class BookshelfSearchResultsView: NSView, NSTableViewDataSource, NSTableVi
         super.init(frame: frameRect)
         wantsLayer = true
         for label in [scopeLabel, footerLabel] {
-            label.font = .systemFont(ofSize: 11); label.textColor = Theme.text2
+            label.font = Theme.font(.panels, size: 11); label.textColor = Theme.text2
             label.lineBreakMode = label === scopeLabel ? .byTruncatingMiddle : .byTruncatingTail
             addSubview(label)
         }
-        table.headerView = nil; table.rowHeight = 50; table.intercellSpacing = .zero
+        table.headerView = nil; table.rowHeight = ceil(50 * Theme.fontScale(.panels)); table.intercellSpacing = .zero
         table.backgroundColor = .clear; table.style = .plain; table.allowsMultipleSelection = true
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("searchResult"))
         column.resizingMask = .autoresizingMask
@@ -59,7 +59,7 @@ final class BookshelfSearchResultsView: NSView, NSTableViewDataSource, NSTableVi
         addSubview(scroll)
 
         emptyTitle.font = Theme.serif(15); emptyTitle.textColor = Theme.text; emptyTitle.alignment = .center
-        emptySubtitle.font = .systemFont(ofSize: 12); emptySubtitle.textColor = Theme.text2; emptySubtitle.alignment = .center
+        emptySubtitle.font = Theme.font(.panels, size: 12); emptySubtitle.textColor = Theme.text2; emptySubtitle.alignment = .center
         indexEmptyButton.setText(String(localized: "为此文件夹建立索引"))
         indexEmptyButton.target = self; indexEmptyButton.action = #selector(indexButtonPressed(_:))
         emptyContainer.orientation = .vertical; emptyContainer.alignment = .centerX; emptyContainer.spacing = 8
@@ -69,6 +69,21 @@ final class BookshelfSearchResultsView: NSView, NSTableViewDataSource, NSTableVi
         availability.view = self
         availability.visibleLocations = { [weak self] in self?.visibleRows.map { self!.hits[$0].entry.location } ?? [] }
         availability.onChange = { [weak self] in self?.refreshVisibleCells() }
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        let smallFont = Theme.font(.panels, size: 11)
+        scopeLabel.font = smallFont
+        footerLabel.font = smallFont
+        emptySubtitle.font = Theme.font(.panels, size: 12)
+        indexEmptyButton.applyFont(Theme.font(.panels, size: 12))
+        let savedOrigin = scroll.contentView.bounds.origin
+        table.rowHeight = ceil(50 * Theme.fontScale(.panels))
+        refreshVisibleCells()
+        scroll.contentView.scroll(to: savedOrigin)
+        scroll.reflectScrolledClipView(scroll.contentView)
+        needsLayout = true
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
@@ -327,14 +342,14 @@ private final class SearchResultCell: NSView {
     #endif
 
     private static func highlightedName(_ name: String, terms: [String]) -> NSAttributedString {
-        let out = NSMutableAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 12.5, weight: .medium), .foregroundColor: Theme.text])
+        let out = NSMutableAttributedString(string: name, attributes: [.font: Theme.font(.panels, size: 12.5, weight: .medium), .foregroundColor: Theme.text])
         let ns = name as NSString
         for term in terms where !term.isEmpty {
             var pos = 0
             while pos < ns.length {
                 let r = ns.range(of: term, options: [.caseInsensitive, .diacriticInsensitive], range: NSRange(location: pos, length: ns.length - pos))
                 guard r.location != NSNotFound, r.length > 0 else { break }
-                out.addAttributes([.font: NSFont.systemFont(ofSize: 12.5, weight: .bold), .backgroundColor: Theme.accentSoft], range: r)
+                out.addAttributes([.font: Theme.font(.panels, size: 12.5, weight: .bold), .backgroundColor: Theme.accentSoft], range: r)
                 pos = r.location + r.length
             }
         }
@@ -342,7 +357,7 @@ private final class SearchResultCell: NSView {
     }
 
     private static func metaString(rating: Int?, tags: [String], isWriting: Bool, relativeFolder: String, availability: Availability?) -> NSAttributedString {
-        let out = NSMutableAttributedString(), font = NSFont.systemFont(ofSize: 11)
+        let out = NSMutableAttributedString(), font = Theme.font(.panels, size: 11)
         func sep() { if out.length > 0 { out.append(NSAttributedString(string: "  ", attributes: [.font: font])) } }
         if let r = rating, r > 0 {
             let c = min(max(r, 1), 5)
@@ -353,7 +368,7 @@ private final class SearchResultCell: NSView {
             sep(); out.append(NSAttributedString(string: String(localized: "正在写入…"), attributes: [.font: font, .foregroundColor: Theme.text2]))
         }
         for tag in tags.prefix(3) {
-            sep(); out.append(NSAttributedString(string: " \(tag) ", attributes: [.font: NSFont.systemFont(ofSize: 10.5), .foregroundColor: Theme.text2, .backgroundColor: Theme.well]))
+            sep(); out.append(NSAttributedString(string: " \(tag) ", attributes: [.font: Theme.font(.panels, size: 10.5), .foregroundColor: Theme.text2, .backgroundColor: Theme.well]))
         }
         if case .volumeUnavailable = availability {
             sep(); out.append(NSAttributedString(string: String(localized: "⚠ 网络卷没有连接"), attributes: [.font: font, .foregroundColor: Theme.text2]))

@@ -55,6 +55,117 @@ enum Theme {
         return NSFont(descriptor: descriptor, size: size) ?? base
     }
 
+    /// 当前三组字体设置，由 `AppearanceController` 同步。
+    static var fonts: [FontRole: FontSpec] = [:]
+
+    /// `AppearanceController` 在 `fonts` 变化后发出。
+    static let fontsDidChange = Notification.Name("MacView.Theme.fontsDidChange")
+
+    /// 各组默认基准字号：panels 12、overlays 12、menus = 系统菜单字号。
+    static func defaultSize(_ role: FontRole) -> CGFloat {
+        switch role {
+        case .panels: 12
+        case .overlays: 12
+        case .menus: NSFont.menuFont(ofSize: 0).pointSize
+        }
+    }
+
+    /// 组缩放比 = 组字号 / 组默认字号（未设置时为 1）。
+    static func fontScale(_ role: FontRole) -> CGFloat {
+        let base = defaultSize(role)
+        guard let custom = fonts[role]?.size, base > 0 else { return 1 }
+        return CGFloat(custom) / base
+    }
+
+    /// 按组返回字体：组内字体族（nil = 系统字体）与缩放比 = 组字号 / 组默认字号。
+    static func font(_ role: FontRole, size: CGFloat, weight: NSFont.Weight = .regular, monospacedDigits: Bool = false) -> NSFont {
+        let scale = fontScale(role)
+        let targetSize = scale == 1 ? size : (size * scale * 2).rounded() / 2
+        if let rawFamily = fonts[role]?.family?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !rawFamily.isEmpty,
+           let custom = customFont(family: rawFamily, size: targetSize, weight: weight) {
+            return monospacedDigits ? withMonospacedDigits(custom) : custom
+        }
+        if monospacedDigits {
+            return NSFont.monospacedDigitSystemFont(ofSize: targetSize, weight: weight)
+        }
+        if role == .menus, weight == .regular {
+            return NSFont.menuFont(ofSize: targetSize)
+        }
+        return NSFont.systemFont(ofSize: targetSize, weight: weight)
+    }
+
+    /// 递归为菜单（及其子菜单）套用菜单组字体；主菜单栏本身传 `includeRoot: false` 以保持顶层标题不变。
+    static func applyMenuFont(to menu: NSMenu, includeRoot: Bool = true) {
+        let menuFont = font(.menus, size: defaultSize(.menus))
+        if includeRoot {
+            menu.font = menuFont
+        }
+        for item in menu.items {
+            if let submenu = item.submenu {
+                applyMenuFont(to: submenu, includeRoot: true)
+            }
+        }
+    }
+
+    private static func fontManagerWeight(for weight: NSFont.Weight) -> Int {
+        switch weight {
+        case .ultraLight: 2
+        case .thin: 3
+        case .light: 4
+        case .regular: 5
+        case .medium: 6
+        case .semibold: 8
+        case .bold: 9
+        case .heavy: 11
+        case .black: 12
+        default:
+            if weight.rawValue <= NSFont.Weight.light.rawValue { 4 }
+            else if weight.rawValue < NSFont.Weight.medium.rawValue { 5 }
+            else if weight.rawValue < NSFont.Weight.semibold.rawValue { 6 }
+            else if weight.rawValue < NSFont.Weight.bold.rawValue { 8 }
+            else { 9 }
+        }
+    }
+
+    private static func customFont(family: String, size: CGFloat, weight: NSFont.Weight) -> NSFont? {
+        let manager = NSFontManager.shared
+        guard let members = manager.availableMembers(ofFontFamily: family), !members.isEmpty else {
+            return nil
+        }
+        let targetWeight = fontManagerWeight(for: weight)
+        var bestPostScript: String?
+        var bestScore = Int.max
+        for member in members {
+            guard member.count >= 4,
+                  let psName = member[0] as? String,
+                  let memberWeight = member[2] as? Int,
+                  let traitsRaw = member[3] as? UInt else { continue }
+            let traits = NSFontTraitMask(rawValue: traitsRaw)
+            let italicPenalty = traits.contains(.italicFontMask) ? 1000 : 0
+            let condensedPenalty = (traits.contains(.condensedFontMask) || traits.contains(.narrowFontMask)) ? 100 : 0
+            let score = italicPenalty + condensedPenalty + abs(memberWeight - targetWeight)
+            if score < bestScore {
+                bestScore = score
+                bestPostScript = psName
+            }
+        }
+        if let bestPostScript, let font = NSFont(name: bestPostScript, size: size) {
+            return font
+        }
+        return manager.font(withFamily: family, traits: [], weight: targetWeight, size: size)
+            ?? manager.font(withFamily: family, traits: [], weight: 5, size: size)
+    }
+
+    private static func withMonospacedDigits(_ font: NSFont) -> NSFont {
+        let features: [[NSFontDescriptor.FeatureKey: Any]] = [[
+            .typeIdentifier: kNumberSpacingType,
+            .selectorIdentifier: kMonospacedNumbersSelector,
+        ]]
+        let descriptor = font.fontDescriptor.addingAttributes([.featureSettings: features])
+        return NSFont(descriptor: descriptor, size: font.pointSize) ?? font
+    }
+
     nonisolated private static func resolveControlAccent(in appearance: NSAppearance) -> NSColor {
         var resolved: NSColor = .controlAccentColor
         appearance.performAsCurrentDrawingAppearance {

@@ -49,11 +49,11 @@ final class TagEditorPopover: NSViewController, NSTextFieldDelegate, NSTableView
     override func loadView() {
         let root = NSView(frame: NSRect(x: 0, y: 0, width: 256, height: 248))
         let title = NSTextField(labelWithString: String(localized: "标签 · \(entries.count) 张"))
-        title.font = .systemFont(ofSize: 12, weight: .semibold)
+        title.font = Theme.font(.panels, size: 12, weight: .semibold)
         title.textColor = Theme.text
 
         textField.placeholderString = String(localized: "输入标签，回车新建或切换")
-        textField.font = .systemFont(ofSize: 12)
+        textField.font = Theme.font(.panels, size: 12)
         textField.controlSize = .regular
         textField.delegate = self
 
@@ -61,7 +61,7 @@ final class TagEditorPopover: NSViewController, NSTextFieldDelegate, NSTableView
         col.resizingMask = .autoresizingMask
         tableView.addTableColumn(col)
         tableView.headerView = nil
-        tableView.rowHeight = 26
+        tableView.rowHeight = ceil(26 * Theme.fontScale(.panels))
         tableView.intercellSpacing = .zero
         tableView.backgroundColor = .clear
         tableView.style = .plain
@@ -77,7 +77,7 @@ final class TagEditorPopover: NSViewController, NSTextFieldDelegate, NSTableView
         scroll.drawsBackground = false
         scroll.borderType = .noBorder
 
-        let cancelBtn = FlatButton(font: .systemFont(ofSize: 11.5), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 5, height: 24, padding: 10)
+        let cancelBtn = FlatButton(font: Theme.font(.panels, size: 11.5), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 5, height: 24, padding: 10)
         cancelBtn.setText(String(localized: "取消"))
         cancelBtn.target = self
         cancelBtn.action = #selector(cancelPressed(_:))
@@ -261,7 +261,7 @@ final class TagEditorPopover: NSViewController, NSTextFieldDelegate, NSTableView
             let v = NSTableCellView()
             v.identifier = id
             let label = NSTextField(labelWithString: "")
-            label.font = .systemFont(ofSize: 12)
+            label.font = Theme.font(.panels, size: 12)
             label.lineBreakMode = .byTruncatingTail
             label.translatesAutoresizingMaskIntoConstraints = false
             v.textField = label

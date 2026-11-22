@@ -1,4 +1,5 @@
 import AppKit
+import MVSettings
 
 /// 设计稿的矩形按钮：圆角底色、可选描边，文字颜色随外观切换。系统按钮的 `contentTintColor` 作用不到文字，底色也不受令牌控制，所以自绘。
 @MainActor
@@ -34,6 +35,13 @@ final class FlatButton: NSButton {
         invalidateIntrinsicContentSize()
     }
 
+    func applyFont(_ newFont: NSFont) {
+        font = newFont
+        if !attributedTitle.string.isEmpty {
+            setText(attributedTitle.string)
+        }
+    }
+
     override var intrinsicContentSize: NSSize {
         NSSize(width: ceil(attributedTitle.size().width) + padding * 2, height: height)
     }
@@ -56,13 +64,17 @@ final class FlatButton: NSButton {
 @MainActor
 final class BrowseModeControl: NSView {
     private final class Segment: NSButton {
+        var fontRole: FontRole?
         var isSelected = false {
             didSet { if isSelected != oldValue { updateTitle() } }
         }
 
         func updateTitle() {
+            let weight: NSFont.Weight = isSelected ? .semibold : .regular
+            let resolvedFont = fontRole.map { Theme.font($0, size: 12, weight: weight) } ?? NSFont.systemFont(ofSize: 12, weight: weight)
+            font = resolvedFont
             attributedTitle = NSAttributedString(string: title, attributes: [
-                .font: NSFont.systemFont(ofSize: 12, weight: isSelected ? .semibold : .regular),
+                .font: resolvedFont,
                 .foregroundColor: isSelected ? Theme.text : Theme.text2,
             ])
             invalidateIntrinsicContentSize()
@@ -70,7 +82,7 @@ final class BrowseModeControl: NSView {
         }
 
         override var intrinsicContentSize: NSSize {
-            NSSize(width: ceil(attributedTitle.size().width) + 20, height: 24)
+            NSSize(width: ceil(attributedTitle.size().width) + 20, height: max(24, ceil(attributedTitle.size().height) + 8))
         }
 
         override func draw(_ dirtyRect: NSRect) {
@@ -83,6 +95,7 @@ final class BrowseModeControl: NSView {
     }
 
     private var segments: [Segment] = []
+    private let fontRole: FontRole?
     var onSelect: ((Int) -> Void)?
     var selected = 0 {
         didSet {
@@ -90,7 +103,8 @@ final class BrowseModeControl: NSView {
         }
     }
 
-    init(labels: [String]) {
+    init(labels: [String], fontRole: FontRole? = nil) {
+        self.fontRole = fontRole
         super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = 9
@@ -101,6 +115,7 @@ final class BrowseModeControl: NSView {
         stack.translatesAutoresizingMaskIntoConstraints = false
         for (index, label) in labels.enumerated() {
             let segment = Segment(title: label, target: self, action: #selector(pick(_:)))
+            segment.fontRole = fontRole
             segment.isBordered = false
             segment.tag = index
             segment.isSelected = index == selected
@@ -113,6 +128,15 @@ final class BrowseModeControl: NSView {
             stack.leadingAnchor.constraint(equalTo: leadingAnchor), stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.topAnchor.constraint(equalTo: topAnchor), stack.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
+        if fontRole != nil {
+            NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+        }
+    }
+
+    @objc private func applyFonts() {
+        segments.forEach { $0.updateTitle() }
+        invalidateIntrinsicContentSize()
+        needsLayout = true
     }
 
     @available(*, unavailable)

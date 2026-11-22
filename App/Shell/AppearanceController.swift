@@ -149,6 +149,18 @@ final class AppearanceController {
             applyWindowAppearance(next.window, animated: animated)
             dock?.setKeepOnTop(next.window.keepOnTop)
         }
+
+        if isInitial || previous.fonts != next.fonts {
+            applyFonts(next.fonts)
+        }
+    }
+
+    private func applyFonts(_ fonts: [FontRole: FontSpec]) {
+        Theme.fonts = fonts
+        if let mainMenu = NSApp.mainMenu {
+            Theme.applyMenuFont(to: mainMenu, includeRoot: false)
+        }
+        NotificationCenter.default.post(name: Theme.fontsDidChange, object: self)
     }
 
     /// 统一向所有阅读窗口套用窗口外观。

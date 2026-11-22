@@ -227,8 +227,12 @@ final class InfoPanelView: NSView {
     private let addTagButton = NSButton()
     private let noteBox = NSView(), noteLabel = NSTextField(wrappingLabelWithString: "")
     private let errorBox = NSView(), errorLabel = NSTextField(wrappingLabelWithString: "")
-    private let retryButton = FlatButton(font: .systemFont(ofSize: 11.5), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 5, height: 22, padding: 10)
+    private let retryButton = FlatButton(font: Theme.font(.panels, size: 11.5), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 5, height: 22, padding: 10)
     private var fieldViews: [FieldKey: NSTextField] = [:]
+    private var groupHeaderLabels: [NSTextField] = []
+    private var keyLabels: [NSTextField] = []
+    private let writingText = NSTextField(labelWithString: String(localized: "正在写入…"))
+    private var currentRating = 0
     private var currentTags: [String] = []
     private var lastTagsWidth: CGFloat = 0
 
@@ -236,6 +240,7 @@ final class InfoPanelView: NSView {
         super.init(frame: frameRect)
         wantsLayer = true
         buildUI()
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
@@ -252,40 +257,39 @@ final class InfoPanelView: NSView {
     }
 
     private func buildUI() {
-        emptyLabel.font = .systemFont(ofSize: 12); emptyLabel.textColor = Theme.text2; emptyLabel.alignment = .center
+        emptyLabel.font = Theme.font(.panels, size: 12); emptyLabel.textColor = Theme.text2; emptyLabel.alignment = .center
         emptyLabel.translatesAutoresizingMaskIntoConstraints = false; addSubview(emptyLabel)
 
         let contentStack = NSStackView()
         contentStack.orientation = .vertical; contentStack.alignment = .leading; contentStack.spacing = 4
         contentStack.edgeInsets = NSEdgeInsets(top: 6, left: 12, bottom: 14, right: 12)
 
-        contentStack.addArrangedSubview(Self.groupHeader(String(localized: "评分与标签")))
+        contentStack.addArrangedSubview(makeGroupHeader(String(localized: "评分与标签")))
         metaSection.orientation = .vertical; metaSection.alignment = .leading; metaSection.spacing = 6
 
         let starsRow = NSStackView(); starsRow.spacing = 2
         for i in 1...5 {
             let btn = NSButton(title: "★", target: self, action: #selector(starClicked(_:)))
-            btn.tag = i; btn.isBordered = false; btn.font = .systemFont(ofSize: 15)
+            btn.tag = i; btn.isBordered = false; btn.font = Theme.font(.panels, size: 15)
             btn.setAccessibilityLabel(String(localized: "\(i) 星"))
             starButtons.append(btn); starsRow.addArrangedSubview(btn)
         }
-        metaSection.addArrangedSubview(Self.kvRow(String(localized: "评分"), view: starsRow))
+        metaSection.addArrangedSubview(makeKVRow(String(localized: "评分"), view: starsRow))
 
         writingSpinner.style = .spinning; writingSpinner.controlSize = .mini
-        let writingText = NSTextField(labelWithString: String(localized: "正在写入…"))
-        writingText.font = .systemFont(ofSize: 11); writingText.textColor = Theme.text2
+        writingText.font = Theme.font(.panels, size: 11); writingText.textColor = Theme.text2
         writingRow.spacing = 6; writingRow.alignment = .centerY
         writingRow.addArrangedSubview(writingSpinner); writingRow.addArrangedSubview(writingText); writingRow.isHidden = true
-        metaSection.addArrangedSubview(Self.kvRow("", view: writingRow))
+        metaSection.addArrangedSubview(makeKVRow("", view: writingRow))
 
         tagsContainer.orientation = .vertical; tagsContainer.alignment = .leading; tagsContainer.spacing = 4
         addTagButton.title = String(localized: "+ 标签"); addTagButton.isBordered = false
-        addTagButton.font = .systemFont(ofSize: 11); addTagButton.contentTintColor = Theme.text2
+        addTagButton.font = Theme.font(.panels, size: 11); addTagButton.contentTintColor = Theme.text2
         addTagButton.target = self; addTagButton.action = #selector(addTagClicked(_:))
-        metaSection.addArrangedSubview(Self.kvRow(String(localized: "标签"), view: tagsContainer))
+        metaSection.addArrangedSubview(makeKVRow(String(localized: "标签"), view: tagsContainer))
 
         errorBox.wantsLayer = true; errorBox.layer?.cornerRadius = 6
-        errorLabel.font = .systemFont(ofSize: 11.5); errorLabel.textColor = Theme.danger
+        errorLabel.font = Theme.font(.panels, size: 11.5); errorLabel.textColor = Theme.danger
         retryButton.setText(String(localized: "重试")); retryButton.target = self; retryButton.action = #selector(retryClicked(_:))
         let errStack = NSStackView(views: [errorLabel, retryButton])
         errStack.orientation = .vertical; errStack.alignment = .leading; errStack.spacing = 6
@@ -294,7 +298,7 @@ final class InfoPanelView: NSView {
         metaSection.addArrangedSubview(errorBox)
 
         noteBox.wantsLayer = true; noteBox.layer?.cornerRadius = 6
-        noteLabel.font = .systemFont(ofSize: 11.5); noteLabel.textColor = Theme.text2
+        noteLabel.font = Theme.font(.panels, size: 11.5); noteLabel.textColor = Theme.text2
         Self.pin(noteLabel, inside: noteBox, inset: 8); noteBox.isHidden = true
         contentStack.addArrangedSubview(metaSection); contentStack.addArrangedSubview(noteBox)
 
@@ -307,11 +311,11 @@ final class InfoPanelView: NSView {
             ]),
         ]
         for (title, rows) in groups {
-            contentStack.addArrangedSubview(Self.groupHeader(title))
+            contentStack.addArrangedSubview(makeGroupHeader(title))
             for (key, label) in rows {
                 let field = Self.valueField()
                 fieldViews[key] = field
-                contentStack.addArrangedSubview(Self.kvRow(label, view: field))
+                contentStack.addArrangedSubview(makeKVRow(label, view: field))
             }
         }
 
@@ -335,9 +339,12 @@ final class InfoPanelView: NSView {
     func showEmpty() { scroll.isHidden = true; emptyLabel.isHidden = false }
 
     func showWritableMetadata(rating: Int, tags: [String], isWriting: Bool, failureReason: String?) {
+        currentRating = rating
         scroll.isHidden = false; emptyLabel.isHidden = true; metaSection.isHidden = false; noteBox.isHidden = true
+        let starFont = Theme.font(.panels, size: 15)
         for (idx, btn) in starButtons.enumerated() {
-            btn.attributedTitle = NSAttributedString(string: "★", attributes: [.font: NSFont.systemFont(ofSize: 15), .foregroundColor: idx < rating ? Theme.star : Theme.lineStrong])
+            btn.font = starFont
+            btn.attributedTitle = NSAttributedString(string: "★", attributes: [.font: starFont, .foregroundColor: idx < rating ? Theme.star : Theme.lineStrong])
         }
         writingRow.isHidden = !isWriting
         if isWriting { writingSpinner.startAnimation(nil) } else { writingSpinner.stopAnimation(nil) }
@@ -362,7 +369,7 @@ final class InfoPanelView: NSView {
         tagsContainer.arrangedSubviews.forEach { tagsContainer.removeArrangedSubview($0); $0.removeFromSuperview() }
         var row: NSStackView?, rowWidth: CGFloat = 0
         for (index, tag) in tags.enumerated() {
-            let chip = FlatButton(font: .systemFont(ofSize: 11), fill: Theme.well, foreground: Theme.text2, border: Theme.line, radius: 4, height: 20, padding: 6)
+            let chip = FlatButton(font: Theme.font(.panels, size: 11), fill: Theme.well, foreground: Theme.text2, border: Theme.line, radius: 4, height: 20, padding: 6)
             chip.setText("\(tag) ×"); chip.tag = index; chip.toolTip = String(localized: "点击移除“\(tag)”")
             chip.target = self; chip.action = #selector(tagChipClicked(_:))
             let chipW = chip.fittingSize.width
@@ -383,24 +390,49 @@ final class InfoPanelView: NSView {
         if currentTags.indices.contains(sender.tag) { onRemoveTag?(currentTags[sender.tag]) }
     }
 
-    private static func groupHeader(_ title: String) -> NSTextField {
+    @objc private func applyFonts() {
+        let regular12 = Theme.font(.panels, size: 12)
+        let small11 = Theme.font(.panels, size: 11)
+        let small115 = Theme.font(.panels, size: 11.5)
+        let header11 = Theme.font(.panels, size: 11, weight: .semibold)
+        let starFont = Theme.font(.panels, size: 15)
+        emptyLabel.font = regular12
+        writingText.font = small11
+        addTagButton.font = small11
+        errorLabel.font = small115
+        noteLabel.font = small115
+        retryButton.applyFont(small115)
+        for (idx, btn) in starButtons.enumerated() {
+            btn.font = starFont
+            btn.attributedTitle = NSAttributedString(string: "★", attributes: [.font: starFont, .foregroundColor: idx < currentRating ? Theme.star : Theme.lineStrong])
+        }
+        groupHeaderLabels.forEach { $0.font = header11 }
+        keyLabels.forEach { $0.font = regular12 }
+        fieldViews.values.forEach { $0.font = regular12 }
+        rebuildTags(currentTags)
+        needsLayout = true
+    }
+
+    private func makeGroupHeader(_ title: String) -> NSTextField {
         let label = NSTextField(labelWithString: title)
-        label.font = .systemFont(ofSize: 11, weight: .semibold); label.textColor = Theme.text2
+        label.font = Theme.font(.panels, size: 11, weight: .semibold); label.textColor = Theme.text2
+        groupHeaderLabels.append(label)
         return label
     }
 
     private static func valueField() -> NSTextField {
         let field = NSTextField(labelWithString: "—")
-        field.font = .systemFont(ofSize: 12); field.textColor = Theme.text
+        field.font = Theme.font(.panels, size: 12); field.textColor = Theme.text
         field.isSelectable = true; field.isEditable = false; field.isBordered = false; field.drawsBackground = false
         field.lineBreakMode = .byTruncatingMiddle; field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return field
     }
 
-    private static func kvRow(_ key: String, view: NSView) -> NSStackView {
+    private func makeKVRow(_ key: String, view: NSView) -> NSStackView {
         let keyLabel = NSTextField(labelWithString: key)
-        keyLabel.font = .systemFont(ofSize: 12); keyLabel.textColor = Theme.text2
+        keyLabel.font = Theme.font(.panels, size: 12); keyLabel.textColor = Theme.text2
         keyLabel.widthAnchor.constraint(equalToConstant: 64).isActive = true
+        keyLabels.append(keyLabel)
         let row = NSStackView(views: [keyLabel, view])
         row.orientation = .horizontal; row.alignment = .firstBaseline; row.spacing = 6
         return row

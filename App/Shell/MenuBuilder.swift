@@ -68,7 +68,9 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         @objc func noop(_ sender: Any?) {}
 
         func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-            populate(submenu)
+            let enabled = populate(submenu)
+            Theme.applyMenuFont(to: submenu)
+            return enabled
         }
     }
 
@@ -91,6 +93,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         let menu = NSMenu()
         menu.autoenablesItems = false
         appendContextItems(from: nodes, to: menu, provider: provider, target: target)
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 
@@ -168,6 +171,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
             }
         }
 
+        Theme.applyMenuFont(to: main, includeRoot: false)
         app.mainMenu = main
         app.servicesMenu = services
         app.windowsMenu = windows

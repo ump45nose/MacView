@@ -5,6 +5,8 @@ import MVCommands
 @MainActor
 final class PendingSequenceView: NSView {
     private let stack = NSStackView()
+    private var textLabels: [NSTextField] = []
+    private var keyCaps: [KeyCapView] = []
 
     init() {
         super.init(frame: .zero)
@@ -29,6 +31,14 @@ final class PendingSequenceView: NSView {
         ])
         setAccessibilityRole(.group)
         isHidden = true
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        let font = Theme.font(.overlays, size: 12)
+        textLabels.forEach { $0.font = font }
+        keyCaps.forEach { $0.applyFonts() }
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -46,24 +56,39 @@ final class PendingSequenceView: NSView {
 
     func show(_ pending: InputRouter.Pending?) {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        textLabels = []
+        keyCaps = []
         guard let pending else {
             isHidden = true
             return
         }
+        let summary = render(pending)
+        setAccessibilityLabel(summary)
+        isHidden = false
+        NSAccessibility.post(element: self, notification: .announcementRequested, userInfo: [.announcement: summary])
+    }
+
+    @discardableResult
+    private func render(_ pending: InputRouter.Pending) -> String {
         let waiting = NSTextField(labelWithString: String(localized: "等待下一个键…"))
-        waiting.font = .systemFont(ofSize: 12)
+        waiting.font = Theme.font(.overlays, size: 12)
         waiting.textColor = Theme.text2
-        let typed = NSStackView(views: pending.typed.map { KeyCapView(KeyMapping.displayName(for: $0), large: true) } + [waiting])
+        textLabels.append(waiting)
+        let typedCaps = pending.typed.map { KeyCapView(KeyMapping.displayName(for: $0), large: true) }
+        keyCaps.append(contentsOf: typedCaps)
+        let typed = NSStackView(views: typedCaps + [waiting])
         typed.spacing = 8
         stack.addArrangedSubview(typed)
 
         if !pending.next.isEmpty {
             // 键帽等宽，命令名紧跟键帽、左对齐。NSGridView 会把多余的宽度分给键列，所以用行和等宽约束。
             let caps = pending.next.map { KeyCapView(KeyMapping.displayName(for: $0.chord), large: false) }
+            keyCaps.append(contentsOf: caps)
             let rows = zip(caps, pending.next).map { cap, next in
                 let title = NSTextField(labelWithString: next.title)
-                title.font = .systemFont(ofSize: 12)
+                title.font = Theme.font(.overlays, size: 12)
                 title.textColor = Theme.text
+                textLabels.append(title)
                 let row = NSStackView(views: [cap, title])
                 row.spacing = 10
                 return row
@@ -75,11 +100,8 @@ final class PendingSequenceView: NSView {
             stack.addArrangedSubview(list)
             NSLayoutConstraint.activate(caps.dropFirst().map { $0.widthAnchor.constraint(equalTo: caps[0].widthAnchor) })
         }
-        let summary = ([pending.typed.map(KeyMapping.displayName).joined(separator: " "), waiting.stringValue]
+        return ([pending.typed.map(KeyMapping.displayName).joined(separator: " "), waiting.stringValue]
             + pending.next.map { "\(KeyMapping.displayName(for: $0.chord)) \($0.title)" }).joined(separator: "，")
-        setAccessibilityLabel(summary)
-        isHidden = false
-        NSAccessibility.post(element: self, notification: .announcementRequested, userInfo: [.announcement: summary])
     }
 }
 
@@ -87,14 +109,16 @@ final class PendingSequenceView: NSView {
 @MainActor
 private final class KeyCapView: NSView {
     private let label: NSTextField
+    private let large: Bool
 
     init(_ text: String, large: Bool) {
+        self.large = large
         label = NSTextField(labelWithString: text)
         super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = 5
         layer?.borderWidth = 0.5
-        label.font = .systemFont(ofSize: large ? 12 : 11)
+        label.font = Theme.font(.overlays, size: large ? 12 : 11)
         label.textColor = Theme.text
         label.alignment = .center
         label.setContentHuggingPriority(.required, for: .horizontal)
@@ -108,6 +132,11 @@ private final class KeyCapView: NSView {
             label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: large ? 6 : 5),
             label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: large ? -6 : -5),
         ])
+    }
+
+    func applyFonts() {
+        label.font = Theme.font(.overlays, size: large ? 12 : 11)
+        invalidateIntrinsicContentSize()
     }
 
     @available(*, unavailable)

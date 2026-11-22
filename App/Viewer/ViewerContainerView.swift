@@ -785,6 +785,7 @@ private final class SourcePillView: NSView {
             label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10), label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             label.topAnchor.constraint(equalTo: topAnchor, constant: 3), label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -3),
         ])
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
     }
 
     @available(*, unavailable)
@@ -792,14 +793,24 @@ private final class SourcePillView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    private var lastBook: String?
+    private var lastFile: String?
     var text: String { label.stringValue }
 
     func show(book: String, file: String) {
-        let font = NSFont.systemFont(ofSize: 11)
+        lastBook = book
+        lastFile = file
+        let font = Theme.font(.overlays, size: 11)
         let text = NSMutableAttributedString(string: String(localized: "来自 "), attributes: [.font: font, .foregroundColor: Theme.text2])
-        text.append(NSAttributedString(string: "《\(book)》", attributes: [.font: NSFont.systemFont(ofSize: 11, weight: .medium), .foregroundColor: Theme.text]))
+        text.append(NSAttributedString(string: "《\(book)》", attributes: [.font: Theme.font(.overlays, size: 11, weight: .medium), .foregroundColor: Theme.text]))
         text.append(NSAttributedString(string: " · " + file, attributes: [.font: font, .foregroundColor: Theme.text2]))
         label.attributedStringValue = text
+    }
+
+    @objc private func applyFonts() {
+        if let lastBook, let lastFile {
+            show(book: lastBook, file: lastFile)
+        }
     }
 
     override var wantsUpdateLayer: Bool { true }
@@ -819,10 +830,10 @@ private final class ViewerMessageView: NSStackView {
     private let detail = NSTextField(wrappingLabelWithString: "")
     private let buttons = NSStackView()
     private let button = FlatButton(
-        font: .systemFont(ofSize: 13, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 8, height: 30, padding: 16
+        font: Theme.font(.overlays, size: 13, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 8, height: 30, padding: 16
     )
     private let secondary = FlatButton(
-        font: .systemFont(ofSize: 13), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 8, height: 30, padding: 16
+        font: Theme.font(.overlays, size: 13), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 8, height: 30, padding: 16
     )
     var onAction: (() -> Void)?
     var onSecondary: (() -> Void)?
@@ -835,7 +846,7 @@ private final class ViewerMessageView: NSStackView {
         title.font = Theme.serif(24)
         title.textColor = Theme.text
         title.alignment = .center
-        detail.font = .systemFont(ofSize: 12)
+        detail.font = Theme.font(.overlays, size: 12)
         detail.textColor = Theme.text2
         detail.alignment = .center
         detail.maximumNumberOfLines = 4
@@ -851,6 +862,14 @@ private final class ViewerMessageView: NSStackView {
         addArrangedSubview(detail)
         addArrangedSubview(buttons)
         setCustomSpacing(14, after: detail)
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        detail.font = Theme.font(.overlays, size: 12)
+        button.applyFont(Theme.font(.overlays, size: 13, weight: .semibold))
+        secondary.applyFont(Theme.font(.overlays, size: 13))
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -882,6 +901,7 @@ private final class ViewerMessageView: NSStackView {
 private final class MetadataToastView: NSView {
     private let spinner = NSProgressIndicator()
     private let label = NSTextField(labelWithString: "")
+    private var lastContent: (stars: Int?, text: String, isSpinning: Bool)?
 
     init() {
         super.init(frame: .zero)
@@ -890,7 +910,7 @@ private final class MetadataToastView: NSView {
         spinner.style = .spinning
         spinner.controlSize = .mini
         spinner.isHidden = true
-        label.font = .systemFont(ofSize: 12)
+        label.font = Theme.font(.overlays, size: 12)
         let stack = NSStackView(views: [spinner, label])
         stack.orientation = .horizontal
         stack.alignment = .centerY
@@ -904,6 +924,7 @@ private final class MetadataToastView: NSView {
             stack.topAnchor.constraint(equalTo: topAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
@@ -912,10 +933,11 @@ private final class MetadataToastView: NSView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     func show(stars: Int?, text: String, isSpinning: Bool) {
+        lastContent = (stars, text, isSpinning)
         spinner.isHidden = !isSpinning
         if isSpinning { spinner.startAnimation(nil) } else { spinner.stopAnimation(nil) }
         let out = NSMutableAttributedString()
-        let font = NSFont.systemFont(ofSize: 12)
+        let font = Theme.font(.overlays, size: 12)
         if let stars {
             let filled = min(max(stars, 0), 5)
             if filled > 0 {
@@ -928,6 +950,13 @@ private final class MetadataToastView: NSView {
         }
         out.append(NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: NSColor(srgbRed: 0xF5 / 255, green: 0xF4 / 255, blue: 0xEE / 255, alpha: 1)]))
         label.attributedStringValue = out
+    }
+
+    @objc private func applyFonts() {
+        label.font = Theme.font(.overlays, size: 12)
+        if let lastContent {
+            show(stars: lastContent.stars, text: lastContent.text, isSpinning: lastContent.isSpinning)
+        }
     }
 
     func stopSpinner() {

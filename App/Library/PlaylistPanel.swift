@@ -67,7 +67,7 @@ final class PlaylistPanel: NSObject, DockPanel, PlaylistSelectionSource, NSTable
         host = LibraryPanelView(document: table)
         super.init()
         table.headerView = nil
-        table.rowHeight = 46
+        table.rowHeight = ceil(46 * Theme.fontScale(.panels))
         table.intercellSpacing = .zero
         table.backgroundColor = .clear
         table.style = .plain
@@ -98,9 +98,22 @@ final class PlaylistPanel: NSObject, DockPanel, PlaylistSelectionSource, NSTable
         host.onShow = { [weak self] in self?.availability.recheckAll() }
         host.onScroll = { [weak self] in self?.availability.scrolled() }
         availability.view = host
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
         availability.visibleLocations = { [weak self] in self?.visibleLocations() ?? [] }
         availability.onChange = { [weak self] in self?.availabilityChanged() }
         render()
+    }
+
+    @objc private func applyFonts() {
+        header.applyFonts()
+        let savedOrigin = host.scroll.contentView.bounds.origin
+        table.rowHeight = ceil(46 * Theme.fontScale(.panels))
+        table.enumerateAvailableRowViews { rowView, _ in
+            (rowView.view(atColumn: 0) as? PlaylistCell)?.applyFonts()
+        }
+        host.scroll.contentView.scroll(to: savedOrigin)
+        host.scroll.reflectScrolledClipView(host.scroll.contentView)
+        host.needsLayout = true
     }
 
     deinit {
@@ -568,7 +581,7 @@ final class PlaylistPanel: NSObject, DockPanel, PlaylistSelectionSource, NSTable
         let cancel = UnavailableReasonPopover.button(String(localized: "取消"), primary: false)
         cancel.target = self
         cancel.action = #selector(cancelDelete(_:))
-        let confirm = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.danger, border: Theme.lineStrong, radius: 5, height: 22, padding: 9)
+        let confirm = FlatButton(font: Theme.font(.panels, size: 12), fill: Theme.raised, foreground: Theme.danger, border: Theme.lineStrong, radius: 5, height: 22, padding: 9)
         confirm.setText(String(localized: "删除"))
         confirm.target = self
         confirm.action = #selector(confirmDelete(_:))
@@ -778,12 +791,22 @@ private final class PlaylistHeader: NSView {
     init() {
         super.init(frame: .zero)
         popup.controlSize = .small
-        popup.font = .systemFont(ofSize: 12)
-        field.font = .systemFont(ofSize: 12)
+        popup.font = Theme.font(.menus, size: Theme.defaultSize(.menus))
+        field.font = Theme.font(.panels, size: 12)
         field.controlSize = .small
         field.bezelStyle = .roundedBezel
         field.lineBreakMode = .byTruncatingTail
         for view in [popup, play, create, field] as [NSView] { addSubview(view) }
+    }
+
+    func applyFonts() {
+        popup.font = Theme.font(.menus, size: Theme.defaultSize(.menus))
+        if let menu = popup.menu { Theme.applyMenuFont(to: menu) }
+        let panelFont = Theme.font(.panels, size: 12)
+        field.font = panelFont
+        play.applyFont(panelFont)
+        create.applyFont(panelFont)
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -827,6 +850,7 @@ private final class PlaylistHeader: NSView {
             item.representedObject = list.id
             menu.addItem(item)
         }
+        Theme.applyMenuFont(to: menu)
         popup.menu = menu
         if let index = lists.firstIndex(where: { $0.id == selected }) { popup.selectItem(at: index) }
         needsLayout = true
@@ -848,6 +872,7 @@ private final class PlaylistCell: NSView {
     var imageTask: Task<Void, Never>?
     private(set) var hasImage = false
     private var isDimmed = false
+    private var isCurrentRow = false
 
     init() {
         super.init(frame: .zero)
@@ -859,15 +884,22 @@ private final class PlaylistCell: NSView {
         thumb.actions = ["contents": NSNull(), "opacity": NSNull()]
         layer?.addSublayer(thumb)
         index.alignment = .right
-        name.font = .systemFont(ofSize: 13)
+        name.font = Theme.font(.panels, size: 13)
         name.textColor = Theme.text
-        source.font = .systemFont(ofSize: 11)
+        source.font = Theme.font(.panels, size: 11)
         source.textColor = Theme.text2
         for label in [index, name, source] {
             label.lineBreakMode = .byTruncatingTail
             addSubview(label)
         }
         addSubview(badge)
+    }
+
+    func applyFonts() {
+        index.font = Theme.font(.panels, size: 11, weight: isCurrentRow ? .semibold : .regular, monospacedDigits: true)
+        name.font = Theme.font(.panels, size: 13)
+        source.font = Theme.font(.panels, size: 11)
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -905,8 +937,9 @@ private final class PlaylistCell: NSView {
     }
 
     func show(index number: Int, isCurrent: Bool, name: String, source: String, availability: Availability?) {
+        isCurrentRow = isCurrent
         index.stringValue = isCurrent ? "▸\(number)" : "\(number)"
-        index.font = .monospacedDigitSystemFont(ofSize: 11, weight: isCurrent ? .semibold : .regular)
+        index.font = Theme.font(.panels, size: 11, weight: isCurrent ? .semibold : .regular, monospacedDigits: true)
         index.textColor = isCurrent ? Theme.text : Theme.text2
         self.name.stringValue = name
         self.source.stringValue = source

@@ -65,6 +65,11 @@ final class AppearanceSelfTest {
             try? FileManager.default.removeItem(at: temporary)
             await app.services?.shutdown()
             exit(log.summarize())
+        case "fonts":
+            await runFontsSuite(controller: controller, window: window)
+            try? FileManager.default.removeItem(at: temporary)
+            await app.services?.shutdown()
+            exit(log.summarize())
         default:
             log.check(false, "未知的 -MVAppearanceSelfTest 模式：\(mode)")
             try? FileManager.default.removeItem(at: temporary)
@@ -1496,6 +1501,428 @@ final class AppearanceSelfTest {
         guard writer.status == .completed else {
             throw writer.error ?? NSError(domain: "AppearanceSelfTest", code: 12)
         }
+    }
+
+    // MARK: fonts 自检（C3.1–C3.4）
+
+    private struct TextFontSample {
+        let label: String
+        let font: NSFont
+        let readCurrent: () -> NSFont?
+    }
+
+    private func runFontsSuite(controller: ReaderWindowController, window: NSWindow) async {
+        guard let services = app.services, let dock = app.dock else {
+            log.check(false, "fonts 自检需要真实服务与 DockCoordinator")
+            return
+        }
+        do {
+            try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+            _ = await waitUntil(timeoutMs: 2500) { self.app.appearance?.hasApplied == true }
+
+            // 准备 16 本测试书，确保书架可以滚动并保留选中项与滚动位置。
+            let booksRoot = temporary.appending(path: "font-books", directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: booksRoot, withIntermediateDirectories: true)
+            var firstBookURL: URL!
+            for idx in 1...16 {
+                let dir = booksRoot.appending(path: String(format: "Book_%02d", idx), directoryHint: .isDirectory)
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try writeSolidPNG(to: dir.appending(path: "01.png"), r: UInt8(40 + idx * 10), g: 120, b: 200)
+                if idx == 1 {
+                    try writeSolidPNG(to: dir.appending(path: "02.png"), r: 120, g: 180, b: 90)
+                    try writeSolidPNG(to: dir.appending(path: "03.png"), r: 210, g: 90, b: 70)
+                    firstBookURL = dir
+                }
+            }
+
+            window.setContentSize(NSSize(width: 1120, height: 760))
+            TestPresentation.place(window)
+            window.makeKeyAndOrderFront(nil)
+            await openBook(controller, url: firstBookURL)
+            await settle(200)
+
+            // 打开 8 个面板：bookshelf / pageList / history / bookmarks / playlist / info / classify / effects。
+            let leftPanels: [PanelID] = [DockPanels.bookshelf, DockPanels.pageList, PanelID("history"), PanelID("bookmarks")]
+            let rightPanels: [PanelID] = [PanelID("playlist"), DockPanels.info, DockPanels.classify, DockPanels.effects]
+            dock.perform(in: controller.dock) { layout in
+                var next = layout
+                for id in leftPanels where !next.isPanelVisible(id) {
+                    next = next.togglingPanel(id, defaultEdge: .left)
+                }
+                for id in rightPanels where !next.isPanelVisible(id) {
+                    next = next.togglingPanel(id, defaultEdge: .right)
+                }
+                return next
+            }
+            let allOpened = await waitUntil(timeoutMs: 2500) {
+                (leftPanels + rightPanels).allSatisfy { controller.dock.panels[$0] != nil }
+            }
+            guard allOpened, let bookshelf = controller.bookshelfPanel else {
+                log.check(false, "fonts 自检未能打开全部面板")
+                return
+            }
+            // 确保书架内容已加载并处于列表模式，设置非零滚动位置与选中项。
+            let shelfLoaded = await waitUntil(timeoutMs: 3000) {
+                (bookshelf.collection?.items.count ?? 0) >= 10
+            }
+            bookshelf.setStyle(.list)
+            await settle(150)
+            bookshelf.view.layoutSubtreeIfNeeded()
+            if let col = bookshelf.collection {
+                col.setCurrent(5, reveal: false)
+                col.scrollOrigin = NSPoint(x: 0, y: 80)
+                await settle(100)
+            }
+            let shelfSelectionBefore = bookshelf.collection?.selectedIndices ?? []
+            let shelfScrollBefore = bookshelf.collection?.scrollOrigin ?? .zero
+
+            // 展开所有面板视图的布局，使表格生成可见行。
+            for id in leftPanels + rightPanels {
+                if let view = controller.dock.panels[id]?.view {
+                    if view.bounds.size == .zero {
+                        view.frame = NSRect(x: 0, y: 0, width: 260, height: 500)
+                    }
+                    view.layoutSubtreeIfNeeded()
+                }
+            }
+
+            // 显示 HUD、多键提示、瀑布流页码标签以便采样叠加层。
+            controller.viewer.hud.isHidden = false
+            controller.viewer.hud.refresh()
+            controller.viewer.hud.updateZoom(percent: 100)
+            controller.pendingView.show(InputRouter.Pending(
+                typed: [KeyChord("g", modifiers: [])],
+                next: [(chord: KeyChord("g", modifiers: []), title: "第一页")]
+            ))
+            await settle(120)
+
+            // 记录启动时的基线字体（供 C3.4 对比）。
+            let allPanelIDs = leftPanels + rightPanels
+            var baselinePanelSamples: [TextFontSample] = []
+            for id in allPanelIDs {
+                if let view = controller.dock.panels[id]?.view {
+                    baselinePanelSamples.append(contentsOf: collectPanelFontSamples(in: view, prefix: id.rawValue))
+                }
+            }
+            let baselineOverlaySamples = collectOverlayFontSamples(controller: controller)
+            let baselineMenuFont = viewSubmenu()?.font
+            let baselineNestedMenuFonts = collectMenuFonts(under: viewSubmenu())
+            let baselineContextMenuFont = buildViewerContextMenu(controller: controller)?.font
+            let sortButton = findView(in: bookshelf.view, identifier: "collection.sortButton") as? NSButton
+            let baselineSortButtonFont = sortButton?.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? sortButton?.font
+
+            // MARK: C3.1 fonts.panels = {family: "Menlo", size: 16}
+            try await services.settings.updateGlobal {
+                $0.appearance.fonts[.panels] = FontSpec(family: "Menlo", size: 16)
+            }
+            _ = await waitUntil(timeoutMs: 1500) { Theme.fonts[.panels]?.family == "Menlo" }
+            await settle(150)
+
+            var c31Mismatches: [String] = []
+            for sample in baselinePanelSamples {
+                guard let current = sample.readCurrent() else { continue }
+                let expectedSize = (sample.font.pointSize * (16.0 / 12.0) * 2).rounded() / 2
+                let familyOK = current.familyName == "Menlo"
+                let sizeOK = abs(current.pointSize - expectedSize) <= 0.5
+                if !familyOK || !sizeOK {
+                    c31Mismatches.append("\(sample.label): got \(current.familyName ?? "nil") \(current.pointSize), want Menlo \(expectedSize)")
+                }
+            }
+            let shelfSelectionAfter = bookshelf.collection?.selectedIndices ?? []
+            let shelfScrollAfter = bookshelf.collection?.scrollOrigin ?? .zero
+            let shelfStateKept = shelfSelectionAfter == shelfSelectionBefore
+                && abs(shelfScrollAfter.y - shelfScrollBefore.y) <= 1.0
+
+            // 触发书架搜索结果并检查搜索结果视图字体。
+            if let rootLoc = try? await services.sources.location(for: booksRoot) {
+                bookshelf.startIndexing(folder: rootLoc)
+                _ = await waitUntil(timeoutMs: 5000) { IndexController.shared.state?.progress.phase == .finished }
+                bookshelf.searchController.submit(text: "Book")
+                _ = await waitUntil(timeoutMs: 3000) {
+                    bookshelf.searchController.isSearching
+                        && !bookshelf.searchController.isLoading
+                        && !bookshelf.searchResultsView.hits.isEmpty
+                }
+                bookshelf.searchResultsView.layoutSubtreeIfNeeded()
+                await settle(100)
+                let searchSamples = collectPanelFontSamples(in: bookshelf.searchResultsView, prefix: "searchResults")
+                for sample in searchSamples where sample.font.familyName != "Menlo" {
+                    c31Mismatches.append("\(sample.label): got \(sample.font.familyName ?? "nil") \(sample.font.pointSize)")
+                }
+                bookshelf.exitSearch()
+                await settle(80)
+            }
+
+            // 改完后新打开一个面板（新建一个独立 InfoPanel 实例模拟改后新打开），确认同样是 Menlo；同时保留已有面板实例以供 C3.4 对比。
+            let freshInfo = InfoPanel(nil)
+            let reopenedInfoSamples = collectPanelFontSamples(in: freshInfo.view, prefix: "reopened.info")
+            let reopenedInfoOK = !reopenedInfoSamples.isEmpty && reopenedInfoSamples.allSatisfy { $0.font.familyName == "Menlo" }
+
+            // 叠加层与菜单组字体不变。
+            let overlaysUnchangedInC31 = baselineOverlaySamples.allSatisfy { $0.readCurrent() == $0.font }
+            let menusUnchangedInC31 = viewSubmenu()?.font == baselineMenuFont
+                && (sortButton?.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? sortButton?.font) == baselineSortButtonFont
+
+            log.check(
+                shelfLoaded && c31Mismatches.isEmpty && shelfStateKept && reopenedInfoOK && overlaysUnchangedInC31 && menusUnchangedInC31,
+                "C3.1 fonts.panels=Menlo 16：面板控件(\(baselinePanelSamples.count)项)匹配=\(c31Mismatches.isEmpty)，书架选中与滚动不变=\(shelfStateKept)，新开面板Menlo=\(reopenedInfoOK)，叠加层不变=\(overlaysUnchangedInC31)，菜单不变=\(menusUnchangedInC31)\(c31Mismatches.isEmpty ? "" : "；差异：" + c31Mismatches.prefix(5).joined(separator: "; "))"
+            )
+
+            // MARK: C3.2 fonts.overlays = {family: "Menlo", size: 16}
+            let panelSnapshotBeforeC32 = baselinePanelSamples.compactMap { s -> (String, NSFont)? in
+                s.readCurrent().map { (s.label, $0) }
+            }
+            let menuFontBeforeC32 = viewSubmenu()?.font
+            let sortFontBeforeC32 = sortButton?.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? sortButton?.font
+
+            // 切到瀑布流以激活 ContinuousViewer 的页码标签，再验证 HUD、状态栏、页码标签、多键提示。
+            controller.session.update { $0.browseMode = .waterfall }
+            _ = await waitUntil(timeoutMs: 2500) { !controller.viewer.continuous.canvas.items.isEmpty }
+            await settle(120)
+            let continuousOverlaySamples = collectPanelFontSamples(in: controller.viewer.continuous, prefix: "continuous")
+
+            try await services.settings.updateGlobal {
+                $0.appearance.fonts[.overlays] = FontSpec(family: "Menlo", size: 16)
+            }
+            _ = await waitUntil(timeoutMs: 1500) { Theme.fonts[.overlays]?.family == "Menlo" }
+            await settle(150)
+
+            var c32Mismatches: [String] = []
+            for sample in baselineOverlaySamples + continuousOverlaySamples {
+                guard let current = sample.readCurrent() else { continue }
+                let expectedSize = (sample.font.pointSize * (16.0 / 12.0) * 2).rounded() / 2
+                if current.familyName != "Menlo" || abs(current.pointSize - expectedSize) > 0.5 {
+                    c32Mismatches.append("\(sample.label): got \(current.familyName ?? "nil") \(current.pointSize), want Menlo \(expectedSize)")
+                }
+            }
+            let panelsUnchangedInC32 = zip(panelSnapshotBeforeC32, baselinePanelSamples.compactMap { $0.readCurrent() }).allSatisfy { $0.0.1 == $0.1 }
+            let menusUnchangedInC32 = viewSubmenu()?.font == menuFontBeforeC32
+                && (sortButton?.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? sortButton?.font) == sortFontBeforeC32
+
+            log.check(
+                !continuousOverlaySamples.isEmpty && c32Mismatches.isEmpty && panelsUnchangedInC32 && menusUnchangedInC32,
+                "C3.2 fonts.overlays=Menlo 16：HUD/状态栏/多键提示/页码标签(\(baselineOverlaySamples.count + continuousOverlaySamples.count)项)匹配=\(c32Mismatches.isEmpty)，面板不变=\(panelsUnchangedInC32)，菜单不变=\(menusUnchangedInC32)\(c32Mismatches.isEmpty ? "" : "；差异：" + c32Mismatches.prefix(5).joined(separator: "; "))"
+            )
+
+            // MARK: C3.3 fonts.menus = {family: "Menlo", size: 18}
+            let panelSnapshotBeforeC33 = baselinePanelSamples.compactMap { $0.readCurrent() }
+            let overlaySnapshotBeforeC33 = baselineOverlaySamples.compactMap { $0.readCurrent() }
+
+            try await services.settings.updateGlobal {
+                $0.appearance.fonts[.menus] = FontSpec(family: "Menlo", size: 18)
+            }
+            _ = await waitUntil(timeoutMs: 1500) { Theme.fonts[.menus]?.family == "Menlo" }
+            await settle(150)
+
+            let viewMenuFontsAfter = collectMenuFonts(under: viewSubmenu())
+            let viewMenuOK = !viewMenuFontsAfter.isEmpty && viewMenuFontsAfter.allSatisfy { font in
+                font?.familyName == "Menlo" && abs((font?.pointSize ?? 0) - 18) <= 0.5
+            }
+            let contextMenuAfter = buildViewerContextMenu(controller: controller)
+            let contextMenuFonts = collectMenuFonts(under: contextMenuAfter)
+            let contextMenuOK = !contextMenuFonts.isEmpty && contextMenuFonts.allSatisfy { font in
+                font?.familyName == "Menlo" && abs((font?.pointSize ?? 0) - 18) <= 0.5
+            }
+            let sortFontAfter = sortButton?.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? sortButton?.font
+            let sortButtonOK = sortFontAfter?.familyName == "Menlo" && abs((sortFontAfter?.pointSize ?? 0) - 18) <= 0.5
+            let searchPopups = [bookshelf.searchBar.ratingButton, bookshelf.searchBar.tagsButton, bookshelf.searchBar.kindButton]
+            let searchPopupsOK = searchPopups.allSatisfy { popup in
+                popup.font?.familyName == "Menlo" && abs((popup.font?.pointSize ?? 0) - 18) <= 0.5
+            }
+            let panelsUnchangedInC33 = zip(panelSnapshotBeforeC33, baselinePanelSamples.compactMap { $0.readCurrent() }).allSatisfy(==)
+            let overlaysUnchangedInC33 = zip(overlaySnapshotBeforeC33, baselineOverlaySamples.compactMap { $0.readCurrent() }).allSatisfy(==)
+
+            log.check(
+                viewMenuOK && contextMenuOK && sortButtonOK && searchPopupsOK && panelsUnchangedInC33 && overlaysUnchangedInC33,
+                "C3.3 fonts.menus=Menlo 18：主菜单显示及下级(\(viewMenuFontsAfter.count)个)=\(viewMenuOK)，右键菜单=\(contextMenuOK)，书架排序按钮=\(sortButtonOK)，搜索下拉=\(searchPopupsOK)，面板不变=\(panelsUnchangedInC33)，叠加层不变=\(overlaysUnchangedInC33)"
+            )
+
+            // MARK: C3.4 不存在字体族回退系统字体 + 删除 fonts 恢复启动基线
+            let bogus = "NonExistentFontFamily_MacView_Test"
+            try await services.settings.updateGlobal {
+                $0.appearance.fonts = [
+                    .panels: FontSpec(family: bogus, size: 12),
+                    .overlays: FontSpec(family: bogus, size: 12),
+                    .menus: FontSpec(family: bogus, size: nil),
+                ]
+            }
+            _ = await waitUntil(timeoutMs: 1500) { Theme.fonts[.panels]?.family == bogus }
+            await settle(150)
+
+            let sysFamily = NSFont.systemFont(ofSize: 12).familyName
+            let menuSysFamily = NSFont.menuFont(ofSize: 0).familyName
+            let fallbackPanelsOK = Theme.font(.panels, size: 12).familyName == sysFamily
+            let fallbackOverlaysOK = Theme.font(.overlays, size: 12).familyName == sysFamily
+            let fallbackMenusOK = Theme.font(.menus, size: Theme.defaultSize(.menus)).familyName == menuSysFamily
+                && viewSubmenu()?.font?.familyName == menuSysFamily
+
+            try await services.settings.updateGlobal {
+                $0.appearance.fonts = [:]
+            }
+            _ = await waitUntil(timeoutMs: 1500) { Theme.fonts.isEmpty }
+            await settle(150)
+
+            var c34PanelMismatches: [String] = []
+            var c34CheckedLivePanels = 0
+            for sample in baselinePanelSamples {
+                guard let current = sample.readCurrent() else { continue }
+                c34CheckedLivePanels += 1
+                if current != sample.font {
+                    c34PanelMismatches.append("\(sample.label): got \(current.fontName) \(current.pointSize), want \(sample.font.fontName) \(sample.font.pointSize)")
+                }
+            }
+            let panelsRestored = c34CheckedLivePanels > 0 && c34PanelMismatches.isEmpty
+            let overlaysRestored = baselineOverlaySamples.allSatisfy { $0.readCurrent() == $0.font }
+            let nestedRestored = collectMenuFonts(under: viewSubmenu()) == baselineNestedMenuFonts
+            let contextRestored = buildViewerContextMenu(controller: controller)?.font == baselineContextMenuFont
+            let sortRestored = (sortButton?.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? sortButton?.font) == baselineSortButtonFont
+
+            log.check(
+                fallbackPanelsOK && fallbackOverlaysOK && fallbackMenusOK && panelsRestored && overlaysRestored && nestedRestored && contextRestored && sortRestored,
+                "C3.4 未知字体回退(panels=\(fallbackPanelsOK), overlays=\(fallbackOverlaysOK), menus=\(fallbackMenusOK))；删 fonts 恢复启动基线(panels=\(panelsRestored)[\(c34CheckedLivePanels)项], overlays=\(overlaysRestored), mainMenu=\(nestedRestored), context=\(contextRestored), sort=\(sortRestored))\(c34PanelMismatches.isEmpty ? "" : "；差异：" + c34PanelMismatches.prefix(5).joined(separator: "; "))"
+            )
+        } catch {
+            log.check(false, "fonts 自检异常：\(error)")
+        }
+    }
+
+    private func isSerifFont(_ font: NSFont) -> Bool {
+        let name = (font.familyName ?? "") + " " + font.fontName
+        return name.localizedCaseInsensitiveContains("New York")
+            || name.localizedCaseInsensitiveContains("Serif")
+            || name.localizedCaseInsensitiveContains("Song")
+    }
+
+    private func collectPanelFontSamples(in root: NSView, prefix: String) -> [TextFontSample] {
+        var result: [TextFontSample] = []
+        func walk(_ view: NSView) {
+            if view is NSPopUpButton { return }
+            if view.identifier?.rawValue == "collection.sortButton" { return }
+            if let field = view as? NSTextField {
+                let attrFont = field.attributedStringValue.length > 0
+                    ? field.attributedStringValue.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+                    : nil
+                if let font = attrFont ?? field.font, !isSerifFont(font) {
+                    let hasAttr = attrFont != nil && field.attributedStringValue.length > 0
+                    result.append(TextFontSample(
+                        label: "\(prefix).\(type(of: field))(\(field.stringValue.prefix(12)))",
+                        font: font,
+                        readCurrent: { [weak field] in
+                            guard let field else { return nil }
+                            if hasAttr, field.attributedStringValue.length > 0,
+                               let f = field.attributedStringValue.attribute(.font, at: 0, effectiveRange: nil) as? NSFont {
+                                return f
+                            }
+                            return field.font
+                        }
+                    ))
+                }
+            } else if let button = view as? NSButton {
+                let isImageOnly = button.imagePosition == .imageOnly
+                    || (button.image != nil && (button.title == "Button" || button.title == "按钮" || button.title.isEmpty))
+                let hasText = !isImageOnly && (!button.title.isEmpty || button.attributedTitle.length > 0)
+                if hasText {
+                    let attrFont = button.attributedTitle.length > 0
+                        ? button.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+                        : nil
+                    if let font = attrFont ?? button.font, !isSerifFont(font) {
+                        let hasAttr = attrFont != nil && button.attributedTitle.length > 0
+                        result.append(TextFontSample(
+                            label: "\(prefix).\(type(of: button))(\(button.title.prefix(12)))",
+                            font: font,
+                            readCurrent: { [weak button] in
+                                guard let button else { return nil }
+                                if hasAttr, button.attributedTitle.length > 0,
+                                   let f = button.attributedTitle.attribute(.font, at: 0, effectiveRange: nil) as? NSFont {
+                                    return f
+                                }
+                                return button.font
+                            }
+                        ))
+                    }
+                }
+                return
+            }
+            if let layer = view.layer {
+                walkLayers(layer, prefix: prefix, into: &result)
+            }
+            for sub in view.subviews {
+                walk(sub)
+            }
+        }
+        walk(root)
+        return result
+    }
+
+    private func walkLayers(_ layer: CALayer, prefix: String, into result: inout [TextFontSample]) {
+        if let textLayer = layer as? CATextLayer, let font = textLayer.font as? NSFont {
+            let sized = NSFont(descriptor: font.fontDescriptor, size: textLayer.fontSize) ?? font
+            result.append(TextFontSample(
+                label: "\(prefix).CATextLayer(\(textLayer.name ?? ""))",
+                font: sized,
+                readCurrent: { [weak textLayer] in
+                    guard let textLayer, let f = textLayer.font as? NSFont else { return nil }
+                    return NSFont(descriptor: f.fontDescriptor, size: textLayer.fontSize) ?? f
+                }
+            ))
+        }
+        for sub in layer.sublayers ?? [] {
+            walkLayers(sub, prefix: prefix, into: &result)
+        }
+    }
+
+    private func collectOverlayFontSamples(controller: ReaderWindowController) -> [TextFontSample] {
+        var result: [TextFontSample] = []
+        result.append(contentsOf: collectPanelFontSamples(in: controller.viewer.hud, prefix: "hud"))
+        result.append(contentsOf: collectPanelFontSamples(in: controller.content.statusBar, prefix: "statusBar"))
+        result.append(contentsOf: collectPanelFontSamples(in: controller.pendingView, prefix: "pending"))
+        return result
+    }
+
+    private func collectCanvasBadgeFonts(in canvas: CanvasView) -> [NSFont] {
+        var fonts: [NSFont] = []
+        func walk(_ layer: CALayer) {
+            if let textLayer = layer as? CATextLayer, textLayer.name == "badge", let font = textLayer.font as? NSFont {
+                fonts.append(NSFont(descriptor: font.fontDescriptor, size: textLayer.fontSize) ?? font)
+            }
+            for sub in layer.sublayers ?? [] { walk(sub) }
+        }
+        if let docLayer = canvas.documentView?.layer { walk(docLayer) }
+        return fonts
+    }
+
+    private func viewSubmenu() -> NSMenu? {
+        guard let mainMenu = NSApp.mainMenu else { return nil }
+        return mainMenu.items.first { $0.title == String(localized: "显示") || $0.title == "显示" || $0.title == "View" }?.submenu
+    }
+
+    private func collectMenuFonts(under menu: NSMenu?) -> [NSFont?] {
+        guard let menu else { return [] }
+        var out: [NSFont?] = [menu.font]
+        for item in menu.items {
+            if let sub = item.submenu {
+                out.append(contentsOf: collectMenuFonts(under: sub))
+            }
+        }
+        return out
+    }
+
+    private func buildViewerContextMenu(controller: ReaderWindowController) -> NSMenu? {
+        guard let builder = app.menuBuilder, let provider = app.contextMenuProvider else { return nil }
+        let entries = controller.session.book?.pages.prefix(1).map(\.entry) ?? []
+        return builder.contextMenu(
+            nodes: app.catalog.viewerContextMenu,
+            provider: provider,
+            target: ContextMenuTarget(window: controller, entries: Array(entries))
+        )
+    }
+
+    private func findView(in root: NSView, identifier: String) -> NSView? {
+        if root.identifier?.rawValue == identifier { return root }
+        for sub in root.subviews {
+            if let found = findView(in: sub, identifier: identifier) { return found }
+        }
+        return nil
     }
 }
 

@@ -446,13 +446,13 @@ final class ClassifyPanel: NSObject, DockPanel, NSTextFieldDelegate {
 final class ClassifyPanelView: NSView {
     static let topBarHeight: CGFloat = 34, footerHeight: CGFloat = 62
 
-    let modeControl = BrowseModeControl(labels: [String(localized: "移动"), String(localized: "复制")])
+    let modeControl = BrowseModeControl(labels: [String(localized: "移动"), String(localized: "复制")], fontRole: .panels)
     let addButton = NSButton(), scrollView = NSScrollView(), listView = ClassifyListView(), emptyView = NSView()
     let emptyTitleLabel = NSTextField(labelWithString: String(localized: "还没有目标文件夹"))
     let emptyHintLabel = NSTextField(wrappingLabelWithString: "")
-    let emptyAddButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
+    let emptyAddButton = FlatButton(font: Theme.font(.panels, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 26, padding: 11)
     let unsupportedLabel = NSTextField(labelWithString: String(localized: "当前服务不支持文件操作"))
-    let newTargetButton = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 28, padding: 11)
+    let newTargetButton = FlatButton(font: Theme.font(.panels, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 7, height: 28, padding: 11)
     let hintLabel = NSTextField(labelWithString: "")
     private let topBar = NSView(), footer = NSView(), topLine = CALayer(), bottomLine = CALayer()
 
@@ -466,15 +466,27 @@ final class ClassifyPanelView: NSView {
         addButton.contentTintColor = Theme.text2; addButton.toolTip = String(localized: "添加目标…")
         topBar.wantsLayer = true; topBar.layer?.addSublayer(topLine); topBar.addSubview(modeControl); topBar.addSubview(addButton)
         scrollView.drawsBackground = false; scrollView.hasVerticalScroller = true; scrollView.autohidesScrollers = true; scrollView.documentView = listView
-        emptyTitleLabel.font = .systemFont(ofSize: 12.5, weight: .semibold); emptyTitleLabel.textColor = Theme.text; emptyTitleLabel.alignment = .center
-        emptyHintLabel.font = .systemFont(ofSize: 12); emptyHintLabel.textColor = Theme.text2; emptyHintLabel.alignment = .center
+        emptyTitleLabel.font = Theme.font(.panels, size: 12.5, weight: .semibold); emptyTitleLabel.textColor = Theme.text; emptyTitleLabel.alignment = .center
+        emptyHintLabel.font = Theme.font(.panels, size: 12); emptyHintLabel.textColor = Theme.text2; emptyHintLabel.alignment = .center
         emptyAddButton.setText(String(localized: "添加目标…")); emptyAddButton.refusesFirstResponder = true
         emptyView.addSubview(emptyTitleLabel); emptyView.addSubview(emptyHintLabel); emptyView.addSubview(emptyAddButton)
-        unsupportedLabel.font = .systemFont(ofSize: 12); unsupportedLabel.textColor = Theme.text2; unsupportedLabel.alignment = .center; unsupportedLabel.isHidden = true
+        unsupportedLabel.font = Theme.font(.panels, size: 12); unsupportedLabel.textColor = Theme.text2; unsupportedLabel.alignment = .center; unsupportedLabel.isHidden = true
         footer.wantsLayer = true; footer.layer?.addSublayer(bottomLine); newTargetButton.refusesFirstResponder = true
-        hintLabel.font = .systemFont(ofSize: 11); hintLabel.textColor = Theme.text2; hintLabel.alignment = .center; hintLabel.lineBreakMode = .byTruncatingTail
+        hintLabel.font = Theme.font(.panels, size: 11); hintLabel.textColor = Theme.text2; hintLabel.alignment = .center; hintLabel.lineBreakMode = .byTruncatingTail
         footer.addSubview(newTargetButton); footer.addSubview(hintLabel)
         addSubview(topBar); addSubview(scrollView); addSubview(emptyView); addSubview(footer); addSubview(unsupportedLabel)
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        emptyTitleLabel.font = Theme.font(.panels, size: 12.5, weight: .semibold)
+        let font12 = Theme.font(.panels, size: 12)
+        emptyHintLabel.font = font12
+        unsupportedLabel.font = font12
+        emptyAddButton.applyFont(font12)
+        newTargetButton.applyFont(font12)
+        hintLabel.font = Theme.font(.panels, size: 11)
+        needsLayout = true
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
@@ -536,8 +548,10 @@ final class ClassifyPanelView: NSView {
 /// 分类面板的自定义行列表视图：自绘行、数字键徽章、展开三角、就地新建输入框、双击分类与顶层拖动重排。
 @MainActor
 final class ClassifyListView: NSView {
-    static let rowHeight: CGFloat = 28
-    private static let badgeFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium), detailFont = NSFont.systemFont(ofSize: 11), nameFont = NSFont.systemFont(ofSize: 12.5)
+    static var rowHeight: CGFloat { ceil(28 * Theme.fontScale(.panels)) }
+    private static var badgeFont: NSFont { Theme.font(.panels, size: 11, weight: .medium, monospacedDigits: true) }
+    private static var detailFont: NSFont { Theme.font(.panels, size: 11) }
+    private static var nameFont: NSFont { Theme.font(.panels, size: 12.5) }
     private static func symbol(_ name: String, _ size: CGFloat, _ weight: NSFont.Weight = .regular) -> NSImage? {
         NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: size, weight: weight))
     }
@@ -546,7 +560,7 @@ final class ClassifyListView: NSView {
     /// 行文字的属性按（字体、颜色、透明度）建一次后复用，绘制时不再每行新建字体和字典。
     private static var attributeCache: [String: [NSAttributedString.Key: Any]] = [:]
     private static func attributes(_ name: String, _ font: NSFont, _ color: NSColor, alpha: CGFloat) -> [NSAttributedString.Key: Any] {
-        let key = "\(name)-\(alpha)"
+        let key = "\(name)-\(font.fontName)-\(font.pointSize)-\(alpha)"
         if let cached = attributeCache[key] { return cached }
         let made: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color.withAlphaComponent(alpha)]
         attributeCache[key] = made
@@ -560,7 +574,7 @@ final class ClassifyListView: NSView {
 
     let editorContainer = NSView(), inputBox = NSView(), inputField = ClassifyInputField(string: "")
     let errorLabel = NSTextField(wrappingLabelWithString: "")
-    let retryButton = FlatButton(font: .systemFont(ofSize: 11.5), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10)
+    let retryButton = FlatButton(font: Theme.font(.panels, size: 11.5), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10)
 
     var onSelect: ((Location) -> Void)?, onDoubleClick: ((Location) -> Void)?
     var onToggleCollapse: ((Location) -> Void)?, onMoveTarget: ((Location, Int) -> Void)?
@@ -574,12 +588,23 @@ final class ClassifyListView: NSView {
         wantsLayer = true
         inputBox.wantsLayer = true; inputBox.layer?.cornerRadius = 5; inputBox.layer?.borderWidth = 1
         inputField.isBordered = false; inputField.drawsBackground = false; inputField.focusRingType = .none
-        inputField.font = .systemFont(ofSize: 12); inputField.textColor = Theme.text
+        inputField.font = Theme.font(.panels, size: 12); inputField.textColor = Theme.text
         inputField.placeholderString = String(localized: "新文件夹名称"); inputBox.addSubview(inputField)
-        errorLabel.font = .systemFont(ofSize: 11.5); errorLabel.textColor = Theme.danger
+        errorLabel.font = Theme.font(.panels, size: 11.5); errorLabel.textColor = Theme.danger
         retryButton.setText(String(localized: "重试")); retryButton.refusesFirstResponder = true
         editorContainer.addSubview(inputBox); editorContainer.addSubview(errorLabel); editorContainer.addSubview(retryButton)
         editorContainer.isHidden = true; addSubview(editorContainer)
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        Self.attributeCache.removeAll()
+        inputField.font = Theme.font(.panels, size: 12)
+        let smallFont = Theme.font(.panels, size: 11.5)
+        errorLabel.font = smallFont
+        retryButton.applyFont(smallFont)
+        updateLayout(in: bounds.width)
+        needsDisplay = true
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }

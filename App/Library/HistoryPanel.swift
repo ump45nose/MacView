@@ -53,7 +53,7 @@ final class HistoryPanel: NSObject, DockPanel, NSTableViewDataSource, NSTableVie
         host = LibraryPanelView(document: table)
         super.init()
         table.headerView = nil
-        table.rowHeight = 52
+        table.rowHeight = ceil(52 * Theme.fontScale(.panels))
         table.intercellSpacing = .zero
         table.backgroundColor = .clear
         table.style = .plain
@@ -68,7 +68,7 @@ final class HistoryPanel: NSObject, DockPanel, NSTableViewDataSource, NSTableVie
         table.action = #selector(rowClicked(_:))
         table.setDraggingSourceOperationMask(.generic, forLocal: true)
         table.onContextMenu = { [weak self] row in self?.contextMenu(row: row) }
-        countLabel.font = .systemFont(ofSize: 11)
+        countLabel.font = Theme.font(.panels, size: 11)
         countLabel.textColor = Theme.text2
         host.setInfo(String(localized: "最近打开"), accessory: countLabel)
         host.onShow = { [weak self] in self?.shown() }
@@ -79,7 +79,20 @@ final class HistoryPanel: NSObject, DockPanel, NSTableViewDataSource, NSTableVie
         availability.view = host
         availability.visibleLocations = { [weak self] in self?.visibleLocations() ?? [] }
         availability.onChange = { [weak self] in self?.availabilityChanged() }
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
         render()
+    }
+
+    @objc private func applyFonts() {
+        countLabel.font = Theme.font(.panels, size: 11)
+        let savedOrigin = host.scroll.contentView.bounds.origin
+        table.rowHeight = ceil(52 * Theme.fontScale(.panels))
+        table.enumerateAvailableRowViews { rowView, _ in
+            (rowView.view(atColumn: 0) as? HistoryCell)?.applyFonts()
+        }
+        host.scroll.contentView.scroll(to: savedOrigin)
+        host.scroll.reflectScrolledClipView(host.scroll.contentView)
+        host.needsLayout = true
     }
 
     deinit { observers.forEach { $0.cancel() } }
@@ -402,7 +415,7 @@ final class HistoryPanel: NSObject, DockPanel, NSTableViewDataSource, NSTableVie
         let cancel = UnavailableReasonPopover.button(String(localized: "取消"), primary: false)
         cancel.target = self
         cancel.action = #selector(cancelClear(_:))
-        let confirm = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.danger, border: Theme.lineStrong, radius: 5, height: 22, padding: 9)
+        let confirm = FlatButton(font: Theme.font(.panels, size: 12), fill: Theme.raised, foreground: Theme.danger, border: Theme.lineStrong, radius: 5, height: 22, padding: 9)
         confirm.setText(String(localized: "清空"))
         confirm.target = self
         confirm.action = #selector(confirmClear(_:))
@@ -454,14 +467,22 @@ private final class HistoryCell: NSView {
             label.lineBreakMode = .byTruncatingTail
             addSubview(label)
         }
-        name.font = .systemFont(ofSize: 13)
+        name.font = Theme.font(.panels, size: 13)
         name.textColor = Theme.text
         for label in [detail, path] {
-            label.font = .systemFont(ofSize: 11)
+            label.font = Theme.font(.panels, size: 11)
             label.textColor = Theme.text2
         }
         addSubview(listMark)
         addSubview(badge)
+    }
+
+    func applyFonts() {
+        name.font = Theme.font(.panels, size: 13)
+        let subFont = Theme.font(.panels, size: 11)
+        detail.font = subFont
+        path.font = subFont
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -542,7 +563,7 @@ final class LibraryPanelView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(infoLine)
-        infoLabel.font = .systemFont(ofSize: 11)
+        infoLabel.font = Theme.font(.panels, size: 11)
         infoLabel.textColor = Theme.text2
         infoLabel.lineBreakMode = .byTruncatingTail
         addSubview(infoLabel)
@@ -556,11 +577,18 @@ final class LibraryPanelView: NSView {
         emptyTitle.font = Theme.serif(16)
         emptyTitle.textColor = Theme.text
         emptyTitle.alignment = .center
-        emptyMessage.font = .systemFont(ofSize: 13)
+        emptyMessage.font = Theme.font(.panels, size: 13)
         emptyMessage.textColor = Theme.text2
         emptyMessage.alignment = .center
         addSubview(emptyTitle)
         addSubview(emptyMessage)
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        infoLabel.font = Theme.font(.panels, size: 11)
+        emptyMessage.font = Theme.font(.panels, size: 13)
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -660,7 +688,7 @@ final class LibraryConfirmBanner: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = 6
-        label.font = .systemFont(ofSize: 12)
+        label.font = Theme.font(.panels, size: 12)
         label.textColor = Theme.text
         self.buttons.spacing = 6
         let stack = NSStackView(views: [label, self.buttons])
@@ -675,6 +703,16 @@ final class LibraryConfirmBanner: NSView {
             stack.topAnchor.constraint(equalTo: topAnchor), stack.bottomAnchor.constraint(equalTo: bottomAnchor),
             self.buttons.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16),
         ])
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        let font = Theme.font(.panels, size: 12)
+        label.font = font
+        for view in buttons.arrangedSubviews {
+            (view as? FlatButton)?.applyFont(font)
+        }
+        needsLayout = true
     }
 
     @available(*, unavailable)

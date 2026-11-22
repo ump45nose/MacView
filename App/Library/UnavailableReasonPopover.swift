@@ -54,10 +54,10 @@ final class UnavailableReasonPopover: NSObject, NSPopoverDelegate {
         titleLabel.font = Theme.serif(14)
         titleLabel.textColor = Theme.text
         let messageLabel = NSTextField(wrappingLabelWithString: message)
-        messageLabel.font = .systemFont(ofSize: 12)
+        messageLabel.font = Theme.font(.panels, size: 12)
         messageLabel.textColor = Theme.text2
         let detailLabel = NSTextField(wrappingLabelWithString: detail)
-        detailLabel.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        detailLabel.font = Theme.font(.panels, size: 11, weight: .regular, monospacedDigits: true)
         detailLabel.textColor = Theme.text2
         detailLabel.lineBreakMode = .byCharWrapping
         detailLabel.isSelectable = true
@@ -93,8 +93,8 @@ final class UnavailableReasonPopover: NSObject, NSPopoverDelegate {
 
     static func button(_ title: String, primary: Bool) -> FlatButton {
         let button = primary
-            ? FlatButton(font: .systemFont(ofSize: 12), fill: Theme.primary, foreground: Theme.onPrimary, radius: 5, height: 22, padding: 9)
-            : FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 5, height: 22, padding: 9)
+            ? FlatButton(font: Theme.font(.panels, size: 12), fill: Theme.primary, foreground: Theme.onPrimary, radius: 5, height: 22, padding: 9)
+            : FlatButton(font: Theme.font(.panels, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 5, height: 22, padding: 9)
         button.setText(title)
         return button
     }

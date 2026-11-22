@@ -103,6 +103,7 @@ final class BookmarksPanel: NSObject, DockPanel, NSOutlineViewDataSource, NSOutl
         host.setInfo(String(localized: "书签"), accessory: addFolderButton)
         host.onShow = { [weak self] in self?.availability.recheckAll() }
         host.onScroll = { [weak self] in self?.availability.scrolled() }
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
         availability.view = host
         availability.visibleLocations = { [weak self] in self?.visibleLocations() ?? [] }
         availability.onChange = { [weak self] in self?.refreshVisibleCells() }
@@ -257,7 +258,22 @@ final class BookmarksPanel: NSObject, DockPanel, NSOutlineViewDataSource, NSOutl
     }
 
     func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
-        (item as? BookmarkItem)?.isFolder == true ? 28 : 40
+        let base: CGFloat = (item as? BookmarkItem)?.isFolder == true ? 28 : 40
+        return ceil(base * Theme.fontScale(.panels))
+    }
+
+    @objc private func applyFonts() {
+        addFolderButton.applyFont(Theme.font(.panels, size: 12))
+        let savedOrigin = host.scroll.contentView.bounds.origin
+        if outline.numberOfRows > 0 {
+            outline.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0..<outline.numberOfRows))
+        }
+        outline.enumerateAvailableRowViews { rowView, _ in
+            (rowView.view(atColumn: 0) as? BookmarkCell)?.applyFonts()
+        }
+        host.scroll.contentView.scroll(to: savedOrigin)
+        host.scroll.reflectScrolledClipView(host.scroll.contentView)
+        host.needsLayout = true
     }
 
     func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
@@ -589,16 +605,24 @@ private final class BookmarkCell: NSView {
         super.init(frame: .zero)
         icon.symbolConfiguration = .init(pointSize: 13, weight: .regular)
         icon.contentTintColor = Theme.text2
-        name.font = .systemFont(ofSize: 13)
+        name.font = Theme.font(.panels, size: 13)
         name.textColor = Theme.text
         name.lineBreakMode = .byTruncatingTail
         name.cell?.isScrollable = false
-        detail.font = .systemFont(ofSize: 11)
+        detail.font = Theme.font(.panels, size: 11)
         detail.textColor = Theme.text2
         detail.lineBreakMode = .byTruncatingTail
-        count.font = .systemFont(ofSize: 11)
+        count.font = Theme.font(.panels, size: 11)
         count.textColor = Theme.text2
         for view in [icon, name, detail, count, badge] as [NSView] { addSubview(view) }
+    }
+
+    func applyFonts() {
+        name.font = Theme.font(.panels, size: 13)
+        let subFont = Theme.font(.panels, size: 11)
+        detail.font = subFont
+        count.font = subFont
+        needsLayout = true
     }
 
     @available(*, unavailable)

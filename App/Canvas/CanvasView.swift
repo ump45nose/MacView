@@ -77,6 +77,11 @@ final class CanvasView: NSScrollView {
         didSet { if spacing != oldValue { configurationChanged() } }
     }
 
+    /// 字体分组：主查看器瀑布流/条用 `.overlays`，书架/页面列表面板内嵌画布用 `.panels`。
+    var fontRole: FontRole = .overlays {
+        didSet { if fontRole != oldValue { applyFonts() } }
+    }
+
     /// 单击直接激活，不选中；主区的瀑布流和条用。
     var activatesOnSingleClick = false
     /// 方向键移动选中项。关掉时由响应链处理（翻页），上下键滚动一行。
@@ -189,6 +194,7 @@ final class CanvasView: NSScrollView {
         contentView.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(clipChanged(_:)), name: NSView.boundsDidChangeNotification, object: contentView)
         NotificationCenter.default.addObserver(self, selector: #selector(clipChanged(_:)), name: NSView.frameDidChangeNotification, object: contentView)
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
     }
 
     @available(*, unavailable)
@@ -546,25 +552,58 @@ final class CanvasView: NSScrollView {
     }
 
     private func setOverlays(_ item: CanvasItem, on layer: CALayer) {
+        let badgeFont = Theme.font(fontRole, size: 11, weight: .medium, monospacedDigits: true)
         setOverlay("badge", text: item.badge, on: layer) { overlay in
-            overlay.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+            overlay.font = badgeFont
+            overlay.fontSize = badgeFont.pointSize
             overlay.alignmentMode = .center
             overlay.cornerRadius = 4
         }
+        let labelFont = Theme.font(fontRole, size: 11)
         setOverlay("label", text: item.label, on: layer) { overlay in
-            overlay.font = NSFont.systemFont(ofSize: 11)
+            overlay.font = labelFont
+            overlay.fontSize = labelFont.pointSize
             overlay.alignmentMode = .left
             overlay.truncationMode = .end
         }
+        let failureFont = Theme.font(fontRole, size: 13)
         setOverlay("failure", text: item.isFailed ? item.failureText : nil, on: layer) { overlay in
-            overlay.font = NSFont.systemFont(ofSize: 13)
-            overlay.fontSize = 13
+            overlay.font = failureFont
+            overlay.fontSize = failureFont.pointSize
             overlay.alignmentMode = .center
             overlay.truncationMode = .end
             overlay.foregroundColor = NSColor.secondaryLabelColor.cgColor
             overlay.backgroundColor = nil
         }
         positionOverlays(in: layer)
+    }
+
+    @objc private func applyFonts() {
+        let badgeFont = Theme.font(fontRole, size: 11, weight: .medium, monospacedDigits: true)
+        let labelFont = Theme.font(fontRole, size: 11)
+        let failureFont = Theme.font(fontRole, size: 13)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for (_, tile) in tiles {
+            for sub in tile.layer.sublayers ?? [] {
+                guard let overlay = sub as? CATextLayer else { continue }
+                switch overlay.name {
+                case "badge":
+                    overlay.font = badgeFont
+                    overlay.fontSize = badgeFont.pointSize
+                case "label":
+                    overlay.font = labelFont
+                    overlay.fontSize = labelFont.pointSize
+                case "failure":
+                    overlay.font = failureFont
+                    overlay.fontSize = failureFont.pointSize
+                default:
+                    break
+                }
+            }
+            positionOverlays(in: tile.layer)
+        }
+        CATransaction.commit()
     }
 
     private func setOverlay(_ name: String, text: String?, on layer: CALayer, configure: (CATextLayer) -> Void) {
@@ -576,29 +615,34 @@ final class CanvasView: NSScrollView {
         let overlay = existing ?? {
             let overlay = CATextLayer()
             overlay.name = name
-            overlay.fontSize = 11
             overlay.foregroundColor = NSColor.white.cgColor
             overlay.backgroundColor = NSColor.black.withAlphaComponent(0.6).cgColor
             overlay.contentsScale = window?.backingScaleFactor ?? 2
-            configure(overlay)
             layer.addSublayer(overlay)
             return overlay
         }()
+        configure(overlay)
         overlay.string = text
     }
 
     private func positionOverlays(in layer: CALayer) {
+        let labelFont = Theme.font(fontRole, size: 11)
+        let badgeFont = Theme.font(fontRole, size: 11, weight: .medium, monospacedDigits: true)
+        let failureFont = Theme.font(fontRole, size: 13)
+        let labelHeight = max(18, ceil(labelFont.pointSize + 7))
+        let badgeHeight = max(16, ceil(badgeFont.pointSize + 5))
+        let failureHeight = max(18, ceil(failureFont.pointSize + 5))
         for overlay in layer.sublayers ?? [] {
             guard let overlay = overlay as? CATextLayer else { continue }
             if overlay.name == "label" {
-                overlay.frame = CGRect(x: 0, y: layer.bounds.height - 18, width: layer.bounds.width, height: 18)
+                overlay.frame = CGRect(x: 0, y: layer.bounds.height - labelHeight, width: layer.bounds.width, height: labelHeight)
             } else if overlay.name == "failure" {
                 // 错误标记居中，原因在它下面。
-                overlay.frame = CGRect(x: 8, y: layer.bounds.midY + 22, width: max(layer.bounds.width - 16, 0), height: 18)
+                overlay.frame = CGRect(x: 8, y: layer.bounds.midY + 22, width: max(layer.bounds.width - 16, 0), height: failureHeight)
             } else if let text = overlay.string as? String {
-                let width = ceil((text as NSString).size(withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)]).width) + 10
-                let bottom = layer.sublayers?.contains { $0.name == "label" } == true ? 18.0 : 0
-                overlay.frame = CGRect(x: layer.bounds.width - width - 6, y: layer.bounds.height - bottom - 22, width: width, height: 16)
+                let width = ceil((text as NSString).size(withAttributes: [.font: badgeFont]).width) + 10
+                let bottom = layer.sublayers?.contains { $0.name == "label" } == true ? labelHeight : 0
+                overlay.frame = CGRect(x: layer.bounds.width - width - 6, y: layer.bounds.height - bottom - badgeHeight - 6, width: width, height: badgeHeight)
             }
         }
     }

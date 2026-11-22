@@ -847,13 +847,13 @@ final class PagedViewerView: NSView, NSDraggingSource {
 final class ItemErrorView: NSView {
     private let icon = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) ?? NSImage())
     private let label = NSTextField(wrappingLabelWithString: "")
-    private let button = FlatButton(font: .systemFont(ofSize: 12, weight: .medium), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10)
+    private let button = FlatButton(font: Theme.font(.overlays, size: 12, weight: .medium), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10)
     var onRetry: (() -> Void)?
 
     init() {
         super.init(frame: .zero)
         icon.contentTintColor = Theme.danger
-        label.font = .systemFont(ofSize: 12)
+        label.font = Theme.font(.overlays, size: 12)
         label.textColor = Theme.text2
         label.alignment = .center
         button.setText(String(localized: "重试"))
@@ -869,6 +869,13 @@ final class ItemErrorView: NSView {
             stack.centerYAnchor.constraint(equalTo: centerYAnchor),
             stack.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -24),
         ])
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        label.font = Theme.font(.overlays, size: 12)
+        button.applyFont(Theme.font(.overlays, size: 12, weight: .medium))
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -910,7 +917,7 @@ final class UnavailablePageView: NSView {
         title.font = Theme.serif(16)
         title.textColor = Theme.text
         title.alignment = .center
-        detail.font = .systemFont(ofSize: 12)
+        detail.font = Theme.font(.overlays, size: 12)
         detail.textColor = Theme.text2
         detail.alignment = .center
         detail.maximumNumberOfLines = 4
@@ -932,6 +939,15 @@ final class UnavailablePageView: NSView {
             stack.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -32),
             detail.widthAnchor.constraint(lessThanOrEqualToConstant: 320),
         ])
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        detail.font = Theme.font(.overlays, size: 12)
+        let buttonFont = Theme.font(.overlays, size: 12)
+        connect.applyFont(buttonFont)
+        remove.applyFont(buttonFont)
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -940,7 +956,7 @@ final class UnavailablePageView: NSView {
     }
 
     private static func button(_ title: String) -> FlatButton {
-        let button = FlatButton(font: .systemFont(ofSize: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10)
+        let button = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 10)
         button.setText(title)
         return button
     }

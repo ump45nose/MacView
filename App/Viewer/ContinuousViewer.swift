@@ -312,7 +312,7 @@ final class PillLabel: NSView {
         wantsLayer = true
         layer?.cornerRadius = 11
         layer?.borderWidth = 0.5
-        label.font = .systemFont(ofSize: 12)
+        label.font = Theme.font(.overlays, size: 12)
         label.textColor = Theme.text
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
@@ -320,6 +320,13 @@ final class PillLabel: NSView {
             label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10), label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             label.topAnchor.constraint(equalTo: topAnchor, constant: 3), label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -3),
         ])
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        label.font = Theme.font(.overlays, size: 12)
+        invalidateIntrinsicContentSize()
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -340,7 +347,7 @@ final class PillLabel: NSView {
 private final class StripFooterView: NSView {
     private let title = NSTextField(labelWithString: "")
     private let failure = NSTextField(wrappingLabelWithString: "")
-    private let button = FlatButton(font: .systemFont(ofSize: 13, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 8, height: 32, padding: 14)
+    private let button = FlatButton(font: Theme.font(.overlays, size: 13, weight: .semibold), fill: Theme.primary, foreground: Theme.onPrimary, radius: 8, height: 32, padding: 14)
     private var isFailure = false
     var onNext: (() -> Void)?
     var onRetry: (() -> Void)?
@@ -351,7 +358,7 @@ private final class StripFooterView: NSView {
         title.textColor = Theme.text
         title.alignment = .center
         title.lineBreakMode = .byTruncatingMiddle
-        failure.font = .systemFont(ofSize: 12)
+        failure.font = Theme.font(.overlays, size: 12)
         failure.textColor = Theme.danger
         failure.alignment = .center
         failure.isHidden = true
@@ -367,6 +374,13 @@ private final class StripFooterView: NSView {
             stack.centerXAnchor.constraint(equalTo: centerXAnchor), stack.centerYAnchor.constraint(equalTo: centerYAnchor),
             stack.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -32),
         ])
+        NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
+    }
+
+    @objc private func applyFonts() {
+        failure.font = Theme.font(.overlays, size: 12)
+        button.applyFont(Theme.font(.overlays, size: 13, weight: .semibold))
+        needsLayout = true
     }
 
     @available(*, unavailable)
