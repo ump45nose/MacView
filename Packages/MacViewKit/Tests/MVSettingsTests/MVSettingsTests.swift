@@ -31,6 +31,18 @@ import Testing
     #expect(global.prefetch.neighborBooks == 2)
 }
 
+@Test("C1.5 旧设置默认开启视频悬停预览并可往返保存")
+func legacyVideoHoverPreviewDefaultsAndRoundTrips() throws {
+    var legacy = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(GlobalSettings.default)) as? [String: Any])
+    legacy.removeValue(forKey: "videoHoverPreview")
+    var settings = try JSONDecoder().decode(GlobalSettings.self, from: JSONSerialization.data(withJSONObject: legacy))
+    #expect(settings.videoHoverPreview)
+    settings.videoHoverPreview = false
+    let encoded = try JSONEncoder().encode(settings)
+    #expect(try JSONDecoder().decode(GlobalSettings.self, from: encoded) == settings)
+    #expect((try JSONSerialization.jsonObject(with: encoded) as? [String: Any])?["videoHoverPreview"] as? Bool == false)
+}
+
 @Test func fileOperationSettingsRoundTripTargets() throws {
     let location = Location(root: .network(scheme: "nfs", host: "server", share: "images"), layers: [["分类"]])
     var global = GlobalSettings.default

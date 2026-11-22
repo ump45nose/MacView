@@ -308,8 +308,9 @@ public struct GlobalSettings: Codable, Sendable, Hashable {
     public var fileOperations: FileOperationSettings
     public var historyLimit: Int
     public var appearance: AppearanceSettings
+    public var videoHoverPreview: Bool
 
-    public init(defaultBook: ResolvedBookSettings, cache: CacheBudgets, prefetch: PrefetchRanges, maxDecodeLongSide: Int, fileOperations: FileOperationSettings = .default, historyLimit: Int = 1000, appearance: AppearanceSettings = .default) {
+    public init(defaultBook: ResolvedBookSettings, cache: CacheBudgets, prefetch: PrefetchRanges, maxDecodeLongSide: Int, fileOperations: FileOperationSettings = .default, historyLimit: Int = 1000, appearance: AppearanceSettings = .default, videoHoverPreview: Bool = true) {
         self.defaultBook = defaultBook
         self.cache = cache
         self.prefetch = prefetch
@@ -317,6 +318,7 @@ public struct GlobalSettings: Codable, Sendable, Hashable {
         self.fileOperations = fileOperations
         self.historyLimit = historyLimit
         self.appearance = appearance
+        self.videoHoverPreview = videoHoverPreview
     }
 
     public init(from decoder: any Decoder) throws {
@@ -327,7 +329,8 @@ public struct GlobalSettings: Codable, Sendable, Hashable {
                   maxDecodeLongSide: try values.decode(Int.self, forKey: .maxDecodeLongSide),
                   fileOperations: try values.decodeIfPresent(FileOperationSettings.self, forKey: .fileOperations) ?? .default,
                   historyLimit: try values.decodeIfPresent(Int.self, forKey: .historyLimit) ?? 1000,
-                  appearance: try values.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .default)
+                  appearance: try values.decodeIfPresent(AppearanceSettings.self, forKey: .appearance) ?? .default,
+                  videoHoverPreview: try values.decodeIfPresent(Bool.self, forKey: .videoHoverPreview) ?? true)
         guard historyLimit > 0 else {
             throw DecodingError.dataCorruptedError(forKey: .historyLimit, in: values,
                 debugDescription: String(localized: "\("historyLimit") 必须大于 0，现在是 \(historyLimit)", bundle: .main))

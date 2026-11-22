@@ -196,7 +196,92 @@ func videosReportDurationSizeAndPoster(_ fixture: Fixture) async throws {
     #expect((poster.image.width > poster.image.height) == (facts.pixelSize.width > facts.pixelSize.height))
 }
 
+@Test("C1.3 视频预览按时间逐帧交付、转正并规范化", .enabled(if: Fixtures.hasLocal(), "运行夹具生成器生成本地视频"), arguments: videoFixtures())
+func videoPreviewFramesAreOrderedAndDistinct(_ fixture: Fixture) async throws {
+    let asset = AVURLAsset(url: Fixtures.url(fixture.path))
+    let duration = try await asset.load(.duration).seconds
+    let times = (0..<20).map { (Double($0) + 0.5) / 20 * duration }
+    let decoder = ImageDecoder()
+    let poster = try await decoder.videoPoster(asset, maxPixel: 640)
+    var frames: [RenderedImage] = []
+    for try await frame in decoder.videoFrames(asset, times: times, maxPixel: 640) {
+        #expect(frame.index == frames.count)
+        #expect(max(frame.image.image.width, frame.image.image.height) <= 640)
+        #expect(frame.image.quality == .exact)
+        #expect(frame.image.surface != nil)
+        #expect((frame.image.image.width > frame.image.image.height) == (poster.image.width > poster.image.height))
+        frames.append(frame.image)
+    }
+    #expect(frames.count == 20)
+    for (left, right) in zip(frames, frames.dropFirst()) {
+        #expect(rgba(left.image) != rgba(right.image), "\(fixture.path) 相邻帧完全相同")
+    }
+}
+
+@Test("C1.4 第五帧取消后不再交付且一秒内结束", .enabled(if: Fixtures.hasLocal(), "运行夹具生成器生成本地视频"))
+func cancelVideoPreviewAfterFiveFrames() async throws {
+    let fixture = try #require(videoFixtures().first)
+    let asset = AVURLAsset(url: Fixtures.url(fixture.path))
+    let duration = try await asset.load(.duration).seconds
+    let times = (0..<20).map { (Double($0) + 0.5) / 20 * duration }
+    let task = Task {
+        var count = 0
+        var cancelledAt: ContinuousClock.Instant?
+        for try await _ in ImageDecoder().videoFrames(asset, times: times, maxPixel: 640) {
+            count += 1
+            if count == 5 {
+                cancelledAt = .now
+                withUnsafeCurrentTask { $0?.cancel() }
+            }
+        }
+        return (count, cancelledAt.map { $0.duration(to: .now) })
+    }
+    let (count, elapsed) = try await task.value
+    #expect(count == 5)
+    #expect(try #require(elapsed) < .seconds(1))
+}
+
+@Test("视频预览保持输入下标并按时间排序", .enabled(if: Fixtures.hasLocal(), "运行夹具生成器生成本地视频"))
+func videoPreviewSortsUnorderedTimes() async throws {
+    let fixture = try #require(videoFixtures().first)
+    let asset = AVURLAsset(url: Fixtures.url(fixture.path))
+    var indices: [Int] = []
+    for try await frame in ImageDecoder().videoFrames(asset, times: [1.5, 0.5, 1.0], maxPixel: 320) {
+        indices.append(frame.index)
+    }
+    #expect(indices == [1, 2, 0])
+}
+
+@Test("单个取帧失败时预览流报错", .enabled(if: Fixtures.hasLocal(), "运行夹具生成器生成本地视频"))
+func videoPreviewPropagatesFrameFailure() async throws {
+    let fixture = try #require(videoFixtures().first)
+    let asset = AVURLAsset(url: Fixtures.url(fixture.path))
+    let duration = try await asset.load(.duration).seconds
+    var failed = false
+    do {
+        for try await _ in ImageDecoder().videoFrames(asset, times: [0.5, duration + 10], maxPixel: 320) {}
+    } catch {
+        failed = true
+    }
+    #expect(failed)
+}
+
 // MARK: 并发上限
+
+@Test func asynchronousVideoWorkSharesTheDecodeLimit() async throws {
+    let limiter = WorkLimiter(limit: 1)
+    let gate = DispatchSemaphore(value: 0)
+    let blocker = Task { try await limiter.run { gate.wait() } }
+    try await waitUntil { limiter.runningCount == 1 }
+    let pending = Task { try await limiter.runAsync { 42 } }
+    try await waitUntil { limiter.waitingCount == 1 }
+    pending.cancel()
+    await #expect(throws: CancellationError.self) { try await pending.value }
+    gate.signal()
+    try await blocker.value
+    let value = try await limiter.runAsync { try await limiter.runOnQueue { 42 } }
+    #expect(value == 42)
+}
 
 @Test func waitingDecodesStartByTaskPriority() async throws {
     let limiter = WorkLimiter(limit: 1)

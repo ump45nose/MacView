@@ -85,6 +85,60 @@ public final class ImageDecoder: Sendable {
         return try Bitmap.normalized(image, quality: .exact)
     }
 
+    /// 一次请求所有时间点，按时间顺序逐帧交付；返回的下标对应输入数组。
+    public func videoFrames(_ asset: AVAsset, times: [Double], maxPixel: Int) -> AsyncThrowingStream<(index: Int, image: RenderedImage), any Error> {
+        AsyncThrowingStream { continuation in
+            guard !times.isEmpty else {
+                continuation.finish()
+                return
+            }
+            let holder = VideoFrameGenerator(asset: asset)
+            let generator = holder.value
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: maxPixel, height: maxPixel)
+            generator.requestedTimeToleranceBefore = .zero
+            generator.requestedTimeToleranceAfter = .zero
+            let task = Task {
+                do {
+                    try await limiter.runAsync {
+                        try Task.checkCancellation()
+                        let generator = holder.value
+                        let requests = times.enumerated().map { (index: $0.offset, time: CMTime(seconds: $0.element, preferredTimescale: 600_000)) }
+                            .sorted { CMTimeCompare($0.time, $1.time) < 0 }
+                        var remaining = requests
+                        var ready: [Int: RenderedImage] = [:]
+                        var next = 0
+                        for await result in generator.images(for: requests.map(\.time)) {
+                            try Task.checkCancellation()
+                            guard let position = remaining.firstIndex(where: { CMTimeCompare($0.time, result.requestedTime) == 0 }) else {
+                                throw MediaError.decodeFailed("视频返回了未请求的时间点")
+                            }
+                            let request = remaining.remove(at: position)
+                            let image = try result.image
+                            let rendered = try await self.limiter.runOnQueue { try Bitmap.normalized(image, quality: .exact) }
+                            try Task.checkCancellation()
+                            ready[request.index] = rendered
+                            while next < requests.count, let image = ready.removeValue(forKey: requests[next].index) {
+                                if case .terminated = continuation.yield((requests[next].index, image)) { return }
+                                next += 1
+                            }
+                        }
+                        try Task.checkCancellation()
+                        guard next == requests.count else { throw MediaError.decodeFailed("视频预览帧不完整") }
+                    }
+                    continuation.finish()
+                } catch {
+                    generator.cancelAllCGImageGeneration()
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
+                holder.cancel()
+            }
+        }
+    }
+
     package static func source(_ data: Data) throws(MediaError) -> CGImageSource {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetType(source) != nil else { throw .unsupported }
         guard CGImageSourceGetCount(source) > 0 else { throw .decodeFailed("没有可解码的图像") }
@@ -127,6 +181,13 @@ public final class ImageDecoder: Sendable {
         }
         return image
     }
+}
+
+/// AVFoundation 允许从取消处理器调用 cancelAllCGImageGeneration；其余配置只在取帧开始前设置。
+private final class VideoFrameGenerator: @unchecked Sendable {
+    let value: AVAssetImageGenerator
+    init(asset: AVAsset) { value = AVAssetImageGenerator(asset: asset) }
+    func cancel() { value.cancelAllCGImageGeneration() }
 }
 
 extension PixelSize {
@@ -180,6 +241,74 @@ final class WorkLimiter: Sendable {
 
     var runningCount: Int {
         state.withLock { $0.running }
+    }
+
+    /// 异步工作持有一个名额，等待 AVFoundation 时不占线程。
+    func runAsync<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) async throws -> T {
+        let id = state.withLock { state in
+            state.nextID += 1
+            return state.nextID
+        }
+        let runningTask = Mutex<(cancelled: Bool, task: Task<Void, Never>?)>((false, nil))
+        return try await withTaskCancellationHandler {
+            try await withTaskPriorityEscalationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, any Error>) in
+                    let priority = Task.currentPriority
+                    let start: @Sendable () -> Void = { [self] in
+                        let task = Task(priority: priority) {
+                            do { continuation.resume(returning: try await body()) }
+                            catch { continuation.resume(throwing: error) }
+                            self.finish(id)
+                        }
+                        runningTask.withLock { state in
+                            state.task = task
+                            if state.cancelled { task.cancel() }
+                        }
+                    }
+                    let cancel: @Sendable () -> Void = { continuation.resume(throwing: CancellationError()) }
+                    let admission = state.withLock { state -> Admission in
+                        if state.cancelledEarly.remove(id) != nil { return .cancelled }
+                        state.admitted.insert(id)
+                        if state.running < limit {
+                            state.running += 1
+                            return .start
+                        }
+                        state.waiting.append(Waiter(id: id, priority: Task.currentPriority, start: start, cancel: cancel))
+                        return .wait
+                    }
+                    switch admission {
+                    case .start: start()
+                    case .cancelled: cancel()
+                    case .wait: break
+                    }
+                }
+            } onPriorityEscalated: { _, priority in
+                state.withLock { state in
+                    if let index = state.waiting.firstIndex(where: { $0.id == id }) { state.waiting[index].priority = priority }
+                }
+            }
+        } onCancel: {
+            runningTask.withLock { state in
+                state.cancelled = true
+                state.task?.cancel()
+            }
+            let waiter = state.withLock { state -> Waiter? in
+                if let index = state.waiting.firstIndex(where: { $0.id == id }) {
+                    state.admitted.remove(id)
+                    return state.waiting.remove(at: index)
+                }
+                if !state.admitted.contains(id) { state.cancelledEarly.insert(id) }
+                return nil
+            }
+            waiter?.cancel()
+        }
+    }
+
+    /// 已持有异步名额的计算，仍放到专用队列，不重复获取名额。
+    func runOnQueue<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async { continuation.resume(with: Result { try body() }) }
+        }
     }
 
     func run<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
