@@ -355,7 +355,6 @@ final class LayoutSchemesModel {
 
     @ObservationIgnored private weak var dock: DockCoordinator?
     @ObservationIgnored private weak var app: AppDelegate?
-    @ObservationIgnored private var windowObservers: [NSObjectProtocol] = []
 
     var fileURL: URL? { dock?.schemesFileURL }
 
@@ -365,62 +364,28 @@ final class LayoutSchemesModel {
         dock?.onSchemesChange = { [weak self] in
             self?.reload()
         }
-        let center = NotificationCenter.default
-        let names: [Notification.Name] = [
-            NSWindow.didBecomeMainNotification,
-            NSWindow.didBecomeKeyNotification,
-            NSWindow.willCloseNotification,
-        ]
-        windowObservers = names.map { name in
-            center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
-                nonisolated(unsafe) let closingObject = name == NSWindow.willCloseNotification ? note.object : nil
-                MainActor.assumeIsolated {
-                    let closing = closingObject as? NSWindow
-                    self?.refreshReaderWindowState(excluding: closing)
-                    if closing != nil {
-                        Task { @MainActor [weak self] in
-                            await Task.yield()
-                            self?.refreshReaderWindowState(excluding: nil)
-                        }
-                    }
-                }
-            }
+        app?.onReaderWindowsChange = { [weak self] in
+            self?.refreshReaderWindowState()
         }
         reload()
-    }
-
-    isolated deinit {
-        for observer in windowObservers {
-            NotificationCenter.default.removeObserver(observer)
-        }
     }
 
     func reload() {
         schemes = dock?.schemes ?? []
         problem = dock?.schemesProblem
-        refreshReaderWindowState(excluding: nil)
+        refreshReaderWindowState()
     }
 
-    private func refreshReaderWindowState(excluding closingWindow: NSWindow?) {
-        guard let app else {
-            hasReaderWindow = false
-            return
-        }
-        let available = app.controllers.contains { controller in
-            guard let window = controller.window else { return false }
-            return window !== closingWindow
-        }
-        hasReaderWindow = available
+    private func refreshReaderWindowState() {
+        hasReaderWindow = app?.activeReaderController != nil
     }
 
     private func resolvedTargetReader() -> ReaderWindowController? {
-        guard let app, let target = app.activeReaderController,
-              app.controllers.contains(where: { $0 === target }),
-              target.window != nil else {
-            refreshReaderWindowState(excluding: nil)
-            return nil
+        if let target = app?.activeReaderController {
+            return target
         }
-        return target
+        refreshReaderWindowState()
+        return nil
     }
 
     func hasScheme(named rawName: String, excluding ignored: String? = nil) -> Bool {
@@ -442,25 +407,16 @@ final class LayoutSchemesModel {
     func saveCurrent(named name: String) async throws {
         guard let dock, let target = resolvedTargetReader() else { return }
         try await dock.saveScheme(named: name, from: target.dock)
-        reload()
-    }
-
-    func replaceWithCurrent(named name: String) async throws {
-        guard let dock, let target = resolvedTargetReader() else { return }
-        try await dock.saveScheme(named: name, from: target.dock)
-        reload()
     }
 
     func rename(_ old: String, to new: String) async throws {
         guard let dock else { return }
         try await dock.renameScheme(old, to: new)
-        reload()
     }
 
     func delete(_ name: String) async throws {
         guard let dock else { return }
         try await dock.deleteScheme(named: name)
-        reload()
     }
 
     func openSchemesFile() {

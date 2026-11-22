@@ -387,6 +387,7 @@ final class DockCoordinator {
             guard let self, let type = DockPanels.type(panel) else { return }
             togglePanel(type, in: dock)
         }.item)
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 
@@ -429,8 +430,6 @@ final class DockCoordinator {
                 file.schemes.append(LayoutScheme(name: name, layout: snapshot))
             }
         }
-        schemesProblem = nil
-        onSchemesChange?()
     }
 
     /// 改名布局方案；新名去首尾空白，空名或重名抛错。
@@ -451,8 +450,6 @@ final class DockCoordinator {
                   !file.schemes.contains(where: { $0.name == trimmed }) else { return }
             file.schemes[index].name = trimmed
         }
-        schemesProblem = nil
-        onSchemesChange?()
     }
 
     /// 删除指定名称的布局方案。
@@ -461,8 +458,6 @@ final class DockCoordinator {
         try await schemesStore.update { file in
             file.schemes.removeAll { $0.name == name }
         }
-        schemesProblem = nil
-        onSchemesChange?()
     }
 
     /// 套用指定名称的布局方案到当前窗口，并立即持久化 `layout.json`。

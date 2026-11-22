@@ -355,6 +355,7 @@ final class BookmarksPanel: NSObject, DockPanel, NSOutlineViewDataSource, NSOutl
     private func contextMenu(row: Int?) -> NSMenu? {
         let menu = NSMenu()
         menu.autoenablesItems = false
+        defer { Theme.applyMenuFont(to: menu) }
         guard let row, let item = outline.item(atRow: row) as? BookmarkItem else {
             menu.addItem(MenuAction(String(localized: "新建文件夹")) { [weak self] in self?.newFolder(in: nil) }.item)
             return menu

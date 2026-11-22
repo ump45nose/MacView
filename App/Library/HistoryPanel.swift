@@ -373,6 +373,7 @@ final class HistoryPanel: NSObject, DockPanel, NSTableViewDataSource, NSTableVie
         let clear = MenuAction(String(localized: "清空历史…")) { [weak self] in self?.askToClear() }.item
         clear.isEnabled = !entries.isEmpty
         menu.addItem(clear)
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 

@@ -461,6 +461,7 @@ final class PlaylistPanel: NSObject, DockPanel, PlaylistSelectionSource, NSTable
     private func contextMenu(row: Int?) -> NSMenu? {
         let menu = NSMenu()
         menu.autoenablesItems = false
+        defer { Theme.applyMenuFont(to: menu) }
         guard let row, items.indices.contains(row), let app = NSApp.delegate as? AppDelegate else {
             for item in listMenuItems() { menu.addItem(item) }
             return menu

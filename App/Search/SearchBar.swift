@@ -64,6 +64,7 @@ final class SearchBar: NSView, NSSearchFieldDelegate, NSMenuDelegate {
             button.font = menuFont
             if let menu = button.menu { Theme.applyMenuFont(to: menu) }
         }
+        if let menu = searchField.searchMenuTemplate { Theme.applyMenuFont(to: menu) }
         needsLayout = true
     }
 
@@ -85,6 +86,7 @@ final class SearchBar: NSView, NSSearchFieldDelegate, NSMenuDelegate {
             let item = title == "-" ? NSMenuItem.separator() : NSMenuItem(title: title, action: nil, keyEquivalent: "")
             item.tag = tag; menu.addItem(item)
         }
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 

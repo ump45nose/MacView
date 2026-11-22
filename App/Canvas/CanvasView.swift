@@ -626,23 +626,21 @@ final class CanvasView: NSScrollView {
     }
 
     private func positionOverlays(in layer: CALayer) {
-        let labelFont = Theme.font(fontRole, size: 11)
-        let badgeFont = Theme.font(fontRole, size: 11, weight: .medium, monospacedDigits: true)
-        let failureFont = Theme.font(fontRole, size: 13)
-        let labelHeight = max(18, ceil(labelFont.pointSize + 7))
-        let badgeHeight = max(16, ceil(badgeFont.pointSize + 5))
-        let failureHeight = max(18, ceil(failureFont.pointSize + 5))
-        for overlay in layer.sublayers ?? [] {
-            guard let overlay = overlay as? CATextLayer else { continue }
+        let overlays = (layer.sublayers ?? []).compactMap { $0 as? CATextLayer }
+        guard !overlays.isEmpty else { return }
+        let labelHeight = overlays.first { $0.name == "label" }.map { max(18, ceil($0.fontSize + 7)) } ?? 0
+        for overlay in overlays {
             if overlay.name == "label" {
                 overlay.frame = CGRect(x: 0, y: layer.bounds.height - labelHeight, width: layer.bounds.width, height: labelHeight)
             } else if overlay.name == "failure" {
+                let failureHeight = max(18, ceil(overlay.fontSize + 5))
                 // 错误标记居中，原因在它下面。
                 overlay.frame = CGRect(x: 8, y: layer.bounds.midY + 22, width: max(layer.bounds.width - 16, 0), height: failureHeight)
             } else if let text = overlay.string as? String {
+                let badgeFont = (overlay.font as? NSFont) ?? NSFont.monospacedDigitSystemFont(ofSize: overlay.fontSize, weight: .medium)
+                let badgeHeight = max(16, ceil(overlay.fontSize + 5))
                 let width = ceil((text as NSString).size(withAttributes: [.font: badgeFont]).width) + 10
-                let bottom = layer.sublayers?.contains { $0.name == "label" } == true ? labelHeight : 0
-                overlay.frame = CGRect(x: layer.bounds.width - width - 6, y: layer.bounds.height - bottom - badgeHeight - 6, width: width, height: badgeHeight)
+                overlay.frame = CGRect(x: layer.bounds.width - width - 6, y: layer.bounds.height - labelHeight - badgeHeight - 6, width: width, height: badgeHeight)
             }
         }
     }

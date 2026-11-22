@@ -709,6 +709,7 @@ final class FileOperationController {
                 break
             }
         }
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 

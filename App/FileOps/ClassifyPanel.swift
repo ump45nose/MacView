@@ -309,6 +309,7 @@ final class ClassifyPanel: NSObject, DockPanel, NSTextFieldDelegate {
             menu.addItem(.separator())
             menu.addItem(MenuAction(String(localized: "移除目标")) { [weak self] in self?.removeTarget(row.location) }.item)
         }
+        Theme.applyMenuFont(to: menu)
         return menu
     }
 

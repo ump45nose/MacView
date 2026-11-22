@@ -1889,18 +1889,6 @@ final class AppearanceSelfTest {
         return result
     }
 
-    private func collectCanvasBadgeFonts(in canvas: CanvasView) -> [NSFont] {
-        var fonts: [NSFont] = []
-        func walk(_ layer: CALayer) {
-            if let textLayer = layer as? CATextLayer, textLayer.name == "badge", let font = textLayer.font as? NSFont {
-                fonts.append(NSFont(descriptor: font.fontDescriptor, size: textLayer.fontSize) ?? font)
-            }
-            for sub in layer.sublayers ?? [] { walk(sub) }
-        }
-        if let docLayer = canvas.documentView?.layer { walk(docLayer) }
-        return fonts
-    }
-
     private func viewSubmenu() -> NSMenu? {
         guard let mainMenu = NSApp.mainMenu else { return nil }
         return mainMenu.items.first { $0.title == String(localized: "显示") || $0.title == "显示" || $0.title == "View" }?.submenu
@@ -2486,7 +2474,7 @@ final class AppearanceSelfTest {
         await settle(80)
         if let editor = sheet.firstResponder as? NSTextView {
             editor.insertText(name, replacementRange: NSRange(location: 0, length: editor.string.count))
-        } else if let field = findTextField(in: sheet.contentView, matchingFrameInWindow: fieldRect) {
+        } else if let field: NSTextField = findView(in: sheet.contentView, matchingFrameInWindow: fieldRect) {
             sheet.makeFirstResponder(field)
             if let editor = field.currentEditor() as? NSTextView {
                 editor.insertText(name, replacementRange: NSRange(location: 0, length: editor.string.count))
@@ -2504,15 +2492,15 @@ final class AppearanceSelfTest {
         return clicked && closed
     }
 
-    private func findTextField(in root: NSView?, matchingFrameInWindow rect: NSRect) -> NSTextField? {
+    private func findView<T: NSView>(in root: NSView?, matchingFrameInWindow rect: NSRect) -> T? {
         guard let root else { return nil }
-        let targetCenter = NSPoint(x: rect.midX, y: rect.midY)
-        if let field = root as? NSTextField {
-            let f = field.convert(field.bounds, to: nil)
-            if f.insetBy(dx: -4, dy: -4).contains(targetCenter) { return field }
+        let center = NSPoint(x: rect.midX, y: rect.midY)
+        if let view = root as? T,
+           view.convert(view.bounds, to: nil).insetBy(dx: -4, dy: -4).contains(center) {
+            return view
         }
         for sub in root.subviews {
-            if let found = findTextField(in: sub, matchingFrameInWindow: rect) { return found }
+            if let found: T = findView(in: sub, matchingFrameInWindow: rect) { return found }
         }
         return nil
     }
@@ -2523,7 +2511,7 @@ final class AppearanceSelfTest {
             if let direct = findPopUpButton(in: root, identifier: identifier) { return direct }
             if let el = findAXElement(in: window, identifier: identifier),
                let rect = axFrameInWindow(el, window: window) {
-                return findPopUpButton(in: root, matchingFrameInWindow: rect)
+                return findView(in: root, matchingFrameInWindow: rect)
             }
             return nil
         }()
@@ -2544,18 +2532,6 @@ final class AppearanceSelfTest {
         }
         for sub in root.subviews {
             if let found = findPopUpButton(in: sub, identifier: identifier) { return found }
-        }
-        return nil
-    }
-
-    private func findPopUpButton(in root: NSView, matchingFrameInWindow rect: NSRect) -> NSPopUpButton? {
-        let center = NSPoint(x: rect.midX, y: rect.midY)
-        if let popup = root as? NSPopUpButton {
-            let f = popup.convert(popup.bounds, to: nil)
-            if f.insetBy(dx: -4, dy: -4).contains(center) { return popup }
-        }
-        for sub in root.subviews {
-            if let found = findPopUpButton(in: sub, matchingFrameInWindow: rect) { return found }
         }
         return nil
     }
@@ -2657,22 +2633,10 @@ final class AppearanceSelfTest {
             }
         }
         if let rect = axFrameInWindow(el, window: window), let root = window.contentView,
-           let button = findControl(in: root, matchingFrameInWindow: rect) {
+           let button: NSControl = findView(in: root, matchingFrameInWindow: rect) {
             return !button.isEnabled
         }
         return false
-    }
-
-    private func findControl(in root: NSView, matchingFrameInWindow rect: NSRect) -> NSControl? {
-        let center = NSPoint(x: rect.midX, y: rect.midY)
-        if let control = root as? NSControl {
-            let f = control.convert(control.bounds, to: nil)
-            if f.insetBy(dx: -4, dy: -4).contains(center) { return control }
-        }
-        for sub in root.subviews {
-            if let found = findControl(in: sub, matchingFrameInWindow: rect) { return found }
-        }
-        return nil
     }
 
     private func clickAX(identifier: String, in window: NSWindow) -> Bool {

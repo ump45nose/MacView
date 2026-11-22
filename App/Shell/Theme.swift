@@ -77,11 +77,18 @@ enum Theme {
         return CGFloat(custom) / base
     }
 
-    /// 按组返回字体：组内字体族（nil = 系统字体）与缩放比 = 组字号 / 组默认字号。
-    static func font(_ role: FontRole, size: CGFloat, weight: NSFont.Weight = .regular, monospacedDigits: Bool = false) -> NSFont {
-        let scale = fontScale(role)
+    /// 按给定 `FontSpec`（nil 为系统默认）解析字体，供设置页预览与 `font(_:size:weight:monospacedDigits:)` 共用。
+    static func resolveFont(
+        for role: FontRole,
+        spec: FontSpec?,
+        size: CGFloat,
+        weight: NSFont.Weight = .regular,
+        monospacedDigits: Bool = false
+    ) -> NSFont {
+        let base = defaultSize(role)
+        let scale = (spec?.size).flatMap { base > 0 ? CGFloat($0) / base : nil } ?? 1
         let targetSize = scale == 1 ? size : (size * scale * 2).rounded() / 2
-        if let rawFamily = fonts[role]?.family?.trimmingCharacters(in: .whitespacesAndNewlines),
+        if let rawFamily = spec?.family?.trimmingCharacters(in: .whitespacesAndNewlines),
            !rawFamily.isEmpty,
            let custom = customFont(family: rawFamily, size: targetSize, weight: weight) {
             return monospacedDigits ? withMonospacedDigits(custom) : custom
@@ -93,6 +100,11 @@ enum Theme {
             return NSFont.menuFont(ofSize: targetSize)
         }
         return NSFont.systemFont(ofSize: targetSize, weight: weight)
+    }
+
+    /// 按组返回字体：组内字体族（nil = 系统字体）与缩放比 = 组字号 / 组默认字号。
+    static func font(_ role: FontRole, size: CGFloat, weight: NSFont.Weight = .regular, monospacedDigits: Bool = false) -> NSFont {
+        resolveFont(for: role, spec: fonts[role], size: size, weight: weight, monospacedDigits: monospacedDigits)
     }
 
     /// 递归为菜单（及其子菜单）套用菜单组字体；主菜单栏本身传 `includeRoot: false` 以保持顶层标题不变。
@@ -150,11 +162,7 @@ enum Theme {
                 bestPostScript = psName
             }
         }
-        if let bestPostScript, let font = NSFont(name: bestPostScript, size: size) {
-            return font
-        }
-        return manager.font(withFamily: family, traits: [], weight: targetWeight, size: size)
-            ?? manager.font(withFamily: family, traits: [], weight: 5, size: size)
+        return bestPostScript.flatMap { NSFont(name: $0, size: size) }
     }
 
     private static func withMonospacedDigits(_ font: NSFont) -> NSFont {

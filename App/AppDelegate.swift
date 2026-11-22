@@ -48,7 +48,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var controllers: [ReaderWindowController] = []
     /// 最近成为活动窗口的阅读窗口，供设置窗口等非阅读窗打开时定位目标。
     private weak var recentReaderController: ReaderWindowController?
-    private var readerActivationObservers: [NSObjectProtocol] = []
+    /// 阅读窗口增减或活动状态变化后调用（供设置页更新可用性）。
+    var onReaderWindowsChange: (() -> Void)?
     /// 服务就绪之前收到的打开请求（例如拖到 Dock 图标启动）。
     private var pendingURLs: [URL] = []
     private var cascadePoint = NSPoint.zero
@@ -487,29 +488,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 最近活动的阅读窗口：设置窗口打开时仍指向之前激活的阅读窗口；所有阅读窗口关闭时为 nil。
     var activeReaderController: ReaderWindowController? {
-        if let main = mainController, controllers.contains(where: { $0 === main }) {
-            return main
+        for candidate in [mainController, recentReaderController, controllers.first].compactMap({ $0 }) {
+            if candidate.window != nil, controllers.contains(where: { $0 === candidate }) {
+                return candidate
+            }
         }
-        if let recent = recentReaderController,
-           controllers.contains(where: { $0 === recent }),
-           recent.window != nil {
-            return recent
-        }
-        if let ordered = NSApp.orderedWindows
-            .compactMap({ $0.windowController as? ReaderWindowController })
-            .first(where: { candidate in controllers.contains(where: { $0 === candidate }) }) {
-            return ordered
-        }
-        return controllers.first
+        return nil
     }
 
     private func observeReaderActivation() {
-        guard readerActivationObservers.isEmpty else { return }
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(handleReaderWindowActivated(_:)), name: NSWindow.didBecomeMainNotification, object: nil)
         center.addObserver(self, selector: #selector(handleReaderWindowActivated(_:)), name: NSWindow.didBecomeKeyNotification, object: nil)
         center.addObserver(self, selector: #selector(handleReaderWindowWillClose(_:)), name: NSWindow.willCloseNotification, object: nil)
-        readerActivationObservers = [NSObject()]
     }
 
     @objc private func handleReaderWindowActivated(_ note: Notification) {
@@ -518,6 +509,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               controllers.contains(where: { $0 === reader }) else { return }
         recentReaderController = reader
         dock?.activate(reader.dock)
+        onReaderWindowsChange?()
     }
 
     @objc private func handleReaderWindowWillClose(_ note: Notification) {
@@ -585,6 +577,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         controller.onClose = { [weak self] closed in
             self?.controllers.removeAll { $0 === closed }
+            self?.onReaderWindowsChange?()
             self?.scheduleSessionSave()
         }
         controller.onSessionChange = { [weak self] in self?.scheduleSessionSave() }
@@ -599,6 +592,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         cascadePoint = window.cascadeTopLeft(from: cascadePoint)
         controllers.append(controller)
+        onReaderWindowsChange?()
         appearance?.register(controller)
         showFileProblems(in: controller)
         return controller

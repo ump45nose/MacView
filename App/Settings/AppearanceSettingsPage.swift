@@ -15,7 +15,6 @@ struct AppearanceSettingsPage: View {
     let model: SettingsModel
     let scrollTarget: SettingsWindowState.ScrollTarget?
 
-    @State private var fontRevision = 0
     @State private var renamingScheme: String?
     @State private var renameText = ""
     @State private var renameError: String?
@@ -68,9 +67,6 @@ struct AppearanceSettingsPage: View {
                 scrollIfNeeded(proxy: proxy, target: target)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Theme.fontsDidChange)) { _ in
-            fontRevision &+= 1
-        }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: Self.debugSchemeActionNotification)) { note in
             guard let action = note.userInfo?["action"] as? String,
@@ -90,7 +86,7 @@ struct AppearanceSettingsPage: View {
                 guard model.layoutSchemes.hasReaderWindow else { return }
                 Task {
                     do {
-                        try await model.layoutSchemes.replaceWithCurrent(named: name)
+                        try await model.layoutSchemes.saveCurrent(named: name)
                         actionError = nil
                     } catch {
                         actionError = ErrorText.describe(error)
@@ -196,7 +192,7 @@ struct AppearanceSettingsPage: View {
         let defaultSize = Int(round(Theme.defaultSize(role)))
         let currentSize = Int(round(spec?.size ?? Double(defaultSize)))
         let isChanged = (spec?.family != nil && !spec!.family!.isEmpty) || spec?.size != nil
-        let previewFont = previewFont(for: role, spec: spec, revision: fontRevision)
+        let previewFont = Theme.resolveFont(for: role, spec: spec, size: Theme.defaultSize(role))
 
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 1) {
@@ -256,22 +252,6 @@ struct AppearanceSettingsPage: View {
         .padding(.horizontal, 12)
         .frame(minHeight: 42)
         .padding(.vertical, 4)
-    }
-
-    private func previewFont(for role: FontRole, spec: FontSpec?, revision _: Int) -> NSFont {
-        if Theme.fonts[role] == spec {
-            return Theme.font(role, size: Theme.defaultSize(role))
-        }
-        let targetSize = CGFloat(spec?.size ?? Double(Theme.defaultSize(role)))
-        if let rawFamily = spec?.family?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !rawFamily.isEmpty,
-           let custom = NSFontManager.shared.font(withFamily: rawFamily, traits: [], weight: 5, size: targetSize) {
-            return custom
-        }
-        if role == .menus {
-            return NSFont.menuFont(ofSize: targetSize)
-        }
-        return NSFont.systemFont(ofSize: targetSize)
     }
 
     private func fontFamilyBinding(for role: FontRole) -> Binding<String> {
@@ -491,7 +471,7 @@ struct AppearanceSettingsPage: View {
                     Button(String(localized: "用当前布局覆盖")) {
                         Task {
                             do {
-                                try await model.layoutSchemes.replaceWithCurrent(named: scheme.name)
+                                try await model.layoutSchemes.saveCurrent(named: scheme.name)
                                 actionError = nil
                             } catch {
                                 actionError = ErrorText.describe(error)
@@ -540,21 +520,13 @@ struct AppearanceSettingsPage: View {
 
     private func commitRename(from oldName: String) {
         let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            renameError = String(localized: "方案名称不能为空")
-            return
-        }
         if trimmed == oldName {
             cancelRename()
             return
         }
-        if model.layoutSchemes.hasScheme(named: trimmed, excluding: oldName) {
-            renameError = String(localized: "已有同名方案")
-            return
-        }
         Task {
             do {
-                try await model.layoutSchemes.rename(oldName, to: trimmed)
+                try await model.layoutSchemes.rename(oldName, to: renameText)
                 cancelRename()
                 actionError = nil
             } catch {
@@ -606,14 +578,9 @@ struct AppearanceSettingsPage: View {
     }
 
     private func commitSaveScheme() {
-        let trimmed = saveNameText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            saveError = String(localized: "方案名称不能为空")
-            return
-        }
         Task {
             do {
-                try await model.layoutSchemes.saveCurrent(named: trimmed)
+                try await model.layoutSchemes.saveCurrent(named: saveNameText)
                 showingSaveSheet = false
                 actionError = nil
             } catch {
