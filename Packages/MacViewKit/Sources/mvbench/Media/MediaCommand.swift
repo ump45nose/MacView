@@ -8,12 +8,12 @@ import MVFoundation
 import MVMedia
 import QuartzCore
 
-/// `mvbench media`：MVMedia 的探测、解码、重采样、分块与渲染件编码的用时。数据先读进内存，不含 I/O。
+/// `mvbench media`：媒体解码及视频预览管线的用时；preview 包含管线 I/O，其他子命令预先读入数据。
 struct MediaCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "media",
-        abstract: "测量探测、显示解码、重采样、分块、上屏和渲染件编码的用时。",
-        subcommands: [MediaDecodeCommand.self, MediaEncodeCommand.self, MediaTilesCommand.self, MediaLayerCommand.self]
+        abstract: "测量探测、显示解码、重采样、分块、上屏、渲染件编码和视频预览的用时。",
+        subcommands: [MediaDecodeCommand.self, MediaEncodeCommand.self, MediaTilesCommand.self, MediaLayerCommand.self, MediaPreviewCommand.self]
     )
 }
 

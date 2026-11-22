@@ -153,6 +153,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 动图通过帧源按需逐帧解码，播放节奏由前端的显示链接驱动。
 - 视频：
   - 封面用 AVAssetImageGenerator 生成，取 1 秒处和 10% 处中较早的一帧。
+  - 悬停预览固定取 20 段中点、长边 640 px；`ImageDecoder.videoFrames` 一次请求全部时间点、零容差，按时间顺序交付已转正的 IOSurface 图，解码和缩放沿用限流器，取消时终止生成器。
   - 本机卷上 AVFoundation 自己读文件；网络卷上经 AVAssetResourceLoader 走 I/O 调度的大块读取通道（§3.2 进程隔离），并发上限和卷健康统计因此保持一致。
 
 ### 3.4 缓存与图像管线
@@ -161,9 +162,9 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 |---|---|---|---|
 | L0 | 内存 | 近期读取的原始文件字节；换尺寸重新解码时不必再读 NAS | 512 MB |
 | 解码缓存 | 内存 | `visible` 请求产出或用到的基础图和显示图 | min(1 GB, 5% 内存) |
-| 缩略图内存缓存 | 内存 | 任何优先级的缩略图和视频封面 | 512 MB |
+| 缩略图内存缓存 | 内存 | 任何优先级的缩略图、视频封面和预览帧 | 512 MB |
 | 浏览图预载 | 内存 | `near` 请求产出的基础图和显示图 | 512 MB |
-| L2 | SSD | 缩略图 | 10 GB |
+| L2 | SSD | 缩略图与视频预览帧拼图 | 10 GB |
 | L3 | SSD（可关） | 浏览图 | 50 GB |
 | 索引 | SQLite | 元数据（尺寸、帧数、时长、拍摄时间）、目录列表、L2/L3 的位置与访问时间 | — |
 
@@ -171,6 +172,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 按 LRU 淘汰。
   - 写入时先写临时文件再改名，最后更新索引。
   - 启动时不扫描缓存目录。
+- 视频预览先查缩略图内存缓存（每帧键 `<cacheKey>|preview|<index>`），再查 L2 缩略图缓存（键 `<cacheKey>|preview`，20 帧横向拼成一张 JPEG），最后只取缺帧；取齐后独立持有帧集并登记后台拼图写入，临时内存计入在途额度，取消前取到的帧保留在内存，取齐后取消仍写完 L2。每次请求独立打开视频桥，未取齐时取消不写 L2，网络卷同时 `invalidate()` 切断读取；不加入预取计划。
 - 元数据索引用定长列，按容器查询，不做泛型存储：泛型 Codable 逐条解码 JSON，1 万项约 28 ms，超出 20 ms 的预算。
 - 内存预算：`CacheBudgets.rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes` 分别控制以上四块内存。`visible` 命中预载时搬到解码缓存；低于 `near` 的基础图和显示图不进缓存。App 的缩略图 `NSCache` 按图像字节计成本，与管线主要共享图像对象；额度在创建时从 `SettingsStore` 读 `thumbnailMemoryBytes` 设上，收到 `.global` 变更时重设（`followThumbnailMemoryBudget`），不另设下限或默认值。`settings.json` 里非正的容量预算在解析时拒绝（`CacheBudgets.init(from:)`），整份文件按配置错误显示并保留上次的值。
 - 内存压力：收到系统的内存压力事件时，把四块内存同时收缩到各自预算的 50% 或 25%。
@@ -453,7 +455,11 @@ public final class FileSystemProvider: ContainerProvider {
 }   // 只接受一层 Location；写入经调度器；网络卷不支持系统废纸篓
 public final class FileSourceRegistry: SourceRegistry { public init(scheduler: IOScheduler); public let scheduler: IOScheduler; public let fileSystem: FileSystemProvider; public func register(_ provider: any ContainerProvider); public func currentVolumeHealth() -> [VolumeHealth] }   // provider(for:) 先问登记的 provider，再交给 fileSystem；压缩包 provider 由组合根登记；健康快照直接读取调度器
 public enum IOHelper { public static func runIfRequested() }   // 宿主 main 开头调用：作为辅助进程启动时进入请求循环，不返回
-public final class ByteSourceAsset: Sendable { public let asset: AVURLAsset; public init(source: any ByteSource, priority: IOPriority = .visible) }   // 网络卷视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
+public final class ByteSourceAsset: Sendable {
+    public let asset: AVURLAsset
+    public init(source: any ByteSource, priority: IOPriority = .visible)
+    public func invalidate()   // 可重复调用；挂起及后续加载请求以 CancellationError 结束，不再调用 ByteSource.read
+}   // 网络卷视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
 
 // MVMetadata
 public struct XMPFields: Sendable, Hashable, Codable { public var rating: Int?; public var tags: [String]? }   // nil 表示不改；写入时 rating=0 清除评分，tags=[] 清除 dc:subject
@@ -576,11 +582,19 @@ public final class ImageDecoder: Sendable {   // 不做 I/O；解码在并发上
     public func tiledSource(_ data: Data) throws(MediaError) -> any TiledImageSource
     public func animatedFrames(_ data: Data, target: DisplayTarget) throws(MediaError) -> any AnimatedFrameSource
     public func videoPoster(_ asset: AVAsset, maxPixel: Int) async throws -> RenderedImage
+    public func videoFrames(_ asset: AVAsset, times: [Double], maxPixel: Int) -> AsyncThrowingStream<(index: Int, image: RenderedImage), any Error>   // 零容差、按时间顺序交付（index 对应输入下标）；已转正、带 IOSurface、quality .exact；单帧失败结束整条流，消费方取消时取消生成器
 }
 extension PixelSize { public func fitting(longSide: Int) -> PixelSize; public func fitting(within bounds: PixelSize) -> PixelSize }   // 等比缩小，不放大
 public enum RenditionEncoding: String, Sendable, Codable, CaseIterable { case heic, jpeg; public static let `default`: RenditionEncoding /* jpeg */; public static let defaultQuality: Double /* 0.8 */; public func encode(_ image: CGImage, quality: Double = defaultQuality) throws(MediaError) -> Data }
 
 // MVPipeline
+public enum VideoPreview {
+    public static let frameCount = 20
+    public static let longSide = 640
+    public static func time(of index: Int, duration: Double) -> Double   // (index + 0.5) / frameCount × duration
+    public static func index(at fraction: Double) -> Int                // 横向位置夹到 0..<frameCount
+}
+public struct VideoPreviewFrame: Sendable { public var index: Int; public var time: Double; public var duration: Double; public var image: RenderedImage }   // time 与 duration 单位为秒
 public enum RenditionSpec: Sendable, Hashable { case metadata, thumbnail, browse, display(DisplayTarget) }
 public struct PrefetchItem: Sendable, Hashable { public var identity: ContentIdentity; public var renditions: Set<RenditionSpec>; public var priority: IOPriority; public init(identity: ContentIdentity, renditions: Set<RenditionSpec>, priority: IOPriority) }   // renditions 为空表示仅读取原始字节
 public struct PrefetchPlan: Sendable, Equatable { public var items: [PrefetchItem]; public init(items: [PrefetchItem] = []) }
@@ -592,6 +606,7 @@ public protocol ImagePipeline: Sendable {
     func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource
     func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource
     func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
+    func videoPreviewFrames(for identity: ContentIdentity, priority: IOPriority) -> AsyncThrowingStream<VideoPreviewFrame, any Error>   // 缓存帧先交付，再按时间顺序补缺帧；只支持视频，否则抛 MediaError.unsupported；关停后抛 CancellationError
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID)
     func cancelAll(session: SessionID)
     func carryOver(from old: ContentIdentity, to new: ContentIdentity) async   // 协议扩展有默认空实现；像素未变时改挂磁盘缓存并清理旧内存条目
@@ -663,7 +678,7 @@ public struct FontSpec: Codable, Sendable, Hashable { public var family: String?
 public enum TitleBarMode: String, Codable, Sendable, CaseIterable { case shown, autoHide, borderless }
 public struct WindowAppearance: Codable, Sendable, Hashable { public var titleBar: TitleBarMode; public var keepOnTop: Bool; public var opacity: Double; public init(titleBar: TitleBarMode = .shown, keepOnTop: Bool = false, opacity: Double = 1) }   // 解码时 opacity 须在 0.3…1
 public struct AppearanceSettings: Codable, Sendable, Hashable { public var mode: AppearanceMode; public var accent: AccentColorMode; public var fonts: [FontRole: FontSpec]; public var window: WindowAppearance; public init(mode: AppearanceMode = .system, accent: AccentColorMode = .clay, fonts: [FontRole: FontSpec] = [:], window: WindowAppearance = WindowAppearance()); public static let `default`: AppearanceSettings }   // fonts 缺少某组时使用该组默认字体，以角色名为 JSON 对象键
-public struct GlobalSettings: Codable, Sendable, Hashable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int; public var fileOperations: FileOperationSettings; public var historyLimit: Int; public var appearance: AppearanceSettings }   // historyLimit 默认 1000，appearance 默认 .default；CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
+public struct GlobalSettings: Codable, Sendable, Hashable { public var defaultBook: ResolvedBookSettings; public var cache: CacheBudgets; public var prefetch: PrefetchRanges; public var maxDecodeLongSide: Int; public var fileOperations: FileOperationSettings; public var historyLimit: Int; public var appearance: AppearanceSettings; public var videoHoverPreview: Bool }   // historyLimit 默认 1000，appearance 默认 .default，videoHoverPreview 默认 true（旧文件缺字段同样取 true）；CacheBudgets、PrefetchRanges 的字段与默认值见 §3.4
 // appearance 及其子字段缺省时使用各自默认值，不触发全局字段缺失提示；未知枚举值或字号、不透明度超范围时解码失败，经 SettingsChange.fileError 报告并保留上一份可用设置。
 extension PathRule { public static func matching(_ rules: [PathRule], for book: Location) -> [PathRule] }   // 越具体越靠后，相同时按原顺序；解析和设置窗口共用
 public struct PathRule: Codable, Sendable { public var id: UUID; public var name: String; public var prefix: Location; public var settings: BookSettings }
