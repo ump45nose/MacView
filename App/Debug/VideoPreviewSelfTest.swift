@@ -323,6 +323,7 @@ final class VideoPreviewSelfTest {
             controller.session.go(.index(0))
             guard let videoView = await waitForVideoView(in: controller.viewer.paged) else { log.check(false, "未出现 VideoPageView"); return }
             _ = await waitUntil(timeoutMs: 4000) { let d = videoView.player?.currentItem?.duration.seconds ?? 0; return d.isFinite && d > 0 }
+            if let slider = firstSubview(of: NSSlider.self, in: videoView) { window.makeFirstResponder(slider) }
             await settle(150)
 
             let track = videoView.sliderTrackFrame
@@ -338,13 +339,15 @@ final class VideoPreviewSelfTest {
             let followOK = appeared && (4...6).contains(s25.frameIndex ?? -1) && s25.timeText == Self.formatTime(0.25 * dur, rounded: false)
                 && s75.frame.midX > s25.frame.midX && (14...16).contains(s75.frameIndex ?? -1) && s75.timeText == Self.formatTime(0.75 * dur, rounded: false)
 
-            warpAndMove(window: window, locationInWindow: sliderPoint(0)); await settle(60)
-            let leftFrame = videoView.scrubPreviewSnapshot.frame
-            warpAndMove(window: window, locationInWindow: sliderPoint(1)); await settle(60)
-            let rightFrame = videoView.scrubPreviewSnapshot.frame
+            warpAndMove(window: window, locationInWindow: sliderPoint(0.01)); await settle(60)
+            let leftSnap = videoView.scrubPreviewSnapshot
+            warpAndMove(window: window, locationInWindow: sliderPoint(0.99)); await settle(60)
+            let rightSnap = videoView.scrubPreviewSnapshot
             warpAndMove(window: window, locationInWindow: sliderPoint(0.5)); await settle(80)
             await snapshotLightDark(window, prefix: "viewer-scrub")
-            log.check(leftFrame.minX >= 0 && rightFrame.maxX <= videoView.bounds.width, "C2.10 两端浮层不超出视频页")
+            let boundsOK = leftSnap.isVisible && leftSnap.frame.width > 0 && leftSnap.frame.minX >= 0
+                && rightSnap.isVisible && rightSnap.frame.width > 0 && rightSnap.frame.maxX <= videoView.bounds.width
+            log.check(boundsOK, "C2.10 两端浮层可见且不超出视频页")
 
             warpAndMove(window: window, locationInWindow: videoView.convert(NSPoint(x: 20, y: 20), to: nil)); await settle(80)
             let afterExit = videoView.scrubPreviewSnapshot
@@ -399,6 +402,12 @@ final class VideoPreviewSelfTest {
             return titleOK && wordsOK && h <= lineH * 4 + 4
         }
         log.check(noTruncation, "settings 中英文「视频」节在设置窗口宽度(\(Int(settingsWindow.frame.width)) pt)下无截断")
+        settingsWindow.setContentSize(NSSize(width: settingsWindow.contentLayoutRect.width, height: 820))
+        if let root = settingsWindow.contentView, let sv = firstSubview(of: NSScrollView.self, in: root), let doc = sv.documentView {
+            sv.contentView.scroll(to: NSPoint(x: 0, y: max(0, doc.bounds.height - sv.contentView.bounds.height)))
+            sv.reflectScrolledClipView(sv.contentView)
+        }
+        await settle(150)
         log.snapshot(settingsWindow, "settings-browse-video")
     }
 
@@ -476,12 +485,19 @@ final class VideoPreviewSelfTest {
         }
         if window.firstResponder !== doc { window.makeFirstResponder(doc) }
         warpAndMove(window: window, locationInWindow: doc.convert(NSPoint(x: targetX, y: rect.midY), to: nil))
-        await settle(scrolled ? 220 : 25)
+        if scrolled {
+            _ = await waitUntil(timeoutMs: 2500) {
+                let s = canvas.hoverPreviewSnapshot
+                return s?.isActive == true && (s?.loadedFrameCount ?? 0) == VideoPreview.frameCount && s?.duration != nil
+            }
+        } else {
+            await settle(25)
+        }
     }
 
     private func moveOutside(canvas: CanvasView, window: NSWindow) {
         if let doc = canvas.documentView, window.firstResponder !== doc { window.makeFirstResponder(doc) }
-        warpAndMove(window: window, locationInWindow: NSPoint(x: 4, y: max(4, window.contentLayoutRect.maxY - 4)))
+        warpAndMove(window: window, locationInWindow: canvas.convert(NSPoint(x: -20, y: -20), to: nil))
     }
 
     private func click(canvas: CanvasView, window: NSWindow, index: Int, fraction: Double) {
@@ -506,11 +522,13 @@ final class VideoPreviewSelfTest {
         view.convert(NSPoint(x: view.bounds.minX + view.bounds.width * x, y: view.bounds.minY + view.bounds.height * y), to: nil)
     }
 
-    private func firstVideoView(in root: NSView) -> VideoPageView? {
-        if let v = root as? VideoPageView { return v }
-        for sub in root.subviews { if let found = firstVideoView(in: sub) { return found } }
+    private func firstSubview<T: NSView>(of type: T.Type, in root: NSView) -> T? {
+        if let v = root as? T { return v }
+        for sub in root.subviews { if let found = firstSubview(of: type, in: sub) { return found } }
         return nil
     }
+
+    private func firstVideoView(in root: NSView) -> VideoPageView? { firstSubview(of: VideoPageView.self, in: root) }
 
     private func waitForVideoView(in root: NSView) async -> VideoPageView? {
         _ = await waitUntil(timeoutMs: 4000) { self.firstVideoView(in: root) != nil }
