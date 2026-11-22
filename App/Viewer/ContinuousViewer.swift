@@ -126,7 +126,8 @@ final class ContinuousViewer: NSView {
                 aspectRatio: page.metadata.flatMap { $0.pixelSize.height > 0 && $0.pixelSize.width > 0 ? Double($0.pixelSize.width) / Double($0.pixelSize.height) : nil },
                 badge: page.entry.kind == .video && !isUnavailable ? page.metadata?.duration.map(Self.duration) : nil,
                 isFailed: isUnavailable,
-                failureText: nil
+                failureText: nil,
+                isVideo: page.entry.kind == .video && !isUnavailable
             )
         }
         if items != canvas.items { canvas.setItems(items) }

@@ -79,6 +79,12 @@ final class CanvasImageLoader: NSObject {
         cache.object(forKey: IdentityKey(identity))
     }
 
+    #if DEBUG
+    func evictCached(_ identity: ContentIdentity) {
+        cache.removeObject(forKey: IdentityKey(identity))
+    }
+    #endif
+
     func state(of identity: ContentIdentity) -> State {
         if let load = loads[identity] { return .loading(since: load.issuedAt) }
         if failures.contains(identity) { return .failed }

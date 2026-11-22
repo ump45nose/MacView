@@ -22,6 +22,8 @@ struct CanvasItem: Equatable {
     var isFailed = false
     /// 失败时显示在错误标记下面的原因，例如虚拟书里不可用的页。
     var failureText: String?
+    /// 是否为可悬停预览的视频项（不可用页为 false）。
+    var isVideo = false
 }
 
 /// 回报给预取计划的范围：可见项，以及可见区加余量内的项。砌体中可见项不一定连续，范围取最小到最大的序号。
@@ -137,8 +139,16 @@ final class CanvasView: NSScrollView {
         let identity: ContentIdentity
     }
 
+    private struct HoverState {
+        var index: Int
+        var identity: ContentIdentity
+        var fraction: Double
+        var isActive: Bool
+    }
+
     private let content: CanvasDocumentView
     private let loader: CanvasImageLoader
+    private var previewLoader: VideoPreviewLoader
     private var layout: CollectionLayout
     private var ratios: [Double?] = []
     private var tiles: [Int: Tile] = [:]
@@ -153,11 +163,19 @@ final class CanvasView: NSScrollView {
     private var dragCandidate: (index: Int, point: NSPoint)?
     private var reportedRange: CanvasVisibleRange?
     private var lastMotion = ContinuousClock.now
+    private var lastScroll = ContinuousClock.now - .seconds(1)
     /// 去抖用的计时器：每次更新把触发时间推后，停止 `settleDelay` 秒后触发一次。
     private var settleTimer: Timer?
+    private var videoHoverPreviewEnabled = true
+    private var hover: HoverState?
+    private var hoverTimer: Timer?
+    #if DEBUG
+    private var lastHoverUpdateMilliseconds = 0.0
+    #endif
     private var counts = CanvasCounters()
     private let signposter = OSSignposter(category: .layout)
     private static let settleDelay = 0.05
+    private static let hoverDelay = 0.15
 
     init(pipeline: any ImagePipeline, settings: any SettingsStore, kind: CollectionLayoutKind, imageSource: CanvasImageSource, itemExtent: Double = 220, direction: ReadingDirection = .leftToRight) {
         self.kind = kind
@@ -167,9 +185,13 @@ final class CanvasView: NSScrollView {
         let content = CanvasDocumentView()
         self.content = content
         loader = CanvasImageLoader(pipeline: pipeline, settings: settings, source: imageSource, view: content)
+        previewLoader = VideoPreviewLoader(pipeline: pipeline)
         super.init(frame: .zero)
+        bindPreviewLoader()
         loader.onReady = { [unowned self] identity, image in
             guard let index = tileIndex[identity], let tile = tiles[index] else { return false }
+            // 悬停预览已显示帧时，晚到的封面或显示图只进缓存、不覆盖预览帧。
+            if isShowingPreviewFrame(at: index, identity: identity) { return false }
             tile.layer.contentsGravity = contentGravity
             tile.layer.contents = image.contents
             tile.layer.backgroundColor = nil
@@ -179,9 +201,12 @@ final class CanvasView: NSScrollView {
             return true
         }
         loader.onFailure = { [unowned self] identity in
-            if let index = tileIndex[identity], let tile = tiles[index] { showError(on: tile.layer) }
+            if let index = tileIndex[identity], let tile = tiles[index], !isShowingPreviewFrame(at: index, identity: identity) {
+                showError(on: tile.layer)
+            }
             onImageFailure?(identity.location)
         }
+        observeVideoHoverPreviewSetting(settings)
 
         content.canvas = self
         drawsBackground = false
@@ -225,6 +250,7 @@ final class CanvasView: NSScrollView {
 
     /// 换一组项。前面的项不变（只追加项或补上宽高比）时，已排的项不动；否则视为整体重排，按身份保留选中项并以它为锚点。
     func setItems(_ newItems: [CanvasItem]) {
+        stopHoverPreview()
         let appended = newItems.count >= items.count && zip(items, newItems).allSatisfy { $0.identity == $1.identity || $0.isPending }
         var anchor: LayoutAnchor?
         if appended {
@@ -317,6 +343,9 @@ final class CanvasView: NSScrollView {
     }
 
     private func reloadImages(pipeline: any ImagePipeline, source: CanvasImageSource) {
+        stopHoverPreview()
+        previewLoader = VideoPreviewLoader(pipeline: pipeline)
+        bindPreviewLoader()
         loader.reset(pipeline: pipeline, source: source)
         recycle(Array(tiles.keys))
         updateVisible(scrolled: false)
@@ -357,6 +386,7 @@ final class CanvasView: NSScrollView {
 
     /// `geometry` 为 true 时按当前视口和配置新建布局，否则只在原布局上更新宽高比（已排的项不动）。
     private func relayout(geometry: Bool, anchor: LayoutAnchor?) {
+        stopHoverPreview()
         let start = ContinuousClock.now
         let state = signposter.beginInterval("relayout")
         isRelayingOut = true
@@ -461,6 +491,8 @@ final class CanvasView: NSScrollView {
         counts.peakLayers = max(counts.peakLayers, tiles.count)
         signposter.endInterval("updateVisible", state)
         if scrolled {
+            lastScroll = start
+            stopHoverPreview()
             onMeasure?(.scroll(ContinuousClock.now - start))
         }
         lastMotion = start
@@ -492,6 +524,9 @@ final class CanvasView: NSScrollView {
     }
 
     private func recycle(_ indices: [Int]) {
+        if let hoverIndex = hover?.index, indices.contains(hoverIndex) {
+            stopHoverPreview()
+        }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         for index in indices {
@@ -524,8 +559,12 @@ final class CanvasView: NSScrollView {
                 if tile.layer.contents == nil || isFailed(at: index) {
                     tile.layer.backgroundColor = placeholder
                 }
-                for sub in tile.layer.sublayers ?? [] where sub.name == "failure" {
-                    (sub as? CATextLayer)?.foregroundColor = failure
+                for sub in tile.layer.sublayers ?? [] {
+                    if sub.name == "failure" {
+                        (sub as? CATextLayer)?.foregroundColor = failure
+                    } else if sub.name == "scrubTrack" {
+                        sub.sublayers?.first { $0.name == "scrubFill" }?.backgroundColor = border
+                    }
                 }
             }
             for layer in spare {
@@ -626,8 +665,8 @@ final class CanvasView: NSScrollView {
     }
 
     private func positionOverlays(in layer: CALayer) {
-        let overlays = (layer.sublayers ?? []).compactMap { $0 as? CATextLayer }
-        guard !overlays.isEmpty else { return }
+        let sublayers = layer.sublayers ?? []
+        let overlays = sublayers.compactMap { $0 as? CATextLayer }
         let labelHeight = overlays.first { $0.name == "label" }.map { max(18, ceil($0.fontSize + 7)) } ?? 0
         for overlay in overlays {
             if overlay.name == "label" {
@@ -641,6 +680,14 @@ final class CanvasView: NSScrollView {
                 let badgeHeight = max(16, ceil(overlay.fontSize + 5))
                 let width = ceil((text as NSString).size(withAttributes: [.font: badgeFont]).width) + 10
                 overlay.frame = CGRect(x: layer.bounds.width - width - 6, y: layer.bounds.height - labelHeight - badgeHeight - 6, width: width, height: badgeHeight)
+            }
+        }
+        if let track = sublayers.first(where: { $0.name == "scrubTrack" }) {
+            let trackHeight = 3.0
+            track.frame = CGRect(x: 0, y: layer.bounds.height - labelHeight - trackHeight, width: layer.bounds.width, height: trackHeight)
+            if let fill = track.sublayers?.first(where: { $0.name == "scrubFill" }),
+               let state = hover, state.isActive, tiles[state.index]?.layer === layer {
+                fill.frame = CGRect(x: 0, y: 0, width: track.bounds.width * state.fraction, height: trackHeight)
             }
         }
     }
@@ -745,12 +792,255 @@ final class CanvasView: NSScrollView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if window == nil {
+            stopHoverPreview()
             settleTimer?.invalidate()
             settleTimer = nil
             loader.stop()
         } else {
             updateVisible(scrolled: false)
         }
+    }
+
+    // MARK: - 视频悬停预览
+
+    /// 该项正在悬停预览且已有时长时返回目标时间（横向位置 × 时长），否则为 nil。
+    func previewTime(at index: Int) -> Double? {
+        guard let state = hover, state.isActive, state.index == index,
+              previewLoader.identity == state.identity,
+              let duration = previewLoader.duration else {
+            return nil
+        }
+        return state.fraction * duration
+    }
+
+    #if DEBUG
+    struct HoverPreviewSnapshot {
+        var index: Int
+        var isActive: Bool
+        var fraction: Double
+        var frameIndex: Int?
+        var loadedFrameCount: Int
+        var duration: Double?
+        var badgeText: String?
+        var scrubProgress: Double?
+        var lastUpdateMilliseconds: Double
+    }
+
+    var hoverPreviewSnapshot: HoverPreviewSnapshot? {
+        guard let state = hover else { return nil }
+        let tile = tiles[state.index]
+        let badge = tile?.layer.sublayers?.first { $0.name == "badge" } as? CATextLayer
+        let track = tile?.layer.sublayers?.first { $0.name == "scrubTrack" }
+        let fill = track?.sublayers?.first { $0.name == "scrubFill" }
+        let progress: Double? = (track != nil && track!.bounds.width > 0 && fill != nil)
+            ? Double(fill!.frame.width / track!.bounds.width)
+            : nil
+        return HoverPreviewSnapshot(
+            index: state.index,
+            isActive: state.isActive,
+            fraction: state.fraction,
+            frameIndex: state.isActive ? previewLoader.frame(at: state.fraction)?.index : nil,
+            loadedFrameCount: state.isActive ? previewLoader.loadedFrameCount : 0,
+            duration: state.isActive ? previewLoader.duration : nil,
+            badgeText: badge?.string as? String,
+            scrubProgress: progress,
+            lastUpdateMilliseconds: lastHoverUpdateMilliseconds
+        )
+    }
+
+    /// 自检用：清除指定项的内存封面缓存并重新请求封面，验证悬停期间晚到的封面不覆盖预览帧。
+    func reloadCoverForTesting(at index: Int) {
+        guard let tile = tiles[index] else { return }
+        loader.cancel(tile.identity)
+        loader.evictCached(tile.identity)
+        request(index, frame: tile.layer.frame, priority: .visible)
+    }
+    #endif
+
+    private func bindPreviewLoader() {
+        previewLoader.onFrame = { [weak self] in
+            self?.hoverFrameArrived()
+        }
+    }
+
+    private func observeVideoHoverPreviewSetting(_ settings: any SettingsStore) {
+        let changes = settings.changes()
+        Task { [weak self] in
+            let initial = await settings.global().videoHoverPreview
+            self?.setVideoHoverPreviewEnabled(initial)
+            for await change in changes {
+                guard let self else { return }
+                if change == .global {
+                    let enabled = await settings.global().videoHoverPreview
+                    self.setVideoHoverPreviewEnabled(enabled)
+                }
+            }
+        }
+    }
+
+    private func setVideoHoverPreviewEnabled(_ enabled: Bool) {
+        videoHoverPreviewEnabled = enabled
+        if !enabled {
+            stopHoverPreview()
+        }
+    }
+
+    private func isShowingPreviewFrame(at index: Int, identity: ContentIdentity) -> Bool {
+        guard let state = hover, state.isActive, state.index == index, state.identity == identity,
+              previewLoader.identity == identity else {
+            return false
+        }
+        return previewLoader.frame(at: state.fraction) != nil
+    }
+
+    fileprivate func hoverMoved(_ event: NSEvent) {
+        guard videoHoverPreviewEnabled,
+              ContinuousClock.now - lastScroll >= .seconds(Self.settleDelay) else {
+            stopHoverPreview()
+            return
+        }
+        let point = content.convert(event.locationInWindow, from: nil)
+        guard let hit = layout.items(in: CGRect(x: point.x, y: point.y, width: 1, height: 1))
+            .first(where: { $0.frame.contains(point) }),
+              items.indices.contains(hit.index),
+              tiles[hit.index] != nil else {
+            stopHoverPreview()
+            return
+        }
+        let item = items[hit.index]
+        guard item.isVideo, !item.isFailed, !item.isPending else {
+            stopHoverPreview()
+            return
+        }
+        let fraction = min(max((point.x - hit.frame.minX) / max(hit.frame.width, 1), 0), 1)
+        if let current = hover, current.index == hit.index, current.identity == item.identity {
+            hover?.fraction = fraction
+            if current.isActive {
+                updateHoverDisplay()
+            }
+            return
+        }
+        stopHoverPreview()
+        hover = HoverState(index: hit.index, identity: item.identity, fraction: fraction, isActive: false)
+        let timer = Timer(timeInterval: Self.hoverDelay, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.activateHoverPreview() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        hoverTimer = timer
+    }
+
+    fileprivate func hoverExited() {
+        stopHoverPreview()
+    }
+
+    private func activateHoverPreview() {
+        hoverTimer?.invalidate()
+        hoverTimer = nil
+        guard videoHoverPreviewEnabled,
+              ContinuousClock.now - lastScroll >= .seconds(Self.settleDelay),
+              var state = hover, !state.isActive,
+              items.indices.contains(state.index),
+              items[state.index].identity == state.identity,
+              items[state.index].isVideo,
+              !items[state.index].isFailed,
+              tiles[state.index] != nil else {
+            stopHoverPreview()
+            return
+        }
+        state.isActive = true
+        hover = state
+        previewLoader.start(state.identity)
+        updateHoverDisplay()
+    }
+
+    private func hoverFrameArrived() {
+        guard let state = hover, state.isActive, previewLoader.identity == state.identity else { return }
+        updateHoverDisplay()
+    }
+
+    private func updateHoverDisplay() {
+        guard let state = hover, state.isActive,
+              let tile = tiles[state.index], tile.identity == state.identity else {
+            return
+        }
+        let start = ContinuousClock.now
+        let signpost = signposter.beginInterval("hoverScrub")
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if let frame = previewLoader.frame(at: state.fraction) {
+            tile.layer.contentsGravity = contentGravity
+            tile.layer.contents = frame.image.surface ?? frame.image.image
+            tile.layer.backgroundColor = nil
+        }
+        ensureScrubBar(on: tile.layer)
+        if let duration = previewLoader.duration {
+            setBadge(Self.formatTime(state.fraction * duration), on: tile.layer)
+        } else {
+            positionOverlays(in: tile.layer)
+        }
+        CATransaction.commit()
+        signposter.endInterval("hoverScrub", signpost)
+        #if DEBUG
+        lastHoverUpdateMilliseconds = (ContinuousClock.now - start).milliseconds
+        #endif
+    }
+
+    private func ensureScrubBar(on layer: CALayer) {
+        if layer.sublayers?.contains(where: { $0.name == "scrubTrack" }) == true { return }
+        let track = CALayer()
+        track.name = "scrubTrack"
+        track.backgroundColor = NSColor.white.withAlphaComponent(0.35).cgColor
+        let fill = CALayer()
+        fill.name = "scrubFill"
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            fill.backgroundColor = Theme.accent.cgColor
+        }
+        track.addSublayer(fill)
+        layer.addSublayer(track)
+    }
+
+    private func setBadge(_ text: String?, on layer: CALayer) {
+        let badgeFont = Theme.font(fontRole, size: 11, weight: .medium, monospacedDigits: true)
+        setOverlay("badge", text: text, on: layer) { overlay in
+            overlay.font = badgeFont
+            overlay.fontSize = badgeFont.pointSize
+            overlay.alignmentMode = .center
+            overlay.cornerRadius = 4
+        }
+        positionOverlays(in: layer)
+    }
+
+    private func stopHoverPreview() {
+        hoverTimer?.invalidate()
+        hoverTimer = nil
+        guard let state = hover else { return }
+        hover = nil
+        guard state.isActive else { return }
+        previewLoader.stop()
+        guard let tile = tiles[state.index], tile.identity == state.identity else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        tile.layer.sublayers?.first { $0.name == "scrubTrack" }?.removeFromSuperlayer()
+        if items.indices.contains(state.index) {
+            let item = items[state.index]
+            if item.isFailed || isFailed(at: state.index) {
+                showError(on: tile.layer)
+            } else {
+                let cached = loader.cached(state.identity)?.contents
+                tile.layer.contentsGravity = contentGravity
+                tile.layer.contents = cached
+                tile.layer.backgroundColor = cached == nil ? NSColor.quaternaryLabelColor.cgColor : nil
+            }
+            setBadge(item.badge, on: tile.layer)
+        }
+        CATransaction.commit()
+    }
+
+    private static func formatTime(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        return total >= 3600
+            ? String(format: "%d:%02d:%02d", total / 3600, total / 60 % 60, total % 60)
+            : String(format: "%d:%02d", total / 60, total % 60)
     }
 
     // MARK: - 交互
@@ -915,6 +1205,7 @@ extension Duration {
 /// 画布的文档视图：只承载图层，把鼠标和按键交给画布。
 private final class CanvasDocumentView: NSView, NSDraggingSource {
     weak var canvas: CanvasView?
+    private var hoverTrackingArea: NSTrackingArea?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -930,6 +1221,31 @@ private final class CanvasDocumentView: NSView, NSDraggingSource {
     nonisolated override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTrackingArea { removeTrackingArea(hoverTrackingArea) }
+        let area = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeInActiveApp, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        hoverTrackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        canvas?.hoverMoved(event)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        canvas?.hoverMoved(event)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        canvas?.hoverExited()
+    }
 
     override func mouseDown(with event: NSEvent) {
         canvas?.click(event)

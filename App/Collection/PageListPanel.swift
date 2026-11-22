@@ -163,7 +163,8 @@ final class PageListPanel: CollectionPanel {
             identity: page.entry.identity,
             aspectRatio: metadata.flatMap { $0.pixelSize.height > 0 ? Double($0.pixelSize.width) / Double($0.pixelSize.height) : nil },
             badge: CollectionFormat.badge(entry: page.entry, metadata: metadata),
-            isFailed: isUnavailable
+            isFailed: isUnavailable,
+            isVideo: page.entry.kind == .video && !isUnavailable
         )
         return CollectionItem(
             canvas: canvas, name: page.entry.name, detail: size.isEmpty ? bytes : "\(size) · \(bytes)", column: size, size: bytes,
