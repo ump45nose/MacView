@@ -141,7 +141,9 @@ final class PageListPanel: CollectionPanel {
 
     override func activate(_ index: Int) {
         guard order.indices.contains(index) else { return }
-        owner?.session.go(.index(order[index]))
+        let isKeyboard = NSApp.currentEvent?.type == .keyDown
+        let videoStart = isKeyboard ? nil : collection?.canvas.previewTime(at: index)
+        owner?.activatePage(at: order[index], videoStart: videoStart)
     }
 
     override func entries(at indices: [Int]) -> [Entry] {

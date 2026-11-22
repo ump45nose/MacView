@@ -65,6 +65,7 @@ final class PagedViewerView: NSView, NSDraggingSource {
     private var occlusionObserver: (any NSObjectProtocol)?
     let navigator = NavigatorView()
     private(set) var video: VideoPageView?
+    private var pendingVideoStart: (identity: ContentIdentity, seconds: Double)?
     let magnifier = MagnifierLayer()
     private(set) var isMagnifying = false
     private var magnifierTiles: (identity: ContentIdentity, source: any TiledImageSource)?
@@ -154,6 +155,7 @@ final class PagedViewerView: NSView, NSDraggingSource {
 
     /// 离开分页模式：停掉请求、播放器和动图。
     func clear() {
+        pendingVideoStart = nil
         replaceSlots(with: [], pages: [])
         finishRetiring()
         fit = PageFrameFit(pages: [], size: PixelSize(width: 0, height: 0))
@@ -392,15 +394,30 @@ final class PagedViewerView: NSView, NSDraggingSource {
 
     // MARK: 视频与动图
 
+    /// 指定视频的起播时间：播放器已存在时直接跳转；否则记下，只在为该身份建播放器时消费一次。
+    func startVideo(at seconds: Double, for identity: ContentIdentity) {
+        guard seconds.isFinite else { return }
+        let target = max(0, seconds)
+        if let video, video.identity == identity {
+            pendingVideoStart = nil
+            video.seek(to: target)
+        } else {
+            pendingVideoStart = (identity, target)
+        }
+    }
+
     /// 每个窗口只有一个活动的播放器：页帧里第一个视频页。
     private func updateVideo() {
         guard let slot = slots.first(where: \.isVideo), slot.failure == nil, !slot.isUnavailable else {
+            pendingVideoStart = nil
             stopVideo()
             return
         }
         if video?.identity != slot.identity {
             stopVideo()
-            let view = VideoPageView(identity: slot.identity, sources: sources)
+            let startTime = pendingVideoStart?.identity == slot.identity ? pendingVideoStart?.seconds : nil
+            pendingVideoStart = nil
+            let view = VideoPageView(identity: slot.identity, sources: sources, pipeline: pipeline, startTime: startTime)
             view.onFailure = { [weak slot] error in slot?.fail(error) }
             view.frame = slot.root.frame
             contentContainer.addSubview(view)
@@ -832,6 +849,7 @@ final class PagedViewerView: NSView, NSDraggingSource {
 
     /// 窗口关闭时取消全部请求。
     func cancelLoads() {
+        pendingVideoStart = nil
         slots.forEach { $0.cancel() }
         retiring.forEach { $0.cancel() }
         probes.values.forEach { $0.cancel() }

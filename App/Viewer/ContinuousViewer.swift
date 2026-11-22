@@ -35,8 +35,8 @@ final class ContinuousViewer: NSView {
         }
     }
     var onWaterfallExtentChange: (() -> Void)?
-    /// 单击瀑布流的页、条里的视频：进入分页。
-    var onEnterPaged: ((Int) -> Void)?
+    /// 单击瀑布流的页、条里的视频：进入分页；悬停预览视频时带上目标起播时间。
+    var onEnterPaged: ((Int, Double?) -> Void)?
     /// 虚拟书的占位页与分页模式共用原因和操作。
     var unavailableReason: ((Location) -> UnavailablePageView.Reason)?
     var onPageFailure: ((Location) -> Void)?
@@ -222,7 +222,9 @@ final class ContinuousViewer: NSView {
     private func activate(_ index: Int) {
         guard let pages = session.book?.pages, pages.indices.contains(index) else { return }
         if session.settings.browseMode == .waterfall || pages[index].entry.kind == .video {
-            onEnterPaged?(index)
+            let isKeyboard = NSApp.currentEvent?.type == .keyDown
+            let videoStart = (!isKeyboard && pages[index].entry.kind == .video) ? canvas.previewTime(at: index) : nil
+            onEnterPaged?(index, videoStart)
         }
     }
 

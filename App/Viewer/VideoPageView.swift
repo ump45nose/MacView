@@ -2,12 +2,15 @@
 import AppKit
 import MVFoundation
 import MVIO
+import MVPipeline
 
 /// 视频页：`AVPlayerLayer` 加控制条。持有文件租约到离开这一页。
 @MainActor
 final class VideoPageView: NSView {
     let identity: ContentIdentity
     private let sources: any SourceRegistry
+    private let pipeline: any ImagePipeline
+    private var pendingStartTime: Double?
     private let playerLayer = AVPlayerLayer()
     private(set) var player: AVPlayer?
     private var lease: FileLease?
@@ -21,9 +24,11 @@ final class VideoPageView: NSView {
     private let total = NSTextField(labelWithString: "0:00")
     var onFailure: ((any Error) -> Void)?
 
-    init(identity: ContentIdentity, sources: any SourceRegistry) {
+    init(identity: ContentIdentity, sources: any SourceRegistry, pipeline: any ImagePipeline, startTime: Double? = nil) {
         self.identity = identity
         self.sources = sources
+        self.pipeline = pipeline
+        self.pendingStartTime = startTime.flatMap { $0.isFinite ? max(0, $0) : nil }
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(playerLayer)
@@ -36,7 +41,7 @@ final class VideoPageView: NSView {
         slider.minValue = 0
         slider.maxValue = 1
         slider.target = self
-        slider.action = #selector(seek)
+        slider.action = #selector(seekFromSlider)
         slider.isContinuous = true
         for label in [position, total] {
             label.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
@@ -111,12 +116,41 @@ final class VideoPageView: NSView {
         timeObserver = player.addPeriodicTimeObserver(forInterval: CMTime(value: 1, timescale: 4), queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.updateProgress() }
         }
-        player.play()
+        if let startTime = pendingStartTime {
+            pendingStartTime = nil
+            seekAndPlay(player, to: startTime)
+        } else {
+            player.play()
+        }
+    }
+
+    /// 跳转到指定时间点并播放；播放器尚未建好时记下，建好后跳转完成后再起播。
+    func seek(to seconds: Double) {
+        guard seconds.isFinite else { return }
+        let target = max(0, seconds)
+        if let player {
+            pendingStartTime = nil
+            seekAndPlay(player, to: target)
+        } else {
+            pendingStartTime = target
+        }
+    }
+
+    private func seekAndPlay(_ player: AVPlayer, to seconds: Double) {
+        let time = CMTime(seconds: max(0, seconds), preferredTimescale: 600)
+        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self, weak player] finished in
+            Task { @MainActor [weak self, weak player] in
+                guard finished, let self, let player, self.player === player else { return }
+                player.play()
+                self.updateProgress()
+            }
+        }
     }
 
     /// 离开这一页：释放播放器和租约。
     func stop() {
         loadTask?.cancel()
+        pendingStartTime = nil
         statusObservation = nil
         if let timeObserver { player?.removeTimeObserver(timeObserver) }
         timeObserver = nil
@@ -155,7 +189,7 @@ final class VideoPageView: NSView {
         updateProgress()
     }
 
-    @objc private func seek() {
+    @objc private func seekFromSlider() {
         guard let player, let item = player.currentItem, item.duration.isNumeric else { return }
         player.seek(to: CMTime(seconds: slider.doubleValue * item.duration.seconds, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
     }

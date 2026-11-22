@@ -773,6 +773,18 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         return (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
     }
 
+    /// 页面列表激活指定页；带上起播时间时交给分页查看器从该时间点起播。
+    func activatePage(at page: Int, videoStart: Double? = nil) {
+        if let videoStart, let pages = session.book?.pages, pages.indices.contains(page) {
+            if session.settings.browseMode != .paged {
+                viewer.enterPaged(at: page, videoStart: videoStart)
+                return
+            }
+            viewer.paged.startVideo(at: videoStart, for: pages[page].entry.identity)
+        }
+        session.go(.index(page))
+    }
+
     func beginPageJump() {
         let current = (session.frames.indices.contains(session.currentFrame)
             ? session.frames[session.currentFrame].elements.map(\.page).min() : nil) ?? 0

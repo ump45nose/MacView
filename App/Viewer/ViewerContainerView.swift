@@ -140,7 +140,7 @@ final class ViewerContainerView: NSView, InputScoped {
         message.onSecondary = { [weak self] in self?.onConnect?() }
         paged.onTransformChange = { [weak self] in self?.hud.updateZoom(percent: self?.paged.displayPercent) }
         hud.onZoom = { [weak self] factor in self?.zoom(by: factor) }
-        continuous.onEnterPaged = { [weak self] page in self?.enterPaged(at: page) }
+        continuous.onEnterPaged = { [weak self] page, videoStart in self?.enterPaged(at: page, videoStart: videoStart) }
         continuous.unavailableReason = { [weak self] location in
             if case let .volumeUnavailable(root) = self?.paged.availability[location] { return .volume(root) }
             if self?.session.unavailablePages.contains(location) == true { return .missing }
@@ -564,7 +564,10 @@ final class ViewerContainerView: NSView, InputScoped {
         hud.cancel()
     }
 
-    func enterPaged(at page: Int) {
+    func enterPaged(at page: Int, videoStart: Double? = nil) {
+        if let videoStart, let pages = session.book?.pages, pages.indices.contains(page) {
+            paged.startVideo(at: videoStart, for: pages[page].entry.identity)
+        }
         session.update { $0.browseMode = .paged }
         session.go(.index(page))
         window?.makeFirstResponder(self)
