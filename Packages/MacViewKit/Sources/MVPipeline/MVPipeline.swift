@@ -39,6 +39,8 @@ public protocol ImagePipeline: Sendable {
     func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource
     func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource
     func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
+    /// 缓存帧先交付，再按时间顺序补齐缺帧；完整帧集独立写入缩略图磁盘缓存。
+    func videoPreviewFrames(for identity: ContentIdentity, priority: IOPriority) -> AsyncThrowingStream<VideoPreviewFrame, any Error>
     /// 整体替换会话的预取计划：移除的取消，保留的重排，新增的入队。
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID)
     func cancelAll(session: SessionID)
@@ -47,5 +49,10 @@ public protocol ImagePipeline: Sendable {
 }
 
 public extension ImagePipeline {
+    /// 不提供视频取帧的定制管线可以保留默认行为；文件管线与 Mock 各自实现完整路径。
+    func videoPreviewFrames(for identity: ContentIdentity, priority: IOPriority) -> AsyncThrowingStream<VideoPreviewFrame, any Error> {
+        AsyncThrowingStream { $0.finish(throwing: MediaError.unsupported) }
+    }
+
     func carryOver(from old: ContentIdentity, to new: ContentIdentity) async {}
 }

@@ -83,6 +83,9 @@ public final class FileImagePipeline: ImagePipeline {
     private let lifetime = PipelineLifetime()
 #if DEBUG
     let bundleContentLoaded = Mutex<(@Sendable () async -> Void)?>(nil)
+    /// 在真实取帧边界观测请求的时间点及交付，供取消和补帧检查使用。
+    let previewDecodeTimes = Mutex<(@Sendable ([Double]) -> Void)?>(nil)
+    let previewFrameDelivered = Mutex<(@Sendable (Int) async throws -> Void)?>(nil)
 #endif
     let inFlight = InFlightBudget()
 
@@ -368,16 +371,19 @@ public final class FileImagePipeline: ImagePipeline {
             let bridge = try lifetime.whileRunning {
                 ByteSourceAsset(source: ManagedBytes(source: source, lifetime: lifetime), priority: priority)
             }
-            try lifetime.checkRunning()
-            let result = try await operation(bridge.asset, source.identity)
-            withExtendedLifetime(bridge) {}
-            return result
+            defer { bridge.invalidate() }
+            return try await withTaskCancellationHandler {
+                try lifetime.checkRunning()
+                let result = try await operation(bridge.asset, source.identity)
+                try lifetime.checkRunning()
+                return result
+            } onCancel: { bridge.invalidate() }
         }
         let source = try await lifetime.value { try await provider.open(identity.location) }
         let lease = try await lifetime.value { try await provider.fileLease(for: identity.location) }
+        defer { withExtendedLifetime(lease) {} }
         try lifetime.checkRunning()
         let result = try await operation(AVURLAsset(url: lease.url), source.identity)
-        withExtendedLifetime(lease) {}
         return result
     }
 
@@ -736,6 +742,152 @@ public final class FileImagePipeline: ImagePipeline {
             return try await decoder.perform {
                 try Bitmap.resampled(image.image, to: target.pixelSize, filter: target.filter, sharpen: target.sharpen, quality: quality)
             }
+        }
+    }
+}
+
+extension FileImagePipeline {
+    public func videoPreviewFrames(for identity: ContentIdentity, priority: IOPriority) -> AsyncThrowingStream<VideoPreviewFrame, any Error> {
+        AsyncThrowingStream { continuation in
+            do {
+                let task = try lifetime.start(priority: priority.taskPriority) { [self] in
+                    do {
+                        try await previewFrames(identity, priority: priority, continuation: continuation)
+                        continuation.finish()
+                    } catch { continuation.finish(throwing: error) }
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            } catch { continuation.finish(throwing: error) }
+        }
+    }
+
+    private func previewFrames(_ identity: ContentIdentity, priority: IOPriority,
+                               continuation: AsyncThrowingStream<VideoPreviewFrame, any Error>.Continuation) async throws {
+        try lifetime.checkRunning()
+        guard EntryKind(fileName: identity.location.name) == .video else { throw MediaError.unsupported }
+        let metadata = try await previewMetadata(identity, priority: priority)
+        guard let duration = metadata.duration, duration.isFinite, duration > 0 else {
+            throw MediaError.decodeFailed("视频时长不可用")
+        }
+        let key = identity.cacheKey + "|preview"
+        // 请求自持帧集、磁盘拼图和解码/编码临时像素均计入在途额度，不能依赖 LRU 保住整套帧。
+        let bytes = Int64(IOSurfaceAlignProperty(kIOSurfaceBytesPerRow, VideoPreview.longSide * 4)
+                          * VideoPreview.longSide * VideoPreview.frameCount * 3)
+        _ = try await inFlight.acquire(bytes, context: RequestContext(priority))
+        var ownsReservation = true
+        defer { if ownsReservation { inFlight.release(bytes) } }
+        var frames: [Int: RenderedImage] = [:]
+        for index in 0..<VideoPreview.frameCount {
+            frames[index] = caches.thumbnailMemory.value(for: key + "|\(index)")
+        }
+        if frames.count == VideoPreview.frameCount {
+            // 必须在最后一张交付前登记，消费方拿齐后立刻取消也不会取消衍生写入。
+            try writePreview(frames, key: key, reservedBytes: bytes, priority: priority)
+            ownsReservation = false
+        }
+        for index in frames.keys.sorted() {
+            try deliverPreview(frames[index]!, index: index, duration: duration, continuation: continuation)
+        }
+        if frames.count == VideoPreview.frameCount { return }
+
+        if let data = try await diskData(caches.thumbnails, for: key) {
+            let size = try probe(data).pixelSize
+            guard size.width % VideoPreview.frameCount == 0, size.width > 0, size.height > 0,
+                  size.width / VideoPreview.frameCount <= VideoPreview.longSide, size.height <= VideoPreview.longSide else {
+                throw MediaError.decodeFailed("视频预览拼图尺寸无效")
+            }
+            let strip = try await decode(data, target: DisplayTarget(pixelSize: size))
+            let restored = try await lifetime.value(priority: priority.taskPriority) { [decoder] in
+                try await decoder.perform {
+                    let width = strip.image.width / VideoPreview.frameCount
+                    return try (0..<VideoPreview.frameCount).map { index in
+                        try Task.checkCancellation()
+                        guard let crop = strip.image.cropping(to: CGRect(x: index * width, y: 0, width: width, height: strip.image.height)) else {
+                            throw MediaError.decodeFailed("切分视频预览拼图失败")
+                        }
+                        return try Bitmap.normalized(crop, quality: .exact)
+                    }
+                }
+            }
+            for index in 0..<VideoPreview.frameCount where frames[index] == nil {
+                let image = restored[index]
+                try remember(image, for: key + "|\(index)", priority: priority, thumbnail: true)
+                try deliverPreview(image, index: index, duration: duration, continuation: continuation)
+            }
+            return
+        }
+
+        let missing = (0..<VideoPreview.frameCount).filter { frames[$0] == nil }
+        let times = missing.map { VideoPreview.time(of: $0, duration: duration) }
+#if DEBUG
+        previewDecodeTimes.withLock { $0 }?(times)
+#endif
+        // videoFrames 自己取得解码限流名额，此处不能持有 decoder.perform 的同一个名额。
+        try await withVideo(identity, priority: priority) { asset, _ in
+            for try await frame in self.decoder.videoFrames(asset, times: times, maxPixel: VideoPreview.longSide) {
+                try self.lifetime.checkRunning()
+                guard missing.indices.contains(frame.index) else { throw MediaError.decodeFailed("视频预览帧下标无效") }
+                let index = missing[frame.index]
+                frames[index] = frame.image
+                try self.remember(frame.image, for: key + "|\(index)", priority: priority, thumbnail: true)
+                if frames.count == VideoPreview.frameCount {
+                    try self.writePreview(frames, key: key, reservedBytes: bytes, priority: priority)
+                    ownsReservation = false
+                }
+                try self.deliverPreview(frame.image, index: index, duration: duration, continuation: continuation)
+#if DEBUG
+                try await self.previewFrameDelivered.withLock { $0 }?(index)
+#endif
+            }
+        }
+        guard frames.count == VideoPreview.frameCount else { throw MediaError.decodeFailed("视频预览帧不完整") }
+    }
+
+    private func previewMetadata(_ identity: ContentIdentity, priority: IOPriority) async throws -> ImageMetadata {
+        if let cached = try await lifetime.value(operation: { [caches] in
+            try await caches.metadata.values(for: [identity.cacheKey])[identity.cacheKey]
+        }), cached.duration != nil { return cached }
+        return try await withVideo(identity, priority: priority) { asset, actual in
+            let value = try await MediaProbe.video(asset)
+            if let parent = actual.location.parent {
+                try await self.lifetime.value { try await self.caches.metadata.store([actual.cacheKey: value], in: parent) }
+            }
+            return value
+        }
+    }
+
+    private func deliverPreview(_ image: RenderedImage, index: Int, duration: Double,
+                                continuation: AsyncThrowingStream<VideoPreviewFrame, any Error>.Continuation) throws {
+        try lifetime.checkRunning()
+        let frame = VideoPreviewFrame(index: index, time: VideoPreview.time(of: index, duration: duration), duration: duration, image: image)
+        if case .terminated = continuation.yield(frame) { throw CancellationError() }
+    }
+
+    /// 登记独立的衍生任务并接管帧集的在途额度；完整后不再依附消费任务。
+    private func writePreview(_ frames: [Int: RenderedImage], key: String, reservedBytes: Int64, priority: IOPriority) throws {
+        let images = (0..<VideoPreview.frameCount).map { frames[$0]! }
+        _ = try lifetime.start(priority: priority.taskPriority) { [self] in
+            defer { inFlight.release(reservedBytes) }
+            try lifetime.checkRunning()
+            if try await lifetime.value(operation: { try await self.caches.thumbnails.contains(key) }) { return }
+            let data = try await lifetime.value(priority: priority.taskPriority) { [decoder] in
+                try await decoder.perform {
+                    let first = images[0].image
+                    guard let context = CGContext(data: nil, width: first.width * VideoPreview.frameCount, height: first.height,
+                                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                                  space: first.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+                        throw MediaError.decodeFailed("分配视频预览拼图失败")
+                    }
+                    for (index, image) in images.enumerated() {
+                        try Task.checkCancellation()
+                        context.draw(image.image, in: CGRect(x: index * first.width, y: 0, width: first.width, height: first.height))
+                    }
+                    guard let strip = context.makeImage() else { throw MediaError.decodeFailed("生成视频预览拼图失败") }
+                    return try RenditionEncoding.default.encode(strip)
+                }
+            }
+            try await store(data, in: caches.thumbnails, for: key)
         }
     }
 }

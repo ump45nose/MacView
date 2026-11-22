@@ -21,6 +21,13 @@ public final class MockImagePipeline: ImagePipeline {
 
     public let environment: MockEnvironment
     private let plans = Mutex<[SessionID: PrefetchPlan]>([:])
+    private let previewDelay = Mutex<Duration>(.zero)
+
+    /// 每帧交付前的延迟，供界面自检模拟慢取帧与元数据晚到。
+    public var videoPreviewFrameDelay: Duration {
+        get { previewDelay.withLock { $0 } }
+        set { previewDelay.withLock { $0 = newValue } }
+    }
 
     public init(environment: MockEnvironment) {
         self.environment = environment
@@ -114,6 +121,32 @@ public final class MockImagePipeline: ImagePipeline {
 
     public func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID) {
         plans.withLock { $0[session] = plan }
+    }
+
+    public func videoPreviewFrames(for identity: ContentIdentity, priority: IOPriority) -> AsyncThrowingStream<VideoPreviewFrame, any Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let location = identity.location
+                    let media = try await self.environment.readMedia(location, priority: priority)
+                    guard let duration = media.duration, duration.isFinite, duration > 0 else { throw MediaError.unsupported }
+                    let scale = Double(VideoPreview.longSide) / Double(max(1, media.pixelSize.width, media.pixelSize.height))
+                    let size = PixelSize(width: max(1, Int((Double(media.pixelSize.width) * scale).rounded())),
+                                         height: max(1, Int((Double(media.pixelSize.height) * scale).rounded())))
+                    for index in 0..<VideoPreview.frameCount {
+                        try await self.environment.pause(self.videoPreviewFrameDelay)
+                        try Task.checkCancellation()
+                        let image = MockArtwork.image(title: Self.title(of: location), caption: "frame \(index + 1)/\(VideoPreview.frameCount)",
+                                                      size: size, seed: MockRandom.fnv1a(location.description) &+ UInt64(index) &* 7)
+                        let frame = VideoPreviewFrame(index: index, time: VideoPreview.time(of: index, duration: duration), duration: duration,
+                                                      image: RenderedImage(image: image, quality: .exact))
+                        if case .terminated = continuation.yield(frame) { return }
+                    }
+                    continuation.finish()
+                } catch { continuation.finish(throwing: error) }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     public func cancelAll(session: SessionID) {
