@@ -352,6 +352,53 @@ import Testing
     #expect(image.width > 0)
 }
 
+@Test func invalidatingVideoStopsReadsAndFinishesPendingRequests() async throws {
+    let video = Fixtures.root.appending(path: "local/generated/video/h264.mp4")
+    try #require(FileManager.default.fileExists(atPath: video.path), "先运行 mvbench fixtures 生成大夹具")
+    let registry = FileSourceRegistry(scheduler: IOScheduler(configuration: IOConfiguration(helperExecutable: nil)))
+    let location = try await registry.location(for: video)
+    let source = CountingBlockedSource(try await registry.provider(for: location).open(location))
+    defer { source.gate.openAll() }
+    let wrapped = ByteSourceAsset(source: source)
+    let duration = Task { try await wrapped.asset.load(.duration) }
+    let tracks = Task { try await wrapped.asset.load(.tracks).count }
+    try await waitUntil { source.reads.load(ordering: .relaxed) > 0 }
+
+    wrapped.invalidate()
+    wrapped.invalidate()
+    await #expect(throws: (any Error).self) { try await duration.value }
+    await #expect(throws: (any Error).self) { try await tracks.value }
+    source.gate.openAll()
+    try await Task.sleep(for: .milliseconds(100))
+    let reads = source.reads.load(ordering: .relaxed)
+    let generator = AVAssetImageGenerator(asset: wrapped.asset)
+    await #expect(throws: (any Error).self) {
+        try await generator.image(at: CMTime(seconds: 1, preferredTimescale: 600))
+    }
+    try await Task.sleep(for: .milliseconds(150))
+    #expect(source.reads.load(ordering: .relaxed) == reads)
+}
+
+private final class CountingBlockedSource: ByteSource {
+    let identity: ContentIdentity
+    let reads = Atomic(0)
+    let gate = Gate()
+    private let source: any ByteSource
+
+    init(_ source: any ByteSource) {
+        self.source = source
+        self.identity = source.identity
+    }
+
+    func read(_ range: Range<Int64>, priority: IOPriority, group: IORequestGroup?) async throws -> Data {
+        reads.add(1, ordering: .relaxed)
+        await withCheckedContinuation { continuation in
+            gate.enter { continuation.resume() }
+        }
+        return try await source.read(range, priority: priority, group: group)
+    }
+}
+
 // MARK: 测试工具
 
 private enum Fixtures {

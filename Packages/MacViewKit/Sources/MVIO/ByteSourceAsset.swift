@@ -22,19 +22,44 @@ public final class ByteSourceAsset: Sendable {
         asset.resourceLoader.setDelegate(loader, queue: loader.queue)
     }
 
+    /// 切断读取，取消挂起和后续的资源加载请求。可重复调用。
+    public func invalidate() {
+        loader.invalidate()
+    }
+
     private final class Loader: NSObject, AVAssetResourceLoaderDelegate, @unchecked Sendable {
         let queue = DispatchQueue(label: "io.github.ump45nose.MacView.io.asset")
         private let source: any ByteSource
         private let priority: IOPriority
         /// 只在 queue 上访问。
-        private var tasks: [ObjectIdentifier: Task<Void, Never>] = [:]
+        private var tasks: [ObjectIdentifier: (task: Task<Void, Never>, request: UncheckedBox<AVAssetResourceLoadingRequest>)] = [:]
+        private var invalidated = false
 
         init(source: any ByteSource, priority: IOPriority) {
             self.source = source
             self.priority = priority
         }
 
+        func invalidate() {
+            queue.sync {
+                guard !invalidated else { return }
+                invalidated = true
+                let pending = tasks.values
+                tasks.removeAll()
+                for entry in pending {
+                    entry.task.cancel()
+                    if !entry.request.value.isCancelled {
+                        entry.request.value.finishLoading(with: CancellationError())
+                    }
+                }
+            }
+        }
+
         func resourceLoader(_ resourceLoader: AVAssetResourceLoader, shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest) -> Bool {
+            guard !invalidated else {
+                loadingRequest.finishLoading(with: CancellationError())
+                return true
+            }
             let size = source.identity.size
             if let information = loadingRequest.contentInformationRequest {
                 information.contentType = UTType(filenameExtension: (source.identity.location.name as NSString).pathExtension)?.identifier
@@ -50,33 +75,39 @@ public final class ByteSourceAsset: Sendable {
             let request = UncheckedBox(loadingRequest)
             let key = ObjectIdentifier(loadingRequest)
             let (source, priority) = (source, priority)
-            tasks[key] = Task {
+            let task = Task {
                 // 分段交给 AVFoundation，播放可以在整段读完之前开始。
                 let step: Int64 = 1 << 20
                 var offset = start
                 do {
-                    while offset < end, !Task.isCancelled {
+                    while offset < end {
+                        try Task.checkCancellation()
                         let data = try await source.read(offset..<min(end, offset + step), priority: priority, group: nil)
+                        try Task.checkCancellation()
                         guard !data.isEmpty else { break }
-                        queue.async { request.value.dataRequest?.respond(with: data) }
+                        queue.async {
+                            guard self.tasks[key] != nil else { return }
+                            request.value.dataRequest?.respond(with: data)
+                        }
                         offset += Int64(data.count)
                     }
                     queue.async {
-                        self.tasks[key] = nil
+                        guard self.tasks.removeValue(forKey: key) != nil else { return }
                         if !request.value.isCancelled { request.value.finishLoading() }
                     }
                 } catch {
                     queue.async {
-                        self.tasks[key] = nil
+                        guard self.tasks.removeValue(forKey: key) != nil else { return }
                         if !request.value.isCancelled { request.value.finishLoading(with: error) }
                     }
                 }
             }
+            tasks[key] = (task, request)
             return true
         }
 
         func resourceLoader(_ resourceLoader: AVAssetResourceLoader, didCancel loadingRequest: AVAssetResourceLoadingRequest) {
-            tasks.removeValue(forKey: ObjectIdentifier(loadingRequest))?.cancel()
+            tasks.removeValue(forKey: ObjectIdentifier(loadingRequest))?.task.cancel()
         }
     }
 }
