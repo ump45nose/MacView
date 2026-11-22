@@ -2793,6 +2793,16 @@
         }
       }
     },
+    "在画廊里的视频上左右移动鼠标、或停在播放进度条上时显示对应位置的画面。第一次预览会读取视频的多个位置，预览帧存在缩略图缓存里。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move the pointer across a video in the gallery or hover over the playback slider to preview frames. The first preview reads multiple positions and stores them in the thumbnail cache."
+          }
+        }
+      }
+    },
     "在访达中显示": {
       "localizations": {
         "en": {
@@ -3785,6 +3795,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reset to Default"
+          }
+        }
+      }
+    },
+    "悬停预览视频画面": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hover to preview video"
           }
         }
       }

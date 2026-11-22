@@ -192,6 +192,15 @@ struct BrowseSettingsPage: View {
                         }
                     }
                 }
+                SettingsSection(title: String(localized: "视频")) {
+                    SettingsRow(
+                        title: String(localized: "悬停预览视频画面"),
+                        detail: String(localized: "在画廊里的视频上左右移动鼠标、或停在播放进度条上时显示对应位置的画面。第一次预览会读取视频的多个位置，预览帧存在缩略图缓存里。")
+                    ) {
+                        SettingsSwitch(label: String(localized: "悬停预览视频画面"), isOn: global(model, \.videoHoverPreview))
+                            .accessibilityIdentifier("settings.browse.videoHoverPreview")
+                    }
+                }
             }
             .padding(16)
         }

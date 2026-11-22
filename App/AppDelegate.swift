@@ -185,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         EffectsSelfTest.runIfRequested(app: self)
         InputSelfTest.runIfRequested(app: self)
         AppearanceSelfTest.runIfRequested(app: self)
+        VideoPreviewSelfTest.runIfRequested(app: self)
         debugSocket = DebugSocket.startIfRequested(app: self)
         #endif
     }
