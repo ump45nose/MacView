@@ -59,11 +59,12 @@ final class SettingsSelfTest {
 
     /// 全应用一个窗口，经命令打开。
     private func singleWindow(services: CoreServices) async throws {
-        let before = NSApp.windows.count
+        func visibleAppWindows() -> Int { NSApp.windows.filter { $0.isVisible && $0.windowController != nil }.count }
+        let before = visibleAppWindows()
         try await services.commands.perform(.settingsOpen, arguments: nil, context: CommandContext(session: nil, scope: .global, selection: []))
         let first = app.openSettings()
         try await services.commands.perform(.settingsOpen, arguments: nil, context: CommandContext(session: nil, scope: .global, selection: []))
-        log.check(first === app.openSettings() && NSApp.windows.count == before + 1, "app.settings 只开一个窗口")
+        log.check(first === app.openSettings() && visibleAppWindows() == before + 1, "app.settings 只开一个窗口")
         log.check(first?.window?.isVisible == true, "设置窗口可见")
     }
 

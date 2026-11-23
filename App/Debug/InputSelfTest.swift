@@ -488,6 +488,7 @@ final class InputSelfTest {
         let expectedWindowTitles = [
             String(localized: "最小化"), String(localized: "缩放"), "-",
             String(localized: "切换全屏幕"), "-",
+            String(localized: "置顶"), String(localized: "自动隐藏标题栏"), String(localized: "无边框"), "-",
             String(localized: "保存为布局方案…"), String(localized: "布局方案"), "-",
             String(localized: "前置全部窗口"),
         ]
