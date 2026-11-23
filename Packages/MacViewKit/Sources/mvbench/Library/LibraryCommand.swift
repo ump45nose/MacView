@@ -43,13 +43,13 @@ struct LibrarySeedPlaylist: AsyncParsableCommand {
             var children: [Entry] = []
             let provider = try sources.provider(for: container)
             for try await batch in provider.children(of: container, priority: .background) { children += batch }
-            for entry in children.sorted(by: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) {
+            entriesLoop: for entry in children.sorted(by: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) {
                 if entry.name.hasPrefix(".") { continue }
                 switch entry.kind {
                 case .directory, .archive: queue.append(entry.location)
                 case .image, .video:
                     entries.append(entry)
-                    if entries.count == count { break }
+                    if entries.count == count { break entriesLoop }
                 case .other: break
                 }
             }
