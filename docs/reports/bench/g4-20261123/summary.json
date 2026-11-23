@@ -1,0 +1,1594 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-23",
+  "gate": "G4",
+  "verdict": "未通过，暂不放行",
+  "source_commit": "4fcdd741d8163d0f932d7dc2e22d0b45197d6e99",
+  "environment": "MacPro，macOS 27.2，arm64；本机夹具与现有 SMB NAS 挂载；未修改挂载或系统配置",
+  "builds": [
+    {
+      "configuration": "Debug",
+      "source_commit": "4fcdd741d8163d0f932d7dc2e22d0b45197d6e99",
+      "binary_sha256": "25dd484d08ada083beae749d76faf409fd4c9d37cab971e12e7a40c067cc2f26",
+      "cdhash": "47820382980f4eaf5a82dabef002468093f692e1",
+      "warnings": 0
+    },
+    {
+      "configuration": "Release",
+      "source_commit": "4fcdd741d8163d0f932d7dc2e22d0b45197d6e99",
+      "binary_sha256": "a36fa4bd90ec15b80b28fbaa8ee6dd7d83f9e4f191325e2f190dc6c48b1ee3c1",
+      "cdhash": "f3c5681777eec439821109509374a7a3e3c5ac0a",
+      "warnings": 2
+    }
+  ],
+  "core": {
+    "combined_unique_tests": {
+      "total": 467,
+      "passed": 466,
+      "failed": 0,
+      "unavailable": 1,
+      "unavailable_test": "exclusiveRenameAcrossMountedNetworkVolumes",
+      "unavailable_reason": "MVIO_CROSS_MOUNT_TEST is unset. Test requires two distinct writable real network-volume roots at isolated home/MacViewBench/fileops-a and fileops-b. No NAS writes or new mounts were authorized; local directories cannot establish cross-volume network behavior."
+    },
+    "ci_exclusions_completed_locally": {
+      "NameOrderTests.finderOrder": {
+        "result": "passed",
+        "elapsed_seconds": 0.678,
+        "evidence": "core-suite-round1.log.gz: real Finder AppleScript completed, not simulated"
+      },
+      "FixturesTests.regeneratingReproducesTheCommittedManifest": {
+        "result": "passed",
+        "elapsed_seconds": 0.918,
+        "evidence": "core-suite-round1.log.gz: fixture generator and committed manifest compared"
+      }
+    },
+    "home_guard_tests": {
+      "root": "/Users/yuwk/Developer/Repos/Personal/MacView/build/g4-acceptance-20261123/home/MacViewBench/fileops-a",
+      "storage": "run-owned local filesystem directory; not NFS",
+      "early_guard_returns": false,
+      "tests": {
+        "SetMetadataTests.nfsLargeJPEGWriteWithoutSillyRename": {
+          "result": "passed locally",
+          "generated_jpeg_bytes": 49276048,
+          "set_metadata_seconds": 0.085070917
+        },
+        "MVSearchTests.c116NfsThreeHundredSmallJpegsTiming": {
+          "result": "passed locally",
+          "jpeg_count": 300,
+          "listing_ms": 46.8,
+          "probing_ms": 35.9,
+          "total_ms": 82.7
+        }
+      },
+      "limitation": "No actual NFS metadata or search throughput acceptance is established."
+    },
+    "first_failures": [
+      {
+        "kind": "CLI fixture preparation, not a test assertion failure",
+        "record": "library-seed-3000.json",
+        "exit_code": 64,
+        "message": "夹具只有 10007 项，需要 3000 项；未创建播放列表",
+        "source": "Packages/MacViewKit/Sources/mvbench/Library/LibraryCommand.swift:52",
+        "analysis": "break inside switch exits that switch, leaving the enclosing for loop to collect the remainder of a directory; count may overshoot the requested limit. Production code unchanged.",
+        "followup": "Preserved failure and supplied an exact 3000-file run-owned directory. library-seed-3000-exact-fixture exited 0, then the skipped test executed and passed."
+      }
+    ]
+  },
+  "ci": {
+    "run": "https://github.com/ump45nose/MacView/actions/runs/45048712119",
+    "exit_code": 0,
+    "reported_tests": 465,
+    "passed_test_records": 463,
+    "excluded_by_command": [
+      "NameOrderTests.finderOrder",
+      "FixturesTests.regeneratingReproducesTheCommittedManifest"
+    ]
+  },
+  "app_selftests": {
+    "selected_rounds": 22,
+    "passed_assertions": 507,
+    "failed_assertions": 6,
+    "skipped_assertions": 0,
+    "includes_repeated_locales": true,
+    "runs": [
+      {
+        "id": "effects-render",
+        "checks": {
+          "PASS": 31,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/effects-render/launcher.log"
+        ]
+      },
+      {
+        "id": "effects-panel",
+        "checks": {
+          "PASS": 13,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/effects-panel/launcher.log"
+        ]
+      },
+      {
+        "id": "input-viewer-foreground-complete",
+        "checks": {
+          "PASS": 63,
+          "FAIL": 1,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "118",
+            "118"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-viewer-foreground-complete/stdout.log"
+        ]
+      },
+      {
+        "id": "input-settings",
+        "checks": {
+          "PASS": 28,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-settings/launcher.log"
+        ]
+      },
+      {
+        "id": "input-settings-en-light",
+        "checks": {
+          "PASS": 28,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-settings-en-light/stdout.log"
+        ]
+      },
+      {
+        "id": "input-settings-zh-dark",
+        "checks": {
+          "PASS": 28,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-settings-zh-dark/stdout.log"
+        ]
+      },
+      {
+        "id": "input-settings-en-dark",
+        "checks": {
+          "PASS": 28,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-settings-en-dark/stdout.log"
+        ]
+      },
+      {
+        "id": "viewer-fixtures-corrected",
+        "checks": {
+          "PASS": 83,
+          "FAIL": 1,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "338",
+            "338"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/viewer-fixtures-corrected/stdout.log"
+        ]
+      },
+      {
+        "id": "settings-foreground",
+        "checks": {
+          "PASS": 30,
+          "FAIL": 1,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "45",
+            "45"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/settings-foreground/stdout.log"
+        ]
+      },
+      {
+        "id": "settings-en-light",
+        "checks": {
+          "PASS": 30,
+          "FAIL": 1,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "45",
+            "45"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/settings-en-light/stdout.log"
+        ]
+      },
+      {
+        "id": "settings-zh-dark",
+        "checks": {
+          "PASS": 30,
+          "FAIL": 1,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "44",
+            "44"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/settings-zh-dark/stdout.log"
+        ]
+      },
+      {
+        "id": "settings-en-dark",
+        "checks": {
+          "PASS": 30,
+          "FAIL": 1,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "43",
+            "43"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/settings-en-dark/stdout.log"
+        ]
+      },
+      {
+        "id": "appearance-chrome-no-forced-theme",
+        "checks": {
+          "PASS": 24,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "134",
+            "134"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1",
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-chrome-no-forced-theme/stdout.log"
+        ]
+      },
+      {
+        "id": "appearance-background",
+        "checks": {
+          "PASS": 12,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-background/launcher.log"
+        ]
+      },
+      {
+        "id": "appearance-fonts",
+        "checks": {
+          "PASS": 4,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-fonts/launcher.log"
+        ]
+      },
+      {
+        "id": "appearance-settings-zh-no-forced-theme",
+        "checks": {
+          "PASS": 7,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "102",
+            "102"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-settings-zh-no-forced-theme/stdout.log"
+        ]
+      },
+      {
+        "id": "appearance-settings-en-no-forced-theme",
+        "checks": {
+          "PASS": 7,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "101",
+            "101"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-settings-en-no-forced-theme/stdout.log"
+        ]
+      },
+      {
+        "id": "appearance-settings-c310-foreground",
+        "checks": {
+          "PASS": 3,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "10",
+            "10"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-settings-c310-foreground/stdout.log"
+        ]
+      },
+      {
+        "id": "appearance-settings-c310-dark-foreground",
+        "checks": {
+          "PASS": 3,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [
+          [
+            "11",
+            "11"
+          ]
+        ],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-settings-c310-dark-foreground/stdout.log"
+        ]
+      },
+      {
+        "id": "video-gallery",
+        "checks": {
+          "PASS": 19,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1",
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/video-gallery/stdout.log"
+        ]
+      },
+      {
+        "id": "video-viewer",
+        "checks": {
+          "PASS": 4,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/video-viewer/stdout.log"
+        ]
+      },
+      {
+        "id": "video-settings",
+        "checks": {
+          "PASS": 2,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "foreground_samples": [],
+        "final_summaries": [
+          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+        ],
+        "logs": [
+          "docs/reports/bench/g4-20261123/outputs/ui/selftests/video-settings/stdout.log"
+        ]
+      }
+    ]
+  },
+  "formal_status_counts": {
+    "partial": 11,
+    "passed": 18,
+    "observed_issue": 1,
+    "manual": 1
+  },
+  "gate_status_counts": {
+    "failed_checks": 1,
+    "manual": 4,
+    "partial": 5,
+    "completed_with_observations": 2,
+    "known_unfixed": 1,
+    "passed": 3,
+    "observed_issue": 1
+  },
+  "formal_scenarios": [
+    {
+      "id": "D-S1",
+      "requirement": "在效果面板拖动亮度、对比度、饱和度、伽马、色温、色调滑块，主视图在单页、双页、瀑布流、纵向连续、横向连续里实时变化，面板缩略图不变；拖动时不掉帧。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实滑块拖动；真实渲染",
+      "automation_runs": [
+        "effects-render",
+        "effects-panel"
+      ],
+      "status": "partial",
+      "attempted_action": "以系统投递的鼠标逐一拖动六个滑块，再切单页、双页、瀑布流、纵向连续、横向连续。",
+      "observed": "亮度27、对比18、饱和18、gamma1.17、色温11、色调11；五种主区截图可见调色，侧面缩略图保持原样。",
+      "remaining_real_actions": "真实触控板 Animation Hitches 与连续拖动帧表现。",
+      "reason": "未接入可实际操控的实体触控板，普通窗口截图不能判定掉帧。",
+      "evidence": [
+        "live/d-slider-brightness-observed.png",
+        "live/d-slider-contrast-observed.png",
+        "live/d-slider-saturation-observed.png",
+        "live/d-slider-gamma-observed.png",
+        "live/d-slider-temperature-observed.png",
+        "live/d-slider-tint-observed.png",
+        "live/d-mode-single-observed.png",
+        "live/d-mode-double-observed.png",
+        "live/d-mode-waterfall-observed.png",
+        "live/d-mode-vertical-observed.png",
+        "live/d-mode-horizontal-observed.png"
+      ]
+    },
+    {
+      "id": "D-S2",
+      "requirement": "把当前状态勾选部分组保存为命名配置；在另一本书用快捷键套用，只有勾选的组变化；关掉再开这本书，值仍在（书记忆）；原来那本书不受影响。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实键盘、两书切换、重启",
+      "automation_runs": [
+        "effects-panel"
+      ],
+      "status": "passed",
+      "attempted_action": "只勾效果/背景存G4效果，另一本书Ctrl+1套用，切回原书，再重开目标书。",
+      "observed": "被选组生效，未选浏览/缩放未覆盖；原书状态隔离，目标书重开值保持。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/d-profile-saved.png",
+        "live/d-book-b-before-profile.png",
+        "live/d-book-b-profile-applied.png",
+        "live/d-book-a-isolated.png",
+        "live/d-book-b-reopened.png",
+        "live/persisted-final-profiles.json"
+      ]
+    },
+    {
+      "id": "D-S3",
+      "requirement": "“套用到全局默认”后，没有单独设置的书都按新值显示；“存为路径规则”后，匹配该路径的书按新值显示。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实书籍、路径和渲染",
+      "automation_runs": [
+        "effects-panel"
+      ],
+      "status": "passed",
+      "attempted_action": "把当前值20更新到配置后套用全局；打开两本全新无书记忆书A/B。另把配置更新为-36，打开存路径规则弹出框、选择本次d3-rule-root并实际点击存为规则，再开匹配与不匹配书。",
+      "observed": "两本全新全局书均亮度20；path-rules.json实际保存prefix与-0.36。匹配目录新书亮度-36，不命中书仍20，渲染深浅对应。此前只打开路径弹出框未确认的轮次不再当作成功证据。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/d3-global-new-A.png",
+        "live/d3-global-new-B.png",
+        "live/d3-path-actual-dialog-pixels.png",
+        "live/d3-path-ancestor-options.json",
+        "live/d3-path-confirmed-main.png",
+        "live/d3-path-rules-confirmed.json",
+        "live/d3-path-new-match-confirmed.png",
+        "live/d3-path-unmatched-confirmed.png"
+      ]
+    },
+    {
+      "id": "D-S4",
+      "requirement": "用一键开关关闭效果看到原图，再打开回到原来的滑块值。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实界面操作与图像",
+      "automation_runs": [
+        "effects-render",
+        "effects-panel"
+      ],
+      "status": "passed",
+      "attempted_action": "实际关闭并重新打开效果开关。",
+      "observed": "关闭画面恢复原色，滑块仍27/18/18/1.17/11/11且禁用；打开后同值和调色恢复。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/d-effects-off-observed.png",
+        "live/d-effects-on-observed.png"
+      ]
+    },
+    {
+      "id": "D-S5",
+      "requirement": "播放视频时调色生效；复制图片粘贴到别的应用、拖出到 Finder，得到的是调色后的图；效果关闭时得到原文件。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实播放、剪贴板、Finder 拖放与像素内容",
+      "automation_runs": [
+        "effects-render"
+      ],
+      "status": "partial",
+      "attempted_action": "复制透明图片，验证剪贴板PNG，再粘贴到本次独立TextEdit；打开本次Finder输出文件夹并实际拖出；另尝试播放调色和关闭效果复制。",
+      "observed": "播放中实际拖亮度至64，视频继续播放且画面明显调亮；有效PNG400×300中心RGBA由220,50,40,255变248,61,46,255，透明点alpha仍0；TextEdit AX确认1附件。关闭效果后实际复制public.file-url指向原alpha.png（不是rendered缓存）。Finder目标目录无文件，拖出未通过。",
+      "remaining_real_actions": "Finder拖出得到调色后文件与效果关闭时原文件。",
+      "reason": "Finder跨应用拖放已实际投递但无文件生成，工具投递不能证明产品拖出成功；不再重复调试。",
+      "evidence": [
+        "live/copied-alpha-effects.png",
+        "live/d-output-pixel-verification.json",
+        "live/d-textedit-result.json",
+        "live/d-finder-real-drop-result.json",
+        "live/d-video-effect-before.png",
+        "live/d-video-effect-live-adjusted.png",
+        "live/d-copy-original-disabled.png",
+        "live/d-copy-original-file-url.json",
+        "live/source-alpha.png"
+      ]
+    },
+    {
+      "id": "D-S6",
+      "requirement": "手工改坏 `profiles.json`，App 保留上一份配置并提示错误与“打开文件”入口；改回后自动重载。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实外部文件编辑",
+      "automation_runs": [
+        "effects-panel"
+      ],
+      "status": "passed",
+      "attempted_action": "将本次隔离profiles.json改为无效JSON，观察后恢复原字节。",
+      "observed": "显示“profiles.json 有错误，继续使用可用的配置”及“打开文件”入口，原有效配置仍在；修复后错误提示自动消失。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/d-profiles-corrupt-observed.png",
+        "live/d-profiles-repaired-observed.png"
+      ]
+    },
+    {
+      "id": "D-S7",
+      "requirement": "背景切换为纯色、自定义颜色、棋盘格，透明图片能看出区别。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "实际透明图与可见渲染",
+      "automation_runs": [
+        "effects-render",
+        "effects-panel"
+      ],
+      "status": "observed_issue",
+      "attempted_action": "透明PNG下逐项切白/黑/棋盘格；实际打开原生颜色面板，切RGB滑块，输入22AA66并回车确认。",
+      "observed": "画面周围背景改变；原图透明区域在主视图仍呈白矩形。原图90349像素alpha0、29651像素alpha255，(0,0)/(50,50)确为透明，中心不透明；复制导出仍保留alpha。仅记录当前现象，不断言回归来源。 自定义色已真实确认RGB34/170/102、hex22AA66，图周围变绿色而透明区白矩形仍在。",
+      "remaining_real_actions": "透明区域与所选背景一致的视觉验收。",
+      "reason": "已排除输入图全不透明；当前截图现象未满足预期，未修改源码。",
+      "evidence": [
+        "live/d-alpha-bg-real-white-observed.png",
+        "live/d-alpha-bg-real-black-observed.png",
+        "live/d-alpha-bg-real-checker-observed.png",
+        "live/d-alpha-bg-real-custom-observed.png",
+        "live/alpha-input-verification.json",
+        "live/d-output-pixel-verification.json",
+        "live/d7-custom-rgb-fields.png",
+        "live/d7-custom-hex-confirmed.png",
+        "live/d7-custom-alpha-green-confirmed.png"
+      ]
+    },
+    {
+      "id": "I-S1",
+      "requirement": "在设置“快捷键”页把某命令改成多键序列，回到查看器按下后执行；录一个已被占用的键，界面标出冲突的命令；恢复默认后回到原键。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实键盘录制与按键",
+      "automation_runs": [
+        "input-settings",
+        "input-viewer-foreground-complete"
+      ],
+      "status": "passed",
+      "attempted_action": "快捷键页录k,l,Return序列，回查看器执行；另录已占用z,Return并取消冲突，最后恢复默认。",
+      "observed": "实际序列执行后单页变双页；冲突标出放大镜占用；恢复默认后自定义项移除。Return是被录入的第三键，非提交动作。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/i-multikey-saved.png",
+        "live/i-recorded-sequence-executed.png",
+        "live/i-conflict-observed.png",
+        "live/i-restored-default-observed.png",
+        "live/keybindings-custom-valid.json"
+      ]
+    },
+    {
+      "id": "I-S2",
+      "requirement": "在“菜单与工具栏”页把一个命令加进右键菜单、调整顺序、加分隔线，查看器右键看到新菜单；主菜单同理；重启后保持。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实菜单打开与重启",
+      "automation_runs": [
+        "input-settings",
+        "input-viewer-foreground-complete"
+      ],
+      "status": "passed",
+      "attempted_action": "实际在右键菜单加下一帧/分隔线并拖到前部，主菜单文件分支也加命令/分隔线；打开上下文菜单，正常后续启动读取并再次打开。",
+      "observed": "有效menus配置包含新增项与顺序；重启后菜单仍有新增项。首次误选已有分隔线与后续更正均保留。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/i-context-command-added.png",
+        "live/i-context-reordered.png",
+        "live/i-context-separator-real-observed.png",
+        "live/i-main-menu-edited.png",
+        "live/i-custom-context-visible.png",
+        "live/i-persisted-right-context-observed.png",
+        "live/menus-custom-valid.json",
+        "live/persisted-final-menus.json"
+      ]
+    },
+    {
+      "id": "I-S3",
+      "requirement": "用工具栏自定义面板加减按钮、换顺序，重启后保持；`menus.json` 里能看到结果。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实面板拖放、重启、文件读取",
+      "automation_runs": [
+        "input-settings",
+        "input-viewer-foreground-complete"
+      ],
+      "status": "partial",
+      "attempted_action": "打开原生工具栏自定义面板，实际拖入设置齿轮，再尝试拖出效果按钮/重排前后书按钮，重启后查看。",
+      "observed": "添加齿轮成功并写menus.json，重启后齿轮仍可见。拖出/重排尝试后配置没有相应变化，未确认工具拖放生效。",
+      "remaining_real_actions": "原生面板删除按钮和调整顺序的成功结果。",
+      "reason": "已有原生面板像素、真实拖动命令及配置前后；无变化不能直接判产品bug，不继续调试工具。",
+      "evidence": [
+        "live/i-native-toolbar-pixels.png",
+        "live/i-native-toolbar-customized-final.png",
+        "live/original-persist-ready-reader.png",
+        "live/persisted-final-menus.json"
+      ]
+    },
+    {
+      "id": "I-S4",
+      "requirement": "右键拖“←”翻到上一页、“→”下一页（默认绑定），拖动时看到轨迹和命令名；右键不拖仍弹菜单；在设置里新增“↓→”绑到某命令后生效。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实右键轨迹和设置录制",
+      "automation_runs": [
+        "input-settings",
+        "input-viewer-foreground-complete"
+      ],
+      "status": "partial",
+      "attempted_action": "设置手势录制/冲突与右键不拖菜单；在第2页实际右拖→、再左拖←，录制目标窗口动态画面。",
+      "observed": "→后第3页，←后回第2页；无拖动右键菜单正常。新增录制存在，定向执行未得到完整证明；目标窗口捕获未捕到单独轨迹/命令名浮层。",
+      "remaining_real_actions": "新增↓→绑定后执行；轨迹/命令名浮层；实体鼠标手感。",
+      "reason": "CLI只提供单段线性/弧线路径，定向折线路径未可靠执行；浮层可能为独立窗口，仅主窗截图不能证明其显示。",
+      "evidence": [
+        "live/i-right-context-menu.png",
+        "live/i-gesture-diagonal-result.png",
+        "live/i-final-gesture-before.png",
+        "live/i-final-gesture-next.png",
+        "live/i-final-gesture-previous.png",
+        "live/i-real-gesture-capture/metadata.json"
+      ]
+    },
+    {
+      "id": "I-S5",
+      "requirement": "从左往右和从右往左两种阅读方向下，单击左/右区域翻页方向正确；中间区域绑定命令后单击生效；拖动平移、双击、框选不受影响。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实点击、拖动、双击、框选",
+      "automation_runs": [
+        "input-viewer-foreground-complete"
+      ],
+      "status": "partial",
+      "attempted_action": "LTR/RTL左右点击、双击/平移/Shift框选尝试；设置中区为切换单页与双页，在全新隔离实例第3页portrait上实际单击中区，最后恢复默认。",
+      "observed": "左右点击翻页方向正确；双击后放大及导航小窗、拖动不翻页。有效末轮中区绑定后单击，画面从portrait单张变portrait+square两张，页码第3页变第3–4页；默认已恢复。Shift框选投递后未获得明确选择结果。",
+      "remaining_real_actions": "框选成功状态。",
+      "reason": "指定Shift拖动已实际投递但没有可观测选择结果；不凭投递或页码未变算框选通过。",
+      "evidence": [
+        "live/i-ltr-right-click-result.png",
+        "live/i-rtl-left-click-result.png",
+        "live/i-final-image-doubleclick.png",
+        "live/i-final-image-pan.png",
+        "live/i-final-image-box.png",
+        "live/font-middle-final-valid-binding-saved.png",
+        "live/font-middle-final-valid-single-page-before.png",
+        "live/font-middle-final-valid-double-page-result.png",
+        "live/font-middle-final-valid-all-defaults-restored.png"
+      ]
+    },
+    {
+      "id": "I-S6",
+      "requirement": "滚轮按修饰键改绑（如 ⌥ 加滚轮切换书），鼠标与触控板分别生效；未改时行为和改动前一致。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实鼠标与触控板滚动",
+      "automation_runs": [
+        "input-viewer-foreground-complete"
+      ],
+      "status": "partial",
+      "attempted_action": "设置Alt滚轮上/下为上/下本书；尝试修饰键保持与滚轮，读取当前事件投递权限。",
+      "observed": "绑定写入并可见；工具press option拒绝无效chord，option+a保持+滚轮未触发切书；普通滚轮可翻图片。CGPreflightPostEventAccess=false。",
+      "remaining_real_actions": "实际带Alt的鼠标滚轮、独立触控板配置与默认对照。",
+      "reason": "Peekaboo scroll无修饰键参数；系统不允许当前进程直接投递该CG事件，未请求授权/改系统；实体触控板未接入。",
+      "evidence": [
+        "live/i-wheel-bindings-final.png",
+        "live/i-option-wheel-result.png",
+        "live/i-optiona-wheel-result.png",
+        "live/input-post-permission.json",
+        "live/i-pointer-restored-defaults.png"
+      ]
+    },
+    {
+      "id": "I-S7",
+      "requirement": "触控板左右轻扫绑到翻页后生效；捏合缩放照旧。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实触控板与系统设置",
+      "automation_runs": [
+        "input-viewer-foreground-complete"
+      ],
+      "status": "manual",
+      "attempted_action": "运行viewer自动手势检查，未伪造实体触控板输入。",
+      "observed": "自动路径可用，真实多指轻扫/捏合没有可观测的实体动作。",
+      "remaining_real_actions": "真实轻扫、捏合和系统页面轻扫设置环境。",
+      "reason": "当前仅有系统投递的鼠标/键盘工具，没有实体多指触控板输入；不改系统设置。",
+      "evidence": []
+    },
+    {
+      "id": "I-S8",
+      "requirement": "保存两个布局方案，用命令或快捷键在两者间切换，停靠面板随之变化；重启后方案仍在。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实命令/键盘、布局恢复",
+      "automation_runs": [
+        "input-viewer-foreground-complete",
+        "appearance-settings-zh-no-forced-theme"
+      ],
+      "status": "passed",
+      "attempted_action": "实际保存G4阅读/G4整理，窗口菜单分别套用；后续退出重启读取两方案。",
+      "observed": "阅读右侧效果面板显示，整理右侧隐藏；重启外观列表仍有两方案及对应摘要。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/a-layout-reading-apply-real-observed.png",
+        "live/a-layout-sort-apply-real-observed.png",
+        "live/i-layout-restart-schemes.png",
+        "live/persisted-final-layout-schemes.json"
+      ]
+    },
+    {
+      "id": "I-S9",
+      "requirement": "手工改坏 `menus.json` 或 `keybindings.json`，App 保留上一份并提示错误与“打开文件”入口；改回后自动重载。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实外部文件编辑",
+      "automation_runs": [
+        "input-viewer-foreground-complete",
+        "input-settings"
+      ],
+      "status": "passed",
+      "attempted_action": "分别破坏/修复本次menus.json和keybindings.json。",
+      "observed": "两者均保留有效配置，出现文件名错误提示与打开文件入口；恢复后自动消失。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/i-menus-corrupt-observed.png",
+        "live/i-menus-repaired-observed.png",
+        "live/i-keybindings-corrupt-observed.png",
+        "live/i-keybindings-repaired-observed.png"
+      ]
+    },
+    {
+      "id": "A-S1",
+      "requirement": "MacPro，设置 › 外观 › 外观选「深色」（系统为浅色）：所有阅读窗口、浮动面板和设置窗口立即变深色；退出重开仍是深色；选回「跟随系统」随系统。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实主题环境、设置交互、重启",
+      "automation_runs": [
+        "appearance-chrome-no-forced-theme"
+      ],
+      "status": "passed",
+      "attempted_action": "浅色系统下选深色再跟随系统，观察Reader/Settings/浮动页表；退出重启检查。",
+      "observed": "两阅读窗、设置、浮动页表/颜色面板可见深色；跟随系统回浅色；重启后Reader与设置仍深色，设置选项明确深色。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/a-theme-dark-reader.png",
+        "live/a-theme-dark-settings.png",
+        "live/a-theme-system-reader.png",
+        "live/a-theme-system-settings.png",
+        "live/a-floating-dark-4159.png",
+        "live/a-floating-dark-4017.png",
+        "live/original-config-normal-restart-reader.png",
+        "live/original-persist-visible-tab-3-observed.png"
+      ]
+    },
+    {
+      "id": "A-S2",
+      "requirement": "强调色改「跟随系统强调色」：瀑布流选中环、停靠放置指示、搜索高亮改用系统强调色。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "改系统强调色/实际画面",
+      "automation_runs": [
+        "appearance-chrome-no-forced-theme"
+      ],
+      "status": "partial",
+      "attempted_action": "改跟随系统强调色、观察选中环；以book查询本次合成book-A/B并失焦观察；实际拖动效果Dock标题到左侧并录主窗动态帧。",
+      "observed": "系统蓝色选中环已有截图；实际搜索把书架过滤为book-A/B，未看到结果文字出现蓝色强调。Dock拖动与动态采样已完成，录片中没有可辨的放置指示，不能判其颜色。",
+      "remaining_real_actions": "搜索结果强调高亮和Dock放置指示使用系统色的可见确认。",
+      "reason": "这两处已实际尝试：书名过滤可用但没有看到高亮；目标窗口动态捕获未得到可辨的独立拖放浮层。保留当前现象，不外推为通过或直接判产品bug。",
+      "evidence": [
+        "live/a-accent-system-reader.png",
+        "live/a-accent-system-settings.png",
+        "live/a-floating-dark-4159.png",
+        "live/a-final-search-highlight.png",
+        "live/a2-search-result-highlight-visible.png",
+        "live/a2-dock-placement-capture/action.json",
+        "live/a2-dock-placement-capture/metadata.json",
+        "live/a2-dock-placement-capture/contact.png",
+        "live/a2-dock-drag-final-state.png"
+      ]
+    },
+    {
+      "id": "A-S3",
+      "requirement": "字体「面板与列表」选一款已装字体、字号调大：书架、页面列表、历史的行文字立即变；「信息叠加层」改后 HUD 页码与状态栏变；「菜单」改后右键菜单、主菜单「视图」下拉条目、书架排序下拉变，菜单栏顶层标题不变；各组「恢复默认」回到系统字体。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "实际 UI 控件/菜单",
+      "automation_runs": [
+        "appearance-fonts",
+        "appearance-settings-zh-no-forced-theme"
+      ],
+      "status": "partial",
+      "attempted_action": "三组字体实际选Menlo并增大字号，逐项打开历史、书架、页表、右键菜单、主显示菜单、书架排序下拉；录制一次翻页动态帧尝试捕获HUD，随后恢复所有字体组默认。",
+      "observed": "书架/页表/历史/状态栏可见字体变化；原生右键、显示、排序菜单分别捕到本App菜单窗口并实看，条目字体变化。有效干净实例同时显示Menlo书架和页表。三组恢复系统字体。翻页录片仅见状态栏页码变化，未捕到单独HUD/页码胶囊。",
+      "remaining_real_actions": "单独HUD/页码胶囊的字体变化，以及菜单栏顶层标题字体的像素对照。",
+      "reason": "已在默认阅读路径实际翻页并预先启动动态捕获，片中未出现可辨独立HUD；所捕原生菜单为下拉窗口，未把它当作系统菜单栏顶层标题的像素对照。",
+      "evidence": [
+        "live/a-font-panels-changed.png",
+        "live/a-font-panels-reader.png",
+        "live/a-font-overlays-changed.png",
+        "live/a-font-overlays-reader.png",
+        "live/a-font-menus-changed.png",
+        "live/a-font-menus-reader.png",
+        "live/a-font-reset-0.png",
+        "live/a-font-reset-1.png",
+        "live/a-font-reset-2.png",
+        "live/a3-history-font-live.png",
+        "live/a3-context-menu-4793.png",
+        "live/a3-view-menu-4796.png",
+        "live/a3-sort-menu-4801.png",
+        "live/a3-default-group-observed-2.png",
+        "live/font-middle-final-valid-single-page-before.png",
+        "live/font-middle-final-valid-double-page-result.png",
+        "live/font-middle-final-valid-hud-capture/metadata.json",
+        "live/font-middle-final-valid-hud-capture/contact.png",
+        "live/font-middle-final-valid-all-defaults-restored.png"
+      ]
+    },
+    {
+      "id": "A-S4",
+      "requirement": "标题栏选「自动隐藏」：工具栏与标题栏收起，画面占满；指针移到顶端浮出，能拖窗口、点工具栏按钮；有两个标签时标签仍可切换；切回「显示」窗口位置和尺寸不变。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实鼠标、窗口与标签事件",
+      "automation_runs": [
+        "appearance-chrome-no-forced-theme"
+      ],
+      "status": "passed",
+      "attempted_action": "选自动隐藏，移开/移到顶部并拖动露出的标题栏，切回显示并读取公开窗口几何。 补验自动隐藏时实际切alpha/longvideo两个标签，并点击浮出的左Dock按钮隐藏/恢复面板。",
+      "observed": "标题栏收起/顶端浮出、浮出标题拖动29×19点位移均已实做；自动隐藏下切两个标签分别显示alpha/longvideo；浮出工具栏按钮实际隐藏左Dock后恢复。切回显示时窗口几何保持。恢复后的即时截图一度见按钮与红绿灯重叠，后续换书截图恢复正常，持续性未确认。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/a-final-autohide-hidden.png",
+        "live/a-final-autohide-top.png",
+        "live/a-final-autohide-geometry.json",
+        "live/a-final-shown-restored-geometry.json",
+        "live/a-original-show-geometry.json",
+        "live/original-persist-ready-reader.png",
+        "live/a4-tab1-actual-result.png",
+        "live/a4-tab2-actual-result.png",
+        "live/a4-toolbar-left-hidden.png",
+        "live/a4-show-actual-final.png",
+        "live/d3-global-new-A.png"
+      ]
+    },
+    {
+      "id": "A-S5",
+      "requirement": "标题栏「无边框」+ 置顶 + 不透明度 60%：窗口没有标题栏和红绿灯；点 Finder 后仍在最上层；能透过窗口看到桌面；⌘ 拖画面移动窗口，拖边缘改尺寸；用命令或「窗口」菜单切换置顶生效。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实 Finder、桌面、⌘拖动、窗口边缘事件",
+      "automation_runs": [
+        "appearance-chrome-no-forced-theme"
+      ],
+      "status": "partial",
+      "attempted_action": "选无边框，拖不透明度、置顶，Cmd拖画面、拖边缘；激活Finder并读取前台App和本App窗口层级；菜单切换置顶。",
+      "observed": "无标题栏/红绿灯，实际不透明度64%（未精确60%）；Finder真实前台时Reader仍layer3；边缘拖动从1200×884改1153×856。Cmd拖未观察到位移；菜单关置顶后设置开关为关。",
+      "remaining_real_actions": "精确60%、Cmd拖成功位移、真实桌面透视观感。",
+      "reason": "Cmd拖已投递但未见位移；精确60%未达到。已允许桌面区域捕获，但窗口态几何审计显示其它App窗口覆盖在目标背后，不隐藏用户窗口、不抓其内容，桌面透视观感没有合格对照。",
+      "evidence": [
+        "live/a-final-borderless-visible.png",
+        "live/a-final-opacity-settings.png",
+        "live/a-final-borderless-before.json",
+        "live/a-final-resize-window-metadata.json",
+        "live/a-final-finder-active-window-metadata.json",
+        "live/a-final-foreground-after-finder.json",
+        "live/a-final-return-settings-observed.png",
+        "live/a56-windowed-desktop-audit.json",
+        "live/a6-windowed-alllayers-audit.json",
+        "live/a6-desktop-strip-scope.json"
+      ]
+    },
+    {
+      "id": "A-S6",
+      "requirement": "效果面板背景选「毛玻璃」：图片周围透出模糊的桌面；选「按图取色」：翻到白底页背景变近白，翻到深色照片背景变深；存进显示配置后套用到另一本书仍是这个背景。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实桌面、图片、翻页和保存/套用",
+      "automation_runs": [
+        "appearance-background"
+      ],
+      "status": "partial",
+      "attempted_action": "实际选毛玻璃/按图取色并在白底/深色本机图切页；将当前边缘背景更新到G4效果，另一书Ctrl+1套用。 另实际毛玻璃进入/退出全屏，对当前Space作窗口位置审计后捕获仅本App/背景区域。",
+      "observed": "近白/深色背景随页改变；另一书套用后按图取色项选中且状态提示包含效果/背景。实际毛玻璃项已选中。 全屏Space无其它普通窗口，实际区域截图只有均匀深色背景，没有可对照桌面纹理；全屏正常退出。",
+      "remaining_real_actions": "毛玻璃透出模糊桌面的审美/纹理确认。",
+      "reason": "已实做全屏并安全截取区域，并非以隐私限制跳过。该Space仅见均匀深色，缺桌面纹理对照；窗口态背后被其它App覆盖，未隐藏或抓取其内容。",
+      "evidence": [
+        "live/a-blur-real-observed.png",
+        "live/a-edge-real-white.png",
+        "live/a-edge-real-dark.png",
+        "live/a-profile-edge-saved.png",
+        "live/a-profile-edge-applied-white.png",
+        "live/a-profile-edge-applied-dark.png",
+        "live/persisted-final-profiles.json",
+        "live/a6-windowed-blur-actual.png",
+        "live/a6-fullscreen-window-actual.png",
+        "live/a56-fullscreen-desktop-audit.json",
+        "live/a6-fullscreen-desktop-region.png",
+        "live/a6-desktop-capture-result.json",
+        "live/a6-fullscreen-restored-reader.png"
+      ]
+    },
+    {
+      "id": "A-S7",
+      "requirement": "外观页布局方案节「保存当前布局…」存「阅读」，改动停靠区后再存「整理」；在列表里改名、「用当前布局覆盖」、删除（要确认）；从「窗口 › 布局方案」套用后停靠区随之变化；「管理布局方案…」打开到这一节。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实 Dock 拖放、菜单和确认操作",
+      "automation_runs": [
+        "appearance-settings-zh-no-forced-theme",
+        "appearance-settings-en-no-forced-theme"
+      ],
+      "status": "passed",
+      "attempted_action": "实际保存阅读/整理，临时第三项改名、当前布局覆盖、删除并确认；菜单套用；从快捷键页点管理布局方案。",
+      "observed": "两主方案Dock差异可见；第三项改名/覆盖摘要变化，确认删除后消失；管理入口跳到外观方案节。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/a-layout-reading-real-saved.png",
+        "live/a-layout-sort-real-saved.png",
+        "live/a-layout-renamed-real.png",
+        "live/a-layout-new-content-before-overwrite.png",
+        "live/a-layout-overwrite-outcome.png",
+        "live/a-layout-delete-confirm-dialog.png",
+        "live/a-layout-temp-deleted.png",
+        "live/a-manage-layout-jump-confirmed.png"
+      ]
+    },
+    {
+      "id": "A-S8",
+      "requirement": "英文界面、浅色与深色下外观页和新菜单项不截断（留关口 G4 走查）。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "实际英文界面/窗口宽度",
+      "automation_runs": [
+        "appearance-settings-c310-foreground",
+        "appearance-settings-c310-dark-foreground",
+        "settings-en-light",
+        "settings-en-dark"
+      ],
+      "status": "passed",
+      "attempted_action": "中英浅深外观页/输入页真实走查后，另在英文浅深分别实际展开View、Window、Layout Schemes、查看器右键菜单；以本App原生菜单CG窗口逐个截图，并点击管理布局入口。",
+      "observed": "外观页和全部所展开的新菜单文字完整，未见截断；两种App主题下均有完整菜单截图。英文Pointer左右命令和Window的“保存为布局方案…”仍为中文，记录本地化现象。管理菜单实际跳到Appearance方案节。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/english-light-valid-tab-3-observed.png",
+        "live/english-dark-valid-tab-3-observed.png",
+        "live/english-light-valid-tab-1-observed.png",
+        "live/english-dark-valid-tab-1-observed.png",
+        "live/english-menus-light-View-menu-4910.png",
+        "live/english-menus-light-Window-menu-4913.png",
+        "live/english-menus-light-layouts-menu-4918.png",
+        "live/english-menus-light-context-menu-4923.png",
+        "live/english-menus-light-manage-appearance-visible.png",
+        "live/english-menus-dark-View-menu-4943.png",
+        "live/english-menus-dark-Window-menu-4946.png",
+        "live/english-menus-dark-layouts-menu-4951.png",
+        "live/english-menus-dark-context-menu-4956.png",
+        "live/english-menus-dark-manage-appearance-visible.png"
+      ]
+    },
+    {
+      "id": "V-S1",
+      "requirement": "在 MacPro 上打开一个含视频的本机文件夹，页面列表切到网格，鼠标停在视频上左右移动；画面随位置换成不同的帧，底部进度线跟随，角标显示当前时间点；移出后恢复封面和总时长。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实鼠标悬停与移动",
+      "automation_runs": [
+        "video-gallery"
+      ],
+      "status": "passed",
+      "attempted_action": "本机合成30秒视频目录，页表网格实际悬停左/中/右并移出。",
+      "observed": "对应0:02/0:15/0:28、图帧和底部进度线随位置变化；移出回封面0:30。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/v-grid-hover-left-observed.png",
+        "live/v-grid-hover-middle-observed.png",
+        "live/v-grid-hover-right-observed.png",
+        "live/v-grid-leave-observed.png"
+      ]
+    },
+    {
+      "id": "V-S2",
+      "requirement": "再次悬停同一视频，以及退出重开 App 后悬停；各帧立即出现，不再逐步取。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实悬停、App 重启",
+      "automation_runs": [
+        "video-gallery"
+      ],
+      "status": "passed",
+      "attempted_action": "再次悬停；正常CmdQ退出，原独立cache/support/layout重启后首次悬停。",
+      "observed": "二次访问和重启后首轮均立即出现预览，重启截图显示0:14与对应帧，没有再观察到逐步获取过程。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/v-grid-second-hover-observed.png",
+        "live/v-normal-quit-result.json",
+        "live/v-cache-restarted-cover.png",
+        "live/v-cache-restarted-visible.png"
+      ]
+    },
+    {
+      "id": "V-S3",
+      "requirement": "打开 NAS 挂载（/Volumes/Picture 或 NFS）上含视频的目录，第一次悬停；先显示封面，帧逐步出现，界面不卡。快速划过一排视频时不排长队，停下的那个很快开始出帧。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实 NAS 文件、冷缓存和真实鼠标",
+      "automation_runs": [
+        "video-gallery"
+      ],
+      "status": "partial",
+      "attempted_action": "冻结Release空应用缓存只读打开真实NAS目录，实际滚到视频、录冷悬停、八点扫过、停留、滚主区图片和页表。",
+      "observed": "封面0:06→预览0:03；扫过停下视频出现0:01。主区第1→3页、页面网格响应，未见冻结。冷捕获采样2.72fps低于请求15，预览首帧在child开始后742–1114ms间出现（含工具派发开销），不能判定严格1秒。独立Release管线四样本首帧209.576–633.844ms、取20帧602.475–1397.625ms。",
+      "remaining_real_actions": "精确鼠标进入时刻后的1秒界限、GUI内部20帧全部取齐、真实快速扫过的排队/取消计数。",
+      "reason": "截图采样/工具派发开销不提供精确悬停边界；Release UI无队列/帧数计数，管线计时不替代悬停计时。",
+      "evidence": [
+        "live/nas-release-live-launch.json",
+        "live/nas-grid-video-range.png",
+        "live/nas-hover-mid-observed.png",
+        "live/nas-sweep-stopped-observed.png",
+        "live/nas-scroll-image-after-sweep.png",
+        "live/nas-grid-scroll-after-sweep.png",
+        "live/nas-cold-hover-capture/action.json",
+        "live/nas-cold-hover-capture/metadata.json"
+      ]
+    },
+    {
+      "id": "V-S4",
+      "requirement": "主区切到瀑布流、纵向连续条、横向连续条，悬停视频同样可用；页面列表切到列表样式时悬停不切帧。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实鼠标和各浏览布局",
+      "automation_runs": [
+        "video-gallery"
+      ],
+      "status": "passed",
+      "attempted_action": "实际切瀑布流/纵向连续/横向连续并悬停两位置，再页表列表样式悬停。",
+      "observed": "三布局均可见不同预览帧；列表样式保持封面。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/v-waterfall-hover-0-observed.png",
+        "live/v-waterfall-hover-1-observed.png",
+        "live/v-vertical-hover-0-observed.png",
+        "live/v-vertical-hover-1-observed.png",
+        "live/v-horizontal-hover-0-observed.png",
+        "live/v-horizontal-hover-1-observed.png",
+        "live/v-list-hover-excluded-observed.png"
+      ]
+    },
+    {
+      "id": "V-S5",
+      "requirement": "在画廊里悬停到视频中段后点击打开；查看器从该时间点开始播放。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实悬停与点击、播放素材",
+      "automation_runs": [
+        "video-gallery"
+      ],
+      "status": "passed",
+      "attempted_action": "网格悬停中段后实际点击。",
+      "observed": "主播放器起播位置0:15，匹配此前中段悬停。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/v-grid-mid-click-started.png"
+      ]
+    },
+    {
+      "id": "V-S6",
+      "requirement": "在查看器播放视频，鼠标停在进度条上左右移动；上方浮出对应时间点的帧和时间，移开后消失。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实鼠标与视频播放",
+      "automation_runs": [
+        "video-viewer"
+      ],
+      "status": "passed",
+      "attempted_action": "播放视频，进度条25%/75%位置悬停，再移开。",
+      "observed": "浮出对应帧/时间，移开浮层消失。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/v-progress-25pct-observed.png",
+        "live/v-progress-75pct-observed.png",
+        "live/v-progress-leave-observed.png"
+      ]
+    },
+    {
+      "id": "V-S7",
+      "requirement": "在设置里关掉开关；画廊和进度条悬停都不再出预览帧，打开后恢复。",
+      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "required_real_input": "真实设置交互与悬停",
+      "automation_runs": [
+        "video-settings",
+        "video-gallery",
+        "video-viewer"
+      ],
+      "status": "passed",
+      "attempted_action": "实际在浏览设置关/开视频悬停开关，再分别悬停网格和进度条。",
+      "observed": "关后两处均无预览；开后网格0:15及进度浮层0:05恢复。",
+      "remaining_real_actions": "",
+      "reason": "",
+      "evidence": [
+        "live/v-switch-off-settings.png",
+        "live/v-disabled-grid-observed.png",
+        "live/v-disabled-progress-observed.png",
+        "live/v-switch-on-settings.png",
+        "live/v-enabled-grid-observed.png",
+        "live/v-enabled-progress-observed.png"
+      ]
+    }
+  ],
+  "gate_bullets": [
+    {
+      "id": "G4-01",
+      "requirement": "roadmap:190：屏幕解锁、键鼠空闲后经 `open -n` 前台重跑 `-MVInputSelfTest viewer` 和 `-MVViewerSelfTest YES`；锁屏时左键点击区与拖动 4 项失败、后台抖动 5 项。",
+      "automation_runs": [
+        "input-viewer-foreground-complete",
+        "viewer-fixtures-corrected"
+      ],
+      "status": "failed_checks",
+      "observed": "完整前台Input viewer63/1(118/118)，Viewer83/1(338/338)；旧四项左键/拖动已通过。",
+      "remaining_or_reason": "窗口菜单旧expected缺新增3项；Viewer预载翻页21.544ms>8.333ms，均保留首次失败。当前捕获已成功，旧锁屏不再是原因。",
+      "evidence": [],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-02",
+      "requirement": ":191：真实触控板双指横扫（依赖系统“在页面间轻扫”）、轻点两下、旋转。",
+      "automation_runs": [],
+      "status": "manual",
+      "observed": "未伪造双指横扫/轻点两下/旋转。",
+      "remaining_or_reason": "无可实际操控的实体多指触控板；不改系统设置。",
+      "evidence": [],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-03",
+      "requirement": ":192：真实右键手势手感与轨迹、命令名浮层显示。",
+      "automation_runs": [
+        "input-viewer-foreground-complete"
+      ],
+      "status": "partial",
+      "observed": "→后第3页，←后回第2页；无拖动右键菜单正常。新增录制存在，定向执行未得到完整证明；目标窗口捕获未捕到单独轨迹/命令名浮层。",
+      "remaining_or_reason": "新增↓→绑定后执行；轨迹/命令名浮层；实体鼠标手感。；CLI只提供单段线性/弧线路径，定向折线路径未可靠执行；浮层可能为独立窗口，仅主窗截图不能证明其显示。",
+      "evidence": [
+        "live/i-final-gesture-before.png",
+        "live/i-final-gesture-next.png",
+        "live/i-final-gesture-previous.png",
+        "live/i-real-gesture-capture/metadata.json"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-04",
+      "requirement": ":193：浅色、深色与英文界面，走查三页设置、查看器菜单和工具栏。",
+      "automation_runs": [
+        "input-settings",
+        "input-settings-en-light",
+        "input-settings-zh-dark",
+        "input-settings-en-dark"
+      ],
+      "status": "completed_with_observations",
+      "observed": "中英浅深页签与外观已实际走查；英文浅深又实开View、Window、Layout Schemes、右键原生菜单并捕到本App菜单窗口，无所见截断。英文Pointer左右命令与Window保存方案项仍中文。",
+      "remaining_or_reason": "走查已完成，所见本地化现象保留给主控判定。",
+      "evidence": [
+        "live/chinese-light-valid-tab-0-observed.png",
+        "live/chinese-light-valid-tab-1-observed.png",
+        "live/chinese-light-valid-tab-2-observed.png",
+        "live/original-persist-visible-tab-0-observed.png",
+        "live/original-persist-visible-tab-1-observed.png",
+        "live/original-persist-visible-tab-2-observed.png",
+        "live/english-light-valid-tab-0-observed.png",
+        "live/english-light-valid-tab-1-observed.png",
+        "live/english-light-valid-tab-2-observed.png",
+        "live/english-dark-valid-tab-0-observed.png",
+        "live/english-dark-valid-tab-1-observed.png",
+        "live/english-dark-valid-tab-2-observed.png",
+        "live/english-light-valid-tab-3-observed.png",
+        "live/english-dark-valid-tab-3-observed.png",
+        "live/english-light-valid-tab-1-observed.png",
+        "live/english-dark-valid-tab-1-observed.png",
+        "live/english-menus-light-View-menu-4910.png",
+        "live/english-menus-light-Window-menu-4913.png",
+        "live/english-menus-light-layouts-menu-4918.png",
+        "live/english-menus-light-context-menu-4923.png",
+        "live/english-menus-light-manage-appearance-visible.png",
+        "live/english-menus-dark-View-menu-4943.png",
+        "live/english-menus-dark-Window-menu-4946.png",
+        "live/english-menus-dark-layouts-menu-4951.png",
+        "live/english-menus-dark-context-menu-4956.png",
+        "live/english-menus-dark-manage-appearance-visible.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-05",
+      "requirement": ":194：修 `App/Debug/SettingsSelfTest.swift` 的“只开一个窗口”断言，排除系统不可见 `TUINSWindow`。",
+      "automation_runs": [
+        "settings-foreground",
+        "settings-en-light",
+        "settings-zh-dark",
+        "settings-en-dark"
+      ],
+      "status": "known_unfixed",
+      "observed": "Settings四组合各30/1，失败仅原始NSApp.windows.count断言；当前源码62/66行仍未排除TUINSWindow。",
+      "remaining_or_reason": "本任务明确不改源码；自检基线仍待修，不以真实设置窗口可见代替修复。",
+      "evidence": [],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-06",
+      "requirement": ":197：自动隐藏标题栏顶端浮出、浮出后拖窗口、三态切换无闪动。",
+      "automation_runs": [
+        "appearance-chrome-no-forced-theme"
+      ],
+      "status": "partial",
+      "observed": "标题栏收起/顶端浮出、浮出标题拖动29×19点位移均已实做；自动隐藏下切两个标签分别显示alpha/longvideo；浮出工具栏按钮实际隐藏左Dock后恢复。切回显示时窗口几何保持。恢复后的即时截图一度见按钮与红绿灯重叠，后续换书截图恢复正常，持续性未确认。",
+      "remaining_or_reason": "所有行为入口已实做；三态连续无闪动仍缺高帧率视频，工具实际动态采样约2.7fps，不用静态图保证瞬时闪动不存在。",
+      "evidence": [
+        "live/a-final-autohide-hidden.png",
+        "live/a-final-autohide-top.png",
+        "live/a-final-autohide-geometry.json",
+        "live/a-final-shown-restored-geometry.json",
+        "live/a-original-show-geometry.json",
+        "live/original-persist-ready-reader.png",
+        "live/a4-tab1-actual-result.png",
+        "live/a4-tab2-actual-result.png",
+        "live/a4-toolbar-left-hidden.png",
+        "live/a4-show-actual-final.png",
+        "live/d3-global-new-A.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-07",
+      "requirement": ":198：无边框 ⌘拖动移动窗口、拖边缘改尺寸。",
+      "automation_runs": [
+        "appearance-chrome-no-forced-theme"
+      ],
+      "status": "partial",
+      "observed": "真实边缘拖动1200×884→1153×856；Cmd拖投递后未见位移。",
+      "remaining_or_reason": "Cmd拖实际移动未完成；无变化不直接断言产品bug。",
+      "evidence": [
+        "live/a-final-borderless-before.json",
+        "live/a-final-resize-window-metadata.json",
+        "live/a-final-borderless-moved.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-08",
+      "requirement": ":199：置顶后点 Finder 等其他 App 仍在最上层。",
+      "automation_runs": [
+        "appearance-chrome-no-forced-theme"
+      ],
+      "status": "passed",
+      "observed": "已用osascript实际激活Finder，系统返回前台Finder，本AppReader仍layer3且可见。",
+      "remaining_or_reason": "",
+      "evidence": [
+        "live/a-final-foreground-after-finder.json",
+        "live/a-final-finder-active-window-metadata.json",
+        "live/a-final-finder-active-reader.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-09",
+      "requirement": ":200：毛玻璃透出模糊桌面（含全屏）；深浅色与系统强调色桌面观感。",
+      "automation_runs": [
+        "appearance-background",
+        "appearance-chrome-no-forced-theme"
+      ],
+      "status": "partial",
+      "observed": "近白/深色背景随页改变；另一书套用后按图取色项选中且状态提示包含效果/背景。实际毛玻璃项已选中。 全屏Space无其它普通窗口，实际区域截图只有均匀深色背景，没有可对照桌面纹理；全屏正常退出。 深浅主题与系统强调色已实际切换。",
+      "remaining_or_reason": "已实做全屏并安全截取区域，并非以隐私限制跳过。该Space仅见均匀深色，缺桌面纹理对照；窗口态背后被其它App覆盖，未隐藏或抓取其内容。",
+      "evidence": [
+        "live/a-blur-real-observed.png",
+        "live/a-edge-real-white.png",
+        "live/a-edge-real-dark.png",
+        "live/a-profile-edge-saved.png",
+        "live/a-profile-edge-applied-white.png",
+        "live/a-profile-edge-applied-dark.png",
+        "live/persisted-final-profiles.json",
+        "live/a6-windowed-blur-actual.png",
+        "live/a6-fullscreen-window-actual.png",
+        "live/a56-fullscreen-desktop-audit.json",
+        "live/a6-fullscreen-desktop-region.png",
+        "live/a6-desktop-capture-result.json",
+        "live/a6-fullscreen-restored-reader.png",
+        "live/a-theme-dark-reader.png",
+        "live/a-theme-system-reader.png",
+        "live/a-accent-system-reader.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-10",
+      "requirement": ":201：浅色、深色与英文界面完整走查外观页、窗口/布局方案菜单。",
+      "automation_runs": [
+        "settings-foreground",
+        "settings-en-light",
+        "settings-zh-dark",
+        "settings-en-dark",
+        "appearance-settings-c310-foreground",
+        "appearance-settings-c310-dark-foreground"
+      ],
+      "status": "completed_with_observations",
+      "observed": "中英浅深页签与外观已实际走查；英文浅深又实开View、Window、Layout Schemes、右键原生菜单并捕到本App菜单窗口，无所见截断。英文Pointer左右命令与Window保存方案项仍中文。",
+      "remaining_or_reason": "走查已完成，所见本地化现象保留给主控判定。",
+      "evidence": [
+        "live/english-light-valid-tab-3-observed.png",
+        "live/english-dark-valid-tab-3-observed.png",
+        "live/chinese-light-valid-tab-3-observed.png",
+        "live/original-persist-visible-tab-3-observed.png",
+        "live/a-manage-layout-jump-confirmed.png",
+        "live/english-light-valid-tab-3-observed.png",
+        "live/english-dark-valid-tab-3-observed.png",
+        "live/english-light-valid-tab-1-observed.png",
+        "live/english-dark-valid-tab-1-observed.png",
+        "live/english-menus-light-View-menu-4910.png",
+        "live/english-menus-light-Window-menu-4913.png",
+        "live/english-menus-light-layouts-menu-4918.png",
+        "live/english-menus-light-context-menu-4923.png",
+        "live/english-menus-light-manage-appearance-visible.png",
+        "live/english-menus-dark-View-menu-4943.png",
+        "live/english-menus-dark-Window-menu-4946.png",
+        "live/english-menus-dark-layouts-menu-4951.png",
+        "live/english-menus-dark-context-menu-4956.png",
+        "live/english-menus-dark-manage-appearance-visible.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-11",
+      "requirement": ":202：已安装 Release 版按 ⌘, 打开设置并确认“外观”页；既有自动化未因辅助功能权限点开。",
+      "automation_runs": [],
+      "status": "passed",
+      "observed": "已安装Release15368c3295a23317f50837b17174cbc31238c29d的独立隔离实例，真实Cmd+,后设置出现，点击外观页可见。未覆盖安装。",
+      "remaining_or_reason": "",
+      "evidence": [
+        "live/installed-release-valid-launch.json",
+        "live/installed-release-valid-cmd-comma.json",
+        "live/installed-release-valid-tab-0-observed.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-12",
+      "requirement": ":205：真实鼠标走 S1、S5、S6、S7，以及主区瀑布流和两种连续条（S4）。",
+      "automation_runs": [
+        "video-gallery",
+        "video-viewer",
+        "video-settings"
+      ],
+      "status": "passed",
+      "observed": "本机真实V-S1/S4/S5/S6/S7均有鼠标移动/点击/设置动作及对应可见结果。",
+      "remaining_or_reason": "",
+      "evidence": [
+        "live/v-grid-hover-middle-observed.png",
+        "live/v-grid-mid-click-started.png",
+        "live/v-progress-75pct-observed.png",
+        "live/v-disabled-grid-observed.png",
+        "live/v-enabled-progress-observed.png",
+        "live/v-waterfall-hover-1-observed.png",
+        "live/v-vertical-hover-1-observed.png",
+        "live/v-horizontal-hover-1-observed.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-13",
+      "requirement": ":206：NAS Release 冷缓存悬停，1 秒内首帧、2 秒内取齐；快速划过取消回落，滚动加载图片无明显卡顿。",
+      "automation_runs": [],
+      "status": "partial",
+      "observed": "封面0:06→预览0:03；扫过停下视频出现0:01。主区第1→3页、页面网格响应，未见冻结。冷捕获采样2.72fps低于请求15，预览首帧在child开始后742–1114ms间出现（含工具派发开销），不能判定严格1秒。独立Release管线四样本首帧209.576–633.844ms、取20帧602.475–1397.625ms。",
+      "remaining_or_reason": "精确鼠标进入时刻后的1秒界限、GUI内部20帧全部取齐、真实快速扫过的排队/取消计数。；截图采样/工具派发开销不提供精确悬停边界；Release UI无队列/帧数计数，管线计时不替代悬停计时。",
+      "evidence": [
+        "live/nas-cold-hover-capture/action.json",
+        "live/nas-cold-hover-capture/metadata.json",
+        "live/nas-hover-mid-observed.png",
+        "live/nas-sweep-stopped-observed.png",
+        "live/nas-scroll-image-after-sweep.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-14",
+      "requirement": ":207：网络卷读取故障时停在封面且界面不冻结；故障代理挂载需要用户 sudo。",
+      "automation_runs": [],
+      "status": "manual",
+      "observed": "未创建故障代理挂载；另一NAS目录管线批次AVFoundation-11821/-12911 Cannot Decode，保留失败但不冒称网络故障注入。",
+      "remaining_or_reason": "故障代理需sudo，用户禁止修改网络/NAS/挂载；正常现有挂载不人为破坏。",
+      "evidence": [],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-15",
+      "requirement": ":208：真实触控板滚动时悬停不误触发；与 T1/F1 Animation Hitches 录制一并做。",
+      "automation_runs": [
+        "video-gallery"
+      ],
+      "status": "manual",
+      "observed": "鼠标滚轮/悬停已做，未伪造触控板滚动。",
+      "remaining_or_reason": "无实体触控板输入；未做触控板悬停互斥和Animation Hitches。",
+      "evidence": [],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-16",
+      "requirement": ":209：页面列表网格预览帧顶端与封面对齐、无白底；roadmap 标记待修。",
+      "automation_runs": [
+        "video-gallery"
+      ],
+      "status": "observed_issue",
+      "observed": "视频网格预览在单元格居中并有上/下空白，源封面与预览位置可对照；独立纯白背景未被证明。",
+      "remaining_or_reason": "保留当前对齐待办，不由resizeAspect/bg=nil推断独立白底缺陷；本轮不修。",
+      "evidence": [
+        "live/v-grid-cover.png",
+        "live/v-grid-hover-middle-observed.png",
+        "live/v-grid-leave-observed.png"
+      ],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    },
+    {
+      "id": "G4-17",
+      "requirement": "`docs/plans/roadmap.md:39`：S4-T1/F1 留下的真实触控板 Animation Hitches 录制。",
+      "automation_runs": [],
+      "status": "manual",
+      "observed": "未录真实触控板Animation Hitches。",
+      "remaining_or_reason": "无实体触控板动作；截图/合成鼠标不替代Hitches性能验收。",
+      "evidence": [],
+      "attempted_action": "逐项执行当前可用自检/真实事件；硬件、系统权限、实际工具未核验的子动作保留原因。"
+    }
+  ],
+  "nas": {
+    "privacy": "NAS截图仅ignored本地outputs，不入Git/公开报告；不写NAS，不改挂载/网络。",
+    "application_cache": "冷应用缓存；OS缓存未清",
+    "gui_first_frame_child_start_to_visible_upper_ms": 1114,
+    "gui_last_cover_child_start_ms": 742,
+    "gui_capture_effective_fps": 2.7177498882674485,
+    "gui_all20_frames_proven": false,
+    "pipeline_first_frame_ms_range": [
+      209.5755,
+      633.844458
+    ],
+    "pipeline_all20_ms_range": [
+      602.474917,
+      1397.625
+    ],
+    "pipeline_evidence": "nas-preview/ai-images.json",
+    "other_directory_decode_batch_failed": true
+  },
+  "installed_release_source_commit": "15368c3295a23317f50837b17174cbc31238c29d",
+  "raw_evidence": {
+    "local_only": true,
+    "directory": "outputs/",
+    "manifest": "outputs/ui/evidence-manifest.json",
+    "file_count": 3058,
+    "manifest_sha256": "5ad89e571aa5022b555302310045ce92d36481ae12e01068ec01acbc211eb9c4",
+    "contains_user_media": "NAS窗口录制仅留本地ignored outputs，未纳入Git"
+  },
+  "production_code_changed": false,
+  "cleanup": {
+    "completed_at": "2026-11-23T05:35:59.879779+00:00",
+    "checks": {
+      "run_removed": true,
+      "registration_removed": true,
+      "head_unchanged": true,
+      "other_worktree_registrations_unchanged": true,
+      "protected_build_items_unchanged": true,
+      "assets_match_before_and_initial": true,
+      "no_run_owned_processes": true,
+      "peekaboo_run_owned_pid_absent": true,
+      "root_status_only_assets_and_reports": true
+    },
+    "retained": "报告、摘要与本地ignored outputs；无本次构建/脚本/工作树/进程残留"
+  }
+}
