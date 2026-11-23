@@ -1,4 +1,10 @@
 import AppKit
+
+/// AppKit 文本响应链的撤销动作。
+@objc private protocol TextUndoActions {
+    func undo(_ sender: Any?)
+    func redo(_ sender: Any?)
+}
 import MVCommands
 
 /// 把菜单模型渲染成菜单栏，再加上系统菜单项（关于、服务、隐藏、编辑、窗口列表、退出）。
@@ -305,8 +311,8 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         let findItem = commandItem(.searchFocus)
         findItem.title = String(localized: "查找")
         let edit = menu(String(localized: "编辑"), [
-            item(String(localized: "撤销"), Selector(("undo:")), "z"),
-            item(String(localized: "重做"), Selector(("redo:")), "z", [.command, .shift]),
+            item(String(localized: "撤销"), #selector(TextUndoActions.undo(_:)), "z"),
+            item(String(localized: "重做"), #selector(TextUndoActions.redo(_:)), "z", [.command, .shift]),
             .separator(),
             item(String(localized: "剪切"), #selector(NSText.cut(_:)), "x"),
             item(String(localized: "拷贝"), #selector(NSText.copy(_:)), "c"),
