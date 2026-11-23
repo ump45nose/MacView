@@ -73,6 +73,7 @@ final class EffectsSelfTest {
                 tint: -0.25
             )
 
+            await checkTransparentPixels(controller, window: window, adjust: sampleAdjust)
             await checkBrowseModesAndPanels(controller, adjust: sampleAdjust)
             await checkVideoEffects(controller, adjust: sampleAdjust)
             await checkPagedHierarchy(controller, window: window)
@@ -504,6 +505,51 @@ final class EffectsSelfTest {
         )
         paged.resetTransform()
         await settle()
+    }
+
+    /// 读取实际窗口像素：透明图片内部的角落应显示所选背景，开关效果均需成立。
+    private func checkTransparentPixels(_ controller: ReaderWindowController, window: NSWindow, adjust: ColorAdjust) async {
+        controller.session.update {
+            $0.browseMode = .paged
+            $0.pageMode = .single
+            $0.background = .custom(red: 0.2, green: 0.4, blue: 0.6)
+            $0.effects = EffectChain(effects: [.colorAdjust(adjust)])
+        }
+        controller.session.go(.index(1))
+        await settle()
+        for enabled in [true, false] {
+            if controller.effectsEnabled != enabled { controller.run(.effectsToggle) }
+            await settle()
+            guard let slot = controller.viewer.paged.slots.first, slot.hasImage,
+                  let image = captureWindowWithGPUFilters(window, name: "transparent-\(enabled)")
+                    ?? log.snapshot(window, "transparent-\(enabled)-view", captureImage: true),
+                  let bitmap = NSBitmapImageRep(cgImage: image) as NSBitmapImageRep? else {
+                log.check(false, "透明区窗口像素读取失败（效果 \(enabled)）")
+                continue
+            }
+            let rect = slot.root.frame
+            let point = controller.viewer.paged.contentContainer.convert(
+                NSPoint(x: rect.minX + rect.width * 0.1, y: rect.minY + rect.height * 0.1), to: nil)
+            let scaleX = Double(image.width) / window.frame.width
+            let scaleY = Double(image.height) / window.frame.height
+            func pixel(_ point: NSPoint) -> NSColor? {
+                let x = Int(point.x * scaleX)
+                let y = image.height - 1 - Int(point.y * scaleY)
+                guard x >= 0, y >= 0, x < image.width, y < image.height else { return nil }
+                return bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB)
+            }
+            let backgroundPoint = controller.viewer.convert(NSPoint(x: controller.viewer.bounds.minX + 10, y: controller.viewer.bounds.minY + 10), to: nil)
+            let color = pixel(point)
+            let background = pixel(backgroundPoint)
+            let matches: Bool
+            if let color, let background {
+                matches = abs(color.redComponent - background.redComponent) < 0.03
+                    && abs(color.greenComponent - background.greenComponent) < 0.03
+                    && abs(color.blueComponent - background.blueComponent) < 0.03
+            } else { matches = false }
+            log.check(matches, "透明区显示自定义背景（效果 \(enabled)，图内 \(String(describing: color))，图外 \(String(describing: background))）")
+        }
+        if !controller.effectsEnabled { controller.run(.effectsToggle) }
     }
 
     // MARK: C2.4 六种背景

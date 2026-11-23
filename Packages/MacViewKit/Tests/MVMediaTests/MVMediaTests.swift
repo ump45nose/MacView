@@ -356,6 +356,23 @@ func renditionsRoundTrip(_ encoding: RenditionEncoding) async throws {
     #expect(maxBlockDifference(decoded.image, source.image, grid: 8) < 8)
 }
 
+@Test func transparentRenditionRoundTripPreservesAlpha() async throws {
+    let context = try #require(CGContext(data: nil, width: 8, height: 8, bitsPerComponent: 8, bytesPerRow: 0,
+                                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    context.clear(CGRect(x: 0, y: 0, width: 8, height: 8))
+    context.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 0.5))
+    context.fill(CGRect(x: 0, y: 0, width: 4, height: 8))
+    let original = try #require(context.makeImage())
+    let decoded = try await ImageDecoder().image(pngData(original), target: DisplayTarget(pixelSize: PixelSize(width: 8, height: 8)))
+    #expect(RenditionEncoding.forRendition(decoded.image) == .png)
+    let encoded = try RenditionEncoding.forRendition(decoded.image).encode(decoded.image)
+    let roundTrip = try await ImageDecoder().image(encoded, target: DisplayTarget(pixelSize: PixelSize(width: 8, height: 8)))
+    #expect(rgba(roundTrip.image).map(\.alpha) == rgba(decoded.image).map(\.alpha))
+    #expect(rgba(roundTrip.image).contains { $0.alpha == 0 })
+    #expect(rgba(roundTrip.image).contains { $0.alpha > 0 && $0.alpha < 255 })
+}
+
 // MARK: 辅助
 
 private func imageFixtures() -> [Fixture] {

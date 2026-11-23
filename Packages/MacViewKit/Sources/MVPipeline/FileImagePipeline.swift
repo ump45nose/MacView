@@ -160,7 +160,7 @@ public final class FileImagePipeline: ImagePipeline {
         try retryDerivatives(identity, target: nil, context: context)
         let key = identity.cacheKey + "|thumb|\(maxPixel)"
         return try await render(key, context: context, thumbnail: true) { [self] context in
-            if let data = try await diskData(caches.thumbnails, for: identity.cacheKey) {
+            if let data = try await diskData(caches.thumbnails, for: Self.renditionKey(identity)) {
                 let size = try self.probe(data).pixelSize.fitting(longSide: maxPixel)
                 let image = try await decode(data, target: DisplayTarget(pixelSize: size))
                 try remember(image, for: key, priority: context.priority, thumbnail: true)
@@ -194,7 +194,7 @@ public final class FileImagePipeline: ImagePipeline {
                         let disk: [String: Data]
                         do {
                             disk = try await lifetime.value { [self] in
-                                try await caches.thumbnails.data(for: identities.filter { memory[$0.cacheKey] == nil }.map(\.cacheKey))
+                                try await caches.thumbnails.data(for: identities.filter { memory[$0.cacheKey] == nil }.map(Self.renditionKey))
                             }
                         } catch {
                             try lifetime.checkRunning()
@@ -210,7 +210,7 @@ public final class FileImagePipeline: ImagePipeline {
                                         let image: RenderedImage
                                         let key = identity.cacheKey + "|thumb|\(maxPixel)"
                                         if let cached = memory[identity.cacheKey] { image = cached }
-                                        else if let data = disk[identity.cacheKey] {
+                                        else if let data = disk[Self.renditionKey(identity)] {
                                             image = try await self.render(key, context: RequestContext(priority), thumbnail: true) { _ in
                                                 let size = try self.probe(data).pixelSize.fitting(longSide: maxPixel)
                                                 let image = try await self.decode(data, target: DisplayTarget(pixelSize: size))
@@ -259,7 +259,7 @@ public final class FileImagePipeline: ImagePipeline {
                         }
                         var delivered: RenditionQuality?
                         // 优先检查高质量阶段，有浏览图时不再放大缩略图。
-                        let browseData = try await diskData(caches.browse, for: identity.cacheKey)
+                        let browseData = try await diskData(caches.browse, for: Self.renditionKey(identity))
                         if let browseData {
                             let size = try self.probe(browseData).pixelSize
                             if Self.contains(size, target.pixelSize) {
@@ -274,7 +274,7 @@ public final class FileImagePipeline: ImagePipeline {
                             }
                             continuation.yield(try await decode(browseData, target: target, quality: .browse))
                             delivered = .browse
-                        } else if let thumbnail = try await diskData(caches.thumbnails, for: identity.cacheKey) {
+                        } else if let thumbnail = try await diskData(caches.thumbnails, for: Self.renditionKey(identity)) {
                             let size = try self.probe(thumbnail).pixelSize
                             if Self.contains(size, target.pixelSize) {
                                 let exact = try await render(exactKey, context: context) { [self] context in
@@ -289,7 +289,7 @@ public final class FileImagePipeline: ImagePipeline {
                             continuation.yield(try await decode(thumbnail, target: target, quality: .placeholder))
                             delivered = .placeholder
                             // L3 可以在缩略图显示期间由另一个消费者生成。
-                            if let browse = try await diskData(caches.browse, for: identity.cacheKey) {
+                            if let browse = try await diskData(caches.browse, for: Self.renditionKey(identity)) {
                                 continuation.yield(try await decode(browse, target: target, quality: .browse))
                                 delivered = .browse
                             }
@@ -298,7 +298,7 @@ public final class FileImagePipeline: ImagePipeline {
                         let loaded = try await bundle(identity, target: target, context: context)
                         if delivered == .placeholder, let browseCache = caches.browse {
                             try await loaded.derivatives?.value
-                            if let browse = try await diskData(browseCache, for: loaded.identity.cacheKey) {
+                            if let browse = try await diskData(browseCache, for: Self.renditionKey(loaded.identity)) {
                                 continuation.yield(try await decode(browse, target: target, quality: .browse))
                             }
                         }
@@ -346,7 +346,7 @@ public final class FileImagePipeline: ImagePipeline {
     public func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage {
         let key = identity.cacheKey + "|video|\(maxPixel)"
         return try await render(key, context: RequestContext(priority), thumbnail: true) { [self] _ in
-            if let data = try await diskData(caches.thumbnails, for: identity.cacheKey) {
+            if let data = try await diskData(caches.thumbnails, for: Self.renditionKey(identity)) {
                 let size = try self.probe(data).pixelSize.fitting(longSide: maxPixel)
                 let image = try await decode(data, target: DisplayTarget(pixelSize: size))
                 try remember(image, for: key, priority: priority, thumbnail: true)
@@ -355,7 +355,7 @@ public final class FileImagePipeline: ImagePipeline {
             return try await withVideo(identity, priority: priority) { asset, actual in
                 let image = try await self.decoder.videoPoster(asset, maxPixel: max(self.configuration.thumbnailLongSide, maxPixel))
                 let data = try await self.encode(image, priority: priority)
-                try await self.store(data, in: self.caches.thumbnails, for: actual.cacheKey)
+                try await self.store(data, in: self.caches.thumbnails, for: Self.renditionKey(actual))
                 let result = try await self.resize(image, target: DisplayTarget(pixelSize: PixelSize(width: image.image.width, height: image.image.height).fitting(longSide: maxPixel)), quality: .exact, priority: priority)
                 try self.remember(result, for: actual.cacheKey + "|video|\(maxPixel)", priority: priority, thumbnail: true)
                 return result
@@ -491,13 +491,13 @@ public final class FileImagePipeline: ImagePipeline {
                         let thumbnailTarget = DisplayTarget(pixelSize: size.fitting(longSide: self.configuration.thumbnailLongSide))
                         let thumbnail = try await self.resize(base, target: thumbnailTarget, quality: .exact, priority: work.priority)
                         let data = try await self.encode(thumbnail, priority: work.priority)
-                        try await self.store(data, in: self.caches.thumbnails, for: loaded.identity.cacheKey)
+                        try await self.store(data, in: self.caches.thumbnails, for: Self.renditionKey(loaded.identity))
                     }
                     if let browse = caches.browse {
                         group.addTask {
                             let image = try await self.resize(base, target: DisplayTarget(pixelSize: size.fitting(within: self.configuration.browseBounds).fitting(within: decodeSize)), quality: .browse, priority: work.priority)
                             let data = try await self.encode(image, priority: work.priority)
-                            try await self.store(data, in: browse, for: loaded.identity.cacheKey)
+                            try await self.store(data, in: browse, for: Self.renditionKey(loaded.identity))
                         }
                     }
                     try await group.waitForAll()
@@ -641,7 +641,7 @@ public final class FileImagePipeline: ImagePipeline {
             switch rendition {
             case .metadata: _ = try await metadata(item.identity, context: context)
             case .thumbnail:
-                if try await lifetime.value(operation: { [self] in try await caches.thumbnails.contains(item.identity.cacheKey) }) {
+                if try await lifetime.value(operation: { [self] in try await caches.thumbnails.contains(Self.renditionKey(item.identity)) }) {
                     if context.priority >= .near {
                         _ = try await thumbnail(item.identity, maxPixel: configuration.thumbnailLongSide, context: context)
                     }
@@ -728,9 +728,11 @@ public final class FileImagePipeline: ImagePipeline {
     private func store(_ data: Data, in cache: DiskCache, for key: String) async throws {
         try await lifetime.value { try await cache.store(data, for: key) }
     }
+    private static func renditionKey(_ identity: ContentIdentity) -> String { identity.cacheKey + "|rendition-v2" }
+
     private func encode(_ image: RenderedImage, priority: IOPriority) async throws -> Data {
         try await lifetime.value(priority: priority.taskPriority) { [decoder] in
-            try await decoder.perform { try RenditionEncoding.default.encode(image.image) }
+            try await decoder.perform { try RenditionEncoding.forRendition(image.image).encode(image.image) }
         }
     }
     private func resize(_ image: RenderedImage, target: DisplayTarget, quality: RenditionQuality, priority: IOPriority) async throws -> RenderedImage {

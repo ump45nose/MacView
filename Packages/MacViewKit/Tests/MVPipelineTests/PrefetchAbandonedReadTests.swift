@@ -41,8 +41,8 @@ import Testing
     try await Task.sleep(for: .milliseconds(500))
     registry.release()
     try await waitForCondition { pipeline.prefetchInFlightCount(session: session) == 0 }
-    #expect(try await caches.thumbnails.contains(identity.cacheKey), "预取已归零，L2 没有写入")
-    #expect(try await caches.browse?.contains(identity.cacheKey) == true, "预取已归零，L3 没有写入")
+    #expect(try await caches.thumbnails.contains(identity.cacheKey + "|rendition-v2"), "预取已归零，L2 没有写入")
+    #expect(try await caches.browse?.contains(identity.cacheKey + "|rendition-v2") == true, "预取已归零，L3 没有写入")
     pipeline.cancelAll(session: session)
     await pipeline.shutdown()
 }

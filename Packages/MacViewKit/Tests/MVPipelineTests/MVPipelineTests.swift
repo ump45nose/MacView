@@ -10,6 +10,51 @@ import Synchronization
 import Testing
 @testable import MVPipeline
 
+@Test func transparentRenditionsSurviveMemoryAndDisk() async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let url = environment.root.appendingPathComponent("transparent.png")
+    let context = try #require(CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0,
+                                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    context.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: 32, height: 64))
+    let source = try #require(context.makeImage())
+    let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil))
+    CGImageDestinationAddImage(destination, source, nil)
+    #expect(CGImageDestinationFinalize(destination))
+    let location = try await environment.registry.location(for: url)
+    let identity = try await environment.registry.base.provider(for: location).entry(at: location).identity
+    // 旧版本无透明度的 JPEG 不能被复用。
+    try await environment.caches.thumbnails.store(RenditionEncoding.jpeg.encode(source), for: identity.cacheKey)
+    func alpha(_ image: CGImage) -> [UInt8] {
+        var pixels = [UInt8](repeating: 0, count: 64 * 64 * 4)
+        pixels.withUnsafeMutableBytes { bytes in
+            let output = CGContext(data: bytes.baseAddress, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 256,
+                                   space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            output.draw(image, in: CGRect(x: 0, y: 0, width: 64, height: 64))
+        }
+        return stride(from: 3, to: pixels.count, by: 4).map { pixels[$0] }
+    }
+    let first = try await environment.pipeline.thumbnail(for: identity, maxPixel: 64, priority: .visible)
+    #expect(alpha(first.image).contains(0))
+    let memory = try await environment.pipeline.thumbnail(for: identity, maxPixel: 64, priority: .visible)
+    #expect(alpha(memory.image) == alpha(first.image))
+    try await eventually { try await environment.caches.thumbnails.contains(identity.cacheKey + "|rendition-v2") }
+    try await eventually { try await environment.caches.browse?.contains(identity.cacheKey + "|rendition-v2") == true }
+    await environment.pipeline.shutdown()
+    let reopened = FileImagePipeline(sources: environment.registry, decoder: ImageDecoder(), caches: PipelineCaches(
+        raw: MemoryCache(budget: 64 << 20), decoded: MemoryCache(budget: 64 << 20),
+        thumbnails: environment.caches.thumbnails, browse: environment.caches.browse, metadata: environment.caches.metadata,
+        thumbnailMemory: MemoryCache(budget: 64 << 20), preload: MemoryCache(budget: 64 << 20)),
+        configuration: PipelineConfiguration(browseBounds: PixelSize(width: 320, height: 480)))
+    let disk = try await reopened.thumbnail(for: identity, maxPixel: 64, priority: .visible)
+    #expect(alpha(disk.image) == alpha(first.image))
+    let displayed = try await collect(reopened.image(for: identity, target: DisplayTarget(pixelSize: PixelSize(width: 64, height: 64)), allowOriginal: false, priority: .visible))
+    #expect(alpha(try #require(displayed.last).image) == alpha(first.image))
+    await reopened.shutdown()
+}
+
 private struct DecodeLevelCase: Sendable {
     var landscape: Bool
     var target: PixelSize?
@@ -51,8 +96,8 @@ private func browseAndDisplayChooseDecodeLevelsIndependently(_ sample: DecodeLev
     let base = try #require(environment.caches.decoded.value(for: key))
     #expect(base.image.width == sample.base.width && base.image.height == sample.base.height)
     #expect(environment.pipeline.sourceDecodeCount == 1)
-    try await eventually { try await environment.caches.browse?.data(for: identity.cacheKey) != nil }
-    let data = try #require(try await environment.caches.browse?.data(for: identity.cacheKey))
+    try await eventually { try await environment.caches.browse?.data(for: identity.cacheKey + "|rendition-v2") != nil }
+    let data = try #require(try await environment.caches.browse?.data(for: identity.cacheKey + "|rendition-v2"))
     guard case let .metadata(metadata) = try MediaProbe.image(data, isComplete: true) else { Issue.record("浏览图应含尺寸"); return }
     #expect(metadata.pixelSize == sample.browse)
     #expect(metadata.pixelSize.width <= base.image.width && metadata.pixelSize.height <= base.image.height)
@@ -196,7 +241,7 @@ func cachedThumbnailPrefetchOnlyWarmsMemoryForForegroundPriorities(_ priority: I
     let environment = try PipelineEnvironment()
     defer { environment.clean() }
     let identity = try await environment.identity("image/size/3600x5400.jpg")
-    try await environment.caches.thumbnails.store(Data(contentsOf: Fixtures.url("image/size/64x64.png")), for: identity.cacheKey)
+    try await environment.caches.thumbnails.store(Data(contentsOf: Fixtures.url("image/size/64x64.png")), for: identity.cacheKey + "|rendition-v2")
     let session = SessionID()
     environment.pipeline.setPrefetchPlan(PrefetchPlan(items: [PrefetchItem(identity: identity, renditions: [.thumbnail], priority: priority)]), session: session)
     try await eventually { environment.pipeline.prefetchInFlightCount(session: session) == 0 }
@@ -250,7 +295,7 @@ func cachedThumbnailPrefetchOnlyWarmsMemoryForForegroundPriorities(_ priority: I
     let waiting = try #require(identities.indices.first { environment.caches.thumbnailMemory.value(for: identities[$0].cacheKey + "|thumb|128") == nil })
     let visible = try await environment.pipeline.thumbnail(for: identities[waiting], maxPixel: 128, priority: .visible)
     #expect(visible.image.height == 128)
-    #expect(try await environment.caches.thumbnails.data(for: identities[waiting].cacheKey) == nil)
+    #expect(try await environment.caches.thumbnails.data(for: identities[waiting].cacheKey + "|rendition-v2") == nil)
     #expect(environment.pipeline.memory.waitingTasks == 4)
     // 取消仍在额度前排队的请求，不必等慢衍生件完成。
     for task in tasks { task.cancel() }
@@ -262,7 +307,7 @@ func cachedThumbnailPrefetchOnlyWarmsMemoryForForegroundPriorities(_ priority: I
     try await eventually { environment.pipeline.memory.inFlightBytes == 0 }
     let decodes = environment.pipeline.sourceDecodeCount
     _ = try await environment.pipeline.thumbnail(for: identities[waiting], maxPixel: 128, priority: .visible)
-    try await eventually { try await environment.caches.thumbnails.data(for: identities[waiting].cacheKey) != nil }
+    try await eventually { try await environment.caches.thumbnails.data(for: identities[waiting].cacheKey + "|rendition-v2") != nil }
     #expect(environment.pipeline.sourceDecodeCount == decodes)
     await environment.pipeline.shutdown()
 }
@@ -295,14 +340,14 @@ func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: Ren
     }
     #expect(environment.pipeline.prefetchInFlightCount(session: session) == 1)
     #expect(environment.pipeline.memory.waitingTasks == 1)
-    #expect(try await environment.caches.thumbnails.contains(identity.cacheKey) == false)
-    #expect(try await environment.caches.browse?.contains(identity.cacheKey) == false)
+    #expect(try await environment.caches.thumbnails.contains(identity.cacheKey + "|rendition-v2") == false)
+    #expect(try await environment.caches.browse?.contains(identity.cacheKey + "|rendition-v2") == false)
     #expect(environment.pipeline.sourceDecodeCount == 1)
     environment.pipeline.inFlight.release(occupied)
     ownsReservation = false
     try await eventually { environment.pipeline.prefetchInFlightCount(session: session) == 0 }
-    #expect(try await environment.caches.thumbnails.data(for: identity.cacheKey) != nil)
-    #expect(try await environment.caches.browse?.data(for: identity.cacheKey) != nil)
+    #expect(try await environment.caches.thumbnails.data(for: identity.cacheKey + "|rendition-v2") != nil)
+    #expect(try await environment.caches.browse?.data(for: identity.cacheKey + "|rendition-v2") != nil)
     #expect(environment.pipeline.memory.inFlightBytes == 0)
     #expect(environment.pipeline.sourceDecodeCount == 1)
     await environment.pipeline.shutdown()
@@ -317,16 +362,16 @@ func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: Ren
     stale.modificationNanos -= 1
     _ = try await environment.pipeline.thumbnail(for: stale, maxPixel: 128, priority: .visible)
     try await eventually {
-        let thumbnail = try await environment.caches.thumbnails.data(for: actual.cacheKey)
-        let browse = try await environment.caches.browse?.data(for: actual.cacheKey)
+        let thumbnail = try await environment.caches.thumbnails.data(for: actual.cacheKey + "|rendition-v2")
+        let browse = try await environment.caches.browse?.data(for: actual.cacheKey + "|rendition-v2")
         return thumbnail != nil && browse != nil
     }
     #expect(environment.caches.raw.value(for: stale.cacheKey) == nil)
     #expect(environment.caches.raw.value(for: actual.cacheKey)?.count == Int(actual.size))
-    #expect(try await environment.caches.thumbnails.data(for: stale.cacheKey) == nil)
-    #expect(try await environment.caches.thumbnails.data(for: actual.cacheKey) != nil)
-    #expect(try await environment.caches.browse?.data(for: stale.cacheKey) == nil)
-    #expect(try await environment.caches.browse?.data(for: actual.cacheKey) != nil)
+    #expect(try await environment.caches.thumbnails.data(for: stale.cacheKey + "|rendition-v2") == nil)
+    #expect(try await environment.caches.thumbnails.data(for: actual.cacheKey + "|rendition-v2") != nil)
+    #expect(try await environment.caches.browse?.data(for: stale.cacheKey + "|rendition-v2") == nil)
+    #expect(try await environment.caches.browse?.data(for: actual.cacheKey + "|rendition-v2") != nil)
     let values = try await environment.caches.metadata.values(in: actual.location.parent!)
     #expect(values[stale.cacheKey] == nil)
     #expect(values[actual.cacheKey]?.pixelSize == PixelSize(width: 3600, height: 5400))
@@ -340,7 +385,7 @@ func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: Ren
     let identity = try await environment.identity("image/size/3600x5400.jpg")
     let source = try Data(contentsOf: Fixtures.url("image/size/3600x5400.jpg"))
     let low = try await ImageDecoder().image(source, target: DisplayTarget(pixelSize: PixelSize(width: 32, height: 48)))
-    try await environment.caches.thumbnails.store(RenditionEncoding.default.encode(low.image), for: identity.cacheKey)
+    try await environment.caches.thumbnails.store(RenditionEncoding.default.encode(low.image), for: identity.cacheKey + "|rendition-v2")
     let target = DisplayTarget(pixelSize: PixelSize(width: 800, height: 1200))
     let first = try await collect(environment.pipeline.image(for: identity, target: target, allowOriginal: false, priority: .visible))
     #expect(first.map(\.quality) == [.placeholder, .browse, .exact])
@@ -359,7 +404,7 @@ func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: Ren
     defer { environment.clean() }
     let identity = try await environment.identity("image/size/3600x5400.jpg")
     _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .visible)
-    try await eventually { try await environment.caches.thumbnails.data(for: identity.cacheKey) != nil }
+    try await eventually { try await environment.caches.thumbnails.data(for: identity.cacheKey + "|rendition-v2") != nil }
     environment.caches.raw.setBudget(0)
     environment.caches.decoded.setBudget(0)
     environment.registry.control.reset()
@@ -425,7 +470,7 @@ func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: Ren
     try await eventually { environment.registry.control.opens == 2 }
     environment.pipeline.setPrefetchPlan(PrefetchPlan(), session: session)
     #expect(environment.pipeline.sourceDecodeCount == 0)
-    #expect(try await environment.caches.thumbnails.data(for: identity.cacheKey) == nil)
+    #expect(try await environment.caches.thumbnails.data(for: identity.cacheKey + "|rendition-v2") == nil)
 }
 
 @Test func cancellingAPrefetchSessionDoesNotCancelOtherSessionsOrForeground() async throws {
@@ -488,7 +533,7 @@ func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: Ren
     defer { environment.clean() }
     let identity = try await environment.identity("image/size/3600x5400.jpg")
     _ = try await environment.pipeline.thumbnail(for: identity, maxPixel: 128, priority: .visible)
-    try await eventually { try await environment.caches.thumbnails.data(for: identity.cacheKey) != nil }
+    try await eventually { try await environment.caches.thumbnails.data(for: identity.cacheKey + "|rendition-v2") != nil }
     environment.caches.raw.setBudget(0)
     environment.caches.raw.setBudget(64 << 20)
     environment.registry.control.reset()
@@ -633,8 +678,8 @@ func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: Ren
     #expect(!shutdownFinished)
     await gate.release()
     await shutdown.value
-    #expect(try await environment.caches.thumbnails.data(for: identity.cacheKey) == nil)
-    #expect(try await environment.caches.browse?.data(for: identity.cacheKey) == nil)
+    #expect(try await environment.caches.thumbnails.data(for: identity.cacheKey + "|rendition-v2") == nil)
+    #expect(try await environment.caches.browse?.data(for: identity.cacheKey + "|rendition-v2") == nil)
     #expect(environment.pipeline.sourceDecodeCount == 0)
 }
 
@@ -1035,8 +1080,8 @@ private struct MirroredBytes: ByteSource {
     let initialThumb = try await environment.pipeline.thumbnail(for: oldIdentity, maxPixel: 128, priority: .visible)
     #expect(initialThumb.image.width > 0)
     #expect(environment.pipeline.sourceDecodeCount == 1)
-    try await eventually { try await environment.caches.thumbnails.contains(oldIdentity.cacheKey) }
-    try await eventually { try await environment.caches.browse?.contains(oldIdentity.cacheKey) == true }
+    try await eventually { try await environment.caches.thumbnails.contains(oldIdentity.cacheKey + "|rendition-v2") }
+    try await eventually { try await environment.caches.browse?.contains(oldIdentity.cacheKey + "|rendition-v2") == true }
     #expect(environment.caches.thumbnailMemory.value(for: oldIdentity.cacheKey + "|thumb|128") != nil)
 
     // 移动文件得到新 identity，然后 carryOver。
@@ -1049,10 +1094,10 @@ private struct MirroredBytes: ByteSource {
 
     // 旧 key 从内存和磁盘缓存均移除，新 key 在磁盘缓存命中。
     #expect(environment.caches.thumbnailMemory.value(for: oldIdentity.cacheKey + "|thumb|128") == nil)
-    #expect(try await environment.caches.thumbnails.contains(oldIdentity.cacheKey) == false)
-    #expect(try await environment.caches.thumbnails.contains(newIdentity.cacheKey) == true)
-    #expect(try await environment.caches.browse?.contains(oldIdentity.cacheKey) == false)
-    #expect(try await environment.caches.browse?.contains(newIdentity.cacheKey) == true)
+    #expect(try await environment.caches.thumbnails.contains(oldIdentity.cacheKey + "|rendition-v2") == false)
+    #expect(try await environment.caches.thumbnails.contains(newIdentity.cacheKey + "|rendition-v2") == true)
+    #expect(try await environment.caches.browse?.contains(oldIdentity.cacheKey + "|rendition-v2") == false)
+    #expect(try await environment.caches.browse?.contains(newIdentity.cacheKey + "|rendition-v2") == true)
 
     // 新 identity 取缩略图命中磁盘缓存，不再解码原文件（sourceDecodeCount 保持为 1）。
     let carriedThumb = try await environment.pipeline.thumbnail(for: newIdentity, maxPixel: 128, priority: .visible)

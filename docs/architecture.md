@@ -146,7 +146,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 原图与大图：
   - 放大到超过解码上限时，解码原图。
   - 长边超过 `maxDecodeLongSide` 或纹理上限（16384）的图用分块源。每个缩小级别一张不缓存像素的 CGImage，分块时裁出区域绘制，ImageIO 只解码需要的部分，不预先切块落盘。每个级别第一次取块时 ImageIO 要扫描一遍压缩数据，所以首块之后在后台预热原尺寸级别。
-- 渲染件：一次完整读取产出以下几种，编码用 JPEG（质量 0.8）：解码比 HEIC 快 4–6 倍，文件约大一倍。
+- 渲染件：一次完整读取产出以下几种；不透明图用 JPEG（质量 0.8），含透明通道的图用 PNG 保留透明度。JPEG 解码比 HEIC 快 4–6 倍，文件约大一倍。
   - 缩略图：暂定长边 1024 px。
   - 浏览图：等比缩放到能放进最大显示器的像素尺寸，且不超过基础图尺寸，不放大。基础图解码分别满足浏览图目标的 80% 和显示目标的 90%，取较细的级别；没有显示目标时只按浏览图要求。
   - 元数据。
@@ -169,6 +169,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 | 索引 | SQLite | 元数据（尺寸、帧数、时长、拍摄时间）、目录列表、L2/L3 的位置与访问时间 | — |
 
 - L2/L3：
+  - 缩略图和浏览图使用 `|rendition-v2` 版本键，避免旧 JPEG 缓存把透明图片合成白底；旧条目按 LRU 淘汰。
   - 按 LRU 淘汰。
   - 写入时先写临时文件再改名，最后更新索引。
   - 启动时不扫描缓存目录。
@@ -340,6 +341,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 缩放手势结束后，按新的设备像素尺寸重新请求图像；超过上限时请求原图或分块。
   - 视频用 AVPlayerLayer，每个窗口只有一个活动的播放器。
   - 视频悬停预览：画布与视频页共用 `VideoPreviewLoader`（按 `ContentIdentity` 向管线请求 `.near` 预览帧流，代次隔离丢弃旧请求晚到帧）。画廊视频项停留 150 ms 后随光标横向位置切换图块内容、进度线与时间角标，移出恢复封面并取消请求；点击预览中的视频从当前预览时间起播（`CanvasView.previewTime(at:)` → `PagedViewerView.startVideo(at:for:)`）。分页视频页的进度条上方悬停（含上下 6 pt 余量）显示 160 pt 宽预览浮层与等宽时间，夹在视频页边缘内，移出立即隐藏并取消请求；由 `GlobalSettings.videoHoverPreview` 控制，设置「浏览」页「视频」节可切换。
+  - 视频画廊以 signpost 记录鼠标进入、取帧开始、首帧提交图层、20 帧交付、取消和结束；请求编号仅供关联观测，不含文件名。读取回落结合卷健康快照观察，进程内存另行采样。
   - 图层用点，`ViewerTransform` 和 `PageFrameFit` 用设备像素；`decodeSize` 是向管线请求的尺寸（半页时是整页），`pixelSize` 是在视口中占的尺寸。
   - 连续和瀑布模式包 `CanvasView`，分页和连续之间切换时保持当前页。瀑布流尺寸按窗口保存在 `session.json`。
   - `CanvasView` 在 Debug 构建只在合成滚动进行期间（`SyntheticScroll.during`，调试接口的 `scroll` 命令和查看器自检）关掉响应式滚动，否则收不到合成事件；结束后恢复系统默认。开着调试接口时用户的真实滚动（`record-trackpad.sh` 录制）保持响应式滚动，`state` 的 `responsiveScrolling` 为真。
@@ -586,7 +588,7 @@ public final class ImageDecoder: Sendable {   // 不做 I/O；解码在并发上
     public func videoFrames(_ asset: AVAsset, times: [Double], maxPixel: Int) -> AsyncThrowingStream<(index: Int, image: RenderedImage), any Error>   // 零容差、按时间顺序交付（index 对应输入下标）；已转正、带 IOSurface、quality .exact；单帧失败结束整条流，消费方取消时取消生成器
 }
 extension PixelSize { public func fitting(longSide: Int) -> PixelSize; public func fitting(within bounds: PixelSize) -> PixelSize }   // 等比缩小，不放大
-public enum RenditionEncoding: String, Sendable, Codable, CaseIterable { case heic, jpeg; public static let `default`: RenditionEncoding /* jpeg */; public static let defaultQuality: Double /* 0.8 */; public func encode(_ image: CGImage, quality: Double = defaultQuality) throws(MediaError) -> Data }
+public enum RenditionEncoding: String, Sendable, Codable, CaseIterable { case heic, jpeg, png; public static let `default`: RenditionEncoding /* jpeg */; public static let defaultQuality: Double /* 0.8 */; public static func forRendition(_ image: CGImage) -> RenditionEncoding; public func encode(_ image: CGImage, quality: Double = defaultQuality) throws(MediaError) -> Data }
 
 // MVPipeline
 public enum VideoPreview {

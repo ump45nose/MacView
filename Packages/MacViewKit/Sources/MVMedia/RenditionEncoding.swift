@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 /// 缩略图与浏览图落盘时的编码。读回时用 `ImageDecoder.image` 解码。
 public enum RenditionEncoding: String, Sendable, Codable, CaseIterable {
-    case heic, jpeg
+    case heic, jpeg, png
 
     /// 渲染件用 JPEG：解码比 HEIC 快 4–6 倍、编码快 4–12 倍，同等 SSIM 下文件约大一倍（S1-T3 实测）。
     public static let `default` = RenditionEncoding.jpeg
@@ -17,6 +17,15 @@ public enum RenditionEncoding: String, Sendable, Codable, CaseIterable {
         switch self {
         case .heic: .heic
         case .jpeg: .jpeg
+        case .png: .png
+        }
+    }
+
+    /// 含透明通道的位图必须用无损格式，避免 JPEG 合成白底。
+    public static func forRendition(_ image: CGImage) -> RenditionEncoding {
+        switch image.alphaInfo {
+        case .none, .noneSkipFirst, .noneSkipLast: .jpeg
+        default: .png
         }
     }
 
