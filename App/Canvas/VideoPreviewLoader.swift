@@ -1,5 +1,6 @@
 import MVFoundation
 import MVPipeline
+import os
 
 /// 按内容身份收预览帧；画布和视频页共用。主线程使用。
 @MainActor
@@ -13,16 +14,16 @@ final class VideoPreviewLoader {
     private var frames: [VideoPreviewFrame?] = Array(repeating: nil, count: VideoPreview.frameCount)
     private var task: Task<Void, Never>?
     private var generation: UInt64 = 0
+    private let signposter = OSSignposter(category: .render)
+    var observationID: UInt64 { generation }
 
     init(pipeline: any ImagePipeline) {
         self.pipeline = pipeline
     }
 
-    #if DEBUG
     var loadedFrameCount: Int {
         frames.reduce(0) { $0 + ($1 == nil ? 0 : 1) }
     }
-    #endif
 
     /// 开始收这个视频的帧；身份不同则先取消旧的。优先级 .near。
     func start(_ identity: ContentIdentity) {
@@ -31,6 +32,7 @@ final class VideoPreviewLoader {
         generation &+= 1
         let gen = generation
         self.identity = identity
+        signposter.emitEvent("VideoPreviewStart", "request=\(gen, privacy: .public)")
         let pipeline = pipeline
         task = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -47,6 +49,7 @@ final class VideoPreviewLoader {
 
     /// 取消请求、清空已收的帧（帧仍在管线的内存缓存里）。
     func stop() {
+        if task != nil { signposter.emitEvent("VideoPreviewCancel", "request=\(self.generation, privacy: .public)") }
         generation &+= 1
         task?.cancel()
         task = nil
@@ -78,10 +81,14 @@ final class VideoPreviewLoader {
             duration = frame.duration
         }
         onFrame?()
+        if loadedFrameCount == VideoPreview.frameCount {
+            signposter.emitEvent("VideoPreviewComplete", "request=\(gen, privacy: .public)")
+        }
         return true
     }
 
     private func finish(generation gen: UInt64) {
+        signposter.emitEvent("VideoPreviewEnd", "request=\(gen, privacy: .public)")
         guard gen == generation else { return }
         task = nil
     }

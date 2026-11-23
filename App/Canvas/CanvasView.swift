@@ -916,6 +916,7 @@ final class CanvasView: NSScrollView {
             return
         }
         stopHoverPreview()
+        signposter.emitEvent("VideoHoverEnter", "index=\(hit.index, privacy: .public)")
         hover = HoverState(index: hit.index, identity: item.identity, fraction: fraction, isActive: false)
         let timer = Timer(timeInterval: Self.hoverDelay, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.activateHoverPreview() }
@@ -951,6 +952,9 @@ final class CanvasView: NSScrollView {
     private func hoverFrameArrived() {
         guard let state = hover, state.isActive, previewLoader.identity == state.identity else { return }
         updateHoverDisplay()
+        if previewLoader.loadedFrameCount == 1 {
+            signposter.emitEvent("VideoPreviewFirstPresented", "request=\(self.previewLoader.observationID, privacy: .public)")
+        }
     }
 
     private func updateHoverDisplay() {
