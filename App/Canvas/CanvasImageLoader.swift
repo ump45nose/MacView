@@ -19,11 +19,15 @@ final class CanvasImage {
     let contents: Any
     let quality: RenditionQuality
     let longSide: Int
+    let pixelWidth: Int
+    let pixelHeight: Int
 
     init(_ rendered: RenderedImage) {
         contents = rendered.surface ?? rendered.image
         quality = rendered.quality
         longSide = max(rendered.image.width, rendered.image.height)
+        pixelWidth = rendered.image.width
+        pixelHeight = rendered.image.height
     }
 }
 

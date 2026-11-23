@@ -196,6 +196,7 @@ final class CanvasView: NSScrollView {
             tile.layer.contentsGravity = contentGravity
             tile.layer.contents = image.contents
             tile.layer.backgroundColor = nil
+            configureImageGeometry(tile.layer, index: index, width: image.pixelWidth, height: image.pixelHeight)
             #if DEBUG
             onImageApplied?()
             #endif
@@ -379,6 +380,18 @@ final class CanvasView: NSScrollView {
         kind == .grid ? .resizeAspect : .resizeAspectFill
     }
 
+    /// 网格视频封面与预览按同一比例缩放并贴齐单元格顶部；空余区域沿用画布底色。
+    private func configureImageGeometry(_ layer: CALayer, index: Int, width: Int, height: Int) {
+        guard kind == .grid, items.indices.contains(index), items[index].isVideo,
+              layer.bounds.width > 0, layer.bounds.height > 0, width > 0, height > 0 else {
+            layer.contentsScale = window?.backingScaleFactor ?? 2
+            return
+        }
+        // 文档视图坐标向下增长，图层的 bottom 对应屏幕上的顶部。
+        layer.contentsGravity = .bottom
+        layer.contentsScale = max(CGFloat(width) / layer.bounds.width, CGFloat(height) / layer.bounds.height)
+    }
+
     /// 条的末尾在布局里占一项：所有项都已知才排到，宽高比按视口换算。
     private var footerRatio: [Double?] {
         guard footerView != nil, kind.isHorizontal || kind == .verticalStrip else { return [] }
@@ -419,8 +432,15 @@ final class CanvasView: NSScrollView {
             if let frame = layout.frame(of: index) {
                 tile.layer.frame = frame
                 positionOverlays(in: tile.layer)
+                if items[index].isVideo, kind == .grid {
+                    if let state = hover, state.index == index, state.isActive, let preview = previewLoader.frame(at: state.fraction) {
+                        configureImageGeometry(tile.layer, index: index, width: preview.image.image.width, height: preview.image.image.height)
+                    } else if let image = loader.cached(tile.identity) {
+                        configureImageGeometry(tile.layer, index: index, width: image.pixelWidth, height: image.pixelHeight)
+                    }
+                }
                 // 错误标记居中显示，不随布局换填充方式。
-                if tile.layer.contentsGravity != .center {
+                if tile.layer.contentsGravity != .center && !(items[index].isVideo && kind == .grid) {
                     tile.layer.contentsGravity = contentGravity
                 }
             } else {
@@ -513,9 +533,10 @@ final class CanvasView: NSScrollView {
             showError(on: layer)
         case .idle, .loading, .loaded:
             layer.contentsGravity = contentGravity
-            let cached = loader.cached(identity)?.contents
-            layer.contents = cached
+            let cached = loader.cached(identity)
+            layer.contents = cached?.contents
             layer.backgroundColor = cached == nil ? NSColor.quaternaryLabelColor.cgColor : nil
+            if let cached { configureImageGeometry(layer, index: index, width: cached.pixelWidth, height: cached.pixelHeight) }
             #if DEBUG
             if cached != nil { onImageApplied?() }
             #endif
@@ -845,6 +866,11 @@ final class CanvasView: NSScrollView {
         )
     }
 
+    func videoImageGeometry(at index: Int) -> (CALayerContentsGravity, CGFloat, CGColor?)? {
+        guard let layer = tiles[index]?.layer else { return nil }
+        return (layer.contentsGravity, layer.contentsScale, layer.backgroundColor)
+    }
+
     /// 自检用：清除指定项的内存封面缓存并重新请求封面，验证悬停期间晚到的封面不覆盖预览帧。
     func reloadCoverForTesting(at index: Int) {
         guard let tile = tiles[index] else { return }
@@ -970,6 +996,7 @@ final class CanvasView: NSScrollView {
             tile.layer.contentsGravity = contentGravity
             tile.layer.contents = frame.image.surface ?? frame.image.image
             tile.layer.backgroundColor = nil
+            configureImageGeometry(tile.layer, index: state.index, width: frame.image.image.width, height: frame.image.image.height)
         }
         ensureScrubBar(on: tile.layer)
         if let duration = previewLoader.duration {
@@ -1025,9 +1052,10 @@ final class CanvasView: NSScrollView {
             if item.isFailed || isFailed(at: state.index) {
                 showError(on: tile.layer)
             } else {
-                let cached = loader.cached(state.identity)?.contents
+                let cached = loader.cached(state.identity)
                 tile.layer.contentsGravity = contentGravity
-                tile.layer.contents = cached
+                tile.layer.contents = cached?.contents
+                if let cached { configureImageGeometry(tile.layer, index: state.index, width: cached.pixelWidth, height: cached.pixelHeight) }
                 tile.layer.backgroundColor = nil
                 if cached == nil {
                     effectiveAppearance.performAsCurrentDrawingAppearance { tile.layer.backgroundColor = NSColor.quaternaryLabelColor.cgColor }

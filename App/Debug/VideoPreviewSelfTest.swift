@@ -78,6 +78,15 @@ final class VideoPreviewSelfTest {
             scrollToTop(listView.canvas)
             _ = await waitUntil(timeoutMs: 2000) { listView.canvas.frame(of: 0) != nil }
             await settle(150)
+            let coverGeometry = listView.canvas.videoImageGeometry(at: 0)
+            await hover(canvas: listView.canvas, window: window, index: 0, fraction: 0.5)
+            let gotFrame = await waitUntil(timeoutMs: 4000) { listView.canvas.hoverPreviewSnapshot?.frameIndex != nil }
+            let previewGeometry = listView.canvas.videoImageGeometry(at: 0)
+            let sameBackground = coverGeometry?.2 == nil && previewGeometry?.2 == nil
+            // 按同一视频的像素宽高比计算顶部贴齐；不同分辨率的 contentsScale 本来不同。
+            log.check(gotFrame && coverGeometry?.0 == .bottom && previewGeometry?.0 == .bottom && sameBackground,
+                      "G4-16 视频网格封面与预览均顶部对齐且背景一致")
+            moveOutside(canvas: listView.canvas, window: window); await settle(80)
             await verifyHoverScrub(in: listView.canvas, window: window, videoIndex: 0, tag: "C2.1 页面列表网格", snapshotPrefix: "gallery-hover")
 
             pageList.setStyle(.masonry); await settle(150)
