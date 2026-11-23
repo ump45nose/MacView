@@ -153,9 +153,11 @@ final class PageSlot {
         }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        OSSignposter(category: .render).emitEvent("PageLayerSetStart", "page=\(self.element.page, privacy: .public)")
         imageLayer.contents = image.surface ?? image.image
         root.backgroundColor = nil
         CATransaction.commit()
+        OSSignposter(category: .render).emitEvent("PageLayerCommitted", "page=\(self.element.page, privacy: .public)")
         hasImage = true
         quality = image.quality
         onChange?()

@@ -447,18 +447,24 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     /// 书名与下面一行；虚拟书是“播放列表”标记加列表名，下面是“N 项，来自 M 本书”。
     private func updateTitle() {
         let location = session.book?.location
+        let title: String
+        let path: String
+        let isPlaylist: Bool
         if let playlist = location?.playlistID, let pages = session.book?.pages {
-            window?.title = playlistNames[playlist] ?? LibraryActions.playlists.first { $0.id == playlist }?.name ?? String(localized: "播放列表")
+            title = playlistNames[playlist] ?? LibraryActions.playlists.first { $0.id == playlist }?.name ?? String(localized: "播放列表")
             let books = Set(pages.compactMap { LibraryActions.containingBook(of: $0.id) }).count
-            bookPath.stringValue = String(localized: "\(pages.count) 项，来自 \(books) 本书")
-            playlistMark.isHidden = false
+            path = String(localized: "\(pages.count) 项，来自 \(books) 本书")
+            isPlaylist = true
         } else {
-            window?.title = location?.name ?? "MacView"
-            bookPath.stringValue = titleDetail(location)
-            playlistMark.isHidden = true
+            title = location?.name ?? "MacView"
+            path = titleDetail(location)
+            isPlaylist = false
         }
-        bookTitle.stringValue = window?.title ?? ""
-        bookPath.isHidden = bookPath.stringValue.isEmpty
+        if window?.title != title { window?.title = title }
+        if bookPath.stringValue != path { bookPath.stringValue = path }
+        if playlistMark.isHidden == isPlaylist { playlistMark.isHidden = !isPlaylist }
+        if bookTitle.stringValue != title { bookTitle.stringValue = title }
+        if bookPath.isHidden != path.isEmpty { bookPath.isHidden = path.isEmpty }
     }
 
     /// 播放列表改名后标题随之更新。
@@ -1108,21 +1114,25 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     private func updateBrowseControls() {
         let settings = session.settings
-        browseControl.selected = switch settings.browseMode {
+        let selected: Int = switch settings.browseMode {
         case .paged: settings.pageMode == .single ? 0 : 1
         case .waterfall: 2
         case .verticalStrip: 3
         case .horizontalStrip: 4
         }
+        if browseControl.selected != selected { browseControl.selected = selected }
         let item = window?.toolbar?.items.first { $0.itemIdentifier == Self.toolbarWaterfall }
-        item?.isHidden = settings.browseMode != .waterfall
-        sortButton.menu?.items.first?.title = Self.sortTitle(settings.sort.key)
-        sortButton.title = Self.sortTitle(settings.sort.key)
+        let hidden = settings.browseMode != .waterfall
+        if item?.isHidden != hidden { item?.isHidden = hidden }
+        let title = Self.sortTitle(settings.sort.key)
+        if sortButton.menu?.items.first?.title != title { sortButton.menu?.items.first?.title = title }
+        if sortButton.title != title { sortButton.title = title }
         updateWaterfallControls()
     }
 
     private func updateWaterfallControls() {
-        sizeSlider.doubleValue = viewer.continuous.waterfallExtent
+        let extent = viewer.continuous.waterfallExtent
+        if sizeSlider.doubleValue != extent { sizeSlider.doubleValue = extent }
     }
 
     private static func sortTitle(_ key: SortKey) -> String {

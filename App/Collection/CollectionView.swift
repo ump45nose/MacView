@@ -731,7 +731,8 @@ private final class CollectionListCell: NSView, CollectionCell {
 
     func setCurrent(_ isCurrent: Bool) {
         isCurrentRow = isCurrent
-        name.font = Theme.font(.panels, size: 13, weight: isCurrent ? .semibold : .regular)
+        let font = Theme.font(.panels, size: 13, weight: isCurrent ? .semibold : .regular)
+        if name.font != font { name.font = font }
     }
 
     func applyFonts() {
@@ -784,9 +785,10 @@ private final class CollectionTextCell: NSView, CollectionCell {
 
     func setCurrent(_ isCurrent: Bool) {
         isCurrentRow = isCurrent
-        label.font = monospaced
+        let font = monospaced
             ? Theme.font(.panels, size: 11, weight: .regular, monospacedDigits: true)
             : Theme.font(.panels, size: 12, weight: isCurrent ? .semibold : .regular)
+        if label.font != font { label.font = font }
     }
 
     func applyFonts() {

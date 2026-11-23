@@ -5,6 +5,7 @@ import MVMedia
 import MVPipeline
 import MVSettings
 import Observation
+import os
 
 /// 一个窗口或标签中的阅读会话；加载、设置订阅和预取均按会话取消。
 @MainActor @Observable
@@ -448,6 +449,7 @@ public final class ReaderSession {
     public func go(_ move: PageMove) {
         guard !frames.isEmpty, let book else { return }
         lastMoveAt = .now
+        OSSignposter(category: .render).emitEvent("PageTurnCall")
         let target: Int?
         var pageTarget: Int?
         switch move {

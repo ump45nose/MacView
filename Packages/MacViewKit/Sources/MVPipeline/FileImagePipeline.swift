@@ -6,6 +6,7 @@ import MVFoundation
 import MVIO
 import MVMedia
 import Synchronization
+import os
 
 /// 文件、归档和网络来源共用的图像管线。
 public final class FileImagePipeline: ImagePipeline {
@@ -250,13 +251,16 @@ public final class FileImagePipeline: ImagePipeline {
                     let context = RequestContext(priority)
                     do {
                         try lifetime.checkRunning()
+                        if priority == .visible { OSSignposter(category: .render).emitEvent("PageImageLookupStart") }
                         try retryDerivatives(identity, target: target, context: context)
                         let exactKey = Self.key(identity, target)
                         if let exact = cached(exactKey, priority: context.priority), exact.quality >= .exact {
+                            if priority == .visible { OSSignposter(category: .render).emitEvent("PageImageReady", "memory-hit") }
                             continuation.yield(exact)
                             continuation.finish()
                             return
                         }
+                        if priority == .visible { OSSignposter(category: .render).emitEvent("PageImageCacheMiss") }
                         var delivered: RenditionQuality?
                         // 优先检查高质量阶段，有浏览图时不再放大缩略图。
                         let browseData = try await diskData(caches.browse, for: Self.renditionKey(identity))
@@ -268,6 +272,7 @@ public final class FileImagePipeline: ImagePipeline {
                                     try remember(image, for: exactKey, priority: context.priority)
                                     return image
                                 }
+                                if priority == .visible { OSSignposter(category: .render).emitEvent("PageImageReady", "browse-disk") }
                                 continuation.yield(exact)
                                 continuation.finish()
                                 return
@@ -282,6 +287,7 @@ public final class FileImagePipeline: ImagePipeline {
                                     try remember(image, for: exactKey, priority: context.priority)
                                     return image
                                 }
+                                if priority == .visible { OSSignposter(category: .render).emitEvent("PageImageReady", "thumbnail-disk") }
                                 continuation.yield(exact)
                                 continuation.finish()
                                 return
@@ -304,6 +310,7 @@ public final class FileImagePipeline: ImagePipeline {
                         }
                         let image = try await exact(identity, target: target, allowOriginal: allowOriginal, context: context, loaded: loaded)
                         try lifetime.checkRunning()
+                        if priority == .visible { OSSignposter(category: .render).emitEvent("PageImageReady", "decoded") }
                         continuation.yield(image)
                         try await loaded.derivatives?.value
                         continuation.finish()
@@ -693,8 +700,12 @@ public final class FileImagePipeline: ImagePipeline {
     }
     private func cached(_ key: String, priority: IOPriority, thumbnail: Bool = false) -> RenderedImage? {
         if thumbnail { return caches.thumbnailMemory.value(for: key) }
-        if let image = caches.decoded.value(for: key) { return image }
+        if let image = caches.decoded.value(for: key) {
+            if priority == .visible { OSSignposter(category: .render).emitEvent("PageImageCacheHit", "decoded") }
+            return image
+        }
         guard let image = caches.preload.value(for: key) else { return nil }
+        if priority == .visible { OSSignposter(category: .render).emitEvent("PageImageCacheHit", "preload") }
         if priority == .visible {
             caches.preload.removeValue(for: key)
             caches.decoded.insert(image, for: key, cost: Self.cost(image))
