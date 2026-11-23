@@ -148,6 +148,9 @@ final class CanvasView: NSScrollView {
 
     private let content: CanvasDocumentView
     private let loader: CanvasImageLoader
+    #if DEBUG
+    var debugCacheCost: Int { loader.debugCacheCost }
+    #endif
     private var previewLoader: VideoPreviewLoader
     private var layout: CollectionLayout
     private var ratios: [Double?] = []

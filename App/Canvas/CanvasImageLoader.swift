@@ -59,6 +59,19 @@ final class CanvasImageLoader: NSObject {
     private(set) var loadedImages = 0
 
     private let cache = NSCache<IdentityKey, CanvasImage>()
+    #if DEBUG
+    private var observedCosts: [ContentIdentity: Int] = [:]
+    var debugCacheCost: Int {
+        var total = 0
+        var evicted: [ContentIdentity] = []
+        for (identity, cost) in observedCosts {
+            if cache.object(forKey: IdentityKey(identity)) != nil { total += cost }
+            else { evicted.append(identity) }
+        }
+        for identity in evicted { observedCosts.removeValue(forKey: identity) }
+        return total
+    }
+    #endif
     private var loads: [ContentIdentity: Load] = [:]
     private var failures: Set<ContentIdentity> = []
     private var pending: [(identity: ContentIdentity, image: CanvasImage)] = []
@@ -86,6 +99,7 @@ final class CanvasImageLoader: NSObject {
     #if DEBUG
     func evictCached(_ identity: ContentIdentity) {
         cache.removeObject(forKey: IdentityKey(identity))
+        observedCosts.removeValue(forKey: identity)
     }
     #endif
 
@@ -152,6 +166,9 @@ final class CanvasImageLoader: NSObject {
         self.pipeline = pipeline
         self.source = source
         cache.removeAllObjects()
+        #if DEBUG
+        observedCosts.removeAll()
+        #endif
         failures.removeAll()
     }
 
@@ -160,7 +177,11 @@ final class CanvasImageLoader: NSObject {
         let key = IdentityKey(identity)
         // 渐进交付时只换成更精确或更清晰的图。
         if let cached = cache.object(forKey: key), image.quality < cached.quality, image.longSide <= cached.longSide { return }
-        cache.setObject(image, forKey: key, cost: rendered.image.bytesPerRow * rendered.image.height)
+        let cost = rendered.image.bytesPerRow * rendered.image.height
+        #if DEBUG
+        observedCosts[identity] = cost
+        #endif
+        cache.setObject(image, forKey: key, cost: cost)
         loadedImages += 1
         if let index = pending.firstIndex(where: { $0.identity == identity }) {
             pending[index].image = image

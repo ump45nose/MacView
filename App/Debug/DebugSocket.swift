@@ -67,7 +67,8 @@ final class DebugSocket: Sendable {
             }
             var on: Int32 = 1
             setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
-            handle(client)
+            // 一个长请求等待结果时，其他连接仍需读取状态。
+            Thread { [self] in handle(client) }.start()
         }
     }
 
@@ -375,6 +376,7 @@ final class DebugCommands: Sendable {
             "volumes": .array(volumes.map(volumeState)),
             "fileErrors": .array(fileErrors),
             "residentBytes": .number(Double(Self.residentBytes())),
+            "footprintBytes": .number(Double(Self.footprintBytes())),
             "cacheBudgets": budgets.map { .object([
                 "rawBytes": .number(Double($0.rawBytes)), "decodedBytes": .number(Double($0.decodedBytes)),
                 "thumbnailMemoryBytes": .number(Double($0.thumbnailMemoryBytes)), "preloadBytes": .number(Double($0.preloadBytes)),
@@ -550,6 +552,11 @@ final class DebugCommands: Sendable {
             "effectsEnabled": .bool(controller.effectsEnabled),
             "background": backgroundState(settings.background),
             "effectFilterCount": .number(Double(viewer.effectFilterCount)),
+            "canvasCacheBytes": .object([
+                "viewer": .number(Double(viewer.continuous.canvas.debugCacheCost)),
+                "pageList": .number(Double((controller.dock.panels[DockPanels.pageList] as? CollectionPanel)?.collection?.canvas.debugCacheCost ?? 0)),
+                "bookshelf": .number(Double((controller.dock.panels[DockPanels.bookshelf] as? CollectionPanel)?.collection?.canvas.debugCacheCost ?? 0)),
+            ]),
         ]
         if let record = viewer.paged.lastDisplay {
             let (seconds, attoseconds) = record.duration.components
@@ -663,6 +670,17 @@ final class DebugCommands: Sendable {
             }
         }
         return result == KERN_SUCCESS ? info.resident_size : 0
+    }
+
+    private static func footprintBytes() -> UInt64 {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        return result == KERN_SUCCESS ? info.phys_footprint : 0
     }
 
     private func int(_ value: JSONValue?) -> Int? {

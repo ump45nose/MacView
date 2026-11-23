@@ -342,11 +342,12 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 视频用 AVPlayerLayer，每个窗口只有一个活动的播放器。
   - 视频悬停预览：画布与视频页共用 `VideoPreviewLoader`（按 `ContentIdentity` 向管线请求 `.near` 预览帧流，代次隔离丢弃旧请求晚到帧）。画廊视频项停留 150 ms 后随光标横向位置切换图块内容、进度线与时间角标，移出恢复封面并取消请求；点击预览中的视频从当前预览时间起播（`CanvasView.previewTime(at:)` → `PagedViewerView.startVideo(at:for:)`）。分页视频页的进度条上方悬停（含上下 6 pt 余量）显示 160 pt 宽预览浮层与等宽时间，夹在视频页边缘内，移出立即隐藏并取消请求；由 `GlobalSettings.videoHoverPreview` 控制，设置「浏览」页「视频」节可切换。
   - 视频画廊以 signpost 记录鼠标进入、取帧开始、首帧提交图层、20 帧交付、取消和结束；请求编号仅供关联观测，不含文件名。读取回落结合卷健康快照观察，进程内存另行采样。
+  - 分页翻页以 signpost 记录调用、图像缓存查询及命中来源、图像就绪、图层赋值及事务提交；这些事件不包含文件名。图层事务提交表示提交给 Core Animation，不代表屏幕已呈现。
   - 图层用点，`ViewerTransform` 和 `PageFrameFit` 用设备像素；`decodeSize` 是向管线请求的尺寸（半页时是整页），`pixelSize` 是在视口中占的尺寸。
   - 连续和瀑布模式包 `CanvasView`，分页和连续之间切换时保持当前页。瀑布流尺寸按窗口保存在 `session.json`。
   - `CanvasView` 在 Debug 构建只在合成滚动进行期间（`SyntheticScroll.during`，调试接口的 `scroll` 命令和查看器自检）关掉响应式滚动，否则收不到合成事件；结束后恢复系统默认。开着调试接口时用户的真实滚动（`record-trackpad.sh` 录制）保持响应式滚动，`state` 的 `responsiveScrolling` 为真。
 - 调试接口（`App/Debug/DebugSocket.swift`，只在 Debug 构建编译，只在传 `-MVDebugSocket <路径>` 时开启，权限 0600）：
-  - Unix 域套接字，一行一个 JSON。请求 `{"id":1,"command":"state","args":{}}`，响应 `{"id":1,"ok":true,"result":{…}}` 或 `{"id":1,"ok":false,"error":"…"}`。一次一个连接，命令按顺序在主线程执行。验收以 `open -n -g` 启动独立实例（`record-trackpad.sh` 给用户录制，仍用 `open -n -a`），套接字使用不超过 103 字节的绝对路径；support、cache 和 layout 均指向隔离目录，按本次实例的 PID 管理，退出结果以进程实际退出为准。测试实例（含 Mock）缺 `-MVSupportDirectory`、`-MVCacheDirectory`、`-MVLayoutFile` 任一项时，`AppDelegate` 的 `#if DEBUG` 分支打印 `FAIL` 后以 64 退出，不碰用户目录。
+  - Unix 域套接字，一行一个 JSON。请求 `{"id":1,"command":"state","args":{}}`，响应 `{"id":1,"ok":true,"result":{…}}` 或 `{"id":1,"ok":false,"error":"…"}`。不同连接可同时等待，命令在主线程执行，等待异步操作时允许其他命令读取状态。验收以 `open -n -g` 启动独立实例（`record-trackpad.sh` 给用户录制，仍用 `open -n -a`），套接字使用不超过 103 字节的绝对路径；support、cache 和 layout 均指向隔离目录，按本次实例的 PID 管理，退出结果以进程实际退出为准。测试实例（含 Mock）缺 `-MVSupportDirectory`、`-MVCacheDirectory`、`-MVLayoutFile` 任一项时，`AppDelegate` 的 `#if DEBUG` 分支打印 `FAIL` 后以 64 退出，不碰用户目录。
   - 不干扰用户：调试接口和自检不调用 `NSApp.activate()`。测试实例（传了调试接口或任一自检参数）的第一个窗口放在 `maximumFramesPerSecond` 最大的屏（本机是内置屏）可见区域中央，窗口出现时只用 `orderFrontRegardless` 抬到最上面，见 `App/Debug/TestPresentation.swift`，挂在 `AppDelegate` 的 `#if DEBUG` 分支里，Release 不变。
 
     | 命令 | 参数 | 结果 |
@@ -355,13 +356,14 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     | `open` | `path`、`page?`（从 0 开始） | 打开完成后返回窗口状态；打不开时 `ok: false` |
     | `resize` | `width`、`height`（点，内容区） | 调整前台窗口，返回窗口状态 |
     | `scroll` | `dx`、`dy`（点，负的 `dy` 向下）、`steps`、`intervalMs`；连续滚动另用 `durationMs` | 按 began、changed、ended 生成滚轮事件，经 `NSApp.sendEvent` 发到查看器中央；`durationMs > 0` 时持续滚动，到边界后反向。返回 `events`、`windowFront`、`responsiveScrolling`（滚动期间的值，应为假），连续滚动还返回 `scrollMovements` |
-    | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes`、`memory`、`cacheBudgets`、`library`、`profiles`、`profilesError` |
+    | `state` | — | `windows[]`、`volumes[]`、`fileErrors[]`、`residentBytes`、`footprintBytes`、`memory`、`cacheBudgets`、`library`、`profiles`、`profilesError` |
     | `quit` | — | 正常退出流程 |
 
   - `windows[]`：`book`、`page`、`frame`、`frameCount`、`browseMode`、`scaleMode`、`zoom`、`viewport`（点）、`visibleRange`（`[起, 止)`，分页模式是当前页帧）、`loadError`（整本书或当前分页的加载错误）、`lastDisplay`（`{page, quality, milliseconds}`，从翻页调用到目标质量图设到图层的用时，只有分页模式）。
   - `windowFront`：窗口可见、`occlusionState` 含 `.visible`、所在屏是内置屏（`CGDisplayIsBuiltin`），不要求 App 处于激活状态。另有三个只读字段：`windowScreen`（`displayID`、`name`、`builtin`、`frame`、`visibleFrame`、`maximumFramesPerSecond`）、`windowFrame`（`[x, y, 宽, 高]`，全局坐标，点）和 `appActive`。
   - 验收用只读字段：`prefetchIdle`、`prefetchInFlightCount`、`windowFront`、`windowScreen`、`windowFrame`、`appActive`、`responsiveScrolling`、`docksVisible`、`hudVisible`、`firstScreenThumbnailMilliseconds`、`itemCount`、`effects`（`colorAdjust` 六个值或 `null`）、`effectsEnabled`、`background`、`effectFilterCount`（主视图效果挂点上实际挂着的滤镜数）；`volumes[]` 另有 `inFlight` 和 `bulkInFlight`（bulk 通道在途读取数，nas-fault 据此确认在途后注入）；`pageSlots` 返回各页的 `page`、`hasImage` 和 `quality`，可确认初始页图层已就绪。`panels` 返回书架和页面列表的 `style`、`itemExtent`、`sort`，`tiles` 返回当前分块的 `requested`、`cancelled`、`inFlight` 计数。
   - `memory` 返回 `rawBytes`、`decodedBytes`、`thumbnailMemoryBytes`、`preloadBytes`、`inFlightBytes` 和 `waitingTasks`；`cacheBudgets` 返回对应四项内存预算以及 `thumbnailDiskBytes`、`browseDiskBytes` 两项磁盘预算。
+  - `footprintBytes` 是进程的物理内存 footprint；`residentBytes` 是驻留大小，两者口径不同。`windows[].canvasCacheBytes` 返回主区以及停靠的页面列表和书架画布当前仍在 `NSCache` 中的图像成本；它们可能与管线共享图像，不能直接相加当作实际占用。
   - `library` 返回 `historyCount`、按时间从新到旧的 `history`（`book`、`openedAt`）、完整 `bookmarks` 树（文件夹为 `folder`、`children`，书为 `book`、`label`）、`playlists`（`id`、`name`、`count`、`recent`）。服务没有资料库时为 `null`；读取失败时为含 `error` 的对象。
   - 合成滚动和屏幕状态有关：屏幕锁定时事件不生效。
   - 首屏计时的状态机和可见缩略图回报（`ReaderWindowController` 的 `beginFirstScreenThumbnails` 等、`CollectionView.onVisibleThumbnails`、`CanvasView.onImageApplied`）只在 Debug 编译，Release 二进制里没有这些符号。
