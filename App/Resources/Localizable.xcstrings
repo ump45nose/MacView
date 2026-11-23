@@ -1471,6 +1471,16 @@
         }
       }
     },
+    "保存为布局方案…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save as Layout Scheme…"
+          }
+        }
+      }
+    },
     "保存当前布局": {
       "localizations": {
         "en": {
@@ -2507,6 +2517,16 @@
         }
       }
     },
+    "右侧一帧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One Frame Right"
+          }
+        }
+      }
+    },
     "右侧停靠区": {
       "localizations": {
         "en": {
@@ -3263,6 +3283,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Left"
+          }
+        }
+      }
+    },
+    "左侧一帧": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One Frame Left"
           }
         }
       }
