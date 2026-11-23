@@ -265,7 +265,16 @@ final class AppearanceSelfTest {
         // borderless → shown
         try? await services.settings.updateGlobal { $0.appearance.window.titleBar = .shown }
         _ = await waitUntil(timeoutMs: 1500) { currentTab.toolbar?.isVisible == true }
+        func toolbarAvoidsStandardButtons() -> Bool {
+            guard let active = currentTab.windowController as? ReaderWindowController,
+                  let dockButton = active.dockToggles[.left], dockButton.window === currentTab else { return false }
+            let rect = dockButton.convert(dockButton.bounds, to: nil)
+            let buttons = [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].compactMap { currentTab.standardWindowButton($0) }
+            return buttons.count == 3 && buttons.allSatisfy { !$0.isHidden && !rect.intersects($0.convert($0.bounds, to: nil)) }
+        }
+        let immediateSeparation = toolbarAvoidsStandardButtons()
         await settle(200)
+        log.check(immediateSeparation && toolbarAvoidsStandardButtons(), "A-S4 恢复标题栏后左侧工具栏按钮与红绿灯不重叠")
         if (currentTab.tabGroup?.windows.count ?? 0) != 2 { allTabsKept = false }
         if !rectsAlmostEqual(currentTab.frame, initialFrame) { allFramesKept = false }
         log.check(

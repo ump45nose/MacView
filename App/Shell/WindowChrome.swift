@@ -194,13 +194,14 @@ final class WindowChrome {
             cancelAutoHideTimers()
             isToolbarRevealed = false
             removeTopTracking()
-            // 先在 fullSizeContentView 下恢复工具栏可见，再移除 fullSizeContentView，
-            // 与隐藏路径对称，避免 AppKit 为工具栏额外增高窗口。
-            toolbar.isVisible = true
+            // 先恢复普通标题栏布局，再显示工具栏；否则 AppKit 仍按全尺寸内容布局
+            // 放置工具栏项，左侧按钮会压住系统红绿灯。窗口尺寸在下方统一还原。
+            // 先显示系统按钮，让 AppKit 在恢复工具栏布局时为它们预留空间。
+            setStandardButtonsHidden(false)
             if window.styleMask.contains(.fullSizeContentView) {
                 window.styleMask.remove(.fullSizeContentView)
             }
-            setStandardButtonsHidden(false)
+            toolbar.isVisible = true
 
         case .autoHide:
             if !window.styleMask.contains(.fullSizeContentView) {
