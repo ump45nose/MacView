@@ -121,12 +121,32 @@
         }
       }
     },
+    "%@ 出错：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ error: %2$@"
+          }
+        }
+      }
+    },
     "%@ 响应缓慢": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ is slow to respond"
+          }
+        }
+      }
+    },
+    "%@ 失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ failed: %2$@"
           }
         }
       }
@@ -697,6 +717,16 @@
           "stringUnit": {
             "state": "translated",
             "value": ", "
+          }
+        }
+      }
+    },
+    "storage.set 需要传入值": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "storage.set requires a value"
           }
         }
       }
@@ -1431,6 +1461,16 @@
         }
       }
     },
+    "位置不能为空": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location cannot be empty"
+          }
+        }
+      }
+    },
     "位置在这个路径下的书按“%@”的值显示；书里单独改过的值仍优先。已有同一路径的规则时，并入那条规则。": {
       "localizations": {
         "en": {
@@ -1557,6 +1597,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Date Modified"
+          }
+        }
+      }
+    },
+    "停止全部脚本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop All Scripts"
           }
         }
       }
@@ -2417,6 +2467,36 @@
         }
       }
     },
+    "参数 %@ 必须是字符串": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Argument %@ must be a string"
+          }
+        }
+      }
+    },
+    "参数 %@ 必须是对象": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Argument %@ must be an object"
+          }
+        }
+      }
+    },
+    "参数 %@ 必须是整数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Argument %@ must be an integer"
+          }
+        }
+      }
+    },
     "双击滑块复位单项": {
       "localizations": {
         "en": {
@@ -2667,6 +2747,26 @@
         }
       }
     },
+    "命令 ID 不能为空": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command ID cannot be empty"
+          }
+        }
+      }
+    },
+    "命令当前不可用：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command is currently unavailable: %@"
+          }
+        }
+      }
+    },
     "回车新建“%@”": {
       "localizations": {
         "en": {
@@ -2803,22 +2903,22 @@
         }
       }
     },
-    "在虚拟书中打开这一项": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Read from This Item"
-          }
-        }
-      }
-    },
     "在画廊里的视频上左右移动鼠标、或停在播放进度条上时显示对应位置的画面。第一次预览会读取视频的多个位置，预览帧存在缩略图缓存里。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Move the pointer across a video in the gallery or hover over the playback slider to preview frames. The first preview reads multiple positions and stores them in the thumbnail cache."
+          }
+        }
+      }
+    },
+    "在虚拟书中打开这一项": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read from This Item"
           }
         }
       }
@@ -3073,6 +3173,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save Profile…"
+          }
+        }
+      }
+    },
+    "存储键名不能为空": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Storage key cannot be empty"
           }
         }
       }
@@ -3679,6 +3789,16 @@
         }
       }
     },
+    "应用不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application unavailable"
+          }
+        }
+      }
+    },
     "底部停靠区": {
       "localizations": {
         "en": {
@@ -3765,6 +3885,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "File operations are not supported by the current service"
+          }
+        }
+      }
+    },
+    "当前没有打开的书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No book is currently open"
           }
         }
       }
@@ -3927,6 +4057,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open Folder or Archive…"
+          }
+        }
+      }
+    },
+    "打开脚本文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal Scripts Folder"
           }
         }
       }
@@ -4859,6 +4999,26 @@
         }
       }
     },
+    "无效的位置标记": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid location token"
+          }
+        }
+      }
+    },
+    "无效的路径：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid path: %@"
+          }
+        }
+      }
+    },
     "无法保存 layout.json": {
       "localizations": {
         "en": {
@@ -4945,6 +5105,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Can’t play: unsupported video codec"
+          }
+        }
+      }
+    },
+    "无法解析位置标记": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to parse location token"
           }
         }
       }
@@ -5295,6 +5465,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "No folder open"
+          }
+        }
+      }
+    },
+    "未指定 Shell 命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shell command is not specified"
+          }
+        }
+      }
+    },
+    "未指定应用程序路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application path is not specified"
+          }
+        }
+      }
+    },
+    "未指定程序路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Program path is not specified"
+          }
+        }
+      }
+    },
+    "未知命令：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown command: %@"
           }
         }
       }
@@ -5745,6 +5955,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Book Open"
+          }
+        }
+      }
+    },
+    "没有打开的窗口": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No open window"
           }
         }
       }
@@ -6305,6 +6525,16 @@
         }
       }
     },
+    "确定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
     "磁盘缓存": {
       "localizations": {
         "en": {
@@ -6487,6 +6717,16 @@
         }
       }
     },
+    "窗口已关闭": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Window is closed"
+          }
+        }
+      }
+    },
     "竖条": {
       "localizations": {
         "en": {
@@ -6581,6 +6821,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Manage Layout Schemes…"
+          }
+        }
+      }
+    },
+    "管理脚本…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Scripts…"
           }
         }
       }
@@ -6913,6 +7163,16 @@
         }
       }
     },
+    "缺少参数 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing argument %@"
+          }
+        }
+      }
+    },
     "缺少字段 %@": {
       "comment": "MVSettings 的配置错误文字，键来自 JSONDocumentStore.swift",
       "extractionState": "manual",
@@ -7015,6 +7275,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Background"
+          }
+        }
+      }
+    },
+    "脚本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scripts"
+          }
+        }
+      }
+    },
+    "脚本存储不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script storage unavailable"
           }
         }
       }
@@ -7747,6 +8027,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quit %@"
+          }
+        }
+      }
+    },
+    "退出码 %d": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exit code %d"
+          }
+        }
+      }
+    },
+    "退出码 %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exit code %lld"
           }
         }
       }
