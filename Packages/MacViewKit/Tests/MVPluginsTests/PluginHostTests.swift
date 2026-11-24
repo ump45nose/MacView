@@ -193,7 +193,7 @@ private let sampleContext = ScriptCallContext(caller: "test", callerName: "Test"
         .write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
     try """
     let counter = 0;
-    plugin.commands.spin = () => { counter++; while (true) {} };
+    plugin.commands.spin = () => { counter++; mv.toast("spin-started"); while (true) {} };
     plugin.commands.ping = () => ({ ok: true, counter });
     """.write(to: pluginDir.appendingPathComponent("main.js"), atomically: true, encoding: .utf8)
 
@@ -202,14 +202,14 @@ private let sampleContext = ScriptCallContext(caller: "test", callerName: "Test"
     #expect(await waitUntil { library.plugins().contains { $0.id == "loop-demo" } })
     let host = PluginHost(library: library, settings: env.settings, secrets: env.secrets, log: env.log)
     defer { host.shutdown() }
-    host.setAPIHost(StubAPIHost())
+    let apiHost = StubAPIHost()
+    host.setAPIHost(apiHost)
 
     let spinTask = Task {
         try await host.runCommand(plugin: "loop-demo", command: "spin", arguments: nil, context: sampleContext)
     }
     #expect(await waitUntil {
-        if case .running = host.statuses()["loop-demo"] { return true }
-        return false
+        apiHost.calls.withLock { $0.contains { $0.method == .toast && $0.params == [.string("spin-started")] } }
     })
 
     let stopStart = ContinuousClock.now

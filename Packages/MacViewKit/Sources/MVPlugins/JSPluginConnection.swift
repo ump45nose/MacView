@@ -125,13 +125,12 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         condition.lock()
         let queued = queue
         queue.removeAll()
-        let hasRunning = currentWorkID != nil
+        if currentWorkID != nil {
+            control.stop()
+        }
         condition.unlock()
         for item in queued {
             item.completion?(.failure(PluginError.cancelled))
-        }
-        if hasRunning {
-            control.stop()
         }
     }
 
@@ -140,9 +139,9 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         terminated = true
         let queued = queue
         queue.removeAll()
+        control.stop()
         condition.broadcast()
         condition.unlock()
-        control.stop()
         for item in queued {
             item.completion?(.failure(PluginError.cancelled))
         }
@@ -150,20 +149,17 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
 
     private func cancelWork(id: UUID) {
         var removed: WorkItem?
-        var isCurrent = false
         condition.lock()
         if let idx = queue.firstIndex(where: { $0.id == id }) {
             removed = queue.remove(at: idx)
         } else if currentWorkID == id {
-            isCurrent = true
+            control.stop()
         } else {
             cancelledBeforeEnqueue.insert(id)
         }
         condition.unlock()
         if let removed {
             removed.completion?(.failure(CancellationError()))
-        } else if isCurrent {
-            control.stop()
         }
     }
 
@@ -189,14 +185,11 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             _ = JSBridge.setExecutionTimeLimit(on: created, interval: 0.05, control: control)
             created.evaluateScript("globalThis.plugin = { commands: {}, sources: {}, onEvent: null };")
             created.evaluateScript("mv.log = (...args) => __mvLog('info', args);")
-            control.begin(timeout: configuration.requestTimeout)
-            created.evaluateScript(source, withSourceURL: entryURL)
-            let (wasStopped, reason) = control.endAndSnapshot()
-            if wasStopped {
+            if !control.isStopped {
+                created.evaluateScript(source, withSourceURL: entryURL)
+            }
+            if control.isStopped {
                 JSBridge.clearExecutionTimeLimit(on: created)
-                let message = reason == .timedOut ? "加载 JS 插件超时：\(entryFile)" : "加载 JS 插件已取消"
-                loadError = message
-                onLoadFailure(self, message)
                 return nil
             }
             if let problem = JSBridge.exceptionProblem(from: created) {
@@ -234,6 +227,8 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             }
             let item = queue.removeFirst()
             currentWorkID = item.id
+            // 在持锁状态下与 stop()/cancelWork() 严格定序，避免 stop() 信号在 begin() 之前丢失。
+            control.begin(timeout: item.timeout)
             condition.unlock()
 
             let result = execute(item, ensureContext: ensureContext, loadError: { loadError })
@@ -260,12 +255,16 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         loadError: () -> String?
     ) -> Result<JSONValue, any Error> {
         guard let context = ensureContext() else {
+            let (wasStopped, termReason) = control.endAndSnapshot()
+            if wasStopped {
+                return .failure(termReason == .timedOut ? PluginError.timeout(method: item.method) : PluginError.cancelled)
+            }
             return .failure(PluginError.runtimeError(loadError() ?? "插件上下文不可用"))
         }
         activeContext.withLock { $0 = item.callContext }
         context.exception = nil
-        control.begin(timeout: item.timeout)
-        let jsResult = dispatch(method: item.method, params: item.params, in: context)
+        _ = JSBridge.setExecutionTimeLimit(on: context, interval: 0.05, control: control)
+        let jsResult = control.isStopped ? nil : dispatch(method: item.method, params: item.params, in: context)
         let (wasStopped, termReason) = control.endAndSnapshot()
 
         if wasStopped {
