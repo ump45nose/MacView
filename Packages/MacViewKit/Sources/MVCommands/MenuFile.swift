@@ -9,6 +9,7 @@ public enum DynamicMenuID: String, Codable, Sendable, Hashable, CaseIterable {
     case displayProfiles
     case layoutSchemes
     case scripts
+    case sources
 }
 
 /// 工具栏条目标识：命令 ID 字符串、现有特殊条目（如 `book.title`、`view.browse`）或 `flexibleSpace`、`space`。

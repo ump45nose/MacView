@@ -289,6 +289,8 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
             ]))
         case .scripts:
             nil
+        case .sources:
+            nil
         case .layoutSchemes:
             dynamicSubmenuItem(title: String(localized: "布局方案")) { submenu in
                 (NSApp.delegate as? AppDelegate)?.populateLayoutSchemesMenu(submenu) ?? false

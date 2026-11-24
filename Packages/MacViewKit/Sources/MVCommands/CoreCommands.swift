@@ -191,7 +191,7 @@ public enum CoreCommands {
             Section([
                 command(.fileOpen, .init("打开文件夹或压缩包…", bundle: .main), "book", scope: .global,
                         keys: [KeyChord("o", modifiers: .command)], symbol: "folder"),
-            ]),
+            ], trailingNodes: [.dynamic(.sources)]),
             Section([
                 commandMany(.fileDelete, .init("删除", bundle: .main), "file", key: KeyChord("Delete", modifiers: .command), scopes: [.viewer, .list], symbol: "trash"),
                 command(.fileRename, .init("重命名", bundle: .main), "file"),

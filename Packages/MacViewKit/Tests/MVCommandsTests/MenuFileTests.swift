@@ -100,8 +100,19 @@ func legacyMenuNodeJSONDecodesAndDynamicMenuIDsRoundTrip() throws {
     ]))
 
     let allDynamic = DynamicMenuID.allCases.map { MenuNode.dynamic($0) }
-    #expect(DynamicMenuID.allCases.count == 7)
+    #expect(DynamicMenuID.allCases.count == 8)
     #expect(try JSONDecoder().decode([MenuNode].self, from: JSONEncoder().encode(allDynamic)) == allDynamic)
+
+    // C1.24：默认文件菜单包含「打开来源」动态项，旧 menus.json 解码不受影响。
+    let fileMenu = try #require(CoreCommands.defaultMenu.roots.first {
+        if case .submenu("文件", _) = $0 { true } else { false }
+    })
+    if case let .submenu(_, children) = fileMenu {
+        #expect(Array(children.prefix(2)) == [.command(.fileOpen), .dynamic(.sources)])
+    }
+    let oldMenusJSON = #"{"mainMenu":[{"submenu":{"titleKey":"文件","children":[{"command":{"_0":"file.open"}}]}}]}"#
+    let decodedOld = try JSONDecoder().decode(MenuFile.self, from: Data(oldMenusJSON.utf8))
+    #expect(decodedOld.mainMenu?.count == 1)
 }
 
 @Test("C1.3 新命令出现在 CoreCommands.all 且常用命令带 symbol")

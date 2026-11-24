@@ -35,16 +35,17 @@
 | 模块 | 职责 | 依赖 |
 |---|---|---|
 | MVFoundation | Location、ContentIdentity、Entry、PixelSize、JSONValue、错误类型、日志与 signpost、名称比较器 | — |
-| MVIO | IOScheduler、卷通道与健康状态、FileSystemProvider 读写原语、SourceRegistry、ByteSource，以及 URL 与 Location 的互转 | MVFoundation |
+| MVIO | IOScheduler、卷通道与健康状态、FileSystemProvider 读写原语、SourceRegistry、ByteSource、ExtractStore，以及 URL 与 Location 的互转 | MVFoundation |
 | MVMetadata | XMP 评分与标签读写（JPEG/TIFF/HEIC）、EXIF/XMP 详情解析、格式可写性判定 | MVFoundation |
 | MVFileOps | 文件操作、评分与标签写入、反向操作、跨卷复制校验和传输记录；已接入组合根 | MVFoundation、MVIO、MVMetadata、MVMedia |
-| MVArchive | zip/cbz、tar、tar.gz/gz，嵌套，ArchiveProvider，临时解出目录 | MVIO |
+| MVArchive | zip/cbz、tar、tar.gz/gz，嵌套，ArchiveProvider（单层外层字节经注入来源解析，共用 MVIO.ExtractStore） | MVIO |
 | MVMedia | 探测（含 XMP 评分与标签）、显示尺寸解码与重采样、原图与分块、动图帧、视频封面与元数据、渲染件编码 | MVFoundation、MVMetadata |
 | MVCache | 泛型内存缓存 L0/L1、字节磁盘缓存 L2/L3（含改挂）、按容器查询的图像元数据与标签索引、目录缓存与搜索查询（SearchCatalog） | MVFoundation、GRDB.swift |
-| MVPipeline | ImagePipeline：串联各缓存层，一次读取产出多种渲染件，渐进交付，按会话管理预取计划 | MVIO、MVMedia、MVCache |
-| MVSettings | 设置模式、效果链与背景模型、显示配置、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
-| MVScripting | 脚本库与运行时、日志和隔离存储、外部命令模板与进程运行 | MVFoundation、MVSettings、JavaScriptCore |
-| MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型 | MVFoundation |
+| MVPipeline | ImagePipeline：串联各缓存层，一次读取产出多种渲染件，渐进交付，按会话管理预取计划，以及插件滤镜派生缓存（`filteredImage`） | MVIO、MVMedia、MVCache |
+| MVSettings | 设置模式、效果链（含 `Effect.plugin`）与背景模型、显示配置、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
+| MVScripting | 共享 JS 桥（JSBridge / JSExecutionControl）、脚本库与运行时、日志和隔离存储、外部命令模板与进程运行 | MVFoundation、MVSettings、JavaScriptCore |
+| MVPlugins | 插件清单与目录监视、设置与 0600 密码文件、JS 与外部程序 JSON-RPC 运行时、PluginHost、PluginSourceProvider、HTTPByteSource、PluginFilterRunner | MVFoundation、MVIO、MVSettings、MVScripting、MVPipeline |
+| MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型（含 `DynamicMenuID.sources`） | MVFoundation |
 | MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVCache、MVPipeline、MVSettings |
 | MVLibraryData | 历史、书签、播放列表存储与变更；可用性检查；虚拟书加载 | MVFoundation、MVIO、MVCache、MVReading、GRDB.swift |
 | MVSearch | 目录树递归建立搜索索引与增量元数据探测（FolderIndexer） | MVFoundation、MVIO、MVMedia、MVCache |
@@ -55,7 +56,7 @@
 | App（`MacView` target） | 窗口与标签页、停靠面板、集合视图、查看器、输入、菜单、设置界面、本地化 | MVServices 等 |
 
 - 任务 ID 中，T 表示 Core 任务，F 表示 App 任务。
-- P1 的新模块到对应阶段再建：MVPlugins（效果链模型放在 MVSettings，S4-T1 决定）。
+- P1 模块 `MVPlugins` 已在 S5-T2 阶段 1 建立（效果链模型放在 MVSettings，S4-T1 决定）。
 - 依赖选型：SQLite 统一用 GRDB.swift（MIT 许可），由第一个用到它的任务引入，MVCache 与 MVSettings 共用。其余依赖由各任务按需选用。
 - 已引入的依赖（版本以 `Packages/MacViewKit/Package.resolved` 为准）：
 
@@ -376,13 +377,13 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 观测：用 os_signpost 标记帧时间和请求延迟，用 Instruments 的 Animation Hitches 验收。
 - 构建身份：构建阶段“记录源码提交”把 `git rev-parse HEAD`（工作树有改动时加 `-dirty`）写进 Info.plist 的 `MVSourceCommit`。验收证据和录制都记 App 的 commit 与 CDHash，`run.py --g2` 只认与被验收 App 一致的证据，见 [S2-T2 报告](reports/S2-T2.md)。
 
-### 3.9 P1 扩展点（P0 只体现在接口形状上）
+### 3.9 P1 扩展点
 
-- 数据源插件以 ContainerProvider 的形式注册到 SourceRegistry，按根分派。
-- 脚本命令可登记进 CommandRegistry，Core 已提供脚本运行时、动态菜单节点和注销接口；应用侧动态登记及插件命令接线在对应 App 阶段完成。
-- HTML/JS 面板是一种面板类型。
+- 数据源插件（S5-T2 阶段 1 已实现 Core）：`PluginSourceProvider` 以 `ContainerProvider` 注册到 `SourceRegistry`，处理 `.plugin(id: "source/<UUID>")` 的单层非压缩包位置；组合根先登记 `ArchiveProvider`（单层读取按根分派到插件来源或文件系统）再登记 `PluginSourceProvider`，使远端目录中的 zip/tar 与本地同样可浏览，视频走 `ByteSourceAsset`；直链下载经 `HTTPByteSource`（每来源 4 并发、按 `IOPriority` 排序，200 回退存入共享 `ExtractStore`），冷启动直开某页自动回填父目录。来源密码单独存在 `plugin-secrets.json`（权限 0600），不进 `plugins.json`。
+- 插件宿主与脚本命令（S5-T2 阶段 1 已实现 Core）：`MVPlugins` 扫描监视 `Plugins/<id>/manifest.json`，提供 JS（专用线程常驻 `JSContext`，复用 `MVScripting.JSBridge`，权限检查 `network`/`commands` 在模块内完成）与外部程序（独立进程组 stdio 按行 JSON-RPC 2.0，按需启动、闲置 5 分钟退出、崩溃自动重启）两种运行时；默认文件菜单新增 `DynamicMenuID.sources`（「打开来源」），应用侧接线在后续 App 阶段完成。
+- HTML/JS 面板是一种面板类型（S5-F1）。
 - 显示配置（S4-T1 已实现）：`DisplayProfile` 存进 `profiles.json`，按所选组保存 `BookSettings` 子集，套用时按模板语义经 `BookSettings.merge(_:)` / `ResolvedBookSettings.applying(_:)` 写入对应设置层，不新增层级。
-- 效果链（S4-T1 已实现 Core 模型）：`ColorAdjust`、`Effect`、`EffectChain`、`ViewerBackground` 放在 `MVSettings`，随 `BookSettings` 分层解析并写入书记忆；`ReaderSession` 对只改效果或背景走不重排、不预取快路径；前端在呈现时用 Core Image 滤镜在 GPU 上应用。
+- 效果链（S4-T1 已实现调色，S5-T2 阶段 1 新增插件滤镜 Core）：`ColorAdjust`、`PluginFilterEffect`、`Effect`（`.colorAdjust` / `.plugin`）、`EffectChain`、`ViewerBackground` 放在 `MVSettings`；调色在前端呈现时用 Core Image 实时应用，插件滤镜经 `MVPipeline.PluginFilterExecuting`（由 `MVPlugins.PluginFilterRunner` 实现、单插件串行、取消出队）与 `ImagePipeline.filteredImage` 产出派生图并进 `caches.browse` / `decoded` / `preload` 缓存，缓存键含插件版本与参数规范 JSON 的 SHA-256 前 16 位。
 
 ## 4. Core 协议契约
 
@@ -469,7 +470,15 @@ public final class ByteSourceAsset: Sendable {
     public let asset: AVURLAsset
     public init(source: any ByteSource, priority: IOPriority = .visible)
     public func invalidate()   // 可重复调用；挂起及后续加载请求以 CancellationError 结束，不再调用 ByteSource.read
-}   // 网络卷视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
+}   // 网络卷与单层插件来源视频经 AVAssetResourceLoader 读取；调用方持有它直到不再用 asset
+public final class ExtractStore: Sendable {
+    public let directory: URL
+    public init(directory: URL, budget: Int64 = 10 << 30) throws
+    public func temporaryURL() -> URL
+    public func acquire(_ key: String) -> ExtractLease?
+    public func install(_ temporary: URL, key: String, size: Int64, pathExtension: String = "") async throws -> ExtractLease
+}   // 启动轮换目录并在后台回收旧内容；组合根建一份共享实例给 ArchiveProvider 与 PluginSourceProvider
+public final class ExtractLease: Sendable { public let url: URL; public let size: Int64 }
 
 // MVMetadata
 public struct XMPFields: Sendable, Hashable, Codable { public var rating: Int?; public var tags: [String]? }   // nil 表示不改；写入时 rating=0 清除评分，tags=[] 清除 dc:subject
@@ -514,8 +523,9 @@ public final class FileOperationService: Sendable {
 
 // MVArchive
 public final class ArchiveProvider: ContainerProvider {
-    public init(fileSystem: FileSystemProvider, extractDirectory: URL, extractBudget: Int64 = 10 << 30) throws
-}   // 启动清空 extractDirectory；认领压缩包与多层位置，不持有 registry。压缩包自身的 entry/open/fileURL 交给所在层，children 列出包内条目
+    public convenience init(fileSystem: FileSystemProvider, extractDirectory: URL, extractBudget: Int64 = 10 << 30) throws
+    public init(fileSystem: FileSystemProvider, extracts: ExtractStore, outerProvider: @escaping @Sendable (Location) throws -> any ContainerProvider)
+}   // 认领压缩包与多层位置，不持有 registry。单层压缩包自身的 entry/open/fileLease 经注入的 outerProvider 解析（文件系统或插件来源），嵌套层通过自身递归读取
 // fileLease 的文件保留到租约释放；ByteSource 存活期间保留对应解出文件
 
 // MVCache：键由调用方用 ContentIdentity.cacheKey 生成；本模块不决定预取策略
@@ -608,6 +618,11 @@ public struct VideoPreviewFrame: Sendable { public var index: Int; public var ti
 public enum RenditionSpec: Sendable, Hashable { case metadata, thumbnail, browse, display(DisplayTarget) }
 public struct PrefetchItem: Sendable, Hashable { public var identity: ContentIdentity; public var renditions: Set<RenditionSpec>; public var priority: IOPriority; public init(identity: ContentIdentity, renditions: Set<RenditionSpec>, priority: IOPriority) }   // renditions 为空表示仅读取原始字节
 public struct PrefetchPlan: Sendable, Equatable { public var items: [PrefetchItem]; public init(items: [PrefetchItem] = []) }
+public struct PluginFilterRequest: Sendable, Hashable { public var plugin: String; public var filter: String; public var parameters: [String: JSONValue] }
+public protocol PluginFilterExecuting: Sendable {
+    func version(of plugin: String) -> String?                                        // 插件未启用时 nil
+    func apply(_ request: PluginFilterRequest, input: URL, output: URL) async throws  // 随调用方 Task 取消
+}
 public protocol ImagePipeline: Sendable {
     func metadata(for identity: ContentIdentity, priority: IOPriority) async throws -> ImageMetadata
     func thumbnail(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
@@ -621,6 +636,7 @@ public protocol ImagePipeline: Sendable {
     func setPrefetchPlan(_ plan: PrefetchPlan, session: SessionID)
     func cancelAll(session: SessionID)
     func carryOver(from old: ContentIdentity, to new: ContentIdentity) async   // 协议扩展有默认空实现；像素未变时改挂磁盘缓存并清理旧内存条目
+    func filteredImage(for identity: ContentIdentity, filters: [PluginFilterRequest], target: DisplayTarget, priority: IOPriority) async throws -> RenderedImage   // 默认实现抛 MediaError.unsupported；缓存键逐级拼接版本与参数 SHA-256 前 16 位，字节进 caches.browse，解码进 decoded/preload
 }
 public struct PipelineCaches: Sendable {
     public var raw: MemoryCache<String, Data>; public var decoded: MemoryCache<String, RenderedImage>
@@ -630,8 +646,8 @@ public struct PipelineCaches: Sendable {
                 thumbnailMemory: MemoryCache<String, RenderedImage>, preload: MemoryCache<String, RenderedImage>)
 }   // 生命周期、预算与 flush 由组合根管理；四块内存预算都由调用方显式给出
 public struct PipelineConfiguration: Sendable {
-    public var thumbnailLongSide: Int; public var browseBounds: PixelSize; public var maxDecodeLongSide: Int
-    public init(thumbnailLongSide: Int = 1024, browseBounds: PixelSize, maxDecodeLongSide: Int = 16384)
+    public var thumbnailLongSide: Int; public var browseBounds: PixelSize; public var maxDecodeLongSide: Int; public var pluginFilterExecutor: (any PluginFilterExecuting)?
+    public init(thumbnailLongSide: Int = 1024, browseBounds: PixelSize, maxDecodeLongSide: Int = 16384, pluginFilterExecutor: (any PluginFilterExecuting)? = nil)
 }
 public final class FileImagePipeline: ImagePipeline {
     public init(sources: any SourceRegistry, decoder: ImageDecoder, caches: PipelineCaches, configuration: PipelineConfiguration)
@@ -666,7 +682,8 @@ public enum SortKey: String, Codable, Sendable { case name, modified, created, s
 public struct SortSpec: Codable, Sendable, Hashable { public var key: SortKey; public var ascending: Bool; public var foldersFirst: Bool; public var randomSeed: UInt64? }
 public struct RecursionSpec: Codable, Sendable, Hashable { public var enabled: Bool; public var maxDepth: Int }
 public struct ColorAdjust: Codable, Sendable, Hashable { public var brightness: Double; public var contrast: Double; public var saturation: Double; public var gamma: Double; public var temperature: Double; public var tint: Double; public static let identity: ColorAdjust; public var isIdentity: Bool { get } }   // 除 gamma 为 0.25…4（默认 1）外均为 −1…1（默认 0），解码时夹到范围
-public enum Effect: Codable, Sendable, Hashable { case colorAdjust(ColorAdjust) }   // JSON：{"type":"colorAdjust", ...字段}
+public struct PluginFilterEffect: Codable, Sendable, Hashable { public var plugin: String; public var filter: String; public var parameters: [String: JSONValue]; public var enabled: Bool }
+public enum Effect: Codable, Sendable, Hashable { case colorAdjust(ColorAdjust); case plugin(PluginFilterEffect) }   // JSON：{"type":"colorAdjust"|"plugin", ...字段}；未知插件条目照常保留
 public struct EffectChain: Codable, Sendable, Hashable { public var effects: [Effect]; public static let empty: EffectChain; public var isIdentity: Bool { get }; public var colorAdjust: ColorAdjust { get set } }   // 写 identity 时移除该项
 public enum ViewerBackground: Codable, Sendable, Hashable { case auto, black, gray, white, checkerboard, frostedGlass, imageColor; case custom(red: Double, green: Double, blue: Double) }   // 预设编码为同名字符串；custom sRGB 0…1，解码时夹到范围
 public enum DisplayProfileGroup: String, Codable, Sendable, CaseIterable { case layout, scale, effects, background }
@@ -768,7 +785,7 @@ public enum CommandError: Error, Sendable, Equatable { case unknownCommand(Comma
     public func perform(_ id: CommandID, arguments: [String: JSONValue]?, context: CommandContext) async throws   // 没登记或不可用时抛出 CommandError
     public func descriptors() -> [CommandDescriptor]
 }
-public enum DynamicMenuID: String, Codable, Sendable, Hashable, CaseIterable { case openWith, moveTo, copyTo, rating, displayProfiles, layoutSchemes, scripts }
+public enum DynamicMenuID: String, Codable, Sendable, Hashable, CaseIterable { case openWith, moveTo, copyTo, rating, displayProfiles, layoutSchemes, scripts, sources }   // sources 位于默认「文件」菜单打开项之后
 public indirect enum MenuNode: Codable, Sendable, Hashable { case command(CommandID), submenu(titleKey: String, children: [MenuNode]), dynamic(DynamicMenuID), separator }
 public struct MenuModel: Codable, Sendable, Hashable { public var roots: [MenuNode] }
 public struct ToolbarItemID: RawRepresentable, Codable, Hashable, Sendable { public var rawValue: String; public init(rawValue: String); public init(_ rawValue: String); public init(command: CommandID); public static let flexibleSpace, space, dockLeft, dockRight, bookTitle, viewWaterfallOptions, viewBrowse, viewOptions, windowFullScreen: ToolbarItemID }
@@ -882,6 +899,22 @@ public final class FolderIndexer: Sendable {
 }
 
 // MVScripting
+public final class JSExecutionControl: Sendable {
+    public enum TerminationReason: Sendable, Equatable { case stopped, timedOut }
+    public init(); public var isStopped: Bool { get }; public var terminationReason: TerminationReason? { get }
+    public func begin(timeout: Duration? = nil); public func end(); public func stop()
+    public func syncCall(_ operation: @escaping @Sendable () async throws -> JSONValue) throws -> JSONValue
+}
+public enum JSBridge {
+    public static var supportsExecutionTimeLimit: Bool { get }
+    public static func makeContext(call: @escaping @Sendable (ScriptAPI.Method, [JSONValue]) throws -> JSONValue, log: @escaping @Sendable (ScriptLogEntry.Level, String) -> Void, extraMethods: [String: @Sendable ([JSONValue]) throws -> JSONValue] = [:]) -> JSContext?
+    public static func jsValue(_ value: JSONValue, in context: JSContext) -> JSValue
+    public static func jsonValue(_ value: JSValue) -> JSONValue
+    public static func setExecutionTimeLimit(on context: JSContext, interval: TimeInterval = 0.1, control: JSExecutionControl) -> Bool
+    public static func clearExecutionTimeLimit(on context: JSContext)
+    public static func resetAfterTermination(on context: JSContext, interval: TimeInterval = 0.1, control: JSExecutionControl) -> Bool
+    public static func exceptionProblem(from context: JSContext) -> ScriptProblem?
+}
 public enum ScriptEventName: String, Sendable, Codable, CaseIterable { case startup, bookOpened, pageChanged, pageEnd, windowStateChanged }
 public struct ScriptProblem: Sendable, Hashable { public var line: Int?; public var message: String }
 public struct ScriptInfo: Sendable, Hashable, Identifiable { public var id: String; public var fileURL: URL; public var name: String; public var summary: String?; public var events: [ScriptEventName]; public var problem: ScriptProblem? }
@@ -918,15 +951,53 @@ public struct ShellInvocation: Sendable, Hashable { public var script: String; p
 public struct ProcessResult: Sendable, Hashable { public var exitCode: Int32; public var stdout: String; public var stderr: String }
 public final class ProcessRunner: Sendable { public init(); public func run(executable: String, arguments: [String], workingDirectory: String?) async throws -> ProcessResult; public func runShell(_ invocation: ShellInvocation, workingDirectory: String?) async throws -> ProcessResult }   // shell 固定 /bin/zsh -l；进程组取消时 TERM，250 ms 后 KILL；输出各保留最后 64 KB
 
+// MVPlugins
+public enum PluginPermission: String, Sendable, Codable, CaseIterable, Hashable { case network, commands }
+public enum PluginRuntimeKind: Sendable, Hashable, Codable { case javascript(entry: String), process(command: String, arguments: [String]) }
+public struct PluginProblem: Sendable, Hashable, Error, LocalizedError { public var file: String; public var line: Int?; public var column: Int?; public var message: String }
+public struct PluginManifest: Sendable, Hashable, Codable {
+    public var name, version: String; public var description: String?; public var runtime: PluginRuntimeKind
+    public var permissions: [PluginPermission]; public var commands: [PluginCommandDeclaration]; public var events: [ScriptEventName]
+    public var sources: [PluginSourceDeclaration]; public var filters: [PluginFilterDeclaration]
+    public static func isValidPluginID(_ id: String) -> Bool
+    public static func parse(data: Data, file: String = "manifest.json") -> Result<PluginManifest, PluginProblem>
+}
+public struct PluginInfo: Sendable, Hashable, Identifiable { public var id: String; public var directory: URL; public var manifest: PluginManifest?; public var problem: PluginProblem? }
+public final class PluginLibrary: Sendable { public let directory: URL; public init(directory: URL); public func plugins() -> [PluginInfo]; public func changes() -> AsyncStream<[PluginInfo]> }
+public struct PluginState: Codable, Sendable, Hashable { public var enabled: Bool; public var grantedPermissions: [PluginPermission] }
+public struct SourceInstance: Codable, Sendable, Hashable, Identifiable { public var id: UUID; public var plugin, type, name: String; public var values: [String: String]; public static func partitionValues(_ allValues: [String: String], declaration: PluginSourceDeclaration?) -> (publicValues: [String: String], secretValues: [String: String]) }
+public struct PluginSettingsFile: Codable, Sendable, Hashable { public var plugins: [String: PluginState]; public var sources: [SourceInstance] }
+public enum PluginStatus: Sendable, Hashable { case disabled, needsConsent, ready, running(since: Date), failed(String), invalid(PluginProblem) }
+public final class PluginSecrets: Sendable { public init(fileURL: URL) throws; public func values(for source: UUID) -> [String: String]; public func set(_ values: [String: String], for source: UUID) async throws; public func remove(source: UUID) async throws }   // 原子 0600 权限；读取发现宽松权限自动修正
+public protocol PluginAPIHost: Sendable { func call(plugin: String, method: ScriptAPI.Method, params: [JSONValue], context: ScriptCallContext) async throws -> JSONValue }
+public struct PluginHostConfiguration: Sendable { public var pythonLibraryDirectory: URL?; public var supportDirectory: URL?; public var appVersion, language: String; public var idleTimeout, requestTimeout, filterTimeout: Duration; public var httpHandler: (@Sendable (PluginHTTPRequest) async throws -> PluginHTTPResponse)? }
+public final class PluginHost: Sendable {
+    public init(library: PluginLibrary, settings: JSONDocumentStore<PluginSettingsFile>, secrets: PluginSecrets, log: ScriptLog, configuration: PluginHostConfiguration = PluginHostConfiguration())
+    public func setAPIHost(_ host: any PluginAPIHost)
+    public func statuses() -> [String: PluginStatus]; public func statusChanges() -> AsyncStream<[String: PluginStatus]>
+    public func enabledPlugins() -> [PluginInfo]
+    public func runCommand(plugin: String, command: String, arguments: [String: JSONValue]?, context: ScriptCallContext) async throws -> JSONValue
+    public func hasSubscribers(for event: ScriptEventName) -> Bool
+    public func dispatch(_ event: ScriptEventName, payload: [String: JSONValue], session: SessionID?)
+    public func stop(_ plugin: String); public func shutdown()
+}
+public final class HTTPByteSource: ByteSource, Sendable { public let identity: ContentIdentity; public let url: URL; public let headers: [String: String] }
+public final class PluginSourceProvider: ContainerProvider, Sendable {
+    public init(host: PluginHost, extracts: ExtractStore, requestTimeout: TimeInterval = 15)
+    public static func root(for source: UUID) -> Location.Root
+    public static func sourceID(of root: Location.Root) -> UUID?
+}
+public final class PluginFilterRunner: PluginFilterExecuting, Sendable { public init(host: PluginHost) }
+
 // MVServices
 public struct LibraryBookLoader: BookLoader {
     public init(files: any BookLoader, playlists: any BookLoader)
 }   // playlistID 非 nil 时分派到列表加载器，其余走文件加载器；Mock 共用。
 public struct CoreConfiguration: Sendable {
     public var supportDirectory: URL; public var cacheDirectory: URL
-    public var browseBounds: PixelSize; public var helperExecutable: URL?
-    public init(supportDirectory: URL, cacheDirectory: URL, browseBounds: PixelSize, helperExecutable: URL? = nil)
-}   // browseBounds 由 App 提供显示器像素尺寸；helperExecutable 为辅助进程可执行文件
+    public var browseBounds: PixelSize; public var helperExecutable: URL?; public var pythonLibraryDirectory: URL?
+    public init(supportDirectory: URL, cacheDirectory: URL, browseBounds: PixelSize, helperExecutable: URL? = nil, pythonLibraryDirectory: URL? = nil)
+}   // browseBounds 由 App 提供显示器像素尺寸；helperExecutable 为辅助进程可执行文件；pythonLibraryDirectory 加入外部程序插件 PYTHONPATH
 @MainActor public final class CoreServices {
     public static func make(configuration: CoreConfiguration) async throws -> CoreServices
     public convenience init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader, library: (any LibraryStore)? = nil, search: SearchCatalog? = nil, indexer: FolderIndexer? = nil)   // Mock 等消费方的构造入口
@@ -934,6 +1005,7 @@ public struct CoreConfiguration: Sendable {
     public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?; public let menus: JSONDocumentStore<MenuFile>?   // Mock 为 nil；keybindings.json v2（兼容 v1），menus.json v1
     public let scriptLibrary: ScriptLibrary?; public let scriptRuntime: ScriptRuntime?; public let externalCommands: JSONDocumentStore<ExternalCommandFile>?
     public let scriptStorage: ScriptStorage?; public let scriptLog: ScriptLog?   // make 创建，Mock 为 nil
+    public let pluginLibrary: PluginLibrary?; public let pluginHost: PluginHost?; public let pluginSettings: JSONDocumentStore<PluginSettingsFile>?; public let pluginSecrets: PluginSecrets?   // make 创建，Mock 为 nil
     public let fileOperations: FileOperationService?   // Mock 为 nil
     public let library: (any LibraryStore)?   // make 为 SQLite；makeMock 为内存 MockLibraryStore
     public let availability: AvailabilityChecker?   // Mock 为 nil
@@ -943,7 +1015,7 @@ public struct CoreConfiguration: Sendable {
     public func interruptedTransfersReport() async -> ResumeReport?   // 等待启动恢复并返回同一份结果；Mock 为 nil
     public nonisolated func metadataDetails(for entry: Entry) async throws -> ImageDetails   // 经 SourceRegistry 增量读前 64 KB（上限 MediaProbe.headerLimit），压缩包内条目同样可读
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
-    public func shutdown() async   // 先停止脚本；会话 flush → pipeline.shutdown → 设置 flush → 资料库 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
+    public func shutdown() async   // 先停止脚本与插件；会话 flush → pipeline.shutdown → 设置 flush → 资料库 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
 // 组合根订阅文件变更：先收集 moved 涉及的元数据迁移对（含目录后代）→ 目录缓存 → MetadataIndex.move 与 .rewritten 的 store/remove + pipeline.carryOver → 冲刷相关会话及待写历史 → 按每个 moved 迁移书记忆与 library.apply → 会话（.rewritten 仅原位更新 identity 与 metadata，不重载）→ 广播。
 // library.apply 失败只记日志，其事务保持三表原样；会话照常跟随真实文件位置并广播本批，不补偿、不重试。旧资料库项由检查器显示找不到，由用户移除或重新加入。

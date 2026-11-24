@@ -200,6 +200,7 @@ final class MenusModel {
         case .rating: String(localized: "评分")
         case .layoutSchemes: String(localized: "布局方案")
         case .scripts: String(localized: "脚本")
+        case .sources: String(localized: "打开来源")
         }
     }
 

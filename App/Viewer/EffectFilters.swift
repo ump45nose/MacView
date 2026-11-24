@@ -11,6 +11,8 @@ enum EffectFilters {
             switch effect {
             case let .colorAdjust(adjust):
                 result.append(contentsOf: colorAdjustFilters(adjust))
+            case .plugin:
+                break
             }
         }
         return result
