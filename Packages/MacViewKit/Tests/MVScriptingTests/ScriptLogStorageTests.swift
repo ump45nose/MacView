@@ -16,8 +16,8 @@ import Testing
 }
 
 @Test func storagePersistenceAndBadExternalFile() async throws {
-    let dir = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TMPDIR"] ?? FileManager.default.currentDirectoryPath)
-        .appendingPathComponent("MVScriptingTests-\(UUID().uuidString)")
+    let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        .appendingPathComponent(".build/MVScriptingTests/\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: dir) }
     let url = dir.appendingPathComponent("script-storage.json")
@@ -51,6 +51,15 @@ import Testing
     #expect(second.get("script.b", "external") == .bool(true))
     try await second.remove("script.a", "key")
     #expect(second.get("script.a", "key") == .null)
+}
+
+@Test func logChangesKeepLatestSnapshot() async {
+    let log = ScriptLog(capacity: 3)
+    let changes = log.changes()
+    for value in 1...5 { log.append(source: "test", level: .info, text: "\(value)") }
+    var iterator = changes.makeAsyncIterator()
+    let latest = await iterator.next()
+    #expect(latest?.map(\.text) == ["3", "4", "5"])
 }
 
 private actor StorageChangeRecorder {

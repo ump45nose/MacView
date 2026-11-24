@@ -81,3 +81,21 @@ private func nextMatching(_ stream: AsyncStream<[ScriptInfo]>, _ predicate: @esc
     try FileManager.default.removeItem(at: dir.appendingPathComponent("renamed.js"))
     #expect(await nextMatching(changes) { $0.isEmpty })
 }
+
+@Test func libraryChangesKeepLatestSnapshot() async throws {
+    let dir = try testDirectory()
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let library = ScriptLibrary(directory: dir)
+    let changes = library.changes()
+    for name in ["First", "Second"] {
+        try write("// @name \(name)\n1;", "test.js", in: dir)
+        for _ in 0..<40 {
+            if library.scripts().first?.name == name { break }
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(library.scripts().first?.name == name)
+    }
+    var iterator = changes.makeAsyncIterator()
+    #expect(await iterator.next()?.first?.name == "Second")
+}

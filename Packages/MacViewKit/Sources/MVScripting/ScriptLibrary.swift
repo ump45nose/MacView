@@ -69,7 +69,7 @@ public final class ScriptLibrary: Sendable {
     public func scripts() -> [ScriptInfo] { state.withLock { $0.scripts } }
 
     public func changes() -> AsyncStream<[ScriptInfo]> {
-        let (stream, continuation) = AsyncStream.makeStream(of: [ScriptInfo].self)
+        let (stream, continuation) = AsyncStream.makeStream(of: [ScriptInfo].self, bufferingPolicy: .bufferingNewest(1))
         let id = UUID()
         state.withLock { $0.observers[id] = continuation }
         continuation.onTermination = { [weak self] _ in

@@ -37,7 +37,7 @@ public final class ScriptLog: Sendable {
     public func entries() -> [ScriptLogEntry] { state.withLock { $0.entries } }
 
     public func changes() -> AsyncStream<[ScriptLogEntry]> {
-        let (stream, continuation) = AsyncStream.makeStream(of: [ScriptLogEntry].self)
+        let (stream, continuation) = AsyncStream.makeStream(of: [ScriptLogEntry].self, bufferingPolicy: .bufferingNewest(1))
         let id = UUID()
         state.withLock { $0.observers[id] = continuation }
         continuation.onTermination = { [weak self] _ in

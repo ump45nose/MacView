@@ -134,8 +134,9 @@ private final class RuntimeRecorder: Sendable {
     let session = SessionID()
     runtime.dispatch(.pageChanged, payload: [:], session: session)
     #expect(await waitUntil { host.state.withLock { $0.calls.count == 1 } })
+    #expect(await waitUntil { recorder.states.withLock { !$0.isEmpty } })
     runtime.dispatch(.pageChanged, payload: [:], session: session)
-    #expect(await waitUntil { recorder.states.withLock { $0.count >= 3 } })
+    #expect(await waitUntil { recorder.states.withLock { $0.count >= 2 } })
     host.state.withLock { $0.blocked = false }
     #expect(await waitUntil { recorder.events.withLock { $0.count == 4 } })
     let captured = recorder.events.withLock { $0 }
@@ -147,6 +148,43 @@ private final class RuntimeRecorder: Sendable {
     #expect(a == b && c == d && a.runID != c.runID)
     #expect(a.session == session && a.trigger == .event(.pageChanged))
     #expect(recorder.states.withLock { $0.contains { $0.isEmpty } })
+}
+
+@Test func runtimeStateChangesKeepLatestSnapshot() async throws {
+    let dir = try runtimeDirectory(["test": "mv.toast('start');"])
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let host = RuntimeTestHost(); host.state.withLock { $0.blocked = true }
+    let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: ScriptLog())
+    runtime.setHost(host)
+    let states = runtime.runStateChanges()
+    runtime.run("test", arguments: nil, context: testContext)
+    #expect(await waitUntil { host.state.withLock { $0.calls.count == 1 } })
+    host.state.withLock { $0.blocked = false }
+    #expect(await waitUntil { runtime.runStates().isEmpty })
+    var iterator = states.makeAsyncIterator()
+    #expect(await iterator.next()?.isEmpty == true)
+}
+
+@Test func exampleNextBookHandlesCommandAndPageEvents() async throws {
+    let root = try runtimeDirectory([:])
+    defer { try? FileManager.default.removeItem(at: root) }
+    let library = ScriptLibrary(directory: root.appendingPathComponent("Scripts"))
+    let host = RuntimeTestHost(); let log = ScriptLog()
+    let runtime = ScriptRuntime(library: library, log: log)
+    runtime.setHost(host)
+    let recorder = RuntimeRecorder(); let events = runtime.events()
+    let task = Task { for await event in events { recorder.events.withLock { $0.append(event) } } }
+    defer { task.cancel() }
+    runtime.run("ask-next-book", arguments: nil, context: testContext)
+    #expect(await waitUntil { recorder.events.withLock { $0.count >= 2 } })
+    #expect(host.state.withLock { $0.calls.isEmpty })
+    runtime.dispatch(.pageEnd, payload: ["direction": .string("backward")], session: nil)
+    #expect(await waitUntil { recorder.events.withLock { $0.count >= 4 } })
+    #expect(host.state.withLock { $0.calls.isEmpty })
+    runtime.dispatch(.pageEnd, payload: ["direction": .string("forward")], session: nil)
+    #expect(await waitUntil { recorder.events.withLock { $0.count >= 6 } })
+    #expect(host.state.withLock { $0.calls.map(\.method) } == [.confirm, .command])
+    #expect(!log.entries().contains { $0.level == .error })
 }
 
 @Test func runtimeSeparateGroupsAndConcurrency() async throws {

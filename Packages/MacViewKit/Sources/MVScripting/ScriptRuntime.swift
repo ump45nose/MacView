@@ -217,7 +217,7 @@ public final class ScriptRuntime: Sendable {
         for observer in state.statesObservers.values { observer.yield(value) }
     }
     public func runStateChanges() -> AsyncStream<[String: ScriptRunState]> {
-        let (stream, continuation) = AsyncStream.makeStream(of: [String: ScriptRunState].self); let id = UUID()
+        let (stream, continuation) = AsyncStream.makeStream(of: [String: ScriptRunState].self, bufferingPolicy: .bufferingNewest(1)); let id = UUID()
         state.withLock { $0.statesObservers[id] = continuation }
         continuation.onTermination = { [weak self] _ in self?.state.withLock { _ = $0.statesObservers.removeValue(forKey: id) } }
         return stream
