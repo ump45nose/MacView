@@ -290,7 +290,9 @@ private final class CountingExecutor: PluginFilterExecuting, Sendable {
             invoked.append(tag)
             with open(os.path.join(marker_dir, "state.txt"), "w") as f:
                 f.write("{}:{}".format(peak, ",".join(invoked)))
-        time.sleep(0.25)
+        release_path = os.path.join(marker_dir, "release.txt")
+        while not os.path.exists(release_path):
+            time.sleep(0.01)
         shutil.copyfile(inp, outp)
         with lock:
             active -= 1
@@ -303,7 +305,7 @@ private final class CountingExecutor: PluginFilterExecuting, Sendable {
     let log = ScriptLog()
     try await settings.update { $0.plugins["slow-filter"] = PluginState(enabled: true, grantedPermissions: []) }
     let library = PluginLibrary(directory: pluginsDir)
-    #expect(await waitUntil { library.plugins().contains { $0.id == "slow-filter" } })
+    #expect(await waitUntil(timeout: .seconds(10)) { library.plugins().contains { $0.id == "slow-filter" } })
     let host = PluginHost(
         library: library, settings: settings, secrets: secrets, log: log,
         configuration: PluginHostConfiguration(
@@ -319,12 +321,13 @@ private final class CountingExecutor: PluginFilterExecuting, Sendable {
     let out1 = root.appendingPathComponent("out1.bin")
     let out2 = root.appendingPathComponent("out2.bin")
     let out3 = root.appendingPathComponent("out3.bin")
+    let releaseFile = markerDir.appendingPathComponent("release.txt")
 
     let t1 = Task {
         try await runner.apply(PluginFilterRequest(plugin: "slow-filter", filter: "slow", parameters: ["tag": .string("first")]), input: input, output: out1)
     }
-    // 等第一个请求进入插件执行
-    #expect(await waitUntil { FileManager.default.fileExists(atPath: markerDir.appendingPathComponent("state.txt").path) })
+    // 等第一个请求进入插件执行（CI 冷启动 Python 可能稍慢，给足等待时限）
+    #expect(await waitUntil(timeout: .seconds(15)) { FileManager.default.fileExists(atPath: markerDir.appendingPathComponent("state.txt").path) })
 
     let t2 = Task {
         try await runner.apply(PluginFilterRequest(plugin: "slow-filter", filter: "slow", parameters: ["tag": .string("cancelled")]), input: input, output: out2)
@@ -332,16 +335,17 @@ private final class CountingExecutor: PluginFilterExecuting, Sendable {
     let t3 = Task {
         try await runner.apply(PluginFilterRequest(plugin: "slow-filter", filter: "slow", parameters: ["tag": .string("third")]), input: input, output: out3)
     }
-    try await Task.sleep(for: .milliseconds(30))
+    try await Task.sleep(for: .milliseconds(50))
     t2.cancel()
-
-    try await t1.value
     do {
         try await t2.value
         Issue.record("被取消的排队请求应抛 CancellationError")
     } catch is CancellationError {
-        // 预期取消
+        // 预期取消并在放行前就已出队
     }
+
+    try Data("go".utf8).write(to: releaseFile)
+    try await t1.value
     try await t3.value
 
     let stateText = try String(contentsOf: markerDir.appendingPathComponent("state.txt"), encoding: .utf8)
