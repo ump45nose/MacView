@@ -10,6 +10,7 @@ import MVIO
 import MVMedia
 import MVMetadata
 import MVPipeline
+import MVPlugins
 import MVReading
 @_exported import MVSearch
 import MVSettings
@@ -22,12 +23,20 @@ public struct CoreConfiguration: Sendable {
     public var cacheDirectory: URL
     public var browseBounds: PixelSize
     public var helperExecutable: URL?
+    public var pythonLibraryDirectory: URL?
 
-    public init(supportDirectory: URL, cacheDirectory: URL, browseBounds: PixelSize, helperExecutable: URL? = nil) {
+    public init(
+        supportDirectory: URL,
+        cacheDirectory: URL,
+        browseBounds: PixelSize,
+        helperExecutable: URL? = nil,
+        pythonLibraryDirectory: URL? = nil
+    ) {
         self.supportDirectory = supportDirectory
         self.cacheDirectory = cacheDirectory
         self.browseBounds = browseBounds
         self.helperExecutable = helperExecutable
+        self.pythonLibraryDirectory = pythonLibraryDirectory
     }
 }
 
@@ -49,6 +58,10 @@ public struct CoreConfiguration: Sendable {
     public let externalCommands: JSONDocumentStore<ExternalCommandFile>?
     public let scriptStorage: ScriptStorage?
     public let scriptLog: ScriptLog?
+    public let pluginLibrary: PluginLibrary?
+    public let pluginHost: PluginHost?
+    public let pluginSettings: JSONDocumentStore<PluginSettingsFile>?
+    public let pluginSecrets: PluginSecrets?
     let loader: any BookLoader
     let runtime: Runtime?
     private var sessions: [WeakSession] = []
@@ -80,7 +93,8 @@ public struct CoreConfiguration: Sendable {
         self.init(sources: sources, pipeline: pipeline, settings: settings, commands: commands,
                   bookshelf: bookshelf, loader: loader, keyBindings: nil, menus: nil, fileOperations: nil,
                   library: library, availability: nil, search: search, indexer: indexer, runtime: nil,
-                  scriptLibrary: nil, scriptRuntime: nil, externalCommands: nil, scriptStorage: nil, scriptLog: nil)
+                  scriptLibrary: nil, scriptRuntime: nil, externalCommands: nil, scriptStorage: nil, scriptLog: nil,
+                  pluginLibrary: nil, pluginHost: nil, pluginSettings: nil, pluginSecrets: nil)
     }
 
     private init(
@@ -91,7 +105,9 @@ public struct CoreConfiguration: Sendable {
         availability: AvailabilityChecker?, search: SearchCatalog?,
         indexer: FolderIndexer?, runtime: Runtime?,
         scriptLibrary: ScriptLibrary?, scriptRuntime: ScriptRuntime?,
-        externalCommands: JSONDocumentStore<ExternalCommandFile>?, scriptStorage: ScriptStorage?, scriptLog: ScriptLog?
+        externalCommands: JSONDocumentStore<ExternalCommandFile>?, scriptStorage: ScriptStorage?, scriptLog: ScriptLog?,
+        pluginLibrary: PluginLibrary?, pluginHost: PluginHost?,
+        pluginSettings: JSONDocumentStore<PluginSettingsFile>?, pluginSecrets: PluginSecrets?
     ) {
         self.sources = sources
         self.pipeline = pipeline
@@ -109,6 +125,8 @@ public struct CoreConfiguration: Sendable {
         self.runtime = runtime
         self.scriptLibrary = scriptLibrary; self.scriptRuntime = scriptRuntime
         self.externalCommands = externalCommands; self.scriptStorage = scriptStorage; self.scriptLog = scriptLog
+        self.pluginLibrary = pluginLibrary; self.pluginHost = pluginHost
+        self.pluginSettings = pluginSettings; self.pluginSecrets = pluginSecrets
         subscribeLibrary()
         let changes = settings.changes()
         settingsTask = Task { [weak self] in
@@ -130,8 +148,39 @@ public struct CoreConfiguration: Sendable {
         let global = await settings.global()
         let scheduler = IOScheduler(configuration: IOConfiguration(helperExecutable: configuration.helperExecutable))
         let sources = FileSourceRegistry(scheduler: scheduler)
-        sources.register(try ArchiveProvider(fileSystem: sources.fileSystem,
-                                            extractDirectory: configuration.cacheDirectory.appending(path: "extract")))
+        let extracts = try ExtractStore(directory: configuration.cacheDirectory.appending(path: "extract"))
+        let scriptLibrary = ScriptLibrary(directory: configuration.supportDirectory.appending(path: "Scripts"))
+        // ScriptLibrary 的初始化不抛错；组合根检查目录，确保无法创建时 make 报错。
+        _ = try FileManager.default.contentsOfDirectory(atPath: scriptLibrary.directory.path)
+        let scriptLog = ScriptLog()
+        let scriptRuntime = ScriptRuntime(library: scriptLibrary, log: scriptLog)
+        let scriptStorage = try ScriptStorage(fileURL: configuration.supportDirectory.appending(path: "script-storage.json"))
+        let externalCommands = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "external-commands.json"),
+                                                     version: 1, defaultValue: ExternalCommandFile(commands: []))
+        let pluginLibrary = PluginLibrary(directory: configuration.supportDirectory.appending(path: "Plugins"))
+        _ = try FileManager.default.contentsOfDirectory(atPath: pluginLibrary.directory.path)
+        let pluginSettings = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "plugins.json"),
+                                                   version: 1, defaultValue: PluginSettingsFile())
+        let pluginSecrets = try PluginSecrets(fileURL: configuration.supportDirectory.appending(path: "plugin-secrets.json"))
+        let pluginHost = PluginHost(
+            library: pluginLibrary,
+            settings: pluginSettings,
+            secrets: pluginSecrets,
+            log: scriptLog,
+            configuration: PluginHostConfiguration(
+                pythonLibraryDirectory: configuration.pythonLibraryDirectory,
+                supportDirectory: configuration.supportDirectory
+            )
+        )
+        let pluginSourceProvider = PluginSourceProvider(host: pluginHost, extracts: extracts)
+        // 先登记 ArchiveProvider，再登记 PluginSourceProvider；单层外层字节按根分派，不得递归回 ArchiveProvider。
+        sources.register(ArchiveProvider(fileSystem: sources.fileSystem, extracts: extracts) { location in
+            if PluginSourceProvider.sourceID(of: location.root) != nil {
+                return pluginSourceProvider
+            }
+            return sources.fileSystem
+        })
+        sources.register(pluginSourceProvider)
         let index = try CacheIndex(databaseURL: configuration.cacheDirectory.appending(path: "index.sqlite"))
         let budgets = global.cache
         let caches = PipelineCaches(
@@ -147,14 +196,6 @@ public struct CoreConfiguration: Sendable {
                                                version: 2, defaultValue: KeyBindingsFile())
         let menus = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "menus.json"),
                                          version: 1, defaultValue: MenuFile())
-        let scriptLibrary = ScriptLibrary(directory: configuration.supportDirectory.appending(path: "Scripts"))
-        // ScriptLibrary 的初始化不抛错；组合根检查目录，确保无法创建时 make 报错。
-        _ = try FileManager.default.contentsOfDirectory(atPath: scriptLibrary.directory.path)
-        let scriptLog = ScriptLog()
-        let scriptRuntime = ScriptRuntime(library: scriptLibrary, log: scriptLog)
-        let scriptStorage = try ScriptStorage(fileURL: configuration.supportDirectory.appending(path: "script-storage.json"))
-        let externalCommands = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "external-commands.json"),
-                                                     version: 1, defaultValue: ExternalCommandFile(commands: []))
         let journal = configuration.supportDirectory.appending(path: "transfers.json")
         let fileOperations = try factory?(sources.fileSystem, journal) ?? FileOperationService(fileSystem: sources.fileSystem, journalURL: journal)
         let library = try SQLiteLibraryStore(databaseURL: configuration.supportDirectory.appending(path: "library.sqlite"), historyLimit: global.historyLimit)
@@ -170,7 +211,9 @@ public struct CoreConfiguration: Sendable {
                                     search: search, indexer: indexer,
                                     runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches),
                                     scriptLibrary: scriptLibrary, scriptRuntime: scriptRuntime, externalCommands: externalCommands,
-                                    scriptStorage: scriptStorage, scriptLog: scriptLog)
+                                    scriptStorage: scriptStorage, scriptLog: scriptLog,
+                                    pluginLibrary: pluginLibrary, pluginHost: pluginHost,
+                                    pluginSettings: pluginSettings, pluginSecrets: pluginSecrets)
         services.subscribe(directories: directories)
         services.recoveryTask = Task { await fileOperations.resumeInterruptedTransfers() }
         return services
@@ -411,6 +454,7 @@ public struct CoreConfiguration: Sendable {
     /// 留出调度余量；超时后取消剩余落盘步骤，并立即弃用辅助进程。
     public func shutdown() async {
         scriptRuntime?.stopAll()
+        pluginHost?.shutdown()
         if let shutdownTask { await shutdownTask.value; return }
         let timeoutAt = DispatchTime.now() + .milliseconds(900)
         pressureSource?.cancel()

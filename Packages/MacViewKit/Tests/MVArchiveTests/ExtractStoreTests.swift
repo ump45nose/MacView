@@ -1,4 +1,5 @@
 import Foundation
+import MVIO
 import MVTestSupport
 import Testing
 @testable import MVArchive

@@ -1,10 +1,9 @@
 import Foundation
-import MVIO
 import Synchronization
 
-/// 解出文件的进程内 LRU。租约随 ByteSource 释放，索引本身不持有租约。
-final class ExtractStore: Sendable {
-    let directory: URL
+/// 解出文件的进程内 LRU。租约随 ByteSource 或 FileLease 释放，索引本身不持有租约。
+public final class ExtractStore: Sendable {
+    public let directory: URL
     private let budget: Int64
     private struct Item {
         var url: URL
@@ -19,7 +18,7 @@ final class ExtractStore: Sendable {
     }
     private let state = Mutex(State())
 
-    init(directory: URL, budget: Int64) throws {
+    public init(directory: URL, budget: Int64 = 10 << 30) throws {
         self.directory = directory
         self.budget = max(0, budget)
         let parent = directory.deletingLastPathComponent()
@@ -46,9 +45,9 @@ final class ExtractStore: Sendable {
         }
     }
 
-    func temporaryURL() -> URL { directory.appending(path: UUID().uuidString + ".partial") }
+    public func temporaryURL() -> URL { directory.appending(path: UUID().uuidString + ".partial") }
 
-    func acquire(_ key: String) -> ExtractLease? {
+    public func acquire(_ key: String) -> ExtractLease? {
         state.withLock { state in
             guard var item = state.items[key] else { return nil }
             state.clock &+= 1
@@ -60,7 +59,7 @@ final class ExtractStore: Sendable {
     }
 
     /// `pathExtension` 给按扩展名认格式的读者用（AVFoundation）。
-    func install(_ temporary: URL, key: String, size: Int64, pathExtension: String = "") async throws -> ExtractLease {
+    public func install(_ temporary: URL, key: String, size: Int64, pathExtension: String = "") async throws -> ExtractLease {
         let destination = directory.appending(path: UUID().uuidString + "." + (pathExtension.isEmpty ? "extract" : pathExtension))
         try await ExtractIO.run { try FileManager.default.moveItem(at: temporary, to: destination) }
         let result = state.withLock { state in
@@ -102,11 +101,11 @@ final class ExtractStore: Sendable {
     }
 }
 
-final class ExtractLease: Sendable {
+public final class ExtractLease: Sendable {
     private let store: ExtractStore
     private let key: String
-    let url: URL
-    let size: Int64
+    public let url: URL
+    public let size: Int64
 
     init(store: ExtractStore, key: String, url: URL, size: Int64) {
         self.store = store

@@ -3,9 +3,10 @@ import MVFoundation
 import MVIO
 import Synchronization
 
-/// 压缩包只持有文件系统来源；嵌套时通过自身递归取得外层字节。
+/// 压缩包通过注入的非压缩包来源解析单层位置，嵌套时通过自身递归取得外层字节。
 public final class ArchiveProvider: ContainerProvider {
     private let fileSystem: FileSystemProvider
+    private let outerProvider: @Sendable (Location) throws -> any ContainerProvider
     private let extracts: ExtractStore
     private struct State {
         var indexes: [ContentIdentity: ArchiveIndex] = [:]
@@ -13,9 +14,19 @@ public final class ArchiveProvider: ContainerProvider {
     }
     private let state = Mutex(State())
 
-    public init(fileSystem: FileSystemProvider, extractDirectory: URL, extractBudget: Int64 = 10 << 30) throws {
+    public convenience init(fileSystem: FileSystemProvider, extractDirectory: URL, extractBudget: Int64 = 10 << 30) throws {
+        let extracts = try ExtractStore(directory: extractDirectory, budget: extractBudget)
+        self.init(fileSystem: fileSystem, extracts: extracts, outerProvider: { _ in fileSystem })
+    }
+
+    public init(
+        fileSystem: FileSystemProvider,
+        extracts: ExtractStore,
+        outerProvider: @escaping @Sendable (Location) throws -> any ContainerProvider
+    ) {
         self.fileSystem = fileSystem
-        extracts = try ExtractStore(directory: extractDirectory, budget: extractBudget)
+        self.extracts = extracts
+        self.outerProvider = outerProvider
     }
 
     public func canHandle(_ location: Location) -> Bool {
@@ -47,7 +58,7 @@ public final class ArchiveProvider: ContainerProvider {
     }
 
     public func entry(at location: Location) async throws -> Entry {
-        if location.layers.count == 1 { return try await fileSystem.entry(at: location) }
+        if location.layers.count == 1 { return try await outerProvider(location).entry(at: location) }
         let (archive, path) = try itemParts(location)
         let index = try await index(of: archive, priority: .visible)
         guard let record = index.records[path] else { throw IOError.notFound(location) }
@@ -59,7 +70,7 @@ public final class ArchiveProvider: ContainerProvider {
     }
 
     public func fileLease(for location: Location) async throws -> FileLease {
-        if location.layers.count == 1 { return try await fileSystem.fileLease(for: location) }
+        if location.layers.count == 1 { return try await outerProvider(location).fileLease(for: location) }
         let source = try await open(location)
         let lease = try await materialize(source, key: source.identity.cacheKey + "-file", priority: .visible)
         return FileLease(url: lease.url, holder: lease)
@@ -140,7 +151,7 @@ public final class ArchiveProvider: ContainerProvider {
     }
 
     private func itemSource(_ location: Location, priority: IOPriority, materializeArchive: Bool) async throws -> any ByteSource {
-        if location.layers.count == 1 { return try await fileSystem.open(location) }
+        if location.layers.count == 1 { return try await outerProvider(location).open(location) }
         let (archive, path) = try itemParts(location)
         let index = try await index(of: archive, priority: priority)
         guard let record = index.records[path] else { throw IOError.notFound(location) }

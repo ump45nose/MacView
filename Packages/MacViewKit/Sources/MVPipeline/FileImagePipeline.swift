@@ -385,7 +385,11 @@ public final class FileImagePipeline: ImagePipeline {
     private func withVideo<Value: Sendable>(_ identity: ContentIdentity, priority: IOPriority, operation: (AVAsset, ContentIdentity) async throws -> Value) async throws -> Value {
         try lifetime.checkRunning()
         let provider = try sources.provider(for: identity.location)
-        if case .network = identity.location.root, identity.location.layers.count == 1 {
+        let streamViaByteSource: Bool = switch identity.location.root {
+        case .network, .plugin: identity.location.layers.count == 1
+        case .local: false
+        }
+        if streamViaByteSource {
             let source = try await lifetime.value { try await provider.open(identity.location) }
             let bridge = try lifetime.whileRunning {
                 ByteSourceAsset(source: ManagedBytes(source: source, lifetime: lifetime), priority: priority)
