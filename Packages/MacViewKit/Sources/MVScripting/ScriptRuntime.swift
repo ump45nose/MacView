@@ -327,7 +327,13 @@ public final class ScriptRuntime: Sendable {
 private typealias TerminationCallback = @convention(c) (JSContextRef?, UnsafeMutableRawPointer?) -> Bool
 private typealias SetTimeLimit = @convention(c) (JSContextGroupRef?, Double, TerminationCallback?, UnsafeMutableRawPointer?) -> Void
 private typealias ClearTimeLimit = @convention(c) (JSContextGroupRef?) -> Void
-private let shouldTerminate: TerminationCallback = { _, pointer in
+private let shouldTerminate: TerminationCallback = { context, pointer in
     guard let pointer else { return false }
-    return Unmanaged<RunControl>.fromOpaque(pointer).takeUnretainedValue().stopped
+    if Unmanaged<RunControl>.fromOpaque(pointer).takeUnretainedValue().stopped { return true }
+    // 某些 JavaScriptCore 版本在回调返回 false 后不会再次触发，显式重设。
+    if let context, let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "JSContextGroupSetExecutionTimeLimit") {
+        let set = unsafeBitCast(symbol, to: SetTimeLimit.self)
+        set(JSContextGetGroup(context), 0.1, shouldTerminate, pointer)
+    }
+    return false
 }
