@@ -190,8 +190,16 @@ public struct CoreConfiguration: Sendable {
             metadata: MetadataIndex(index: index), thumbnailMemory: MemoryCache(budget: budgets.thumbnailMemoryBytes),
             preload: MemoryCache(budget: budgets.preloadBytes))
         let directories = DirectoryCache(index: index)
-        let pipeline = FileImagePipeline(sources: sources, decoder: ImageDecoder(), caches: caches,
-                                         configuration: PipelineConfiguration(browseBounds: configuration.browseBounds, maxDecodeLongSide: global.maxDecodeLongSide))
+        let pipeline = FileImagePipeline(
+            sources: sources,
+            decoder: ImageDecoder(),
+            caches: caches,
+            configuration: PipelineConfiguration(
+                browseBounds: configuration.browseBounds,
+                maxDecodeLongSide: global.maxDecodeLongSide,
+                pluginFilterExecutor: PluginFilterRunner(host: pluginHost)
+            )
+        )
         let keyBindings = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "keybindings.json"),
                                                version: 2, defaultValue: KeyBindingsFile())
         let menus = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "menus.json"),

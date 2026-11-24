@@ -1,4 +1,5 @@
 import AVFoundation
+import CryptoKit
 import Foundation
 import IOSurface
 import MVCache
@@ -924,6 +925,146 @@ extension FileImagePipeline {
                 }
             }
             try await store(data, in: caches.thumbnails, for: key)
+        }
+    }
+}
+
+extension FileImagePipeline {
+    public func filteredImage(
+        for identity: ContentIdentity,
+        filters: [PluginFilterRequest],
+        target: DisplayTarget,
+        priority: IOPriority
+    ) async throws -> RenderedImage {
+        try await lifetime.value(priority: priority.taskPriority) { [self] in
+            try lifetime.checkRunning()
+            guard let executor = configuration.pluginFilterExecutor else {
+                throw MediaError.unsupported
+            }
+            if filters.isEmpty {
+                return try await exact(identity, target: target, allowOriginal: false, context: RequestContext(priority))
+            }
+
+            // 逐级构造缓存键并检查每个插件是否启用。
+            var steps: [(request: PluginFilterRequest, cacheKey: String)] = []
+            steps.reserveCapacity(filters.count)
+            var currentKey = identity.cacheKey
+            for filter in filters {
+                guard let version = executor.version(of: filter.plugin) else {
+                    throw IOError.volumeUnavailable(.plugin(id: filter.plugin))
+                }
+                let paramHash = try Self.canonicalParametersHash(filter.parameters)
+                currentKey = "\(currentKey)|plugin|\(filter.plugin)@\(version)|\(filter.filter)|\(paramHash)"
+                steps.append((filter, currentKey))
+            }
+            let finalStepKey = currentKey
+            let decodedKey = Self.filteredDecodedKey(finalStepKey, target)
+
+            if let hit = cached(decodedKey, priority: priority) {
+                return hit
+            }
+            if let diskBytes = try await diskData(caches.browse, for: finalStepKey) {
+                let image = try await decode(diskBytes, target: target)
+                try rememberFiltered(image, for: decodedKey, priority: priority)
+                return image
+            }
+
+            // 找到已缓存的最晚一级，减少重复调用插件。
+            var startIndex = 0
+            var cachedPrefixBytes: Data?
+            if caches.browse != nil {
+                for idx in stride(from: steps.count - 1, through: 0, by: -1) {
+                    if let bytes = try await diskData(caches.browse, for: steps[idx].cacheKey) {
+                        cachedPrefixBytes = bytes
+                        startIndex = idx + 1
+                        break
+                    }
+                }
+            }
+
+            try Task.checkCancellation()
+            try lifetime.checkRunning()
+
+            var tempURLs: [URL] = []
+            defer {
+                for url in tempURLs { try? FileManager.default.removeItem(at: url) }
+            }
+
+            let tempDir = FileManager.default.temporaryDirectory
+            let inputExt = Self.filterFileExtension(for: identity.location.name)
+            var currentInputURL: URL
+            var heldLease: FileLease?
+
+            if let prefixBytes = cachedPrefixBytes {
+                let prefixURL = tempDir.appendingPathComponent("mv-filter-in-\(UUID().uuidString).\(inputExt)")
+                try prefixBytes.write(to: prefixURL)
+                tempURLs.append(prefixURL)
+                currentInputURL = prefixURL
+            } else {
+                let provider = try sources.provider(for: identity.location)
+                let lease = try await lifetime.value { try await provider.fileLease(for: identity.location) }
+                heldLease = lease
+                currentInputURL = lease.url
+            }
+            defer { withExtendedLifetime(heldLease) {} }
+
+            var finalBytes: Data?
+            for idx in startIndex..<steps.count {
+                try Task.checkCancellation()
+                try lifetime.checkRunning()
+                let step = steps[idx]
+                let outputURL = tempDir.appendingPathComponent("mv-filter-out-\(UUID().uuidString).\(inputExt)")
+                tempURLs.append(outputURL)
+                try await executor.apply(step.request, input: currentInputURL, output: outputURL)
+                try Task.checkCancellation()
+                try lifetime.checkRunning()
+                let stepBytes = try Data(contentsOf: outputURL)
+                if let browse = caches.browse {
+                    try? await store(stepBytes, in: browse, for: step.cacheKey)
+                }
+                currentInputURL = outputURL
+                finalBytes = stepBytes
+            }
+
+            guard let resultBytes = finalBytes ?? cachedPrefixBytes else {
+                throw MediaError.decodeFailed("插件滤镜未产生输出图像")
+            }
+            let rendered = try await decode(resultBytes, target: target)
+            try rememberFiltered(rendered, for: decodedKey, priority: priority)
+            return rendered
+        }
+    }
+
+    private func rememberFiltered(_ image: RenderedImage, for key: String, priority: IOPriority) throws {
+        try lifetime.whileRunning {
+            if priority == .visible {
+                caches.preload.removeValue(for: key)
+                caches.decoded.insert(image, for: key, cost: Self.cost(image))
+            } else {
+                caches.preload.insert(image, for: key, cost: Self.cost(image))
+            }
+        }
+    }
+
+    private static func filteredDecodedKey(_ stepKey: String, _ target: DisplayTarget) -> String {
+        stepKey + "|display|\(target.pixelSize.width)x\(target.pixelSize.height)|\(target.filter.rawValue)|\(target.sharpen.bitPattern)"
+    }
+
+    private static func canonicalParametersHash(_ parameters: [String: JSONValue]) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(parameters)
+        let digest = SHA256.hash(data: data)
+        return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func filterFileExtension(for fileName: String) -> String {
+        let ext = (fileName as NSString).pathExtension.lowercased()
+        switch ext {
+        case "jpg", "jpeg", "png", "tif", "tiff", "heic", "bmp":
+            return ext
+        default:
+            return "png"
         }
     }
 }

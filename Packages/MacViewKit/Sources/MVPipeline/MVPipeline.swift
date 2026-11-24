@@ -49,6 +49,8 @@ public protocol ImagePipeline: Sendable {
     func cancelAll(session: SessionID)
     /// 像素没变时把磁盘缓存改挂到新 key、丢掉内存里旧 key 的条目；key 规则留在管线内部。
     func carryOver(from old: ContentIdentity, to new: ContentIdentity) async
+    /// 依次套用插件滤镜；缓存命中立即返回。调用方取消 Task 即取消。
+    func filteredImage(for identity: ContentIdentity, filters: [PluginFilterRequest], target: DisplayTarget, priority: IOPriority) async throws -> RenderedImage
 }
 
 public extension ImagePipeline {
@@ -60,4 +62,8 @@ public extension ImagePipeline {
     }
 
     func carryOver(from old: ContentIdentity, to new: ContentIdentity) async {}
+
+    func filteredImage(for identity: ContentIdentity, filters: [PluginFilterRequest], target: DisplayTarget, priority: IOPriority) async throws -> RenderedImage {
+        throw MediaError.unsupported
+    }
 }

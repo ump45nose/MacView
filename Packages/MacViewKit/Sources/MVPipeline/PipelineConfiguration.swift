@@ -38,10 +38,17 @@ public struct PipelineConfiguration: Sendable {
     public var thumbnailLongSide: Int
     public var browseBounds: PixelSize
     public var maxDecodeLongSide: Int
+    public var pluginFilterExecutor: (any PluginFilterExecuting)?
 
-    public init(thumbnailLongSide: Int = 1024, browseBounds: PixelSize, maxDecodeLongSide: Int = 16384) {
+    public init(
+        thumbnailLongSide: Int = 1024,
+        browseBounds: PixelSize,
+        maxDecodeLongSide: Int = 16384,
+        pluginFilterExecutor: (any PluginFilterExecuting)? = nil
+    ) {
         self.thumbnailLongSide = thumbnailLongSide
         self.browseBounds = browseBounds
         self.maxDecodeLongSide = maxDecodeLongSide
+        self.pluginFilterExecutor = pluginFilterExecutor
     }
 }

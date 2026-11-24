@@ -1,4 +1,37 @@
 import Foundation
+import MVFoundation
+
+/// 插件滤镜效果配置；未知插件的条目照常保留。
+public struct PluginFilterEffect: Codable, Sendable, Hashable {
+    public var plugin: String
+    public var filter: String
+    public var parameters: [String: JSONValue]
+    public var enabled: Bool
+
+    public init(
+        plugin: String,
+        filter: String,
+        parameters: [String: JSONValue] = [:],
+        enabled: Bool = true
+    ) {
+        self.plugin = plugin
+        self.filter = filter
+        self.parameters = parameters
+        self.enabled = enabled
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case plugin, filter, parameters, enabled
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.plugin = try container.decode(String.self, forKey: .plugin)
+        self.filter = try container.decode(String.self, forKey: .filter)
+        self.parameters = try container.decodeIfPresent([String: JSONValue].self, forKey: .parameters) ?? [:]
+        self.enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+    }
+}
 
 /// 画面调色参数；各字段均以中性值为默认，解码时越界值夹到合法范围。
 public struct ColorAdjust: Codable, Sendable, Hashable {
@@ -44,13 +77,15 @@ public struct ColorAdjust: Codable, Sendable, Hashable {
     }
 }
 
-/// 单个实时画面效果；JSON 中将 `type` 与参数字段平铺在同一对象内。
+/// 单个画面效果；JSON 中将 `type` 与参数字段平铺在同一对象内。
 public enum Effect: Codable, Sendable, Hashable {
     case colorAdjust(ColorAdjust)
+    case plugin(PluginFilterEffect)
 
     public var isIdentity: Bool {
         switch self {
         case let .colorAdjust(adjust): adjust.isIdentity
+        case let .plugin(filter): !filter.enabled
         }
     }
 
@@ -64,6 +99,8 @@ public enum Effect: Codable, Sendable, Hashable {
         switch type {
         case "colorAdjust":
             self = .colorAdjust(try ColorAdjust(from: decoder))
+        case "plugin":
+            self = .plugin(try PluginFilterEffect(from: decoder))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: container,
@@ -78,6 +115,9 @@ public enum Effect: Codable, Sendable, Hashable {
         case let .colorAdjust(adjust):
             try container.encode("colorAdjust", forKey: .type)
             try adjust.encode(to: encoder)
+        case let .plugin(filter):
+            try container.encode("plugin", forKey: .type)
+            try filter.encode(to: encoder)
         }
     }
 }

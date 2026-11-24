@@ -35,7 +35,7 @@ let testExtras: [String: [Target.Dependency]] = [
     "MVSearch": ["MVMetadata", "MVTestSupport"],
     "MVServices": ["MVTestSupport", "mvio-helper"],
     "MVLibraryData": [.product(name: "GRDB", package: "GRDB.swift")],
-    "MVPlugins": ["MVArchive", "MVTestSupport"],
+    "MVPlugins": ["MVArchive", "MVCache", "MVMedia", "MVTestSupport"],
 ]
 
 let package = Package(
