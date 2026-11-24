@@ -272,7 +272,7 @@ struct ExtensionsSettingsPage: View {
 
     private func jsonErrorBanner(problem: String) -> some View {
         HStack(spacing: 12) {
-            Text(String(localized: "external-commands.json \(problem)。仍在使用上一份可用的外部命令。"))
+            Text(String(localized: "external-commands.json 有错误，仍在使用上一份可用的外部命令。\(problem)"))
                 .font(.system(size: 12))
                 .foregroundStyle(Color(nsColor: Theme.danger))
                 .frame(maxWidth: .infinity, alignment: .leading)

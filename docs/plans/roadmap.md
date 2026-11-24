@@ -235,7 +235,6 @@ S5-T1 留给关口 G5：
 
 S5-T1 遗留：
 
-- `external-commands.json` 解析错误横幅里英文原文以「.」结尾，后面又接「。」，显示成「column 2.。」。
 - 停止死循环依赖非公开 `JSContextGroupSetExecutionTimeLimit`；系统去掉该符号时退化为下一次调用 `mv` 时停下。
 - 外部程序自行脱离进程组时，停止不一定能结束它。
 - 应用类外部命令解出的压缩包页文件持有到 App 退出。

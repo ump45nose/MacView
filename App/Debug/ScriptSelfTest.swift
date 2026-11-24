@@ -1050,6 +1050,9 @@ final class ScriptSelfTest {
             extModel.externalCommandsProblem != nil &&
             self.findAXElement(in: settingsWindow, identifier: "settings.extensions.jsonError") != nil
         }
+        // 解析器原文自带句末标点，横幅文案不能再叠一个
+        let bannerText = axText(identifier: "settings.extensions.jsonError", in: settingsWindow)
+        let bannerPunctuationOK = !["。。", ".。", "。.", ".."].contains { bannerText.contains($0) }
         try validJSONData.write(to: extFileURL, options: .atomic)
         let bannerCleared = await waitUntil(timeoutMs: 3000) {
             extModel.externalCommandsProblem == nil &&
@@ -1126,8 +1129,8 @@ final class ScriptSelfTest {
             },
         ])
         log.check(
-            createdOK && editedOK && bannerAppeared && bannerCleared && deletedOK,
-            "C3.4 外部命令(create=\(createdOK),edit=\(editedOK),banner=\(bannerAppeared)/\(bannerCleared),delete=\(deletedOK))"
+            createdOK && editedOK && bannerAppeared && bannerPunctuationOK && bannerCleared && deletedOK,
+            "C3.4 外部命令(create=\(createdOK),edit=\(editedOK),banner=\(bannerAppeared)/\(bannerCleared),bannerText=\(bannerText),delete=\(deletedOK))"
         )
 
         try? FileManager.default.removeItem(at: helloURL)

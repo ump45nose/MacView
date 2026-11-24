@@ -701,12 +701,12 @@
         }
       }
     },
-    "external-commands.json %@。仍在使用上一份可用的外部命令。": {
+    "external-commands.json 有错误，仍在使用上一份可用的外部命令。%@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "external-commands.json %@. Still using the previous valid external commands."
+            "value": "external-commands.json has errors. Still using the previous valid external commands. %@"
           }
         }
       }
