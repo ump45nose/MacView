@@ -913,7 +913,8 @@ public struct ExternalCommandFile: Codable, Sendable, Hashable { public var comm
 public struct TemplateValues: Sendable { public var files: [String]; public var book: String?; public var page: Int? }
 public enum CommandTemplate { public static func programArguments(_ template: String, values: TemplateValues) throws -> [String]; public static func shellInvocation(_ template: String, values: TemplateValues) -> ShellInvocation; public static let placeholders: [String] }
 public struct ShellInvocation: Sendable, Hashable { public var script: String; public var positional: [String]; public var environment: [String: String] }   // 文件值通过位置参数及环境变量传入，不拼入脚本
-// 占位符按固定文本替换；位于已有引号或嵌套命令替换时仍遵循 zsh 引号、选项及末尾换行处理，不能保证所有模板原样保留值。
+// Shell 模板推荐直接写占位符，不自行加引号；单引号内不展开，双引号内在 zsh 默认选项（不拆词）下可用。
+// 回显遵循 Shell 自身语义：命令替换 $(…) 会移除输出末尾的换行。
 public struct ProcessResult: Sendable, Hashable { public var exitCode: Int32; public var stdout: String; public var stderr: String }
 public final class ProcessRunner: Sendable { public init(); public func run(executable: String, arguments: [String], workingDirectory: String?) async throws -> ProcessResult; public func runShell(_ invocation: ShellInvocation, workingDirectory: String?) async throws -> ProcessResult }   // shell 固定 /bin/zsh -l；进程组取消时 TERM，250 ms 后 KILL；输出各保留最后 64 KB
 
