@@ -34,8 +34,6 @@ enum SettingsCommandCatalog {
         if let descriptor = store.byID[id] ?? CommandCatalog.builtInDescriptor(id) {
             return CommandCatalog.displayTitle(for: descriptor)
         }
-        if id == .fileRename { return String(localized: "重命名…") }
-        if id == .searchIndexFolder { return String(localized: "为此文件夹建立索引") }
         return id.rawValue
     }
 

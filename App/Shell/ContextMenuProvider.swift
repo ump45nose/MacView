@@ -47,21 +47,7 @@ final class ContextMenuProvider {
     }
 
     func menuItem(for dynamic: DynamicMenuID, target: ContextMenuTarget) -> NSMenuItem? {
-        if let provider = dynamicProviders[dynamic] {
-            return provider(target)
-        }
-        if dynamic == .scripts {
-            let scriptTarget = ScriptTarget(window: target.window, locations: target.locations)
-            if let extensions = app?.extensions {
-                return extensions.scriptsSubmenuItem(target: scriptTarget)
-            }
-            let submenu = NSMenu(title: String(localized: "脚本"))
-            let holder = NSMenuItem(title: submenu.title, action: nil, keyEquivalent: "")
-            holder.submenu = submenu
-            holder.isEnabled = false
-            return holder
-        }
-        return nil
+        dynamicProviders[dynamic]?(target)
     }
 
     private func genericMenuItem(for id: CommandID, target: ContextMenuTarget) -> NSMenuItem? {

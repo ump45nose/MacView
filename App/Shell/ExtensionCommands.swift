@@ -13,7 +13,7 @@ struct ScriptTarget {
     let locations: [Location]
 }
 
-/// 外部命令执行结果（W2.5 填充完整执行逻辑）。
+/// 外部命令执行结果。
 enum ExternalRunResult: Sendable, Equatable {
     case succeeded(output: String?)
     case failed(String)
@@ -160,14 +160,19 @@ final class ExtensionCommands {
         }
     }
 
-    private func runScript(_ info: ScriptInfo, target: ScriptTarget, arguments: [String: JSONValue]? = nil) {
+    private func runScript(
+        _ info: ScriptInfo,
+        target: ScriptTarget,
+        session: SessionID? = nil,
+        arguments: [String: JSONValue]? = nil
+    ) {
         guard let runtime = services.scriptRuntime else { return }
-        let resolved = resolvedTarget(target)
+        let resolved = session == nil ? resolvedTarget(target) : target
         let commandID = Self.scriptCommandID(for: info.id)
         let callContext = ScriptCallContext(
             caller: commandID.rawValue,
             callerName: info.name,
-            session: resolved.window?.session.id,
+            session: resolved.window?.session.id ?? session,
             selection: resolved.locations.map(ScriptLocationCodec.token(for:))
         )
         runtime.run(info.id, arguments: arguments, context: callContext)
@@ -294,15 +299,9 @@ final class ExtensionCommands {
             registry.register(descriptor, isEnabled: { [weak self] _ in
                 self?.services.scriptRuntime != nil
             }) { [weak self] context, arguments in
-                guard let self, let runtime = self.services.scriptRuntime else { return }
+                guard let self else { return }
                 let target = self.resolveTarget(for: context)
-                let callContext = ScriptCallContext(
-                    caller: commandID.rawValue,
-                    callerName: info.name,
-                    session: target.window?.session.id ?? context.session,
-                    selection: target.locations.map(ScriptLocationCodec.token(for:))
-                )
-                runtime.run(info.id, arguments: arguments, context: callContext)
+                self.runScript(info, target: target, session: context.session, arguments: arguments)
             }
         }
 
@@ -362,16 +361,17 @@ final class ExtensionCommands {
     }
 
     private func resolveTarget(for context: CommandContext) -> ScriptTarget {
-        let window: ReaderWindowController? = if let session = context.session {
-            app?.controller(for: session) ?? app?.mainController ?? app?.activeReaderController
-        } else {
-            app?.mainController ?? app?.activeReaderController
+        if let session = context.session {
+            guard let window = app?.controller(for: session) else {
+                return ScriptTarget(window: nil, locations: context.selection)
+            }
+            return resolvedTarget(ScriptTarget(window: window, locations: context.selection), allowFallbackWindow: false)
         }
-        return resolvedTarget(ScriptTarget(window: window, locations: context.selection))
+        return resolvedTarget(ScriptTarget(window: nil, locations: context.selection), allowFallbackWindow: true)
     }
 
-    private func resolvedTarget(_ target: ScriptTarget) -> ScriptTarget {
-        let window = target.window ?? app?.mainController ?? app?.activeReaderController
+    private func resolvedTarget(_ target: ScriptTarget, allowFallbackWindow: Bool = true) -> ScriptTarget {
+        let window = target.window ?? (allowFallbackWindow ? (app?.mainController ?? app?.activeReaderController) : nil)
         if !target.locations.isEmpty {
             return ScriptTarget(window: window, locations: target.locations)
         }

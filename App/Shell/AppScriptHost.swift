@@ -39,6 +39,12 @@ enum ScriptHostError: LocalizedError, Sendable {
 /// 在主线程实现 `MVScripting` 的 `ScriptHost` 协议，方法名与参数/返回 JSON 形状严格按 `ScriptAPI`。
 @MainActor
 final class AppScriptHost: ScriptHost {
+    private static let globalScriptControlCommands: Set<CommandID> = [
+        .scriptStopAll,
+        .scriptRevealFolder,
+        .scriptManage,
+    ]
+
     private weak var app: AppDelegate?
     private let services: CoreServices
 
@@ -107,18 +113,10 @@ final class AppScriptHost: ScriptHost {
               let book = controller.session.book else {
             return .null
         }
-        let title: String
-        if let playlistID = book.location.playlistID {
-            let windowTitle = controller.window?.title
-            title = LibraryActions.playlists.first { $0.id == playlistID }?.name
-                ?? ((windowTitle?.isEmpty == false) ? windowTitle! : String(localized: "播放列表"))
-        } else {
-            title = book.location.name.isEmpty ? book.location.description : book.location.name
-        }
         return .object([
             "location": .string(ScriptLocationCodec.token(for: book.location)),
             "path": ScriptLocationCodec.path(for: book.location).map(JSONValue.string) ?? .null,
-            "title": .string(title),
+            "title": .string(controller.bookTitleForScript(book.location)),
             "pageCount": .number(Double(book.pages.count)),
             "isVirtual": .bool(controller.session.isVirtualBook),
         ])
@@ -169,24 +167,32 @@ final class AppScriptHost: ScriptHost {
         }
         let commandArgs = try optionalObject(args, at: 1, name: "args")
 
+        guard let app else {
+            throw ScriptHostError.unavailable(String(localized: "应用不可用"))
+        }
+        let commandID = CommandID(rawID)
         let targetSession: SessionID?
         if let sessionID = context.session {
-            targetSession = sessionID
+            if app.controller(for: sessionID) != nil {
+                targetSession = sessionID
+            } else if Self.globalScriptControlCommands.contains(commandID) {
+                targetSession = nil
+            } else {
+                throw ScriptHostError.windowClosed
+            }
         } else {
-            targetSession = (app?.mainController ?? app?.activeReaderController)?.session.id
+            targetSession = (app.mainController ?? app.activeReaderController)?.session.id
         }
 
         var selectionLocations: [Location] = []
         selectionLocations.reserveCapacity(context.selection.count)
         for token in context.selection {
-            if let location = try? await ScriptLocationCodec.location(from: token, sources: services.sources) {
-                selectionLocations.append(location)
-            }
+            selectionLocations.append(try await ScriptLocationCodec.location(from: token, sources: services.sources))
         }
 
         let commandContext = CommandContext(session: targetSession, scope: .global, selection: selectionLocations)
         do {
-            try await services.commands.perform(CommandID(rawID), arguments: commandArgs, context: commandContext)
+            try await services.commands.perform(commandID, arguments: commandArgs, context: commandContext)
         } catch let error as CommandError {
             switch error {
             case let .unknownCommand(id):

@@ -486,7 +486,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         scriptEvents?.notifyPageChanged(index: index, location: pageLocation, session: session.id)
     }
 
-    private func bookTitleForScript(_ location: Location) -> String {
+    func bookTitleForScript(_ location: Location) -> String {
         if let playlistID = location.playlistID {
             let windowTitle = window?.title
             return playlistNames[playlistID]

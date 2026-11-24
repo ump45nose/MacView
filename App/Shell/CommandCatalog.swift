@@ -157,8 +157,6 @@ struct CommandCatalog {
 
     func title(of id: CommandID) -> String {
         if let descriptor = descriptors[id] ?? Self.builtInDescriptor(id) { return Self.displayTitle(for: descriptor) }
-        if id == .fileRename { return String(localized: "重命名…") }
-        if id == .searchIndexFolder { return String(localized: "为此文件夹建立索引") }
         return id.rawValue
     }
 

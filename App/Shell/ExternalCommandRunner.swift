@@ -14,8 +14,6 @@ final class ExternalCommandRunner {
 
     private let processRunner = ProcessRunner()
     var applicationOpener: ApplicationOpener = ExternalCommandRunner.defaultApplicationOpener
-    /// 当 `app.fileOps` 不可用时的兜底租约保留列表。
-    private var fallbackApplicationLeases: [FileLease] = []
 
     static func defaultApplicationOpener(urls: [URL], applicationURL: URL) async throws {
         _ = try await NSWorkspace.shared.open(urls, withApplicationAt: applicationURL, configuration: .init())
@@ -69,11 +67,7 @@ final class ExternalCommandRunner {
         let appURL = URL(fileURLWithPath: (rawProgram as NSString).expandingTildeInPath)
 
         // 应用类交出文件后无法得知对方何时读取完毕，沿用 FileOperationController.openWithLeases 保留到 App 退出。
-        if let fileOps = app?.fileOps {
-            fileOps.retainOpenWithLeases(leases)
-        } else {
-            fallbackApplicationLeases.append(contentsOf: leases)
-        }
+        app?.fileOps?.retainOpenWithLeases(leases)
 
         do {
             try await applicationOpener(leases.map(\.url), appURL)
@@ -107,15 +101,13 @@ final class ExternalCommandRunner {
             return reportFailure(command: command, reason: ErrorText.describe(error), stderr: nil, statusWindow: statusWindow, log: log)
         }
 
+        defer { _ = leases }
         do {
             let result = try await processRunner.run(executable: executable, arguments: arguments, workingDirectory: workingDirectory)
-            withExtendedLifetime(leases) {}
             return handleProcessResult(result, command: command, statusWindow: statusWindow, log: log)
         } catch is CancellationError {
-            withExtendedLifetime(leases) {}
             return .failed(String(localized: "已取消"))
         } catch {
-            withExtendedLifetime(leases) {}
             return reportFailure(command: command, reason: ErrorText.describe(error), stderr: nil, statusWindow: statusWindow, log: log)
         }
     }
@@ -134,15 +126,13 @@ final class ExternalCommandRunner {
         let workingDirectory = Self.resolvedWorkingDirectory(command.workingDirectory, firstFile: filePaths.first)
         let invocation = CommandTemplate.shellInvocation(command.arguments, values: values)
 
+        defer { _ = leases }
         do {
             let result = try await processRunner.runShell(invocation, workingDirectory: workingDirectory)
-            withExtendedLifetime(leases) {}
             return handleProcessResult(result, command: command, statusWindow: statusWindow, log: log)
         } catch is CancellationError {
-            withExtendedLifetime(leases) {}
             return .failed(String(localized: "已取消"))
         } catch {
-            withExtendedLifetime(leases) {}
             return reportFailure(command: command, reason: ErrorText.describe(error), stderr: nil, statusWindow: statusWindow, log: log)
         }
     }
@@ -153,13 +143,7 @@ final class ExternalCommandRunner {
         guard let session = window?.session, let book = session.book else {
             return TemplateValues(files: files, book: nil, page: nil)
         }
-        let bookEntry = Entry(
-            identity: ContentIdentity(location: book.location, size: 0, modificationNanos: 0),
-            name: book.location.name,
-            kind: .directory
-        )
-        let bookPath = FileOperationController.fileURL(for: bookEntry)?.path(percentEncoded: false) ?? book.location.description
-        return TemplateValues(files: files, book: bookPath, page: session.currentPage + 1)
+        return TemplateValues(files: files, book: ScriptLocationCodec.token(for: book.location), page: session.currentPage + 1)
     }
 
     private func handleProcessResult(

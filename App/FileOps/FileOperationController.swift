@@ -1,6 +1,5 @@
 import AppKit
 import CoreImage
-import Darwin
 import ImageIO
 import MVCommands
 import MVFoundation
@@ -774,34 +773,8 @@ final class FileOperationController {
     }
 
     static func fileURL(for entry: Entry) -> URL? {
-        guard entry.location.layers.count == 1, let components = entry.location.layers.first else { return nil }
-        let path: String
-        switch entry.location.root {
-        case .local: path = "/" + components.joined(separator: "/")
-        case .network:
-            guard let mount = mountPoint(for: entry.location.root) else { return nil }
-            let base = mount == "/" ? "" : mount
-            path = components.isEmpty && !base.isEmpty ? base : base + "/" + components.joined(separator: "/")
-        case .plugin: return nil
-        }
+        guard let path = ScriptLocationCodec.path(for: entry.location) else { return nil }
         return URL(filePath: path, directoryHint: entry.kind == .directory ? .isDirectory : .notDirectory)
-    }
-
-    private static func mountPoint(for root: Location.Root) -> String? {
-        guard case let .network(scheme, host, share) = root else { return nil }
-        let count = getfsstat(nil, 0, MNT_NOWAIT)
-        guard count > 0 else { return nil }
-        var buffer = Array(repeating: Darwin.statfs(), count: Int(count) + 4)
-        let filled = buffer.withUnsafeMutableBufferPointer { getfsstat($0.baseAddress, Int32($0.count * MemoryLayout<Darwin.statfs>.stride), MNT_NOWAIT) }
-        guard filled > 0 else { return nil }
-        for var info in buffer.prefix(Int(filled)) {
-            let fs = withUnsafeBytes(of: &info.f_fstypename) { String(cString: $0.bindMemory(to: CChar.self).baseAddress!) }
-            let src = withUnsafeBytes(of: &info.f_mntfromname) { String(cString: $0.bindMemory(to: CChar.self).baseAddress!) }
-            let mnt = withUnsafeBytes(of: &info.f_mntonname) { String(cString: $0.bindMemory(to: CChar.self).baseAddress!) }
-            if scheme == "smb", fs == "smbfs", (src.removingPercentEncoding ?? src).lowercased().hasSuffix("/\(host)/\(share)".lowercased()) { return mnt }
-            if scheme == "nfs", fs == "nfs", src.lowercased().hasPrefix("\(host):".lowercased()), src.hasSuffix(share) { return mnt }
-        }
-        return nil
     }
 }
 
