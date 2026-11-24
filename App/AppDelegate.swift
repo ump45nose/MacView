@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var fileOps: FileOperationController?
     private(set) var metadataWriter: MetadataWriteController?
     private(set) var extensions: ExtensionCommands?
+    private(set) var scriptEvents: ScriptEvents?
     private var scriptHost: AppScriptHost?
     var isMock: Bool {
         #if DEBUG
@@ -142,6 +143,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 scriptHost = host
                 runtime.setHost(host)
             }
+            let scriptEvents = ScriptEvents(app: self, services: services)
+            self.scriptEvents = scriptEvents
             let extensions = ExtensionCommands(app: self, services: services)
             self.extensions = extensions
             extensions.start()
@@ -181,6 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sessionSaveEnabled = true
         scheduleSessionSave()
         await fileOps?.presentStartupRecovery()
+        scriptEvents?.notifyStartup()
         logger.info("启动完成")
         #if DEBUG
         SelfTest.runIfRequested(app: self)
@@ -583,6 +587,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makeController() -> ReaderWindowController? {
         guard let services, let dispatcher, let dock, let fileOps else { return nil }
         let controller = ReaderWindowController(services: services, catalog: catalog, dispatcher: dispatcher, dock: dock, fileOps: fileOps, isMock: isMock)
+        controller.scriptEvents = scriptEvents
         controller.onOpenExtra = { [weak self, weak controller] urls in
             guard let self, let controller else { return }
             for url in urls {

@@ -226,6 +226,14 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     var onClose: ((ReaderWindowController) -> Void)?
     /// 窗口、书或布局变了，会话要重新保存。
     var onSessionChange: (() -> Void)?
+    /// 脚本事件分发器（由 AppDelegate 注入）。
+    var scriptEvents: ScriptEvents?
+    private struct ReportedPage: Equatable {
+        let book: Location
+        let index: Int
+        let page: Location
+    }
+    private var lastReportedPage: ReportedPage?
     /// 上一次不是全屏时的 frame；全屏不进会话。
     private(set) var normalFrame = NSRect.zero
     private var healthTask: Task<Void, Never>?
@@ -288,6 +296,26 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         session.onBookOpened = { [weak self] location in
             guard let self else { return }
             if restoringBook { restoringBook = false } else { recordOpened?(location) }
+            let bookLocation = session.book?.location ?? location
+            let pageCount = session.book?.pages.count ?? 0
+            scriptEvents?.notifyBookOpened(
+                location: bookLocation,
+                title: bookTitleForScript(bookLocation),
+                pageCount: pageCount,
+                session: session.id
+            )
+        }
+        session.onBoundaryReached = { [weak self] direction in
+            guard let self else { return }
+            if let scriptEvents {
+                scriptEvents.notifyPageEnd(direction: direction, session: session.id)
+            } else {
+                NSSound.beep()
+            }
+        }
+        chrome.onFullScreenStateChange = { [weak self] isFullScreen in
+            guard let self else { return }
+            scriptEvents?.notifyWindowStateChanged(isFullScreen: isFullScreen, session: session.id)
         }
         router.onCommand = { [weak self] id, arguments, scope in
             self?.dispatcher.run(id, arguments: arguments, in: self, scope: scope)
@@ -441,7 +469,31 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         if let floating = dock.coordinator.floatingWindows[DockPanels.classify]?.panel as? ClassifyPanel, floating.owner === self {
             floating.refreshState()
         }
+        reportPageChangeIfNeeded()
         onSessionChange?()
+    }
+
+    private func reportPageChangeIfNeeded() {
+        guard let book = session.book, book.pages.indices.contains(session.currentPage) else {
+            lastReportedPage = nil
+            return
+        }
+        let index = session.currentPage
+        let pageLocation = book.pages[index].id
+        let current = ReportedPage(book: book.location, index: index, page: pageLocation)
+        guard current != lastReportedPage else { return }
+        lastReportedPage = current
+        scriptEvents?.notifyPageChanged(index: index, location: pageLocation, session: session.id)
+    }
+
+    private func bookTitleForScript(_ location: Location) -> String {
+        if let playlistID = location.playlistID {
+            let windowTitle = window?.title
+            return playlistNames[playlistID]
+                ?? LibraryActions.playlists.first { $0.id == playlistID }?.name
+                ?? ((windowTitle?.isEmpty == false) ? windowTitle! : String(localized: "播放列表"))
+        }
+        return location.name.isEmpty ? location.description : location.name
     }
 
     /// 书名与下面一行；虚拟书是“播放列表”标记加列表名，下面是“N 项，来自 M 本书”。
@@ -816,11 +868,9 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         dock.setAutoHide(true)
     }
 
-    #if DEBUG
     func windowDidEnterFullScreen(_ notification: Notification) {
         chrome.didEnterFullScreen()
     }
-    #endif
 
     func windowDidFailToEnterFullScreen(_ window: NSWindow) {
         chrome.didFailToEnterFullScreen()

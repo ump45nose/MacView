@@ -168,7 +168,7 @@ final class ExtensionCommands {
             caller: commandID.rawValue,
             callerName: info.name,
             session: resolved.window?.session.id,
-            selection: resolved.locations.map(Self.selectionToken(for:))
+            selection: resolved.locations.map(ScriptLocationCodec.token(for:))
         )
         runtime.run(info.id, arguments: arguments, context: callContext)
     }
@@ -300,7 +300,7 @@ final class ExtensionCommands {
                     caller: commandID.rawValue,
                     callerName: info.name,
                     session: target.window?.session.id ?? context.session,
-                    selection: target.locations.map(Self.selectionToken(for:))
+                    selection: target.locations.map(ScriptLocationCodec.token(for:))
                 )
                 runtime.run(info.id, arguments: arguments, context: callContext)
             }
@@ -308,6 +308,7 @@ final class ExtensionCommands {
 
         registeredScriptIDs = nextIDs
         app?.reloadCatalog()
+        app?.scriptEvents?.noteInitialScanCompleted()
     }
 
     private func applyExternalCommands(_ commands: [ExternalCommand], reload: Bool) {
@@ -388,23 +389,5 @@ final class ExtensionCommands {
 
     static func externalCommandID(for id: String) -> CommandID {
         CommandID("external.\(id)")
-    }
-
-    /// 位置转字符串标记（W2.3 将统一复用 ScriptLocationCodec）。
-    private static func selectionToken(for location: Location) -> String {
-        if case .local = location.root, location.layers.count == 1 {
-            let parts = location.layers[0]
-            return parts.isEmpty ? "/" : "/" + parts.joined(separator: "/")
-        }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        if let data = try? encoder.encode(location) {
-            let base64 = data.base64EncodedString()
-                .replacingOccurrences(of: "+", with: "-")
-                .replacingOccurrences(of: "/", with: "_")
-                .replacingOccurrences(of: "=", with: "")
-            return "mvloc:\(base64)"
-        }
-        return location.name
     }
 }

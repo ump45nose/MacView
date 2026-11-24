@@ -193,9 +193,8 @@ extension AppDelegate {
                 preconditionFailure("命令清单中没有 \(id.rawValue)")
             }
             registry.register(descriptor, isEnabled: { [weak self] context in
-                guard let session = self?.controller(for: context.session)?.session, !session.frames.isEmpty else { return false }
-                let move = Self.frameMove(for: id, direction: session.settings.direction)
-                return move == .nextFrame ? session.currentFrame < session.frames.count - 1 : session.currentFrame > 0
+                guard let session = self?.controller(for: context.session)?.session else { return false }
+                return !session.frames.isEmpty
             }) { [weak self] context, _ in
                 guard let session = self?.controller(for: context.session)?.session else { return }
                 session.go(Self.frameMove(for: id, direction: session.settings.direction))

@@ -53,6 +53,8 @@ final class WindowChrome {
     private var isEnteringFullScreen = false
     private var isFrostedBackground = false
     private(set) var isToolbarRevealed = false
+    /// 进入/退出全屏完成时回调（true 为进入全屏，false 为退出全屏）。
+    var onFullScreenStateChange: ((Bool) -> Void)?
 
     private var topTrackingView: TopEdgeTrackingView?
     private var mouseMoveMonitor: Any?
@@ -148,12 +150,13 @@ final class WindowChrome {
         applyWindowBackground()
     }
 
-    #if DEBUG
     func didEnterFullScreen() {
         isFullScreen = true
+        #if DEBUG
         isFullScreenSettled = true
+        #endif
+        onFullScreenStateChange?(true)
     }
-    #endif
 
     func didFailToEnterFullScreen() {
         isEnteringFullScreen = false
@@ -177,6 +180,7 @@ final class WindowChrome {
         isFullScreenSettled = false
         #endif
         applyEffectiveState()
+        onFullScreenStateChange?(false)
     }
 
     // MARK: 核心套用

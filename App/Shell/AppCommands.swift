@@ -65,9 +65,9 @@ extension AppDelegate {
             register(id, isEnabled: { [weak self] context in
                 guard let session = self?.controller(for: context.session)?.session, !session.frames.isEmpty else { return false }
                 switch move {
-                case .nextFrame, .nextPage, .last: return session.currentFrame < session.frames.count - 1
-                case .previousFrame, .previousPage, .first: return session.currentFrame > 0
-                case .index: return true
+                case .nextFrame, .nextPage, .previousFrame, .previousPage, .index: return true
+                case .last: return session.currentFrame < session.frames.count - 1
+                case .first: return session.currentFrame > 0
                 }
             }) { [weak self] context in
                 self?.controller(for: context.session)?.session.go(move)
