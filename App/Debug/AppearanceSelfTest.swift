@@ -2400,11 +2400,11 @@ final class AppearanceSelfTest {
             try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
         }
 
-        for width in [680.0, 560.0] {
+        for width in [680.0, 640.0] {
             settingsWindow.setContentSize(NSSize(width: width, height: 620))
             await settle(250)
             let tabsOK = checkTabsSingleRow(in: settingsWindow)
-            log.check(tabsOK, "C3.10(\(modeTag)) 宽 \(Int(width)) 下 9 个页签单行无截断=\(tabsOK)")
+            log.check(tabsOK, "C3.10(\(modeTag)) 宽 \(Int(width)) 下 10 个页签单行居中无截断=\(tabsOK)")
 
             if let outDir {
                 if let img = log.snapshot(settingsWindow, "c310-\(modeTag)-\(Int(width))-top", captureImage: true) {
@@ -2436,6 +2436,7 @@ final class AppearanceSelfTest {
     // MARK: settings 自检辅助
 
     private func checkTabsSingleRow(in window: NSWindow) -> Bool {
+        guard SettingsPage.allCases.count == 10 else { return false }
         var frames: [NSRect] = []
         for page in SettingsPage.allCases {
             guard let el = findAXElement(in: window, identifier: "settings.tab.\(page.rawValue)"),
@@ -2444,11 +2445,14 @@ final class AppearanceSelfTest {
             }
             frames.append(rect)
         }
-        guard let first = frames.first else { return false }
-        let sameRow = frames.allSatisfy { abs($0.midY - first.midY) <= 2.0 && $0.height >= 20 }
+        guard frames.count == 10, let first = frames.first, let last = frames.last else { return false }
+        let sameRow = frames.allSatisfy { abs($0.midY - first.midY) <= 2.0 && $0.height >= 20 && $0.width >= 24 }
         let withinBounds = frames.allSatisfy { $0.minX >= 0 && $0.maxX <= window.frame.width }
         let nonOverlapping = zip(frames, frames.dropFirst()).allSatisfy { $0.maxX <= $1.minX + 0.5 }
-        return sameRow && withinBounds && nonOverlapping
+        let leftGap = first.minX
+        let rightGap = window.frame.width - last.maxX
+        let centered = abs(leftGap - rightGap) <= 4.0
+        return sameRow && withinBounds && nonOverlapping && centered
     }
 
     private func savePNG(_ image: CGImage, to url: URL) {

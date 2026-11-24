@@ -10,9 +10,9 @@ import MVScripting
 import MVServices
 import MVSettings
 
-/// 脚本与外部命令自检（`-MVScriptSelfTest commands|events|external`）。
+/// 脚本与外部命令自检（`-MVScriptSelfTest commands|events|external|settings`）。
 ///
-/// 覆盖阶段 2 的检查项 C2.1–C2.17（不依赖设置「扩展」页的部分）及 C2.19 中英文无未翻译与截断检查。
+/// 覆盖阶段 2 的检查项 C2.1–C2.17、C2.19 及阶段 3 设置「扩展」页检查项 C3.1–C3.6。
 /// 需传独立的 `-MVSupportDirectory`、`-MVCacheDirectory`、`-MVLayoutFile`；夹具均写入隔离临时目录并在结束前清理。
 @MainActor
 final class ScriptSelfTest {
@@ -76,6 +76,8 @@ final class ScriptSelfTest {
                 try await runEventsSuite(controller: controller, window: window, services: services, extensions: extensions)
             case "external":
                 try await runExternalSuite(controller: controller, window: window, services: services, extensions: extensions)
+            case "settings":
+                try await runSettingsSuite(controller: controller, window: window, services: services, extensions: extensions)
             default:
                 log.check(false, "未知的 -MVScriptSelfTest 模式：\(mode)")
             }
@@ -820,6 +822,320 @@ final class ScriptSelfTest {
         log.check(problemCleared, "C2.17 external-commands.json 恢复合法后文件错误提示消失")
     }
 
+    // MARK: - settings（C3.1–C3.6）
+
+    private func runSettingsSuite(
+        controller: ReaderWindowController,
+        window: NSWindow,
+        services: CoreServices,
+        extensions: ExtensionCommands
+    ) async throws {
+        guard let library = services.scriptLibrary,
+              let externalStore = services.externalCommands else {
+            log.check(false, "扩展设置页自检缺少必要服务")
+            return
+        }
+
+        _ = await waitUntil(timeoutMs: 3000) {
+            extensions.scriptItems.contains { $0.id == "jump-middle" } &&
+            extensions.scriptItems.contains { $0.id == "ask-next-book" }
+        }
+        try await externalStore.update { $0.commands = [] }
+
+        // 打开一本 3 页测试书，供外部命令读取当前页及 C3.3 验证主窗口可操作。
+        let bookURL = try makeBook(name: "settings-book", count: 3, size: CGSize(width: 400, height: 600))
+        await openBook(controller, url: bookURL, expectedCount: 3)
+        controller.session.update {
+            $0.browseMode = .paged
+            $0.pageMode = .single
+            $0.direction = .leftToRight
+        }
+        controller.session.go(.index(0))
+        await settle(150)
+
+        // MARK: C3.6 主菜单「脚本 › 管理脚本与外部命令…」打开设置并定位到「扩展」页
+        let scriptsMenuTitle = String(localized: "脚本")
+        let manageTitle = app.catalog.title(of: .scriptManage)
+        let openedViaMenu: Bool = {
+            guard let scriptsMenu = openMainScriptsMenu(titled: scriptsMenuTitle),
+                  let manageItem = scriptsMenu.items.first(where: { $0.title == manageTitle }) else {
+                return false
+            }
+            triggerMenuItem(manageItem)
+            return true
+        }()
+        let settingsOpened = await waitUntil(timeoutMs: 2500) {
+            guard let controller = self.activeSettingsController(),
+                  let win = controller.window else { return false }
+            return win.isVisible && controller.state.page == .extensions
+        }
+        guard let settingsController = activeSettingsController(),
+              let settingsWindow = settingsController.window else {
+            log.check(false, "C3.6 主菜单打开设置窗口失败（触发菜单=\(openedViaMenu)）")
+            return
+        }
+        settingsWindow.setContentSize(NSSize(width: 680, height: 740))
+        TestPresentation.place(settingsWindow)
+        settingsWindow.makeKeyAndOrderFront(nil)
+        await settle(250)
+        let addBtnVisible = findAXElement(in: settingsWindow, identifier: "settings.extensions.external.add") != nil
+        log.check(
+            openedViaMenu && settingsOpened && addBtnVisible,
+            "C3.6 主菜单「\(scriptsMenuTitle) › \(manageTitle)」打开设置并定位到扩展页"
+        )
+
+        let extModel = settingsController.state.model.extensions
+
+        // MARK: C3.1 放入脚本后 2 秒内出现在列表
+        let helloURL = library.directory.appending(path: "selftest-ui-hello.js")
+        try """
+        // @name UI自检问候
+        // @summary 输出日志
+        console.log('ui-hello-log');
+        """.write(to: helloURL, atomically: true, encoding: .utf8)
+        let readyText = String(localized: "就绪")
+        let c31OK = await waitUntil(timeoutMs: 2000) {
+            extModel.scripts.contains { $0.id == "selftest-ui-hello" && $0.problem == nil } &&
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.script.selftest-ui-hello") != nil &&
+            self.axText(identifier: "settings.extensions.script.selftest-ui-hello.status", in: settingsWindow).contains(readyText)
+        }
+        log.check(c31OK, "C3.1 放入脚本后 2 秒内出现在扩展页列表且状态就绪")
+
+        // MARK: C3.2 语法错误的脚本标红并显示行号，修好保存后变回就绪
+        let syntaxURL = library.directory.appending(path: "selftest-syntax.js")
+        try """
+        // @name 语法错误测试
+        const a = 1;
+        function broken( {
+        """.write(to: syntaxURL, atomically: true, encoding: .utf8)
+        let syntaxErrorTitle = String(localized: "语法错误")
+        let syntaxDetected = await waitUntil(timeoutMs: 2000) {
+            guard let info = extModel.scripts.first(where: { $0.id == "selftest-syntax" }),
+                  let line = info.problem?.line else { return false }
+            let statusText = self.axText(identifier: "settings.extensions.script.selftest-syntax.status", in: settingsWindow)
+            let rowText = self.axText(identifier: "settings.extensions.script.selftest-syntax", in: settingsWindow)
+            return statusText.contains(syntaxErrorTitle) && rowText.contains("\(line)")
+        }
+        await settle(150)
+        let syntaxRedPixels = countDangerPixels(inAXIdentifier: "settings.extensions.script.selftest-syntax", in: settingsWindow)
+        let syntaxHasRed = syntaxRedPixels > 0
+
+        try """
+        // @name 语法错误测试
+        const a = 1;
+        console.log('syntax-fixed');
+        """.write(to: syntaxURL, atomically: true, encoding: .utf8)
+        let syntaxFixed = await waitUntil(timeoutMs: 2000) {
+            extModel.scripts.first(where: { $0.id == "selftest-syntax" })?.problem == nil &&
+            self.axText(identifier: "settings.extensions.script.selftest-syntax.status", in: settingsWindow).contains(readyText) &&
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.script.selftest-syntax.run") != nil
+        }
+        log.check(
+            syntaxDetected && syntaxHasRed && syntaxFixed,
+            "C3.2 语法错误脚本显示行号与标红(redPx=\(syntaxRedPixels))，修好保存后变回就绪"
+        )
+        try? FileManager.default.removeItem(at: syntaxURL)
+        _ = await waitUntil(timeoutMs: 2000) { !extModel.scripts.contains { $0.id == "selftest-syntax" } }
+
+        // MARK: C3.3 运行死循环脚本行内显示“运行中”，点停止 1 秒内变回就绪，期间设置窗与主窗均可操作
+        let loopURL = library.directory.appending(path: "selftest-loop.js")
+        try """
+        // @name 死循环测试
+        while (true) {
+            mv.page();
+        }
+        """.write(to: loopURL, atomically: true, encoding: .utf8)
+        let loopListed = await waitUntil(timeoutMs: 2000) {
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.script.selftest-loop.run") != nil
+        }
+        await settle(100)
+        let clickedRunLoop = await clickAX(identifier: "settings.extensions.script.selftest-loop.run", in: settingsWindow)
+        let runningPrefix = String(localized: "运行中 \("")").trimmingCharacters(in: .whitespaces)
+        let loopRunning = await waitUntil(timeoutMs: 2000) {
+            if case .running = extModel.runStates["selftest-loop"] {
+                let status = self.axText(identifier: "settings.extensions.script.selftest-loop.status", in: settingsWindow)
+                return status.contains(runningPrefix) &&
+                    self.findAXElement(in: settingsWindow, identifier: "settings.extensions.script.selftest-loop.stop") != nil
+            }
+            return false
+        }
+
+        // 运行期间操作主窗口（翻页）与设置窗口（真实点击切页签再切回）
+        let pageBefore = controller.session.currentPage
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(controller.viewer)
+        await settle(80)
+        await sendKey(kVK_RightArrow, in: window)
+        let mainWindowResponsive = await waitUntil(timeoutMs: 1200) {
+            controller.session.currentPage != pageBefore
+        }
+
+        settingsWindow.makeKeyAndOrderFront(nil)
+        await settle(80)
+        let clickedBrowseTab = await clickAX(identifier: "settings.tab.browse", in: settingsWindow)
+        let switchedToBrowse = await waitUntil(timeoutMs: 1200) { settingsController.state.page == .browse }
+        let clickedExtTab = await clickAX(identifier: "settings.tab.extensions", in: settingsWindow)
+        let switchedBackToExt = await waitUntil(timeoutMs: 1200) {
+            settingsController.state.page == .extensions &&
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.script.selftest-loop.stop") != nil
+        }
+        let settingsWindowResponsive = clickedBrowseTab && switchedToBrowse && clickedExtTab && switchedBackToExt
+
+        // 真实点击行内停止按钮，验证 1 秒内变回就绪
+        let stopStarted = ContinuousClock.now
+        let clickedStopLoop = await clickAX(identifier: "settings.extensions.script.selftest-loop.stop", in: settingsWindow)
+        let stoppedWithin1s = await waitUntil(timeoutMs: 1000, intervalMs: 25) {
+            let state = extModel.runStates["selftest-loop"] ?? .idle
+            guard case .idle = state else { return false }
+            return self.axText(identifier: "settings.extensions.script.selftest-loop.status", in: settingsWindow).contains(readyText) &&
+                self.findAXElement(in: settingsWindow, identifier: "settings.extensions.script.selftest-loop.run") != nil
+        }
+        let stopElapsedMs = (ContinuousClock.now - stopStarted).milliseconds
+        log.check(
+            loopListed && clickedRunLoop && loopRunning && mainWindowResponsive && settingsWindowResponsive && clickedStopLoop && stoppedWithin1s && stopElapsedMs <= 1000,
+            "C3.3 死循环运行中显示(listed=\(loopListed),clickedRun=\(clickedRunLoop),running=\(loopRunning))且主窗(\(mainWindowResponsive))/设置窗(\(settingsWindowResponsive))可操作，点停止(\(clickedStopLoop)) \(Int(stopElapsedMs))ms 内变回就绪(\(stoppedWithin1s))"
+        )
+        try? FileManager.default.removeItem(at: loopURL)
+        _ = await waitUntil(timeoutMs: 2000) { !extModel.scripts.contains { $0.id == "selftest-loop" } }
+
+        // MARK: C3.4 外部命令新建、编辑、删除写回 JSON 与主菜单同步；JSON 写坏错误横幅与恢复
+        let extFileURL = app.supportDirectory.appending(path: "external-commands.json")
+        let clickedAdd = await clickAX(identifier: "settings.extensions.external.add", in: settingsWindow)
+        let formOpened = await waitUntil(timeoutMs: 1500) {
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form.name") != nil
+        }
+        let filledName = await typeIntoAXField(identifier: "settings.extensions.form.name", text: "查看宽度", in: settingsWindow)
+        let filledArgs = await typeIntoAXField(identifier: "settings.extensions.form.arguments", text: "/usr/bin/sips -g pixelWidth {file}", in: settingsWindow)
+        let toggledShowOutput = await clickAX(identifier: "settings.extensions.form.showOutput", in: settingsWindow)
+        await settle(80)
+        let clickedSave = await clickAX(identifier: "settings.extensions.form.save", in: settingsWindow)
+        let createdOK = await waitUntil(timeoutMs: 2500) {
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form") == nil &&
+            extModel.externalCommands.contains { $0.name == "查看宽度" && $0.showOutput } &&
+            ((try? String(contentsOf: extFileURL, encoding: .utf8))?.contains("查看宽度") == true) &&
+            (self.openMainScriptsMenu(titled: scriptsMenuTitle)?.items.contains { $0.title == "查看宽度" } == true)
+        }
+        let createdID = extModel.externalCommands.first(where: { $0.name == "查看宽度" })?.id ?? ""
+
+        // 编辑外部命令名称
+        var clickedEdit = false
+        if !createdID.isEmpty {
+            clickedEdit = await clickAX(identifier: "settings.extensions.external.\(createdID).edit", in: settingsWindow)
+        }
+        let editFormOpened = await waitUntil(timeoutMs: 1500) {
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form.name") != nil
+        }
+        let updatedName = await typeIntoAXField(identifier: "settings.extensions.form.name", text: "查看图片宽度", in: settingsWindow)
+        await settle(80)
+        let clickedEditSave = await clickAX(identifier: "settings.extensions.form.save", in: settingsWindow)
+        let editedOK = await waitUntil(timeoutMs: 2500) {
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form") == nil &&
+            extModel.externalCommands.contains { $0.id == createdID && $0.name == "查看图片宽度" } &&
+            ((try? String(contentsOf: extFileURL, encoding: .utf8))?.contains("查看图片宽度") == true) &&
+            (self.openMainScriptsMenu(titled: scriptsMenuTitle)?.items.contains { $0.title == "查看图片宽度" } == true)
+        }
+
+        // 外部把 external-commands.json 写坏，验证错误横幅出现；写回合法 JSON，横幅消失
+        let validJSONData = (try? Data(contentsOf: extFileURL)) ?? Data()
+        try Data("{ broken json".utf8).write(to: extFileURL, options: .atomic)
+        let bannerAppeared = await waitUntil(timeoutMs: 3000) {
+            extModel.externalCommandsProblem != nil &&
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.jsonError") != nil
+        }
+        try validJSONData.write(to: extFileURL, options: .atomic)
+        let bannerCleared = await waitUntil(timeoutMs: 3000) {
+            extModel.externalCommandsProblem == nil &&
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.jsonError") == nil
+        }
+
+        // MARK: C3.5 输出区显示 console.log 与外部命令输出，错误行为 danger 色
+        if !extModel.logEntries.isEmpty {
+            _ = await clickAX(identifier: "settings.extensions.log.clear", in: settingsWindow)
+            _ = await waitUntil(timeoutMs: 1500) { extModel.logEntries.isEmpty }
+        }
+        // 先跑 console.log 脚本和外部命令，确认 info 输出出现且此时输出区无 danger 红色像素
+        let ranHello = await clickAX(identifier: "settings.extensions.script.selftest-ui-hello.run", in: settingsWindow)
+        let infoLogOK = await waitUntil(timeoutMs: 2500) {
+            extModel.logEntries.contains { $0.level == .info && $0.text.contains("ui-hello-log") }
+        }
+        let triggeredExtFromMenu: Bool = {
+            guard let menu = openMainScriptsMenu(titled: scriptsMenuTitle),
+                  let item = menu.items.first(where: { $0.title == "查看图片宽度" }) else { return false }
+            triggerMenuItem(item)
+            return true
+        }()
+        let extLogOK = await waitUntil(timeoutMs: 3000) {
+            extModel.logEntries.contains { $0.source == "查看图片宽度" && $0.text.contains("pixelWidth: 400") }
+        }
+        await settle(150)
+        let redBeforeError = countDangerPixels(inAXIdentifier: "settings.extensions.log", in: settingsWindow)
+
+        // 再写并运行一个 console.error 脚本，确认错误行出现且输出区出现 danger 色像素
+        let errScriptURL = library.directory.appending(path: "selftest-error-log.js")
+        try """
+        // @name 错误输出测试
+        console.error('selftest-danger-line');
+        """.write(to: errScriptURL, atomically: true, encoding: .utf8)
+        let errScriptListed = await waitUntil(timeoutMs: 2000) {
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.script.selftest-error-log.run") != nil
+        }
+        var ranErrorScript = false
+        if errScriptListed {
+            ranErrorScript = await clickAX(identifier: "settings.extensions.script.selftest-error-log.run", in: settingsWindow)
+        }
+        let errLogOK = await waitUntil(timeoutMs: 2500) {
+            extModel.logEntries.contains { $0.level == .error && $0.text.contains("selftest-danger-line") }
+        }
+        await settle(250)
+        await scrollAXIntoView(identifier: "settings.extensions.log", in: settingsWindow)
+        await settle(150)
+        let logAXText = axText(identifier: "settings.extensions.log", in: settingsWindow)
+        let logShowsAll = logAXText.contains("ui-hello-log") && logAXText.contains("pixelWidth: 400") && logAXText.contains("selftest-danger-line")
+        let redAfterError = countDangerPixels(inAXIdentifier: "settings.extensions.log", in: settingsWindow)
+        let dangerColored = redAfterError > redBeforeError && redAfterError > 0
+        log.check(
+            ranHello && infoLogOK && triggeredExtFromMenu && extLogOK && ranErrorScript && errLogOK && logShowsAll && dangerColored,
+            "C3.5 输出区显示 console.log、外部命令输出与错误行，错误行为 danger 色(redPx: \(redBeforeError)->\(redAfterError))"
+        )
+
+        // 输出整页截图到 -MVSelfTestOutput（此时三节内容饱满：脚本、外部命令、含 info/error 的输出区）
+        try? FileManager.default.removeItem(at: errScriptURL)
+        _ = await waitUntil(timeoutMs: 2000) { !extModel.scripts.contains { $0.id == "selftest-error-log" } }
+        scrollOuterToTop(in: settingsWindow)
+        await settle(200)
+        let langTag = Locale.preferredLanguages.first?.lowercased().hasPrefix("en") == true ? "en" : "zh"
+        let appearanceTag = settingsWindow.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? "dark" : "light"
+        log.snapshot(settingsWindow, "extensions-\(langTag)-\(appearanceTag)")
+
+        // 完成 C3.4 删除外部命令验证
+        var clickedDelete = false
+        if !createdID.isEmpty {
+            clickedDelete = await clickAX(identifier: "settings.extensions.external.\(createdID).delete", in: settingsWindow)
+        }
+        let confirmAppeared = await waitUntil(timeoutMs: 1500) {
+            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.external.\(createdID).confirmDelete") != nil
+        }
+        var clickedConfirmDelete = false
+        if confirmAppeared {
+            clickedConfirmDelete = await clickAX(identifier: "settings.extensions.external.\(createdID).confirmDelete", in: settingsWindow)
+        }
+        let deletedOK = await waitUntil(timeoutMs: 2500) {
+            !extModel.externalCommands.contains { $0.id == createdID } &&
+            ((try? String(contentsOf: extFileURL, encoding: .utf8))?.contains("查看图片宽度") == false) &&
+            (self.openMainScriptsMenu(titled: scriptsMenuTitle)?.items.contains { $0.title == "查看图片宽度" } == false)
+        }
+        log.check(
+            clickedAdd && formOpened && filledName && filledArgs && toggledShowOutput && clickedSave && createdOK &&
+            clickedEdit && editFormOpened && updatedName && clickedEditSave && editedOK &&
+            bannerAppeared && bannerCleared &&
+            clickedDelete && confirmAppeared && clickedConfirmDelete && deletedOK,
+            "C3.4 外部命令(add=\(clickedAdd)/\(formOpened),fill=\(filledName)/\(filledArgs),toggle=\(toggledShowOutput),save=\(clickedSave)/\(createdOK),edit=\(clickedEdit)/\(editedOK),banner=\(bannerAppeared)/\(bannerCleared),del=\(clickedDelete)/\(deletedOK))"
+        )
+
+        try? FileManager.default.removeItem(at: helloURL)
+        settingsWindow.close()
+    }
+
     // MARK: - 本地化与截断检查（C2.19）
 
     private func checkLocalization(
@@ -990,6 +1306,255 @@ final class ScriptSelfTest {
             try? await Task.sleep(for: .milliseconds(intervalMs))
         }
         return condition()
+    }
+
+    // MARK: - 设置页真实事件与 AX 辅助
+
+    private func openMainScriptsMenu(titled title: String) -> NSMenu? {
+        guard let item = NSApp.mainMenu?.items.first(where: { $0.title == title }),
+              let submenu = item.submenu else { return nil }
+        submenu.delegate?.menuWillOpen?(submenu)
+        submenu.update()
+        return submenu
+    }
+
+    private func activeSettingsController() -> SettingsWindowController? {
+        NSApp.windows.compactMap { $0.windowController as? SettingsWindowController }.first
+    }
+
+    private func axPerform(_ selector: Selector, on object: AnyObject) -> Any? {
+        guard let obj = object as? NSObject, obj.responds(to: selector) else { return nil }
+        return obj.perform(selector)?.takeUnretainedValue()
+    }
+
+    private func findAXElements(in root: AnyObject, identifier: String) -> [AnyObject] {
+        var matches: [AnyObject] = []
+        var visited = Set<ObjectIdentifier>()
+        func walk(_ node: AnyObject) {
+            guard visited.insert(ObjectIdentifier(node)).inserted else { return }
+            let matched: Bool = {
+                if let id = axPerform(#selector(NSAccessibilityProtocol.accessibilityIdentifier), on: node) as? String, id == identifier { return true }
+                if let view = node as? NSView, view.accessibilityIdentifier() == identifier { return true }
+                return false
+            }()
+            if matched { matches.append(node) }
+            if let win = node as? NSWindow, let content = win.contentView {
+                walk(content)
+            }
+            if let axChildren = axPerform(#selector(NSAccessibilityProtocol.accessibilityChildren), on: node) as? [AnyObject] {
+                for child in axChildren { walk(child) }
+            }
+            if let view = node as? NSView {
+                for sub in view.subviews { walk(sub) }
+            }
+        }
+        walk(root)
+        return matches
+    }
+
+    private func findAXElement(in root: AnyObject, identifier: String) -> AnyObject? {
+        findAXElements(in: root, identifier: identifier).first
+    }
+
+    private func axFrameInWindow(_ element: AnyObject, window: NSWindow) -> NSRect? {
+        if let view = element as? NSView {
+            return view.convert(view.bounds, to: nil)
+        }
+        if let proto = element as? NSAccessibilityProtocol {
+            let screenFrame = proto.accessibilityFrame()
+            if !screenFrame.isEmpty {
+                return window.convertFromScreen(screenFrame)
+            }
+        }
+        if let axEl = element as? NSAccessibilityElementProtocol {
+            let screenFrame = axEl.accessibilityFrame()
+            if !screenFrame.isEmpty {
+                return window.convertFromScreen(screenFrame)
+            }
+        }
+        return nil
+    }
+
+    private func axText(identifier: String, in window: NSWindow) -> String {
+        let elements = findAXElements(in: window, identifier: identifier)
+        guard !elements.isEmpty else { return "" }
+        var pieces: [String] = []
+        var visited = Set<ObjectIdentifier>()
+        for element in elements {
+            collectAXText(from: element, visited: &visited, into: &pieces)
+        }
+        return pieces.joined(separator: " ")
+    }
+
+    private func collectAXText(from element: AnyObject, visited: inout Set<ObjectIdentifier>, into out: inout [String]) {
+        guard visited.insert(ObjectIdentifier(element)).inserted else { return }
+        if let value = axPerform(#selector(NSAccessibilityProtocol.accessibilityValue), on: element) as? String, !value.isEmpty {
+            out.append(value)
+        }
+        if let title = axPerform(#selector(NSAccessibilityProtocol.accessibilityTitle), on: element) as? String, !title.isEmpty {
+            out.append(title)
+        }
+        if let label = axPerform(#selector(NSAccessibilityProtocol.accessibilityLabel), on: element) as? String, !label.isEmpty {
+            out.append(label)
+        }
+        if let children = axPerform(#selector(NSAccessibilityProtocol.accessibilityChildren), on: element) as? [AnyObject] {
+            for child in children { collectAXText(from: child, visited: &visited, into: &out) }
+        }
+        if let view = element as? NSView {
+            if let field = view as? NSTextField, !field.stringValue.isEmpty { out.append(field.stringValue) }
+            if let textView = view as? NSTextView, !textView.string.isEmpty { out.append(textView.string) }
+            for sub in view.subviews { collectAXText(from: sub, visited: &visited, into: &out) }
+        }
+    }
+
+    private func outerScrollView(in window: NSWindow) -> NSScrollView? {
+        guard let root = window.contentView else { return nil }
+        var all: [NSScrollView] = []
+        func walk(_ view: NSView) {
+            if let sv = view as? NSScrollView { all.append(sv) }
+            for sub in view.subviews { walk(sub) }
+        }
+        walk(root)
+        return all.max { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }
+    }
+
+    private func scrollOuterToTop(in window: NSWindow) {
+        guard let sv = outerScrollView(in: window), let doc = sv.documentView else { return }
+        let topY = doc.isFlipped ? 0 : max(0, doc.bounds.height - sv.contentView.bounds.height)
+        sv.contentView.scroll(to: NSPoint(x: 0, y: topY))
+        sv.reflectScrolledClipView(sv.contentView)
+    }
+
+    private func scrollAXIntoView(identifier: String, in window: NSWindow) async {
+        guard !identifier.hasPrefix("settings.tab."),
+              let sv = outerScrollView(in: window),
+              let doc = sv.documentView,
+              let el = findAXElement(in: window, identifier: identifier),
+              let rectInWindow = axFrameInWindow(el, window: window) else { return }
+        let svRectInWindow = sv.convert(sv.bounds, to: nil)
+        if svRectInWindow.insetBy(dx: 0, dy: 8).contains(NSPoint(x: rectInWindow.midX, y: rectInWindow.midY)) {
+            return
+        }
+        let rectInDoc = doc.convert(rectInWindow, from: nil)
+        doc.scrollToVisible(rectInDoc.insetBy(dx: 0, dy: -24))
+        sv.reflectScrolledClipView(sv.contentView)
+        await settle(80)
+    }
+
+    private func clickAX(identifier: String, in window: NSWindow) async -> Bool {
+        await scrollAXIntoView(identifier: identifier, in: window)
+        guard let el = findAXElement(in: window, identifier: identifier),
+              let rect = axFrameInWindow(el, window: window) else { return false }
+        sendMouseClick(at: NSPoint(x: rect.midX, y: rect.midY), in: window, modifiers: [])
+        return true
+    }
+
+    private func typeIntoAXField(identifier: String, text: String, in window: NSWindow) async -> Bool {
+        await scrollAXIntoView(identifier: identifier, in: window)
+        guard let el = findAXElement(in: window, identifier: identifier),
+              let rect = axFrameInWindow(el, window: window) else { return false }
+        sendMouseClick(at: NSPoint(x: rect.midX, y: rect.midY), in: window, modifiers: [])
+        await settle(80)
+        if let editor = window.firstResponder as? NSTextView {
+            editor.insertText(text, replacementRange: NSRange(location: 0, length: editor.string.count))
+            return true
+        }
+        if let field: NSTextField = findView(in: window.contentView, matchingFrameInWindow: rect) {
+            window.makeFirstResponder(field)
+            await settle(50)
+            if let editor = field.currentEditor() as? NSTextView {
+                editor.insertText(text, replacementRange: NSRange(location: 0, length: editor.string.count))
+            } else {
+                field.stringValue = text
+                NotificationCenter.default.post(name: NSControl.textDidChangeNotification, object: field)
+            }
+            return true
+        }
+        return false
+    }
+
+    private func findView<T: NSView>(in root: NSView?, matchingFrameInWindow rect: NSRect) -> T? {
+        guard let root else { return nil }
+        let center = NSPoint(x: rect.midX, y: rect.midY)
+        if let view = root as? T,
+           view.convert(view.bounds, to: nil).insetBy(dx: -4, dy: -4).contains(center) {
+            return view
+        }
+        for sub in root.subviews {
+            if let found: T = findView(in: sub, matchingFrameInWindow: rect) { return found }
+        }
+        return nil
+    }
+
+    private var nextMouseEventNumber = 1
+
+    private func sendMouseClick(at point: NSPoint, in window: NSWindow, modifiers: NSEvent.ModifierFlags) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let downNo = nextMouseEventNumber
+        nextMouseEventNumber += 1
+        let upNo = nextMouseEventNumber
+        nextMouseEventNumber += 1
+        if let down = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: point, modifierFlags: modifiers,
+            timestamp: now, windowNumber: window.windowNumber, context: nil,
+            eventNumber: downNo, clickCount: 1, pressure: 1
+        ) {
+            NSApp.sendEvent(down)
+        }
+        if let up = NSEvent.mouseEvent(
+            with: .leftMouseUp, location: point, modifierFlags: modifiers,
+            timestamp: now + 0.02, windowNumber: window.windowNumber, context: nil,
+            eventNumber: upNo, clickCount: 1, pressure: 0
+        ) {
+            NSApp.sendEvent(up)
+        }
+    }
+
+    private func countDangerPixels(inAXIdentifier identifier: String, in window: NSWindow) -> Int {
+        guard let el = findAXElement(in: window, identifier: identifier),
+              let rectInWindow = axFrameInWindow(el, window: window),
+              let frameView = window.contentView?.superview else {
+            return 0
+        }
+        frameView.layoutSubtreeIfNeeded()
+        frameView.displayIfNeeded()
+        guard let image = frameView.renderedImage() else {
+            return 0
+        }
+        let scaleX = CGFloat(image.width) / max(frameView.bounds.width, 1)
+        let scaleY = CGFloat(image.height) / max(frameView.bounds.height, 1)
+        let rectInFrame = frameView.convert(rectInWindow, from: nil)
+        // CGImage 原点在左上角，NSView 默认原点在左下角
+        let topY = frameView.isFlipped ? rectInFrame.minY : (frameView.bounds.height - rectInFrame.maxY)
+        let crop = CGRect(
+            x: max(0, floor(rectInFrame.minX * scaleX)),
+            y: max(0, floor(topY * scaleY)),
+            width: max(1, ceil(rectInFrame.width * scaleX)),
+            height: max(1, ceil(rectInFrame.height * scaleY))
+        ).intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        guard !crop.isEmpty, let subImage = image.cropping(to: crop) else { return 0 }
+        let width = subImage.width
+        let height = subImage.height
+        var rgba = [UInt8](repeating: 0, count: width * height * 4)
+        guard let ctx = CGContext(
+            data: &rgba, width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return 0 }
+        ctx.draw(subImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        var count = 0
+        for i in stride(from: 0, to: rgba.count, by: 4) {
+            let r = Double(rgba[i]) / 255.0
+            let g = Double(rgba[i + 1]) / 255.0
+            let b = Double(rgba[i + 2]) / 255.0
+            // Theme.danger（浅色 #A33B2A / 深色 #F09C8B）在中性暖灰底色上显著偏红
+            if (r - b) >= 0.14 && (r - g) >= 0.09 {
+                count += 1
+            }
+        }
+        return count
     }
 }
 #endif
