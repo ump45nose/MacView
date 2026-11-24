@@ -75,7 +75,6 @@ final class ExtensionsSettingsModel {
     private func observeRuntime() {
         guard let runtime = extensions?.scriptRuntime else { return }
         let stream = runtime.runStateChanges()
-        runStates = runtime.runStates()
         runStatesTask = Task { [weak self] in
             for await states in stream {
                 guard let self, !Task.isCancelled else { return }
@@ -87,7 +86,6 @@ final class ExtensionsSettingsModel {
     private func observeLog() {
         guard let log = extensions?.scriptLog else { return }
         let stream = log.changes()
-        logEntries = log.entries()
         logTask = Task { [weak self] in
             for await entries in stream {
                 guard let self, !Task.isCancelled else { return }
@@ -156,7 +154,7 @@ final class ExtensionsSettingsModel {
             NSWorkspace.shared.open(url)
             return
         }
-        guard let store = extensions?.externalCommandsStore, externalCommandsProblem == nil else {
+        guard let store = extensions?.externalCommandsStore else {
             revealInFinder(supportDirectory)
             return
         }
@@ -198,32 +196,35 @@ private struct ExternalCommandDraft: Equatable {
             validationError: nil
         )
     }
+}
 
+private extension ExternalCommandDraft {
     init(command: ExternalCommand) {
-        self.id = command.id
-        self.isNew = false
-        self.name = command.name
-        self.kind = command.kind
-        self.program = command.program ?? ""
-        self.arguments = command.arguments
-        self.workingDirectory = command.workingDirectory ?? ""
-        self.showOutput = command.showOutput
-        self.validationError = nil
+        self.init(
+            id: command.id,
+            isNew: false,
+            name: command.name,
+            kind: command.kind,
+            program: command.program ?? "",
+            arguments: command.arguments,
+            workingDirectory: command.workingDirectory ?? "",
+            showOutput: command.showOutput,
+            validationError: nil
+        )
+    }
+}
+
+private extension ExternalCommand.Kind {
+    var displayTitle: String {
+        switch self {
+        case .application: String(localized: "应用")
+        case .program: String(localized: "程序")
+        case .shell: "Shell"
+        }
     }
 
-    private init(
-        id: String, isNew: Bool, name: String, kind: ExternalCommand.Kind,
-        program: String, arguments: String, workingDirectory: String, showOutput: Bool, validationError: String?
-    ) {
-        self.id = id
-        self.isNew = isNew
-        self.name = name
-        self.kind = kind
-        self.program = program
-        self.arguments = arguments
-        self.workingDirectory = workingDirectory
-        self.showOutput = showOutput
-        self.validationError = validationError
+    static var options: [(String, Self)] {
+        [.application, .program, .shell].map { ($0.displayTitle, $0) }
     }
 }
 
@@ -247,12 +248,6 @@ struct ExtensionsSettingsPage: View {
         formatter.dateFormat = "HH:mm:ss"
         return formatter
     }()
-
-    private static let kindOptions: [(String, ExternalCommand.Kind)] = [
-        (String(localized: "应用"), .application),
-        (String(localized: "程序"), .program),
-        ("Shell", .shell),
-    ]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -405,40 +400,12 @@ struct ExtensionsSettingsPage: View {
                 switch runState {
                 case let .running(since):
                     TimelineView(.periodic(from: .now, by: 1.0)) { context in
-                        HStack(spacing: 5) {
-                            ProgressView()
-                                .controlSize(.mini)
-                                .scaleEffect(0.75)
-                                .frame(width: 12, height: 12)
-                            Text(String(localized: "运行中 \(Self.elapsedText(since: since, now: context.date))"))
-                                .font(.system(size: 11).monospacedDigit())
-                                .foregroundStyle(Color(nsColor: Theme.text))
-                                .fixedSize()
-                        }
+                        runningIndicator(text: String(localized: "运行中 \(Self.elapsedText(since: since, now: context.date))"))
                     }
                     .accessibilityIdentifier("settings.extensions.script.\(script.id).status")
-                    Button(String(localized: "停止")) {
-                        model.stopScript(script.id)
-                    }
-                    .controlSize(.small)
-                    .accessibilityIdentifier("settings.extensions.script.\(script.id).stop")
                 case .queued:
-                    HStack(spacing: 5) {
-                        ProgressView()
-                            .controlSize(.mini)
-                            .scaleEffect(0.75)
-                            .frame(width: 12, height: 12)
-                        Text(String(localized: "排队中"))
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color(nsColor: Theme.text))
-                            .fixedSize()
-                    }
-                    .accessibilityIdentifier("settings.extensions.script.\(script.id).status")
-                    Button(String(localized: "停止")) {
-                        model.stopScript(script.id)
-                    }
-                    .controlSize(.small)
-                    .accessibilityIdentifier("settings.extensions.script.\(script.id).stop")
+                    runningIndicator(text: String(localized: "排队中"))
+                        .accessibilityIdentifier("settings.extensions.script.\(script.id).status")
                 case .idle:
                     HStack(spacing: 5) {
                         Circle()
@@ -450,6 +417,9 @@ struct ExtensionsSettingsPage: View {
                             .fixedSize()
                     }
                     .accessibilityIdentifier("settings.extensions.script.\(script.id).status")
+                }
+
+                if case .idle = runState {
                     SettingsIconButton(
                         systemImage: "play.fill",
                         fontSize: 10,
@@ -458,6 +428,12 @@ struct ExtensionsSettingsPage: View {
                         model.runScript(script)
                     }
                     .accessibilityIdentifier("settings.extensions.script.\(script.id).run")
+                } else {
+                    Button(String(localized: "停止")) {
+                        model.stopScript(script.id)
+                    }
+                    .controlSize(.small)
+                    .accessibilityIdentifier("settings.extensions.script.\(script.id).stop")
                 }
             }
 
@@ -539,7 +515,7 @@ struct ExtensionsSettingsPage: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                 HStack(spacing: 4) {
-                    Text(Self.kindTitle(command.kind) + " ·")
+                    Text(command.kind.displayTitle + " ·")
                         .font(.system(size: 11))
                         .foregroundStyle(Color(nsColor: Theme.text2))
                         .fixedSize()
@@ -604,245 +580,20 @@ struct ExtensionsSettingsPage: View {
 
     @ViewBuilder
     private var externalCommandEditor: some View {
-        if editing != nil {
-            let nameBinding = Binding<String>(
-                get: { editing?.name ?? "" },
-                set: { editing?.name = $0; editing?.validationError = nil }
-            )
-            let kindBinding = Binding<ExternalCommand.Kind>(
-                get: { editing?.kind ?? .shell },
-                set: { editing?.kind = $0; editing?.validationError = nil }
-            )
-            let programBinding = Binding<String>(
-                get: { editing?.program ?? "" },
-                set: { editing?.program = $0; editing?.validationError = nil }
-            )
-            let argumentsBinding = Binding<String>(
-                get: { editing?.arguments ?? "" },
-                set: { editing?.arguments = $0; editing?.validationError = nil }
-            )
-            let workingDirBinding = Binding<String>(
-                get: { editing?.workingDirectory ?? "" },
-                set: { editing?.workingDirectory = $0 }
-            )
-            let showOutputBinding = Binding<Bool>(
-                get: { editing?.showOutput ?? false },
-                set: { editing?.showOutput = $0 }
-            )
-            let kind = editing?.kind ?? .shell
-
-            VStack(alignment: .leading, spacing: 8) {
-                formRow(label: String(localized: "名称")) {
-                    TextField(String(localized: "名称"), text: nameBinding)
-                        .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("settings.extensions.form.name")
-                }
-
-                formRow(label: String(localized: "类型")) {
-                    SettingsSegments(
-                        label: String(localized: "类型"),
-                        options: Self.kindOptions,
-                        selection: kindBinding
-                    )
-                    .accessibilityIdentifier("settings.extensions.form.kind")
-                }
-
-                if kind != .shell {
-                    formRow(label: String(localized: "程序")) {
-                        HStack(spacing: 6) {
-                            TextField(
-                                kind == .application ? "/System/Applications/Preview.app" : "/opt/homebrew/bin/exiftool",
-                                text: programBinding
-                            )
-                            .labelsHidden()
-                            .textFieldStyle(.roundedBorder)
-                            .controlSize(.small)
-                            .font(.system(size: 11.5, design: .monospaced))
-                            .accessibilityIdentifier("settings.extensions.form.program")
-                            Button(String(localized: "选择…")) {
-                                chooseProgram(kind: kind) { url in
-                                    editing?.program = url.path(percentEncoded: false)
-                                    editing?.validationError = nil
-                                }
-                            }
-                            .controlSize(.small)
-                            .accessibilityIdentifier("settings.extensions.form.chooseProgram")
+        if let initial = editing {
+            ExternalCommandEditor(
+                initial: initial,
+                roundedTop: model.externalCommands.isEmpty && initial.isNew,
+                onCancel: { editing = nil },
+                onSave: { command in
+                    Task {
+                        if await model.saveExternalCommand(command) {
+                            editing = nil
                         }
                     }
                 }
-
-                if kind != .application {
-                    formRow(label: kind == .shell ? String(localized: "命令") : String(localized: "参数")) {
-                        TextField(
-                            kind == .shell ? "sips -g pixelWidth {file}" : "-s -ImageSize {files}",
-                            text: argumentsBinding
-                        )
-                        .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
-                        .font(.system(size: 11.5, design: .monospaced))
-                        .accessibilityIdentifier("settings.extensions.form.arguments")
-                    }
-
-                    HStack(alignment: .top, spacing: 12) {
-                        Spacer().frame(width: 84)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(String(localized: "占位符：{file} 第一个目标  {files} 全部目标  {folder} 所在文件夹  {name} 文件名  {book} 当前书  {page} 页码（从 1 起）"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(Color(nsColor: Theme.text2))
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(
-                                kind == .shell
-                                    ? String(localized: "替换时自动加引号，不要自己加。用登录 Shell 执行，能找到 Homebrew 装的工具。")
-                                    : String(localized: "按空白拆成参数，引号内不拆；{files} 单独成一个参数时展开成多个。")
-                            )
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color(nsColor: Theme.text2))
-                            .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    formRow(label: String(localized: "工作目录")) {
-                        TextField(String(localized: "第一个目标所在文件夹"), text: workingDirBinding)
-                            .labelsHidden()
-                            .textFieldStyle(.roundedBorder)
-                            .controlSize(.small)
-                            .accessibilityIdentifier("settings.extensions.form.workingDirectory")
-                    }
-
-                    formRow(label: String(localized: "显示输出")) {
-                        HStack(spacing: 8) {
-                            SettingsSwitch(label: String(localized: "显示输出"), isOn: showOutputBinding)
-                                .accessibilityIdentifier("settings.extensions.form.showOutput")
-                            Text(String(localized: "标准输出进输出区，最后一行显示在状态栏"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(Color(nsColor: Theme.text2))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                    }
-                }
-
-                SettingsErrorBanner(message: editing?.validationError)
-
-                HStack(spacing: 6) {
-                    Spacer()
-                    Button(String(localized: "取消")) {
-                        editing = nil
-                    }
-                    .controlSize(.small)
-                    .accessibilityIdentifier("settings.extensions.form.cancel")
-
-                    Button(action: commitDraft) {
-                        Text(String(localized: "存储"))
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Color(nsColor: Theme.onPrimary))
-                            .padding(.horizontal, 12)
-                            .frame(height: 24)
-                            .background(Color(nsColor: Theme.primary), in: RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("settings.extensions.form.save")
-                }
-                .padding(.top, 2)
-            }
-            .padding(12)
-            .background(Color(nsColor: Theme.well))
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("settings.extensions.form")
-        }
-    }
-
-    private func formRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(label)
-                .font(.system(size: 12))
-                .foregroundStyle(Color(nsColor: Theme.text2))
-                .frame(width: 84, alignment: .trailing)
-            content()
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private func commitDraft() {
-        guard var draft = editing else { return }
-        let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else {
-            draft.validationError = String(localized: "名称不能为空")
-            editing = draft
-            return
-        }
-
-        let program: String?
-        if draft.kind == .shell {
-            program = nil
-        } else {
-            let trimmed = draft.program.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else {
-                draft.validationError = String(localized: "请选择或填写程序路径")
-                editing = draft
-                return
-            }
-            let expanded = (trimmed as NSString).expandingTildeInPath
-            guard FileManager.default.fileExists(atPath: expanded) else {
-                draft.validationError = String(localized: "程序路径不存在")
-                editing = draft
-                return
-            }
-            program = expanded
-        }
-
-        let arguments: String
-        let workingDirectory: String?
-        let showOutput: Bool
-        if draft.kind == .application {
-            arguments = ""
-            workingDirectory = nil
-            showOutput = false
-        } else {
-            if draft.kind == .shell, draft.arguments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                draft.validationError = String(localized: "命令不能为空")
-                editing = draft
-                return
-            }
-            arguments = draft.arguments
-            let trimmedWD = draft.workingDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
-            workingDirectory = trimmedWD.isEmpty ? nil : trimmedWD
-            showOutput = draft.showOutput
-        }
-
-        let command = ExternalCommand(
-            id: draft.id,
-            name: name,
-            kind: draft.kind,
-            program: program,
-            arguments: arguments,
-            workingDirectory: workingDirectory,
-            showOutput: showOutput
-        )
-        Task {
-            if await model.saveExternalCommand(command) {
-                editing = nil
-            }
-        }
-    }
-
-    private func chooseProgram(kind: ExternalCommand.Kind, done: @escaping @MainActor (URL) -> Void) {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        if kind == .application {
-            panel.allowedContentTypes = [.applicationBundle]
-            panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        }
-        panel.begin { response in
-            if response == .OK, let url = panel.url {
-                done(url)
-            }
+            )
+            .id(initial.id)
         }
     }
 
@@ -875,6 +626,7 @@ struct ExtensionsSettingsPage: View {
                 }
                 .frame(height: 132)
                 .background(Color(nsColor: Theme.well))
+                .clipShape(UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
                 .onScrollGeometryChange(for: Bool.self) { geometry in
                     let maxOffset = max(0, geometry.contentSize.height - geometry.containerSize.height)
                     return geometry.contentOffset.y >= maxOffset - 16
@@ -952,6 +704,19 @@ struct ExtensionsSettingsPage: View {
         }
     }
 
+    private func runningIndicator(text: String) -> some View {
+        HStack(spacing: 5) {
+            ProgressView()
+                .controlSize(.mini)
+                .scaleEffect(0.75)
+                .frame(width: 12, height: 12)
+            Text(text)
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundStyle(Color(nsColor: Theme.text))
+                .fixedSize()
+        }
+    }
+
     private func chip(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 10.5))
@@ -991,14 +756,6 @@ struct ExtensionsSettingsPage: View {
         }
     }
 
-    private static func kindTitle(_ kind: ExternalCommand.Kind) -> String {
-        switch kind {
-        case .application: String(localized: "应用")
-        case .program: String(localized: "程序")
-        case .shell: "Shell"
-        }
-    }
-
     private static func commandSubtitleDetail(_ command: ExternalCommand) -> String {
         switch command.kind {
         case .application:
@@ -1009,6 +766,236 @@ struct ExtensionsSettingsPage: View {
             return args.isEmpty ? base : "\(base) \(args)"
         case .shell:
             return command.arguments
+        }
+    }
+}
+
+/// 外部命令行内编辑表单。
+private struct ExternalCommandEditor: View {
+    @State private var draft: ExternalCommandDraft
+    let roundedTop: Bool
+    let onCancel: () -> Void
+    let onSave: (ExternalCommand) -> Void
+
+    init(
+        initial: ExternalCommandDraft,
+        roundedTop: Bool,
+        onCancel: @escaping () -> Void,
+        onSave: @escaping (ExternalCommand) -> Void
+    ) {
+        self._draft = State(initialValue: initial)
+        self.roundedTop = roundedTop
+        self.onCancel = onCancel
+        self.onSave = onSave
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                formRow(label: String(localized: "名称")) {
+                    TextField(String(localized: "名称"), text: $draft.name)
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("settings.extensions.form.name")
+                }
+
+                formRow(label: String(localized: "类型")) {
+                    SettingsSegments(
+                        label: String(localized: "类型"),
+                        options: ExternalCommand.Kind.options,
+                        selection: $draft.kind
+                    )
+                    .accessibilityIdentifier("settings.extensions.form.kind")
+                }
+
+                if draft.kind != .shell {
+                    formRow(label: String(localized: "程序")) {
+                        HStack(spacing: 6) {
+                            TextField(
+                                draft.kind == .application ? "/System/Applications/Preview.app" : "/opt/homebrew/bin/exiftool",
+                                text: $draft.program
+                            )
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .controlSize(.small)
+                            .font(.system(size: 11.5, design: .monospaced))
+                            .accessibilityIdentifier("settings.extensions.form.program")
+                            Button(String(localized: "选择…")) {
+                                chooseProgram(kind: draft.kind) { url in
+                                    draft.program = url.path(percentEncoded: false)
+                                }
+                            }
+                            .controlSize(.small)
+                            .accessibilityIdentifier("settings.extensions.form.chooseProgram")
+                        }
+                    }
+                }
+
+                if draft.kind != .application {
+                    formRow(label: draft.kind == .shell ? String(localized: "命令") : String(localized: "参数")) {
+                        TextField(
+                            draft.kind == .shell ? "sips -g pixelWidth {file}" : "-s -ImageSize {files}",
+                            text: $draft.arguments
+                        )
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .font(.system(size: 11.5, design: .monospaced))
+                        .accessibilityIdentifier("settings.extensions.form.arguments")
+                    }
+
+                    GridRow(alignment: .top) {
+                        Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "占位符：{file} 第一个目标  {files} 全部目标  {folder} 所在文件夹  {name} 文件名  {book} 当前书  {page} 页码（从 1 起）"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color(nsColor: Theme.text2))
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(
+                                draft.kind == .shell
+                                    ? String(localized: "替换时自动加引号，不要自己加。用登录 Shell 执行，能找到 Homebrew 装的工具。")
+                                    : String(localized: "按空白拆成参数，引号内不拆；{files} 单独成一个参数时展开成多个。")
+                            )
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color(nsColor: Theme.text2))
+                            .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    formRow(label: String(localized: "工作目录")) {
+                        TextField(String(localized: "第一个目标所在文件夹"), text: $draft.workingDirectory)
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .controlSize(.small)
+                            .accessibilityIdentifier("settings.extensions.form.workingDirectory")
+                    }
+
+                    formRow(label: String(localized: "显示输出")) {
+                        HStack(spacing: 8) {
+                            SettingsSwitch(label: String(localized: "显示输出"), isOn: $draft.showOutput)
+                                .accessibilityIdentifier("settings.extensions.form.showOutput")
+                            Text(String(localized: "标准输出进输出区，最后一行显示在状态栏"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color(nsColor: Theme.text2))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    }
+                }
+            }
+
+            SettingsErrorBanner(message: draft.validationError)
+
+            HStack(spacing: 6) {
+                Spacer()
+                Button(String(localized: "取消"), action: onCancel)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("settings.extensions.form.cancel")
+
+                Button(action: commitDraft) {
+                    Text(String(localized: "存储"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color(nsColor: Theme.onPrimary))
+                        .padding(.horizontal, 12)
+                        .frame(height: 24)
+                        .background(Color(nsColor: Theme.primary), in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("settings.extensions.form.save")
+            }
+            .padding(.top, 2)
+        }
+        .padding(12)
+        .background(Color(nsColor: Theme.well))
+        .clipShape(UnevenRoundedRectangle(topLeadingRadius: roundedTop ? 10 : 0, topTrailingRadius: roundedTop ? 10 : 0))
+        .onChange(of: draft.name) { draft.validationError = nil }
+        .onChange(of: draft.kind) { draft.validationError = nil }
+        .onChange(of: draft.program) { draft.validationError = nil }
+        .onChange(of: draft.arguments) { draft.validationError = nil }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.extensions.form")
+    }
+
+    private func formRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        GridRow {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(Color(nsColor: Theme.text2))
+                .fixedSize()
+                .gridColumnAlignment(.trailing)
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func commitDraft() {
+        let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else {
+            draft.validationError = String(localized: "名称不能为空")
+            return
+        }
+
+        let program: String?
+        if draft.kind == .shell {
+            program = nil
+        } else {
+            let trimmed = draft.program.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                draft.validationError = String(localized: "请选择或填写程序路径")
+                return
+            }
+            let expanded = (trimmed as NSString).expandingTildeInPath
+            guard FileManager.default.fileExists(atPath: expanded) else {
+                draft.validationError = String(localized: "程序路径不存在")
+                return
+            }
+            program = expanded
+        }
+
+        let arguments: String
+        let workingDirectory: String?
+        let showOutput: Bool
+        if draft.kind == .application {
+            arguments = ""
+            workingDirectory = nil
+            showOutput = false
+        } else {
+            if draft.kind == .shell, draft.arguments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                draft.validationError = String(localized: "命令不能为空")
+                return
+            }
+            arguments = draft.arguments
+            let trimmedWD = draft.workingDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+            workingDirectory = trimmedWD.isEmpty ? nil : trimmedWD
+            showOutput = draft.showOutput
+        }
+
+        onSave(ExternalCommand(
+            id: draft.id,
+            name: name,
+            kind: draft.kind,
+            program: program,
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            showOutput: showOutput
+        ))
+    }
+
+    private func chooseProgram(kind: ExternalCommand.Kind, done: @escaping @MainActor (URL) -> Void) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        if kind == .application {
+            panel.allowedContentTypes = [.applicationBundle]
+            panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        }
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                done(url)
+            }
         }
     }
 }

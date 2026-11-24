@@ -1000,40 +1000,48 @@ final class ScriptSelfTest {
 
         // MARK: C3.4 外部命令新建、编辑、删除写回 JSON 与主菜单同步；JSON 写坏错误横幅与恢复
         let extFileURL = app.supportDirectory.appending(path: "external-commands.json")
-        let clickedAdd = await clickAX(identifier: "settings.extensions.external.add", in: settingsWindow)
-        let formOpened = await waitUntil(timeoutMs: 1500) {
-            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form.name") != nil
+        let commandSynced: (String, Bool) -> Bool = { title, present in
+            let inFile = (try? String(contentsOf: extFileURL, encoding: .utf8))?.contains(title) == true
+            let inMenu = self.openMainScriptsMenu(titled: scriptsMenuTitle)?.items.contains { $0.title == title } == true
+            return inFile == present && inMenu == present
         }
-        let filledName = await typeIntoAXField(identifier: "settings.extensions.form.name", text: "查看宽度", in: settingsWindow)
-        let filledArgs = await typeIntoAXField(identifier: "settings.extensions.form.arguments", text: "/usr/bin/sips -g pixelWidth {file}", in: settingsWindow)
-        let toggledShowOutput = await clickAX(identifier: "settings.extensions.form.showOutput", in: settingsWindow)
-        await settle(80)
-        let clickedSave = await clickAX(identifier: "settings.extensions.form.save", in: settingsWindow)
-        let createdOK = await waitUntil(timeoutMs: 2500) {
-            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form") == nil &&
-            extModel.externalCommands.contains { $0.name == "查看宽度" && $0.showOutput } &&
-            ((try? String(contentsOf: extFileURL, encoding: .utf8))?.contains("查看宽度") == true) &&
-            (self.openMainScriptsMenu(titled: scriptsMenuTitle)?.items.contains { $0.title == "查看宽度" } == true)
+        func runSteps(_ steps: [@MainActor () async -> Bool]) async -> Bool {
+            for step in steps where await !step() { return false }
+            return true
         }
+
+        let createdOK = await runSteps([
+            { await self.clickAX(identifier: "settings.extensions.external.add", in: settingsWindow) },
+            { await self.waitUntil(timeoutMs: 1500) { self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form.name") != nil } },
+            { await self.typeIntoAXField(identifier: "settings.extensions.form.name", text: "查看宽度", in: settingsWindow) },
+            { await self.typeIntoAXField(identifier: "settings.extensions.form.arguments", text: "/usr/bin/sips -g pixelWidth {file}", in: settingsWindow) },
+            { await self.clickAX(identifier: "settings.extensions.form.showOutput", in: settingsWindow) },
+            { await self.settle(80); return await self.clickAX(identifier: "settings.extensions.form.save", in: settingsWindow) },
+            {
+                await self.waitUntil(timeoutMs: 2500) {
+                    self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form") == nil &&
+                    extModel.externalCommands.contains { $0.name == "查看宽度" && $0.showOutput } &&
+                    commandSynced("查看宽度", true)
+                }
+            },
+        ])
         let createdID = extModel.externalCommands.first(where: { $0.name == "查看宽度" })?.id ?? ""
 
         // 编辑外部命令名称
-        var clickedEdit = false
-        if !createdID.isEmpty {
-            clickedEdit = await clickAX(identifier: "settings.extensions.external.\(createdID).edit", in: settingsWindow)
-        }
-        let editFormOpened = await waitUntil(timeoutMs: 1500) {
-            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form.name") != nil
-        }
-        let updatedName = await typeIntoAXField(identifier: "settings.extensions.form.name", text: "查看图片宽度", in: settingsWindow)
-        await settle(80)
-        let clickedEditSave = await clickAX(identifier: "settings.extensions.form.save", in: settingsWindow)
-        let editedOK = await waitUntil(timeoutMs: 2500) {
-            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form") == nil &&
-            extModel.externalCommands.contains { $0.id == createdID && $0.name == "查看图片宽度" } &&
-            ((try? String(contentsOf: extFileURL, encoding: .utf8))?.contains("查看图片宽度") == true) &&
-            (self.openMainScriptsMenu(titled: scriptsMenuTitle)?.items.contains { $0.title == "查看图片宽度" } == true)
-        }
+        let editedOK = await runSteps([
+            { !createdID.isEmpty },
+            { await self.clickAX(identifier: "settings.extensions.external.\(createdID).edit", in: settingsWindow) },
+            { await self.waitUntil(timeoutMs: 1500) { self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form.name") != nil } },
+            { await self.typeIntoAXField(identifier: "settings.extensions.form.name", text: "查看图片宽度", in: settingsWindow) },
+            { await self.settle(80); return await self.clickAX(identifier: "settings.extensions.form.save", in: settingsWindow) },
+            {
+                await self.waitUntil(timeoutMs: 2500) {
+                    self.findAXElement(in: settingsWindow, identifier: "settings.extensions.form") == nil &&
+                    extModel.externalCommands.contains { $0.id == createdID && $0.name == "查看图片宽度" } &&
+                    commandSynced("查看图片宽度", true)
+                }
+            },
+        ])
 
         // 外部把 external-commands.json 写坏，验证错误横幅出现；写回合法 JSON，横幅消失
         let validJSONData = (try? Data(contentsOf: extFileURL)) ?? Data()
@@ -1079,10 +1087,7 @@ final class ScriptSelfTest {
         let errScriptListed = await waitUntil(timeoutMs: 2000) {
             self.findAXElement(in: settingsWindow, identifier: "settings.extensions.script.selftest-error-log.run") != nil
         }
-        var ranErrorScript = false
-        if errScriptListed {
-            ranErrorScript = await clickAX(identifier: "settings.extensions.script.selftest-error-log.run", in: settingsWindow)
-        }
+        let ranErrorScript = errScriptListed ? await clickAX(identifier: "settings.extensions.script.selftest-error-log.run", in: settingsWindow) : false
         let errLogOK = await waitUntil(timeoutMs: 2500) {
             extModel.logEntries.contains { $0.level == .error && $0.text.contains("selftest-danger-line") }
         }
@@ -1108,28 +1113,21 @@ final class ScriptSelfTest {
         log.snapshot(settingsWindow, "extensions-\(langTag)-\(appearanceTag)")
 
         // 完成 C3.4 删除外部命令验证
-        var clickedDelete = false
-        if !createdID.isEmpty {
-            clickedDelete = await clickAX(identifier: "settings.extensions.external.\(createdID).delete", in: settingsWindow)
-        }
-        let confirmAppeared = await waitUntil(timeoutMs: 1500) {
-            self.findAXElement(in: settingsWindow, identifier: "settings.extensions.external.\(createdID).confirmDelete") != nil
-        }
-        var clickedConfirmDelete = false
-        if confirmAppeared {
-            clickedConfirmDelete = await clickAX(identifier: "settings.extensions.external.\(createdID).confirmDelete", in: settingsWindow)
-        }
-        let deletedOK = await waitUntil(timeoutMs: 2500) {
-            !extModel.externalCommands.contains { $0.id == createdID } &&
-            ((try? String(contentsOf: extFileURL, encoding: .utf8))?.contains("查看图片宽度") == false) &&
-            (self.openMainScriptsMenu(titled: scriptsMenuTitle)?.items.contains { $0.title == "查看图片宽度" } == false)
-        }
+        let deletedOK = await runSteps([
+            { !createdID.isEmpty },
+            { await self.clickAX(identifier: "settings.extensions.external.\(createdID).delete", in: settingsWindow) },
+            { await self.waitUntil(timeoutMs: 1500) { self.findAXElement(in: settingsWindow, identifier: "settings.extensions.external.\(createdID).confirmDelete") != nil } },
+            { await self.clickAX(identifier: "settings.extensions.external.\(createdID).confirmDelete", in: settingsWindow) },
+            {
+                await self.waitUntil(timeoutMs: 2500) {
+                    !extModel.externalCommands.contains { $0.id == createdID } &&
+                    commandSynced("查看图片宽度", false)
+                }
+            },
+        ])
         log.check(
-            clickedAdd && formOpened && filledName && filledArgs && toggledShowOutput && clickedSave && createdOK &&
-            clickedEdit && editFormOpened && updatedName && clickedEditSave && editedOK &&
-            bannerAppeared && bannerCleared &&
-            clickedDelete && confirmAppeared && clickedConfirmDelete && deletedOK,
-            "C3.4 外部命令(add=\(clickedAdd)/\(formOpened),fill=\(filledName)/\(filledArgs),toggle=\(toggledShowOutput),save=\(clickedSave)/\(createdOK),edit=\(clickedEdit)/\(editedOK),banner=\(bannerAppeared)/\(bannerCleared),del=\(clickedDelete)/\(deletedOK))"
+            createdOK && editedOK && bannerAppeared && bannerCleared && deletedOK,
+            "C3.4 外部命令(create=\(createdOK),edit=\(editedOK),banner=\(bannerAppeared)/\(bannerCleared),delete=\(deletedOK))"
         )
 
         try? FileManager.default.removeItem(at: helloURL)
@@ -1455,35 +1453,9 @@ final class ScriptSelfTest {
               let rect = axFrameInWindow(el, window: window) else { return false }
         sendMouseClick(at: NSPoint(x: rect.midX, y: rect.midY), in: window, modifiers: [])
         await settle(80)
-        if let editor = window.firstResponder as? NSTextView {
-            editor.insertText(text, replacementRange: NSRange(location: 0, length: editor.string.count))
-            return true
-        }
-        if let field: NSTextField = findView(in: window.contentView, matchingFrameInWindow: rect) {
-            window.makeFirstResponder(field)
-            await settle(50)
-            if let editor = field.currentEditor() as? NSTextView {
-                editor.insertText(text, replacementRange: NSRange(location: 0, length: editor.string.count))
-            } else {
-                field.stringValue = text
-                NotificationCenter.default.post(name: NSControl.textDidChangeNotification, object: field)
-            }
-            return true
-        }
-        return false
-    }
-
-    private func findView<T: NSView>(in root: NSView?, matchingFrameInWindow rect: NSRect) -> T? {
-        guard let root else { return nil }
-        let center = NSPoint(x: rect.midX, y: rect.midY)
-        if let view = root as? T,
-           view.convert(view.bounds, to: nil).insetBy(dx: -4, dy: -4).contains(center) {
-            return view
-        }
-        for sub in root.subviews {
-            if let found: T = findView(in: sub, matchingFrameInWindow: rect) { return found }
-        }
-        return nil
+        guard let editor = window.firstResponder as? NSTextView else { return false }
+        editor.insertText(text, replacementRange: NSRange(location: 0, length: editor.string.count))
+        return true
     }
 
     private var nextMouseEventNumber = 1

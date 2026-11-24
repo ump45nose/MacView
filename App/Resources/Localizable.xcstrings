@@ -7195,16 +7195,6 @@
         }
       }
     },
-    "管理脚本…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Manage Scripts…"
-          }
-        }
-      }
-    },
     "管理脚本与外部命令…": {
       "localizations": {
         "en": {
