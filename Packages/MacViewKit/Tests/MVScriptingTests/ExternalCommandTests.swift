@@ -12,19 +12,44 @@ private let templateValues = TemplateValues(files: ["/tmp/A B/a's.png", "/tmp/�
     #expect(try CommandTemplate.programArguments("{files}", values: TemplateValues(files: [], book: nil, page: nil)).isEmpty)
 }
 
-@Test func shellTemplateEscapesValues() async throws {
-    let values = TemplateValues(files: ["空 格 '$HOME `echo x`\n第二行"], book: nil, page: nil)
-    let command = CommandTemplate.shellCommand("printf %s {file}", values: values)
-    let result = try await ProcessRunner().run(executable: "/bin/sh", arguments: ["-c", command], workingDirectory: nil)
-    #expect(result.exitCode == 0)
-    #expect(result.stdout == values.files[0])
-    for template in ["printf %s \"{file}\"", "printf %s '{file}'", "printf %s prefix\"{file}\"suffix"] {
-        let expanded = CommandTemplate.shellCommand(template, values: values)
-        let actual = try await ProcessRunner().run(executable: "/bin/sh", arguments: ["-c", expanded], workingDirectory: nil)
-        let expected = template.contains("prefix") ? "prefix" + values.files[0] + "suffix" : values.files[0]
-        #expect(actual.exitCode == 0 && actual.stdout == expected)
+@Test func shellInvocationPreservesFileValues() async throws {
+    let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent(".build/MVScriptingShellTests/\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let marker = directory.appendingPathComponent("marker").path
+    let files = ["a b", "中文", "single'quote", "double\"quote", "$(touch \(marker))", "`touch \(marker)`", "first\nsecond"]
+    let templates = ["printf '%s\\n' {file}", "printf '%s\\n' \"{file}\"", "echo \"$(printf %s {file})\"", "printf '%s\\n' {files}"]
+    for file in files {
+        let values = TemplateValues(files: [file], book: nil, page: nil)
+        for template in templates {
+            let invocation = CommandTemplate.shellInvocation(template, values: values)
+            #expect(!invocation.script.contains(file))
+            let result = try await ProcessRunner().runShell(invocation, workingDirectory: nil)
+            #expect(result.exitCode == 0)
+            #expect(result.stdout == file + "\n")
+            #expect(!FileManager.default.fileExists(atPath: marker))
+        }
     }
+    let values = TemplateValues(files: files, book: "book", page: 7)
+    let invocation = CommandTemplate.shellInvocation("printf '%s\\n' {files}", values: values)
+    let result = try await ProcessRunner().runShell(invocation, workingDirectory: nil)
+    #expect(result.stdout == files.map { $0 + "\n" }.joined())
+    #expect(!FileManager.default.fileExists(atPath: marker))
     #expect(CommandTemplate.placeholders == ["{file}", "{files}", "{folder}", "{name}", "{book}", "{page}"])
+}
+
+@Test func shellInvocationPassesEnvironmentAndPositionals() async throws {
+    let values = TemplateValues(files: ["/tmp/A B/test.png", "two"], book: "a book", page: 7)
+    let invocation = CommandTemplate.shellInvocation("printf '<%s>\\n' {file} {folder} {name} {book} {page} {files}", values: values)
+    #expect(invocation.script == #"printf '<%s>\n' "${MV_FILE}" "${MV_FOLDER}" "${MV_NAME}" "${MV_BOOK}" "${MV_PAGE}" "$@""#)
+    #expect(invocation.positional == values.files)
+    #expect(invocation.environment == ["MV_FILE": "/tmp/A B/test.png", "MV_FOLDER": "/tmp/A B", "MV_NAME": "test.png", "MV_BOOK": "a book", "MV_PAGE": "7"])
+    let result = try await ProcessRunner().runShell(invocation, workingDirectory: nil)
+    #expect(result.exitCode == 0)
+    #expect(result.stdout == "</tmp/A B/test.png>\n</tmp/A B>\n<test.png>\n<a book>\n<7>\n</tmp/A B/test.png>\n<two>\n")
+    let empty = CommandTemplate.shellInvocation("{file} {folder} {name} {book} {page}", values: TemplateValues(files: [], book: nil, page: nil))
+    #expect(empty.environment.values.allSatisfy { $0.isEmpty })
 }
 
 @Test func externalCommandDecodingDefaults() throws {
@@ -52,10 +77,12 @@ private let templateValues = TemplateValues(files: ["/tmp/A B/a's.png", "/tmp/�
 
 @Test func processLoginShell() async throws {
     let runner = ProcessRunner()
-    let result = try await runner.runShell("printf login-shell", workingDirectory: nil)
-    #expect(result.exitCode == 0 && result.stdout == "login-shell")
+    let values = TemplateValues(files: [], book: nil, page: nil)
+    let command = CommandTemplate.shellInvocation("printf login-shell; printf err >&2; exit 7", values: values)
+    let result = try await runner.runShell(command, workingDirectory: nil)
+    #expect(result.exitCode == 7 && result.stdout == "login-shell" && result.stderr == "err")
     if FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/brew") || FileManager.default.isExecutableFile(atPath: "/usr/local/bin/brew") {
-        let brew = try await runner.runShell("command -v brew", workingDirectory: nil)
+        let brew = try await runner.runShell(CommandTemplate.shellInvocation("command -v brew", values: values), workingDirectory: nil)
         #expect(brew.exitCode == 0 && brew.stdout.contains("brew"))
     }
 }

@@ -233,6 +233,8 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
                 .command(.ratingSet0), .command(.ratingSet1), .command(.ratingSet2),
                 .command(.ratingSet3), .command(.ratingSet4), .command(.ratingSet5),
             ]))
+        case .scripts:
+            nil
         case .layoutSchemes:
             dynamicSubmenuItem(title: String(localized: "布局方案")) { submenu in
                 (NSApp.delegate as? AppDelegate)?.populateLayoutSchemesMenu(submenu) ?? false

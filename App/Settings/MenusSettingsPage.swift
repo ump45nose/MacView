@@ -199,6 +199,7 @@ final class MenusModel {
         case .displayProfiles: String(localized: "套用显示配置")
         case .rating: String(localized: "评分")
         case .layoutSchemes: String(localized: "布局方案")
+        case .scripts: String(localized: "脚本")
         }
     }
 

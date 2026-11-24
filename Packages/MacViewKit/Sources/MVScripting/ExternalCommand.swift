@@ -71,24 +71,25 @@ public enum CommandTemplate {
         }
     }
 
-    public static func shellCommand(_ template: String, values: TemplateValues) -> String {
-        var result = ""; var index = template.startIndex; var quote: Character?
-        while index < template.endIndex {
-            if let key = placeholders.first(where: { template[index...].hasPrefix($0) }) {
-                let escaped = key == "{files}" ? values.files.map(shellQuote).joined(separator: " ") : shellQuote(rawValue(key, values: values))
-                if let quote { result.append(quote); result += escaped; result.append(quote) }
-                else { result += escaped }
-                index = template.index(index, offsetBy: key.count)
-            } else {
-                let character = template[index]
-                result.append(character); template.formIndex(after: &index)
-                if character == "\\" && quote != "'" && index < template.endIndex {
-                    result.append(template[index]); template.formIndex(after: &index)
-                } else if character == quote { quote = nil }
-                else if quote == nil && (character == "'" || character == "\"") { quote = character }
+    public static func shellInvocation(_ template: String, values: TemplateValues) -> ShellInvocation {
+        let script = replace(template) { key in
+            switch key {
+            case "{file}": #""${MV_FILE}""#
+            case "{files}": #""$@""#
+            case "{folder}": #""${MV_FOLDER}""#
+            case "{name}": #""${MV_NAME}""#
+            case "{book}": #""${MV_BOOK}""#
+            case "{page}": #""${MV_PAGE}""#
+            default: key
             }
         }
-        return result
+        return ShellInvocation(script: script, positional: values.files, environment: [
+            "MV_FILE": rawValue("{file}", values: values),
+            "MV_FOLDER": rawValue("{folder}", values: values),
+            "MV_NAME": rawValue("{name}", values: values),
+            "MV_BOOK": rawValue("{book}", values: values),
+            "MV_PAGE": rawValue("{page}", values: values),
+        ])
     }
 
     private static func rawValue(_ key: String, values: TemplateValues) -> String {
@@ -103,7 +104,6 @@ public enum CommandTemplate {
         default: key
         }
     }
-    private static func shellQuote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
     private static func replace(_ template: String, value: (String) -> String) -> String {
         var result = ""; var index = template.startIndex
         while index < template.endIndex {
@@ -112,5 +112,14 @@ public enum CommandTemplate {
             } else { result.append(template[index]); template.formIndex(after: &index) }
         }
         return result
+    }
+}
+
+public struct ShellInvocation: Sendable, Hashable {
+    public var script: String
+    public var positional: [String]
+    public var environment: [String: String]
+    public init(script: String, positional: [String], environment: [String: String]) {
+        self.script = script; self.positional = positional; self.environment = environment
     }
 }

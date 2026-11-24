@@ -911,9 +911,11 @@ public final class ScriptStorage: Sendable { public init(fileURL: URL) throws; p
 public struct ExternalCommand: Codable, Sendable, Hashable, Identifiable { public enum Kind: String, Codable, Sendable { case application, program, shell }; public var id: String; public var name: String; public var kind: Kind; public var program: String?; public var arguments: String; public var workingDirectory: String?; public var showOutput: Bool }
 public struct ExternalCommandFile: Codable, Sendable, Hashable { public var commands: [ExternalCommand] }
 public struct TemplateValues: Sendable { public var files: [String]; public var book: String?; public var page: Int? }
-public enum CommandTemplate { public static func programArguments(_ template: String, values: TemplateValues) throws -> [String]; public static func shellCommand(_ template: String, values: TemplateValues) -> String; public static let placeholders: [String] }
+public enum CommandTemplate { public static func programArguments(_ template: String, values: TemplateValues) throws -> [String]; public static func shellInvocation(_ template: String, values: TemplateValues) -> ShellInvocation; public static let placeholders: [String] }
+public struct ShellInvocation: Sendable, Hashable { public var script: String; public var positional: [String]; public var environment: [String: String] }   // 文件值通过位置参数及环境变量传入，不拼入脚本
+// 占位符按固定文本替换；位于已有引号或嵌套命令替换时仍遵循 zsh 引号、选项及末尾换行处理，不能保证所有模板原样保留值。
 public struct ProcessResult: Sendable, Hashable { public var exitCode: Int32; public var stdout: String; public var stderr: String }
-public final class ProcessRunner: Sendable { public init(); public func run(executable: String, arguments: [String], workingDirectory: String?) async throws -> ProcessResult; public func runShell(_ command: String, workingDirectory: String?) async throws -> ProcessResult }   // 进程组取消时 TERM，250 ms 后 KILL；输出各保留最后 64 KB
+public final class ProcessRunner: Sendable { public init(); public func run(executable: String, arguments: [String], workingDirectory: String?) async throws -> ProcessResult; public func runShell(_ invocation: ShellInvocation, workingDirectory: String?) async throws -> ProcessResult }   // shell 固定 /bin/zsh -l；进程组取消时 TERM，250 ms 后 KILL；输出各保留最后 64 KB
 
 // MVServices
 public struct LibraryBookLoader: BookLoader {

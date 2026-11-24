@@ -14,7 +14,7 @@ public struct ProcessResult: Sendable, Hashable {
 public final class ProcessRunner: Sendable {
     public init() {}
     public func run(executable: String, arguments: [String], workingDirectory: String?) async throws -> ProcessResult {
-        let operation = ProcessOperation(executable: executable, arguments: arguments, directory: workingDirectory)
+        let operation = ProcessOperation(executable: executable, arguments: arguments, directory: workingDirectory, environment: [:])
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {
@@ -24,12 +24,16 @@ public final class ProcessRunner: Sendable {
             }
         } onCancel: { operation.cancel() }
     }
-    public func runShell(_ command: String, workingDirectory: String?) async throws -> ProcessResult {
-        let shell: String
-        if let entry = getpwuid(getuid()), let path = entry.pointee.pw_shell, !String(cString: path).isEmpty {
-            shell = String(cString: path)
-        } else { shell = "/bin/zsh" }
-        return try await run(executable: shell, arguments: ["-lc", command], workingDirectory: workingDirectory)
+    public func runShell(_ invocation: ShellInvocation, workingDirectory: String?) async throws -> ProcessResult {
+        let operation = ProcessOperation(executable: "/bin/zsh", arguments: ["-l", "-c", invocation.script, "macview"] + invocation.positional, directory: workingDirectory, environment: invocation.environment)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do { continuation.resume(returning: try operation.run()) }
+                    catch { continuation.resume(throwing: error) }
+                }
+            }
+        } onCancel: { operation.cancel() }
     }
 }
 
@@ -45,8 +49,9 @@ private final class ProcessOperation: Sendable {
     private let executable: String
     private let arguments: [String]
     private let directory: String?
-    init(executable: String, arguments: [String], directory: String?) {
-        self.executable = executable; self.arguments = arguments; self.directory = directory
+    private let environment: [String: String]
+    init(executable: String, arguments: [String], directory: String?, environment: [String: String]) {
+        self.executable = executable; self.arguments = arguments; self.directory = directory; self.environment = environment
     }
     func cancel() {
         let target = state.withLock { state -> (pid_t, DispatchSemaphore)? in
@@ -69,6 +74,9 @@ private final class ProcessOperation: Sendable {
         if state.withLock({ $0.cancelled }) { throw CancellationError() }
         guard !([executable] + arguments + [directory].compactMap { $0 }).contains(where: { $0.utf8.contains(0) }) else {
             throw ProcessRunnerError(executable: executable, message: "路径或参数包含空字符")
+        }
+        guard environment.allSatisfy({ !$0.key.isEmpty && !$0.key.contains("=") && !$0.key.utf8.contains(0) && !$0.value.utf8.contains(0) }) else {
+            throw ProcessRunnerError(executable: executable, message: "环境变量名或值无效")
         }
         var outputPipe: [Int32] = [-1, -1], errorPipe: [Int32] = [-1, -1]
         guard pipe(&outputPipe) == 0 else { throw failure(errno) }
@@ -97,10 +105,21 @@ private final class ProcessOperation: Sendable {
             throw failure(ENOMEM)
         }
         defer { for pointer in argv { free(pointer) } }
+        var mergedEnvironment = ProcessInfo.processInfo.environment
+        mergedEnvironment.merge(environment) { _, new in new }
+        let envp = mergedEnvironment.map { strdup("\($0.key)=\($0.value)") } + [nil]
+        guard envp.dropLast().allSatisfy({ $0 != nil }) else {
+            for pointer in envp { free(pointer) }
+            throw failure(ENOMEM)
+        }
+        defer { for pointer in envp { free(pointer) } }
         var mutableArgv = argv
+        var mutableEnvp = envp
         var pid: pid_t = 0
         code = mutableArgv.withUnsafeMutableBufferPointer { pointer in
-            posix_spawn(&pid, executable, &actions, &attributes, pointer.baseAddress!, environ)
+            mutableEnvp.withUnsafeMutableBufferPointer { environmentPointer in
+                posix_spawn(&pid, executable, &actions, &attributes, pointer.baseAddress!, environmentPointer.baseAddress!)
+            }
         }
         guard code == 0 else {
             if state.withLock({ $0.cancelled }) { throw CancellationError() }
