@@ -218,9 +218,24 @@ S4-T3 / S4-F4 留给关口：
 
 | ID | 内容 |
 |---|---|
-| S5-T1 | JavaScriptCore 运行时与应用 API、事件，自定义外部命令 |
+| S5-T1 | JavaScriptCore 运行时与应用 API、事件，自定义外部命令；含设置「扩展」页（原 S5-F1 中脚本管理界面的部分）。已完成（2026-11-24，`2c70c1d`） |
 | S5-T2 | 插件宿主：清单与权限、JS 插件、外部进程 JSON-RPC、数据源接入 SourceRegistry、解码与滤镜插件接口 |
-| S5-F1 | HTML/JS 面板宿主（WKWebView 桥），脚本与插件的管理界面 |
+| S5-F1 | HTML/JS 面板宿主（WKWebView 桥），插件的管理界面（脚本管理已随 S5-T1 完成） |
+
+S5-T1 完成（2026-11-24，`f470b95`、`0d213a9`、`2c70c1d`）：三个阶段合入 main，CI 通过，Release 已装到 `/Applications/MacView.app`。新模块 MVScripting：`Scripts/*.js` 一个文件一条命令（`script.<文件名>`），文件头 `@name`/`@description`/`@event` 声明元数据与事件（startup、bookOpened、pageChanged、pageEnd、windowStateChanged）；每次运行在专用线程上新建 JSContext，`mv` 同步垫片经异步 `ScriptHost.call` 调到主线程（HTML 面板以后复用同一方法表，另写 Promise 垫片）；死循环用 `JSContextGroupSetExecutionTimeLimit`（非公开，dlsym 探测）停止。外部命令存 `external-commands.json`（应用 / 程序 / Shell 三类，`external.<id>`），Shell 用 `/bin/zsh -l -c`，文件名经位置参数与 `MV_*` 环境变量传入、不拼进命令文本。翻页命令在首末帧不再禁用（越界触发 `pageEnd`，无订阅时仍提示音）；设置与菜单的命令清单改从 `CommandRegistry.descriptors()` 动态取；快捷键页新增「未知命令」分组；设置第 10 页「扩展」，窗口最小宽度 640。自检 `-MVScriptSelfTest commands|events|external|settings` 全过。需求冒烟时屏幕锁定，安装版实机走查留关口。
+
+S5-T1 留给关口 G5：
+
+- 安装版 `/Applications/MacView.app` 上按 S5-T1 需求的 S1–S6 实机走一遍：⌃M 绑「跳到中间页」、翻过末页弹确认开下一本、外部命令「用预览打开」对页面列表 3 页与 zip 内页真正打开 Preview、Shell `sips -g pixelWidth {file}` 对带空格中文单引号的文件名、语法错误标红与停止死循环、外部改脚本与写坏 `external-commands.json`。Release 不认 `-MV…` 参数，会写真实支持目录：先备份 `~/Library/Application Support/MacView`，测完恢复。
+- 网络卷（NFS/SMB）上的页执行外部命令；网络卷断开时外部命令报错不冻结界面。
+- 用户改过 `menus.json` 时，在菜单编辑器里手动加入「脚本」动态项。
+
+S5-T1 遗留：
+
+- 停止死循环依赖非公开 `JSContextGroupSetExecutionTimeLimit`；系统去掉该符号时退化为下一次调用 `mv` 时停下。
+- 外部程序自行脱离进程组时，停止不一定能结束它。
+- 应用类外部命令解出的压缩包页文件持有到 App 退出。
+- CI 上 `videoPreviewShutdownStopsActiveGeneratorAndReaders`（S4）与 `CoreServices.make` 200 ms 启动断言偶发失败，重跑通过。
 
 ## S6 发布准备（关口 G6）
 
