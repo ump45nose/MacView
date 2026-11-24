@@ -12,6 +12,7 @@ let modules: [(name: String, dependencies: [String])] = [
     ("MVCache", ["MVFoundation", "GRDB"]),
     ("MVPipeline", ["MVFoundation", "MVIO", "MVMedia", "MVCache"]),
     ("MVSettings", ["MVFoundation", "GRDB"]),
+    ("MVScripting", ["MVFoundation", "MVSettings"]),
     ("MVCommands", ["MVFoundation"]),
     ("MVLayout", ["MVFoundation", "MVSettings"]),
     ("MVReading", ["MVFoundation", "MVIO", "MVMedia", "MVCache", "MVPipeline", "MVSettings"]),
@@ -48,7 +49,7 @@ let package = Package(
         [
             .target(name: module.name, dependencies: module.dependencies.map {
                 $0 == "GRDB" ? .product(name: "GRDB", package: "GRDB.swift") : .target(name: $0)
-            }),
+            }, resources: module.name == "MVScripting" ? [.process("Resources")] : []),
             .testTarget(name: "\(module.name)Tests", dependencies: [.target(name: module.name)] + (testExtras[module.name] ?? [])),
         ]
     } + [
