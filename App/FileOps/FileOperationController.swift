@@ -437,10 +437,17 @@ final class FileOperationController {
         }
     }
 
-    private func resolveLeases(for locations: [Location], in services: CoreServices) async throws -> [FileLease] {
+    static func resolveLeases(for locations: [Location], in services: CoreServices) async throws -> [FileLease] {
         var leases: [FileLease] = []
-        for loc in locations { leases.append(try await services.sources.provider(for: loc).fileLease(for: loc)) }
+        for loc in locations {
+            try Task.checkCancellation()
+            leases.append(try await services.sources.provider(for: loc).fileLease(for: loc))
+        }
         return leases
+    }
+
+    func retainOpenWithLeases(_ leases: [FileLease]) {
+        openWithLeases.append(contentsOf: leases)
     }
 
     private func activeEffects(for controller: ReaderWindowController?) -> EffectChain? {
@@ -517,7 +524,7 @@ final class FileOperationController {
                     }
                 }
             } else {
-                leases = try await resolveLeases(for: origin.items.map(\.location), in: services)
+                leases = try await Self.resolveLeases(for: origin.items.map(\.location), in: services)
                 urls = leases.map(\.url)
                 if origin.items.count == 1, origin.items[0].kind == .image {
                     let item = origin.items[0], handle = try await services.sources.provider(for: item.location).open(item.location)
@@ -535,7 +542,7 @@ final class FileOperationController {
     func copyPaths(origin: FileOrigin) async {
         guard canRead(origin), let services = app?.services else { return }
         do {
-            let leases = try await resolveLeases(for: origin.items.map { Self.outerFileLocation(of: $0.location) }, in: services)
+            let leases = try await Self.resolveLeases(for: origin.items.map { Self.outerFileLocation(of: $0.location) }, in: services)
             let pb = NSPasteboard.general; pb.clearContents()
             pb.setString(leases.map { $0.url.path(percentEncoded: false) }.joined(separator: "\n"), forType: .string)
         } catch { targetController(for: origin)?.content.statusBar.showMessage(ErrorText.describe(error)) }
@@ -544,7 +551,7 @@ final class FileOperationController {
     func revealInFinder(origin: FileOrigin) async {
         guard canRead(origin), let services = app?.services else { return }
         do {
-            let leases = try await resolveLeases(for: origin.items.map { Self.outerFileLocation(of: $0.location) }, in: services)
+            let leases = try await Self.resolveLeases(for: origin.items.map { Self.outerFileLocation(of: $0.location) }, in: services)
             NSWorkspace.shared.activateFileViewerSelecting(leases.map(\.url))
         } catch { targetController(for: origin)?.content.statusBar.showMessage(ErrorText.describe(error)) }
     }
@@ -573,8 +580,8 @@ final class FileOperationController {
         guard canRead(origin), let services = app?.services else { return }
         Task { @MainActor in
             do {
-                let leases = try await resolveLeases(for: origin.items.map(\.location), in: services)
-                openWithLeases.append(contentsOf: leases)
+                let leases = try await Self.resolveLeases(for: origin.items.map(\.location), in: services)
+                retainOpenWithLeases(leases)
                 _ = try await NSWorkspace.shared.open(leases.map(\.url), withApplicationAt: appURL, configuration: .init())
             } catch { targetController(for: origin)?.content.statusBar.showMessage(ErrorText.describe(error)) }
         }

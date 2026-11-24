@@ -29,6 +29,13 @@ final class ExtensionCommands {
 
     private weak var app: AppDelegate?
     private let services: CoreServices
+    private let externalRunner = ExternalCommandRunner()
+
+    /// 应用类外部命令的打开器钩子，默认使用 `NSWorkspace.shared.open(_:withApplicationAt:configuration:)`；自检可替换以验证参数。
+    var applicationOpener: ExternalCommandRunner.ApplicationOpener {
+        get { externalRunner.applicationOpener }
+        set { externalRunner.applicationOpener = newValue }
+    }
 
     /// 含有 problem 的全部脚本，供设置页列表使用。
     private(set) var allScripts: [ScriptInfo] = []
@@ -73,10 +80,9 @@ final class ExtensionCommands {
         runtimeEventsTask = nil
     }
 
-    /// 外部命令执行占位实现，完整实现将在 W2.5 中填充。
+    /// 执行外部命令：解析目标租约、展开模板并运行，结果写进 `scriptLog` 并在状态栏反馈。
     func runExternal(_ command: ExternalCommand, target: ScriptTarget) async -> ExternalRunResult {
-        _ = (command, target)
-        return .failed(String(localized: "外部命令执行尚未实现"))
+        await externalRunner.run(command, target: target, services: services, app: app)
     }
 
     // MARK: - 固定脚本命令
