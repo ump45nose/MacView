@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var fileOps: FileOperationController?
     private(set) var metadataWriter: MetadataWriteController?
     private(set) var extensions: ExtensionCommands?
+    private var scriptHost: AppScriptHost?
     var isMock: Bool {
         #if DEBUG
         UserDefaults.standard.bool(forKey: "MVMockServices")
@@ -136,6 +137,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             registerFrameDirectionCommands(in: services.commands)
             registerWindowAppearanceCommands(in: services.commands)
             registerLayoutSchemeCommands(in: services.commands)
+            if let runtime = services.scriptRuntime {
+                let host = AppScriptHost(app: self, services: services)
+                scriptHost = host
+                runtime.setHost(host)
+            }
             let extensions = ExtensionCommands(app: self, services: services)
             self.extensions = extensions
             extensions.start()
