@@ -36,6 +36,9 @@ public protocol ImagePipeline: Sendable {
     func thumbnails(for identities: [ContentIdentity], maxPixel: Int, priority: IOPriority) -> AsyncStream<(ContentIdentity, Result<RenderedImage, any Error>)>
     /// 依次交付占位图、浏览图和精确尺寸图（允许且需要时为原图）。
     func image(for identity: ContentIdentity, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error>
+    /// 内存里已有精确尺寸图时立即返回，按前台可见请求记一次命中；没有时返回 nil，调用方再走 `image(for:…)`。
+    /// 翻到已预载的页时在当前主线程调用里直接上屏，不等异步交付排队。
+    func cachedImage(for identity: ContentIdentity, target: DisplayTarget) -> RenderedImage?
     func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource
     func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource
     func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
@@ -49,6 +52,8 @@ public protocol ImagePipeline: Sendable {
 }
 
 public extension ImagePipeline {
+    func cachedImage(for identity: ContentIdentity, target: DisplayTarget) -> RenderedImage? { nil }
+
     /// 不提供视频取帧的定制管线可以保留默认行为；文件管线与 Mock 各自实现完整路径。
     func videoPreviewFrames(for identity: ContentIdentity, priority: IOPriority) -> AsyncThrowingStream<VideoPreviewFrame, any Error> {
         AsyncThrowingStream { $0.finish(throwing: MediaError.unsupported) }

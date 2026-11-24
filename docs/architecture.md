@@ -608,6 +608,7 @@ public protocol ImagePipeline: Sendable {
     func thumbnail(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage
     func thumbnails(for identities: [ContentIdentity], maxPixel: Int, priority: IOPriority) -> AsyncStream<(ContentIdentity, Result<RenderedImage, any Error>)>
     func image(for identity: ContentIdentity, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error>
+    func cachedImage(for identity: ContentIdentity, target: DisplayTarget) -> RenderedImage?   // 只查内存，精确尺寸图命中时同步返回（预载图按前台命中提升），否则 nil；翻到已预载的页由页槽在当前主线程调用里直接上屏；关停后返回 nil
     func tiledSource(for identity: ContentIdentity) async throws -> any TiledImageSource
     func animatedFrames(for identity: ContentIdentity, target: DisplayTarget) async throws -> any AnimatedFrameSource
     func videoPoster(for identity: ContentIdentity, maxPixel: Int, priority: IOPriority) async throws -> RenderedImage

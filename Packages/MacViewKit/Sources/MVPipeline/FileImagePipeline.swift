@@ -243,6 +243,18 @@ public final class FileImagePipeline: ImagePipeline {
         }
     }
 
+    public func cachedImage(for identity: ContentIdentity, target: DisplayTarget) -> RenderedImage? {
+        do {
+            try lifetime.checkRunning()
+            try retryDerivatives(identity, target: target, context: RequestContext(.visible))
+        } catch {
+            return nil
+        }
+        guard let image = cached(Self.key(identity, target), priority: .visible), image.quality >= .exact else { return nil }
+        OSSignposter(category: .render).emitEvent("PageImageReady", "memory-hit-sync")
+        return image
+    }
+
     public func image(for identity: ContentIdentity, target: DisplayTarget, allowOriginal: Bool, priority: IOPriority) -> AsyncThrowingStream<RenderedImage, any Error> {
         AsyncThrowingStream { continuation in
             let task: Task<Void, any Error>

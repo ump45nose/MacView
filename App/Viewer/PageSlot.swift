@@ -90,7 +90,7 @@ final class PageSlot {
         upgradeTarget = target
         upgradeDelivered = false
         upgradeTask?.cancel()
-        upgradeTask = target.map { load($0, allowOriginal: allowOriginal, isUpgrade: true) }
+        upgradeTask = target.flatMap { load($0, allowOriginal: allowOriginal, isUpgrade: true) }
     }
 
     func retry() {
@@ -129,7 +129,12 @@ final class PageSlot {
         animated?.stop()
     }
 
-    private func load(_ target: DisplayTarget, allowOriginal: Bool, isUpgrade: Bool) -> Task<Void, Never> {
+    /// 内存命中时在本次调用里直接设到图层，不再发异步请求。
+    private func load(_ target: DisplayTarget, allowOriginal: Bool, isUpgrade: Bool) -> Task<Void, Never>? {
+        if let image = pipeline.cachedImage(for: identity, target: target) {
+            apply(image, isUpgrade: isUpgrade)
+            return nil
+        }
         let stream = pipeline.image(for: identity, target: target, allowOriginal: allowOriginal, priority: .visible)
         return Task { [weak self] in
             do {

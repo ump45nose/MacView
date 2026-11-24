@@ -614,6 +614,20 @@ func prefetchRepeatedlyPromotedOverBudgetRepairsBeforeFinishing(_ rendition: Ren
     #expect(environment.registry.control.fileURLs > 0)
 }
 
+@Test func cachedImageReturnsOnlyExactMemoryHitsAndStopsAfterShutdown() async throws {
+    let environment = try PipelineEnvironment()
+    defer { environment.clean() }
+    let identity = try await environment.identity("image/size/3600x5400.jpg")
+    let target = DisplayTarget(pixelSize: PixelSize(width: 80, height: 120))
+    #expect(environment.pipeline.cachedImage(for: identity, target: target) == nil)
+    _ = try await collect(environment.pipeline.image(for: identity, target: target, allowOriginal: false, priority: .visible))
+    let hit = try #require(environment.pipeline.cachedImage(for: identity, target: target))
+    #expect(hit.quality == .exact && hit.image.width == 80)
+    #expect(environment.pipeline.cachedImage(for: identity, target: DisplayTarget(pixelSize: target.pixelSize, filter: .nearest)) == nil)
+    await environment.pipeline.shutdown()
+    #expect(environment.pipeline.cachedImage(for: identity, target: target) == nil)
+}
+
 @Test func differentFiltersAndSharpeningProduceDistinctL1Entries() async throws {
     let environment = try PipelineEnvironment()
     defer { environment.clean() }
