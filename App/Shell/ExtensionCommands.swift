@@ -60,6 +60,7 @@ final class ExtensionCommands {
 
     func start() {
         registerBuiltInScriptCommands()
+        registerContextMenuProvider()
         if let store = services.externalCommands {
             applyExternalCommands(store.value().commands, reload: false)
         }
@@ -83,6 +84,101 @@ final class ExtensionCommands {
     /// 执行外部命令：解析目标租约、展开模板并运行，结果写进 `scriptLog` 并在状态栏反馈。
     func runExternal(_ command: ExternalCommand, target: ScriptTarget) async -> ExternalRunResult {
         await externalRunner.run(command, target: target, services: services, app: app)
+    }
+
+    /// 填充「脚本」菜单：可执行脚本（按名称排序）→ 分隔线 → 外部命令（按名称排序）；`includeFixedItems` 为 true 时再追加固定三项。
+    func populateScriptsMenu(_ menu: NSMenu, target: ScriptTarget, includeFixedItems: Bool) {
+        menu.removeAllItems()
+        menu.autoenablesItems = false
+
+        let scripts = scriptItems
+        let externals = externalItems
+
+        for info in scripts {
+            let commandID = Self.scriptCommandID(for: info.id)
+            let item = MenuAction(info.name) { [weak self] in
+                self?.runScript(info, target: target)
+            }.item
+            item.isEnabled = services.scriptRuntime != nil
+            applyMenuShortcut(to: item, commandID: commandID)
+            menu.addItem(item)
+        }
+
+        if !scripts.isEmpty && !externals.isEmpty {
+            menu.addItem(.separator())
+        }
+
+        for command in externals {
+            let commandID = Self.externalCommandID(for: command.id)
+            let item = MenuAction(command.name) { [weak self] in
+                guard let self else { return }
+                let resolved = self.resolvedTarget(target)
+                Task { @MainActor [weak self] in
+                    _ = await self?.runExternal(command, target: resolved)
+                }
+            }.item
+            item.isEnabled = true
+            applyMenuShortcut(to: item, commandID: commandID)
+            menu.addItem(item)
+        }
+
+        if includeFixedItems {
+            if !menu.items.isEmpty {
+                menu.addItem(.separator())
+            }
+            let fixedIDs: [CommandID] = [.scriptStopAll, .scriptRevealFolder, .scriptManage]
+            let window = target.window ?? app?.mainController ?? app?.activeReaderController
+            for id in fixedIDs {
+                let title = app?.catalog.title(of: id) ?? id.rawValue
+                let item = MenuAction(title) { [weak self] in
+                    guard let self else { return }
+                    let targetWindow = target.window ?? self.app?.mainController ?? self.app?.activeReaderController
+                    self.app?.dispatcher?.run(id, in: targetWindow, scope: .global)
+                }.item
+                item.isEnabled = app?.dispatcher?.isEnabled(id, in: window, scope: .global) ?? false
+                applyMenuShortcut(to: item, commandID: id)
+                menu.addItem(item)
+            }
+        }
+
+        Theme.applyMenuFont(to: menu)
+    }
+
+    /// 构造右键菜单使用的「脚本」子菜单项；无任何脚本和外部命令时禁用。
+    func scriptsSubmenuItem(target: ScriptTarget, title: String = String(localized: "脚本")) -> NSMenuItem {
+        let submenu = NSMenu(title: title)
+        populateScriptsMenu(submenu, target: target, includeFixedItems: false)
+        let holder = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        holder.submenu = submenu
+        holder.isEnabled = !submenu.items.isEmpty
+        return holder
+    }
+
+    private func registerContextMenuProvider() {
+        app?.contextMenuProvider?.register(dynamic: .scripts) { [weak self] target in
+            self?.scriptsSubmenuItem(target: ScriptTarget(window: target.window, locations: target.locations))
+        }
+    }
+
+    private func runScript(_ info: ScriptInfo, target: ScriptTarget, arguments: [String: JSONValue]? = nil) {
+        guard let runtime = services.scriptRuntime else { return }
+        let resolved = resolvedTarget(target)
+        let commandID = Self.scriptCommandID(for: info.id)
+        let callContext = ScriptCallContext(
+            caller: commandID.rawValue,
+            callerName: info.name,
+            session: resolved.window?.session.id,
+            selection: resolved.locations.map(Self.selectionToken(for:))
+        )
+        runtime.run(info.id, arguments: arguments, context: callContext)
+    }
+
+    private func applyMenuShortcut(to item: NSMenuItem, commandID: CommandID) {
+        if let chord = app?.catalog.menuBinding(for: commandID)?.sequence.first,
+           let equivalent = KeyMapping.menuKeyEquivalent(for: chord) {
+            item.keyEquivalent = equivalent.key
+            item.keyEquivalentModifierMask = equivalent.mask
+        }
     }
 
     // MARK: - 固定脚本命令
@@ -169,7 +265,12 @@ final class ExtensionCommands {
 
     private func applyScripts(_ scripts: [ScriptInfo]) {
         allScripts = scripts
-        let runnable = scripts.filter { $0.problem == nil }
+        let runnable = scripts
+            .filter { $0.problem == nil }
+            .sorted {
+                let order = $0.name.localizedStandardCompare($1.name)
+                return order == .orderedSame ? $0.id < $1.id : order == .orderedAscending
+            }
         scriptItems = runnable
         // 脚本目录重载后，清除事件错误去重表，确保新一次加载能重新提示。
         reportedEventErrors.removeAll()
@@ -265,8 +366,13 @@ final class ExtensionCommands {
         } else {
             app?.mainController ?? app?.activeReaderController
         }
-        if !context.selection.isEmpty {
-            return ScriptTarget(window: window, locations: context.selection)
+        return resolvedTarget(ScriptTarget(window: window, locations: context.selection))
+    }
+
+    private func resolvedTarget(_ target: ScriptTarget) -> ScriptTarget {
+        let window = target.window ?? app?.mainController ?? app?.activeReaderController
+        if !target.locations.isEmpty {
+            return ScriptTarget(window: window, locations: target.locations)
         }
         if let session = window?.session,
            let pages = session.book?.pages,

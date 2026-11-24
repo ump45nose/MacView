@@ -123,6 +123,16 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
                     needsSeparator = false
                 }
                 menu.addItem(item)
+            case let .submenu(titleKey, children) where children == [.dynamic(.scripts)]:
+                guard let item = provider.menuItem(for: .scripts, target: target) else { continue }
+                let localizedTitle = Bundle.main.localizedString(forKey: titleKey, value: nil, table: nil)
+                item.title = localizedTitle
+                item.submenu?.title = localizedTitle
+                if needsSeparator {
+                    menu.addItem(.separator())
+                    needsSeparator = false
+                }
+                menu.addItem(item)
             case let .submenu(titleKey, children):
                 let submenu = NSMenu(title: Bundle.main.localizedString(forKey: titleKey, value: nil, table: nil))
                 submenu.autoenablesItems = false
@@ -188,26 +198,70 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
     private func commandMenu(titleKey: String, children: [MenuNode]) -> NSMenu {
         let menu = NSMenu(title: Bundle.main.localizedString(forKey: titleKey, value: nil, table: nil))
         menu.delegate = self
+        var needsSeparator = false
         for child in children {
             switch child {
             case let .command(id):
+                if needsSeparator {
+                    menu.addItem(.separator())
+                    needsSeparator = false
+                }
                 menu.addItem(commandItem(id))
             case let .submenu(key, nested) where nested.isEmpty:
+                if needsSeparator {
+                    menu.addItem(.separator())
+                    needsSeparator = false
+                }
                 menu.addItem(dynamicSubmenuItem(title: Bundle.main.localizedString(forKey: key, value: nil, table: nil)) { submenu in
                     (NSApp.delegate as? AppDelegate)?.updateSubmenu(key: key, menu: submenu) ?? false
                 })
             case let .submenu(key, nested):
+                if needsSeparator {
+                    menu.addItem(.separator())
+                    needsSeparator = false
+                }
                 let submenu = commandMenu(titleKey: key, children: nested)
                 menu.addItem(holder(for: submenu))
             case .separator:
-                menu.addItem(.separator())
+                if !menu.items.isEmpty { needsSeparator = true }
             case let .dynamic(id):
-                if let item = mainMenuDynamicItem(for: id) {
-                    menu.addItem(item)
+                let dynamicItems = mainMenuDynamicItems(for: id)
+                if !dynamicItems.isEmpty {
+                    if needsSeparator {
+                        menu.addItem(.separator())
+                        needsSeparator = false
+                    }
+                    dynamicItems.forEach { menu.addItem($0) }
                 }
             }
         }
         return menu
+    }
+
+    private func mainMenuDynamicItems(for id: DynamicMenuID) -> [NSMenuItem] {
+        switch id {
+        case .scripts:
+            return mainMenuScriptItems()
+        default:
+            return mainMenuDynamicItem(for: id).map { [$0] } ?? []
+        }
+    }
+
+    private func mainMenuScriptItems() -> [NSMenuItem] {
+        guard let extensions = (NSApp.delegate as? AppDelegate)?.extensions else { return [] }
+        let scripts = extensions.scriptItems
+        let externals = extensions.externalItems
+        var items: [NSMenuItem] = []
+        for info in scripts {
+            items.append(commandItem(ExtensionCommands.scriptCommandID(for: info.id)))
+        }
+        if !scripts.isEmpty && !externals.isEmpty {
+            items.append(.separator())
+        }
+        for command in externals {
+            items.append(commandItem(ExtensionCommands.externalCommandID(for: command.id)))
+        }
+        return items
     }
 
     private func mainMenuDynamicItem(for id: DynamicMenuID) -> NSMenuItem? {

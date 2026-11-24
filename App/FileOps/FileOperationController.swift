@@ -677,9 +677,19 @@ final class FileOperationController {
             makeContextSubmenuItem(String(localized: "移动到"), enabled: canModify(origin)) { _ = populateTransferMenu($0, origin: origin, mode: .move) }
         case .copyTo:
             makeContextSubmenuItem(String(localized: "复制到"), enabled: canModify(origin)) { _ = populateTransferMenu($0, origin: origin, mode: .copy) }
+        case .scripts:
+            scriptsContextMenuItem(for: origin)
         default:
             nil
         }
+    }
+
+    private func scriptsContextMenuItem(for origin: FileOrigin) -> NSMenuItem {
+        let target = ScriptTarget(window: targetController(for: origin), locations: origin.items.map(\.location))
+        if let extensions = app?.extensions {
+            return extensions.scriptsSubmenuItem(target: target)
+        }
+        return makeContextSubmenuItem(String(localized: "脚本"), enabled: false) { _ in }
     }
 
     private func makeContextCommandItem(_ id: CommandID, title: String? = nil, enabled: Bool, action: @escaping () -> Void) -> NSMenuItem {
@@ -702,7 +712,8 @@ final class FileOperationController {
         let menu = NSMenu(); menu.autoenablesItems = false
         let nodes: [MenuNode] = [
             .command(.fileCopy), .command(.fileCopyPath), .command(.fileReveal), .dynamic(.openWith), .separator,
-            .dynamic(.moveTo), .dynamic(.copyTo), .command(.fileRename), .command(.fileDelete),
+            .dynamic(.moveTo), .dynamic(.copyTo), .command(.fileRename), .command(.fileDelete), .separator,
+            .dynamic(.scripts),
         ]
         for node in nodes {
             switch node {
