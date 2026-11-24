@@ -189,7 +189,6 @@ public final class PluginSecrets: Sendable {
                 unlink(tempURL.path)
                 throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
             }
-            try Self.ensurePrivatePermissions(at: fileURL)
         } catch {
             if !closed { close(fd); closed = true }
             unlink(tempURL.path)

@@ -26,9 +26,16 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
     private let activeContext: Mutex<ScriptCallContext>
     private let condition = NSCondition()
     private var queue: [WorkItem] = []
+    private var cancelledBeforeEnqueue: Set<UUID> = []
     private var currentWorkID: UUID?
     private var terminated = false
-    private let onLoadFailure: @Sendable (String) -> Void
+    private let onLoadFailure: @Sendable (JSPluginConnection, String) -> Void
+
+    var isClosed: Bool {
+        condition.lock()
+        defer { condition.unlock() }
+        return terminated
+    }
 
     init(
         info: PluginInfo,
@@ -37,7 +44,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         configuration: PluginHostConfiguration,
         log: ScriptLog,
         apiHostProvider: @escaping @Sendable () -> (any PluginAPIHost)?,
-        onLoadFailure: @escaping @Sendable (String) -> Void
+        onLoadFailure: @escaping @Sendable (JSPluginConnection, String) -> Void
     ) {
         self.info = info
         self.manifest = manifest
@@ -63,7 +70,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         let workID = UUID()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                let resumeOnce = ResumeOnce(continuation)
+                let resumeOnce = OnceContinuation(continuation)
                 let item = WorkItem(
                     id: workID,
                     method: method,
@@ -73,7 +80,12 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
                     isNotification: false,
                     completion: { result in resumeOnce.resume(with: result) }
                 )
-                if !enqueue(item) {
+                switch enqueue(item) {
+                case .queued:
+                    break
+                case .cancelled:
+                    resumeOnce.resume(with: .failure(CancellationError()))
+                case .terminated:
                     resumeOnce.resume(with: .failure(PluginError.cancelled))
                 }
             }
@@ -95,13 +107,18 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         _ = enqueue(item)
     }
 
-    private func enqueue(_ item: WorkItem) -> Bool {
+    private enum EnqueueOutcome { case queued, cancelled, terminated }
+
+    private func enqueue(_ item: WorkItem) -> EnqueueOutcome {
         condition.lock()
         defer { condition.unlock() }
-        guard !terminated else { return false }
+        if terminated { return .terminated }
+        if cancelledBeforeEnqueue.remove(item.id) != nil || (!item.isNotification && Task.isCancelled) {
+            return .cancelled
+        }
         queue.append(item)
         condition.signal()
-        return true
+        return .queued
     }
 
     func stop() {
@@ -139,6 +156,8 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             removed = queue.remove(at: idx)
         } else if currentWorkID == id {
             isCurrent = true
+        } else {
+            cancelledBeforeEnqueue.insert(id)
         }
         condition.unlock()
         if let removed {
@@ -159,12 +178,12 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             guard let source = try? String(contentsOf: entryURL, encoding: .utf8) else {
                 loadError = "无法读取 JS 插件入口：\(entryFile)"
                 log.append(source: manifest.name, level: .error, text: loadError!)
-                onLoadFailure(loadError!)
+                onLoadFailure(self, loadError!)
                 return nil
             }
             guard let created = makeJSContext() else {
                 loadError = "无法创建 JavaScript 环境"
-                onLoadFailure(loadError!)
+                onLoadFailure(self, loadError!)
                 return nil
             }
             _ = JSBridge.setExecutionTimeLimit(on: created, interval: 0.05, control: control)
@@ -172,12 +191,19 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             created.evaluateScript("mv.log = (...args) => __mvLog('info', args);")
             control.begin(timeout: configuration.requestTimeout)
             created.evaluateScript(source, withSourceURL: entryURL)
-            control.end()
+            let (wasStopped, reason) = control.endAndSnapshot()
+            if wasStopped {
+                JSBridge.clearExecutionTimeLimit(on: created)
+                let message = reason == .timedOut ? "加载 JS 插件超时：\(entryFile)" : "加载 JS 插件已取消"
+                loadError = message
+                onLoadFailure(self, message)
+                return nil
+            }
             if let problem = JSBridge.exceptionProblem(from: created) {
                 let message = problem.line.map { "第 \($0) 行：\(problem.message)" } ?? problem.message
                 loadError = message
                 log.append(source: manifest.name, level: .error, text: message)
-                onLoadFailure(message)
+                onLoadFailure(self, message)
                 JSBridge.clearExecutionTimeLimit(on: created)
                 return nil
             }
@@ -210,7 +236,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             currentWorkID = item.id
             condition.unlock()
 
-            let result = execute(item, ensureContext: ensureContext, currentContext: { context }, loadError: { loadError })
+            let result = execute(item, ensureContext: ensureContext, loadError: { loadError })
 
             condition.lock()
             if currentWorkID == item.id {
@@ -231,7 +257,6 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
     private func execute(
         _ item: WorkItem,
         ensureContext: () -> JSContext?,
-        currentContext: () -> JSContext?,
         loadError: () -> String?
     ) -> Result<JSONValue, any Error> {
         guard let context = ensureContext() else {
@@ -241,9 +266,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         context.exception = nil
         control.begin(timeout: item.timeout)
         let jsResult = dispatch(method: item.method, params: item.params, in: context)
-        let termReason = control.terminationReason
-        let wasStopped = control.isStopped
-        control.end()
+        let (wasStopped, termReason) = control.endAndSnapshot()
 
         if wasStopped {
             _ = JSBridge.resetAfterTermination(on: context, interval: 0.05, control: control)
@@ -406,15 +429,5 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         let bodyText = text ?? String(decoding: data, as: UTF8.self)
         let base64 = text == nil ? data.base64EncodedString() : nil
         return PluginHTTPResponse(status: http.statusCode, headers: headers, body: bodyText, bodyBase64: base64)
-    }
-}
-
-private final class ResumeOnce: Sendable {
-    private let continuation: Mutex<CheckedContinuation<JSONValue, any Error>?>
-    init(_ continuation: CheckedContinuation<JSONValue, any Error>) {
-        self.continuation = Mutex(continuation)
-    }
-    func resume(with result: Result<JSONValue, any Error>) {
-        continuation.withLock { $0.take() }?.resume(with: result)
     }
 }

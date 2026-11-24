@@ -5,66 +5,8 @@ import Synchronization
 
 /// 按插件 ID 串行调度 `filter.apply`，取消排队中的任务时立即出队且不调用插件。
 public final class PluginFilterRunner: PluginFilterExecuting, Sendable {
-    private final class SerialQueue: Sendable {
-        private struct Waiter {
-            var id: UUID
-            var continuation: CheckedContinuation<Void, any Error>
-        }
-        private struct State {
-            var busy = false
-            var waiters: [Waiter] = []
-        }
-        private let state = Mutex(State())
-
-        func withTurn<Value: Sendable>(_ operation: () async throws -> Value) async throws -> Value {
-            try await acquire()
-            defer { release() }
-            if Task.isCancelled { throw CancellationError() }
-            return try await operation()
-        }
-
-        private func acquire() async throws {
-            if Task.isCancelled { throw CancellationError() }
-            let waiterID = UUID()
-            try await withTaskCancellationHandler {
-                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-                    let acquired: Bool = state.withLock { state in
-                        if !state.busy {
-                            state.busy = true
-                            return true
-                        }
-                        state.waiters.append(Waiter(id: waiterID, continuation: continuation))
-                        return false
-                    }
-                    if acquired { continuation.resume() }
-                }
-            } onCancel: { [weak self] in
-                self?.cancelWaiter(id: waiterID)
-            }
-        }
-
-        private func cancelWaiter(id: UUID) {
-            let removed = state.withLock { state -> Waiter? in
-                guard let idx = state.waiters.firstIndex(where: { $0.id == id }) else { return nil }
-                return state.waiters.remove(at: idx)
-            }
-            removed?.continuation.resume(throwing: CancellationError())
-        }
-
-        private func release() {
-            let next = state.withLock { state -> Waiter? in
-                if state.waiters.isEmpty {
-                    state.busy = false
-                    return nil
-                }
-                return state.waiters.removeFirst()
-            }
-            next?.continuation.resume()
-        }
-    }
-
     private let host: PluginHost
-    private let queues = Mutex<[String: SerialQueue]>([:])
+    private let queues = Mutex<[String: PriorityPermitQueue]>([:])
 
     public init(host: PluginHost) {
         self.host = host
@@ -77,7 +19,7 @@ public final class PluginFilterRunner: PluginFilterExecuting, Sendable {
     public func apply(_ request: PluginFilterRequest, input: URL, output: URL) async throws {
         try Task.checkCancellation()
         let queue = serialQueue(for: request.plugin)
-        try await queue.withTurn {
+        try await queue.withPermit {
             try Task.checkCancellation()
             let params: JSONValue = .object([
                 "filter": .string(request.filter),
@@ -97,10 +39,10 @@ public final class PluginFilterRunner: PluginFilterExecuting, Sendable {
         }
     }
 
-    private func serialQueue(for plugin: String) -> SerialQueue {
+    private func serialQueue(for plugin: String) -> PriorityPermitQueue {
         queues.withLock { map in
             if let existing = map[plugin] { return existing }
-            let created = SerialQueue()
+            let created = PriorityPermitQueue(limit: 1)
             map[plugin] = created
             return created
         }

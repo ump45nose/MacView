@@ -902,11 +902,10 @@ public final class FolderIndexer: Sendable {
 public final class JSExecutionControl: Sendable {
     public enum TerminationReason: Sendable, Equatable { case stopped, timedOut }
     public init(); public var isStopped: Bool { get }; public var terminationReason: TerminationReason? { get }
-    public func begin(timeout: Duration? = nil); public func end(); public func stop()
+    public func begin(timeout: Duration? = nil); public func end(); public func endAndSnapshot() -> (stopped: Bool, reason: TerminationReason?); public func stop()
     public func syncCall(_ operation: @escaping @Sendable () async throws -> JSONValue) throws -> JSONValue
 }
 public enum JSBridge {
-    public static var supportsExecutionTimeLimit: Bool { get }
     public static func makeContext(call: @escaping @Sendable (ScriptAPI.Method, [JSONValue]) throws -> JSONValue, log: @escaping @Sendable (ScriptLogEntry.Level, String) -> Void, extraMethods: [String: @Sendable ([JSONValue]) throws -> JSONValue] = [:]) -> JSContext?
     public static func jsValue(_ value: JSONValue, in context: JSContext) -> JSValue
     public static func jsonValue(_ value: JSValue) -> JSONValue

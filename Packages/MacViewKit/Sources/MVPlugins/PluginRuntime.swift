@@ -1,6 +1,8 @@
 import Foundation
 import MVFoundation
+import MVIO
 import MVScripting
+import Synchronization
 
 public struct PluginHTTPRequest: Sendable, Hashable {
     public var url: String
@@ -105,6 +107,7 @@ public struct PluginHostConfiguration: Sendable {
 }
 
 protocol PluginConnection: AnyObject, Sendable {
+    var isClosed: Bool { get }
     func request(
         method: String,
         params: JSONValue,
@@ -116,4 +119,109 @@ protocol PluginConnection: AnyObject, Sendable {
     func stop()
     /// 彻底销毁连接与后台线程/进程（热重载、停用或关闭宿主时调用）。
     func terminate()
+}
+
+/// 保障 `CheckedContinuation` 至多恢复一次。
+final class OnceContinuation<Value: Sendable>: Sendable {
+    private let continuation: Mutex<CheckedContinuation<Value, any Error>?>
+    init(_ continuation: CheckedContinuation<Value, any Error>) {
+        self.continuation = Mutex(continuation)
+    }
+    func resume(with result: Result<Value, any Error>) {
+        continuation.withLock { $0.take() }?.resume(with: result)
+    }
+}
+
+/// 并发限流与排队原语：支持按 `IOPriority` 出队，且取消在锁内无竞态地出队。
+final class PriorityPermitQueue: Sendable {
+    private struct Waiter {
+        var id: UUID
+        var priority: IOPriority
+        var sequence: UInt64
+        var continuation: CheckedContinuation<Void, any Error>
+    }
+
+    private struct State {
+        var active = 0
+        var sequence: UInt64 = 0
+        var waiters: [Waiter] = []
+        var cancelledBeforeEnqueue: Set<UUID> = []
+    }
+
+    private let limit: Int
+    private let cancellationError: @Sendable () -> any Error
+    private let state = Mutex(State())
+
+    init(limit: Int, cancellationError: @escaping @Sendable () -> any Error = { CancellationError() }) {
+        self.limit = max(1, limit)
+        self.cancellationError = cancellationError
+    }
+
+    func withPermit<Value: Sendable>(
+        priority: IOPriority = .visible,
+        operation: () async throws -> Value
+    ) async throws -> Value {
+        try await acquire(priority: priority)
+        defer { release() }
+        if Task.isCancelled { throw cancellationError() }
+        return try await operation()
+    }
+
+    private func acquire(priority: IOPriority) async throws {
+        let waiterID = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                enum Outcome { case acquired, cancelled, queued }
+                let outcome: Outcome = state.withLock { state in
+                    if state.cancelledBeforeEnqueue.remove(waiterID) != nil || Task.isCancelled {
+                        return .cancelled
+                    }
+                    if state.active < limit {
+                        state.active += 1
+                        return .acquired
+                    }
+                    state.sequence &+= 1
+                    state.waiters.append(Waiter(id: waiterID, priority: priority, sequence: state.sequence, continuation: continuation))
+                    return .queued
+                }
+                switch outcome {
+                case .acquired: continuation.resume()
+                case .cancelled: continuation.resume(throwing: cancellationError())
+                case .queued: break
+                }
+            }
+        } onCancel: { [weak self] in
+            self?.cancelWaiter(id: waiterID)
+        }
+    }
+
+    private func cancelWaiter(id: UUID) {
+        let removed = state.withLock { state -> Waiter? in
+            if let idx = state.waiters.firstIndex(where: { $0.id == id }) {
+                return state.waiters.remove(at: idx)
+            }
+            state.cancelledBeforeEnqueue.insert(id)
+            return nil
+        }
+        removed?.continuation.resume(throwing: cancellationError())
+    }
+
+    private func release() {
+        let next = state.withLock { state -> Waiter? in
+            if state.waiters.isEmpty {
+                state.active = max(0, state.active - 1)
+                return nil
+            }
+            var bestIndex = 0
+            for index in 1..<state.waiters.count {
+                let candidate = state.waiters[index]
+                let best = state.waiters[bestIndex]
+                if candidate.priority > best.priority || (candidate.priority == best.priority && candidate.sequence < best.sequence) {
+                    bestIndex = index
+                }
+            }
+            return state.waiters.remove(at: bestIndex)
+        }
+        next?.continuation.resume()
+    }
 }

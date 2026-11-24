@@ -216,14 +216,6 @@ public struct PluginManifest: Sendable, Hashable, Codable {
         return id.unicodeScalars.allSatisfy { isLowerAlphaNum($0) || $0 == "-" }
     }
 
-    public func sourceDeclaration(for type: String) -> PluginSourceDeclaration? {
-        sources.first { $0.id == type }
-    }
-
-    public func filterDeclaration(for id: String) -> PluginFilterDeclaration? {
-        filters.first { $0.id == id }
-    }
-
     /// 严格解析清单 JSON，并在失败时返回带文件与行列位置的 `PluginProblem`。
     public static func parse(data: Data, file: String = "manifest.json") -> Result<PluginManifest, PluginProblem> {
         let text = String(decoding: data, as: UTF8.self)

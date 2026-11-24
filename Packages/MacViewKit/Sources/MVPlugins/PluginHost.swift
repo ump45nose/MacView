@@ -61,14 +61,14 @@ public final class PluginHost: Sendable {
         let libraryTask = Task { [weak self] in
             for await _ in libraryChanges {
                 guard !Task.isCancelled, let self else { return }
-                self.handleLibraryChanged()
+                self.reconcileConnections(checkSignatures: true)
             }
         }
         let settingsChanges = settings.changes()
         let settingsTask = Task { [weak self] in
             for await _ in settingsChanges {
                 guard !Task.isCancelled, let self else { return }
-                self.handleSettingsChanged()
+                self.reconcileConnections(checkSignatures: false)
             }
         }
         watcherTasks.withLock { $0 = [libraryTask, settingsTask] }
@@ -103,11 +103,7 @@ public final class PluginHost: Sendable {
     /// 返回当前已启用、清单有效且权限已同意的插件。
     public func enabledPlugins() -> [PluginInfo] {
         let pluginStates = settings.value().plugins
-        return library.plugins().filter { info in
-            guard info.problem == nil, let manifest = info.manifest,
-                  let st = pluginStates[info.id], st.enabled else { return false }
-            return Set(manifest.permissions).isSubset(of: Set(st.grantedPermissions))
-        }
+        return library.plugins().filter { Self.isRunnable($0, states: pluginStates) }
     }
 
     public func hasSubscribers(for event: ScriptEventName) -> Bool {
@@ -213,10 +209,6 @@ public final class PluginHost: Sendable {
 
     // MARK: - 供 PluginSourceProvider 与 PluginFilterRunner 使用的内部接口
 
-    func pluginInfo(for id: String) -> PluginInfo? {
-        library.plugins().first { $0.id == id }
-    }
-
     func enabledVersion(of plugin: String) -> String? {
         guard let info = try? requireEnabledPlugin(plugin) else { return nil }
         return info.manifest?.version
@@ -262,14 +254,10 @@ public final class PluginHost: Sendable {
         beginInFlight(plugin: plugin)
         defer { endInFlight(plugin: plugin) }
 
-        do {
-            let result = try await connection.request(method: method, params: params, timeout: effectiveTimeout, callContext: context)
-            let cleared = state.withLock { $0.failures.removeValue(forKey: plugin) != nil }
-            if cleared { publishStatusesIfChanged() }
-            return result
-        } catch {
-            throw error
-        }
+        let result = try await connection.request(method: method, params: params, timeout: effectiveTimeout, callContext: context)
+        let cleared = state.withLock { $0.failures.removeValue(forKey: plugin) != nil }
+        if cleared { publishStatusesIfChanged() }
+        return result
     }
 
     // MARK: - 内部实现
@@ -322,7 +310,7 @@ public final class PluginHost: Sendable {
     }
 
     private func getOrCreateConnection(for info: PluginInfo, manifest: PluginManifest) throws -> any PluginConnection {
-        if let existing = state.withLock({ $0.connections[info.id] }) {
+        if let existing = state.withLock({ $0.connections[info.id] }), !existing.isClosed {
             return existing
         }
         let created: any PluginConnection
@@ -335,8 +323,8 @@ public final class PluginHost: Sendable {
                 configuration: configuration,
                 log: log,
                 apiHostProvider: { [weak self] in self?.state.withLock { $0.apiHost } },
-                onLoadFailure: { [weak self] message in
-                    self?.handleConnectionFailure(plugin: info.id, message: message, dropConnection: true)
+                onLoadFailure: { [weak self] connection, message in
+                    self?.handleConnectionFailure(plugin: info.id, connection: connection, message: message, dropConnection: true)
                 }
             )
         case let .process(command, arguments):
@@ -348,23 +336,23 @@ public final class PluginHost: Sendable {
                 configuration: configuration,
                 log: log,
                 apiHostProvider: { [weak self] in self?.state.withLock { $0.apiHost } },
-                onExit: { [weak self] exitCode, unexpected in
-                    self?.handleProcessExit(plugin: info.id, exitCode: exitCode, unexpected: unexpected)
+                onExit: { [weak self] connection, exitCode, unexpected in
+                    self?.handleProcessExit(plugin: info.id, connection: connection, exitCode: exitCode, unexpected: unexpected)
                 }
             )
         }
 
         let toDrop: (any PluginConnection)? = state.withLock { state in
             if state.isShutdown { return created }
-            if state.connections[info.id] != nil {
-                return created // 已有并发创建的连接，释放刚建的
+            if let existing = state.connections[info.id], !existing.isClosed {
+                return created // 已有并发创建的活跃连接，释放刚建的
             }
             state.connections[info.id] = created
             return nil
         }
         if let toDrop {
             toDrop.terminate()
-            if let existing = state.withLock({ $0.connections[info.id] }) {
+            if let existing = state.withLock({ $0.connections[info.id] }), !existing.isClosed {
                 return existing
             }
             throw PluginError.cancelled
@@ -372,8 +360,9 @@ public final class PluginHost: Sendable {
         return created
     }
 
-    private func handleConnectionFailure(plugin: String, message: String, dropConnection: Bool) {
+    private func handleConnectionFailure(plugin: String, connection: any PluginConnection, message: String, dropConnection: Bool) {
         let dropped: (any PluginConnection)? = state.withLock { state in
+            guard state.connections[plugin] === connection else { return nil }
             state.failures[plugin] = message
             return dropConnection ? state.connections.removeValue(forKey: plugin) : nil
         }
@@ -381,68 +370,42 @@ public final class PluginHost: Sendable {
         publishStatusesIfChanged()
     }
 
-    private func handleProcessExit(plugin: String, exitCode: Int32, unexpected: Bool) {
-        state.withLock { state in
+    private func handleProcessExit(plugin: String, connection: any PluginConnection, exitCode: Int32, unexpected: Bool) {
+        let matched = state.withLock { state -> Bool in
+            guard state.connections[plugin] === connection else { return false }
             state.connections.removeValue(forKey: plugin)
             if unexpected {
                 state.failures[plugin] = PluginError.processExited(code: exitCode).localizedDescription
             }
+            return true
         }
-        publishStatusesIfChanged()
+        if matched { publishStatusesIfChanged() }
     }
 
-    private func handleLibraryChanged() {
-        let newSignatures = library.signatures()
-        let plugins = library.plugins()
-        let pluginMap = Dictionary(uniqueKeysWithValues: plugins.map { ($0.id, $0) })
+    private static func isRunnable(_ info: PluginInfo, states: [String: PluginState]) -> Bool {
+        guard info.problem == nil, let manifest = info.manifest,
+              let st = states[info.id], st.enabled else { return false }
+        return Set(manifest.permissions).isSubset(of: Set(st.grantedPermissions))
+    }
+
+    private func reconcileConnections(checkSignatures: Bool) {
+        let newSignatures = checkSignatures ? library.signatures() : nil
+        let pluginMap = Dictionary(uniqueKeysWithValues: library.plugins().map { ($0.id, $0) })
         let settingsMap = settings.value().plugins
 
         let toTerminate: [any PluginConnection] = state.withLock { state in
             var dropped: [any PluginConnection] = []
             for (id, conn) in state.connections {
-                let sigChanged = state.lastSignatures[id] != newSignatures[id]
-                let stillRunnable: Bool
-                if let info = pluginMap[id], info.problem == nil, let manifest = info.manifest,
-                   let st = settingsMap[id], st.enabled,
-                   Set(manifest.permissions).isSubset(of: Set(st.grantedPermissions)) {
-                    stillRunnable = true
-                } else {
-                    stillRunnable = false
-                }
-                if sigChanged || !stillRunnable {
+                let sigChanged = newSignatures.map { state.lastSignatures[id] != $0[id] } ?? false
+                let runnable = pluginMap[id].map { Self.isRunnable($0, states: settingsMap) } ?? false
+                if sigChanged || !runnable {
                     dropped.append(conn)
                     state.connections.removeValue(forKey: id)
                     state.failures.removeValue(forKey: id)
                 }
             }
-            state.lastSignatures = newSignatures
-            return dropped
-        }
-        for conn in toTerminate { conn.terminate() }
-        publishStatusesIfChanged()
-    }
-
-    private func handleSettingsChanged() {
-        let plugins = library.plugins()
-        let pluginMap = Dictionary(uniqueKeysWithValues: plugins.map { ($0.id, $0) })
-        let settingsMap = settings.value().plugins
-
-        let toTerminate: [any PluginConnection] = state.withLock { state in
-            var dropped: [any PluginConnection] = []
-            for (id, conn) in state.connections {
-                let runnable: Bool
-                if let info = pluginMap[id], info.problem == nil, let manifest = info.manifest,
-                   let st = settingsMap[id], st.enabled,
-                   Set(manifest.permissions).isSubset(of: Set(st.grantedPermissions)) {
-                    runnable = true
-                } else {
-                    runnable = false
-                }
-                if !runnable {
-                    dropped.append(conn)
-                    state.connections.removeValue(forKey: id)
-                    state.failures.removeValue(forKey: id)
-                }
+            if let newSignatures {
+                state.lastSignatures = newSignatures
             }
             return dropped
         }

@@ -21,7 +21,7 @@ public final class PluginSourceProvider: ContainerProvider, Sendable {
 
     private struct State {
         var directories: [DirectoryKey: [String: CachedItem]] = [:]
-        var limiters: [UUID: HTTPConcurrencyLimiter] = [:]
+        var limiters: [UUID: PriorityPermitQueue] = [:]
     }
 
     private let host: PluginHost
@@ -39,6 +39,10 @@ public final class PluginSourceProvider: ContainerProvider, Sendable {
         config.timeoutIntervalForResource = max(requestTimeout * 3, 60)
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         self.session = URLSession(configuration: config)
+    }
+
+    deinit {
+        session.invalidateAndCancel()
     }
 
     public static func root(for source: UUID) -> Location.Root {
@@ -167,10 +171,10 @@ public final class PluginSourceProvider: ContainerProvider, Sendable {
 
     // MARK: - 内部方法
 
-    private func limiter(for sourceID: UUID) -> HTTPConcurrencyLimiter {
+    private func limiter(for sourceID: UUID) -> PriorityPermitQueue {
         state.withLock { state in
             if let existing = state.limiters[sourceID] { return existing }
-            let created = HTTPConcurrencyLimiter(limit: 4)
+            let created = PriorityPermitQueue(limit: 4) { IOError.cancelled }
             state.limiters[sourceID] = created
             return created
         }
@@ -213,20 +217,15 @@ public final class PluginSourceProvider: ContainerProvider, Sendable {
         do {
             result = try await host.sendRequest(plugin: pluginID, method: "source.list", params: params)
         } catch let error as PluginError {
-            throw mapPluginError(error, root: container.root)
+            throw Self.mapPluginError(error, root: container.root)
         } catch is CancellationError {
             throw IOError.cancelled
         } catch {
             throw IOError.underlying(error.localizedDescription)
         }
 
-        let rawEntries: [JSONValue]
-        if case let .object(dict) = result, case let .array(arr)? = dict["entries"] {
-            rawEntries = arr
-        } else if case let .array(arr) = result {
-            rawEntries = arr
-        } else {
-            rawEntries = []
+        guard case let .object(dict) = result, case let .array(rawEntries)? = dict["entries"] else {
+            throw IOError.underlying("插件 source.list 返回格式无效")
         }
 
         var items: [CachedItem] = []
@@ -298,7 +297,7 @@ public final class PluginSourceProvider: ContainerProvider, Sendable {
         }
     }
 
-    private func mapPluginError(_ error: PluginError, root: Location.Root) -> IOError {
+    static func mapPluginError(_ error: PluginError, root: Location.Root) -> IOError {
         switch error {
         case .disabled, .needsConsent, .notFound, .invalid:
             return .volumeUnavailable(root)
@@ -349,28 +348,14 @@ private final class PluginRPCByteSource: ByteSource, Sendable {
         do {
             result = try await host.sendRequest(plugin: pluginID, method: "source.read", params: params)
         } catch let error as PluginError {
-            switch error {
-            case .disabled, .needsConsent, .notFound, .invalid:
-                throw IOError.volumeUnavailable(identity.location.root)
-            case .timeout:
-                throw IOError.timeout
-            case .cancelled:
-                throw IOError.cancelled
-            default:
-                throw IOError.underlying(error.localizedDescription)
-            }
+            throw PluginSourceProvider.mapPluginError(error, root: identity.location.root)
         } catch is CancellationError {
             throw IOError.cancelled
         } catch {
             throw IOError.underlying(error.localizedDescription)
         }
 
-        let base64: String
-        if case let .object(dict) = result, case let .string(b)? = dict["data"] {
-            base64 = b
-        } else if case let .string(b) = result {
-            base64 = b
-        } else {
+        guard case let .object(dict) = result, case let .string(base64)? = dict["data"] else {
             throw IOError.underlying("插件 source.read 返回格式无效")
         }
         guard let data = Data(base64Encoded: base64) else {

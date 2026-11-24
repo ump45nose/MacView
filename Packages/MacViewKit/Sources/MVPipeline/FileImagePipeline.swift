@@ -699,7 +699,10 @@ public final class FileImagePipeline: ImagePipeline {
     }
 
     private static func key(_ identity: ContentIdentity, _ target: DisplayTarget) -> String {
-        identity.cacheKey + "|display|\(target.pixelSize.width)x\(target.pixelSize.height)|\(target.filter.rawValue)|\(target.sharpen.bitPattern)"
+        displayKey(prefix: identity.cacheKey, target: target)
+    }
+    private static func displayKey(prefix: String, target: DisplayTarget) -> String {
+        prefix + "|display|\(target.pixelSize.width)x\(target.pixelSize.height)|\(target.filter.rawValue)|\(target.sharpen.bitPattern)"
     }
     private static func cost(_ image: RenderedImage) -> Int64 { Int64(image.image.bytesPerRow * image.image.height) }
     private static func contains(_ size: PixelSize, _ other: PixelSize) -> Bool { size.width >= other.width && size.height >= other.height }
@@ -958,80 +961,82 @@ extension FileImagePipeline {
                 steps.append((filter, currentKey))
             }
             let finalStepKey = currentKey
-            let decodedKey = Self.filteredDecodedKey(finalStepKey, target)
+            let decodedKey = Self.displayKey(prefix: finalStepKey, target: target)
 
             if let hit = cached(decodedKey, priority: priority) {
                 return hit
             }
-            if let diskBytes = try await diskData(caches.browse, for: finalStepKey) {
-                let image = try await decode(diskBytes, target: target)
-                try rememberFiltered(image, for: decodedKey, priority: priority)
-                return image
-            }
 
-            // 找到已缓存的最晚一级，减少重复调用插件。
-            var startIndex = 0
-            var cachedPrefixBytes: Data?
-            if caches.browse != nil {
-                for idx in stride(from: steps.count - 1, through: 0, by: -1) {
-                    if let bytes = try await diskData(caches.browse, for: steps[idx].cacheKey) {
-                        cachedPrefixBytes = bytes
-                        startIndex = idx + 1
-                        break
+            let stepList = steps
+            return try await render(decodedKey, context: RequestContext(priority)) { [self] context in
+                if let diskBytes = try await diskData(caches.browse, for: finalStepKey) {
+                    let image = try await decode(diskBytes, target: target)
+                    try rememberFiltered(image, for: decodedKey, priority: context.priority)
+                    return image
+                }
+
+                // 找到已缓存的最晚一级，减少重复调用插件。
+                var startIndex = 0
+                var cachedPrefixBytes: Data?
+                if caches.browse != nil {
+                    for idx in stride(from: stepList.count - 1, through: 0, by: -1) {
+                        if let bytes = try await diskData(caches.browse, for: stepList[idx].cacheKey) {
+                            cachedPrefixBytes = bytes
+                            startIndex = idx + 1
+                            break
+                        }
                     }
                 }
-            }
 
-            try Task.checkCancellation()
-            try lifetime.checkRunning()
-
-            var tempURLs: [URL] = []
-            defer {
-                for url in tempURLs { try? FileManager.default.removeItem(at: url) }
-            }
-
-            let tempDir = FileManager.default.temporaryDirectory
-            let inputExt = Self.filterFileExtension(for: identity.location.name)
-            var currentInputURL: URL
-            var heldLease: FileLease?
-
-            if let prefixBytes = cachedPrefixBytes {
-                let prefixURL = tempDir.appendingPathComponent("mv-filter-in-\(UUID().uuidString).\(inputExt)")
-                try prefixBytes.write(to: prefixURL)
-                tempURLs.append(prefixURL)
-                currentInputURL = prefixURL
-            } else {
-                let provider = try sources.provider(for: identity.location)
-                let lease = try await lifetime.value { try await provider.fileLease(for: identity.location) }
-                heldLease = lease
-                currentInputURL = lease.url
-            }
-            defer { withExtendedLifetime(heldLease) {} }
-
-            var finalBytes: Data?
-            for idx in startIndex..<steps.count {
                 try Task.checkCancellation()
                 try lifetime.checkRunning()
-                let step = steps[idx]
-                let outputURL = tempDir.appendingPathComponent("mv-filter-out-\(UUID().uuidString).\(inputExt)")
-                tempURLs.append(outputURL)
-                try await executor.apply(step.request, input: currentInputURL, output: outputURL)
-                try Task.checkCancellation()
-                try lifetime.checkRunning()
-                let stepBytes = try Data(contentsOf: outputURL)
-                if let browse = caches.browse {
-                    try? await store(stepBytes, in: browse, for: step.cacheKey)
+
+                var tempURLs: [URL] = []
+                defer { ExtractIO.remove(tempURLs) }
+
+                let tempDir = FileManager.default.temporaryDirectory
+                let inputExt = Self.filterFileExtension(for: identity.location.name)
+                var currentInputURL: URL
+                var heldLease: FileLease?
+
+                if let prefixBytes = cachedPrefixBytes {
+                    let prefixURL = tempDir.appendingPathComponent("mv-filter-in-\(UUID().uuidString).\(inputExt)")
+                    try await ExtractIO.run { try prefixBytes.write(to: prefixURL) }
+                    tempURLs.append(prefixURL)
+                    currentInputURL = prefixURL
+                } else {
+                    let provider = try sources.provider(for: identity.location)
+                    let lease = try await lifetime.value { try await provider.fileLease(for: identity.location) }
+                    heldLease = lease
+                    currentInputURL = lease.url
                 }
-                currentInputURL = outputURL
-                finalBytes = stepBytes
-            }
+                defer { withExtendedLifetime(heldLease) {} }
 
-            guard let resultBytes = finalBytes ?? cachedPrefixBytes else {
-                throw MediaError.decodeFailed("插件滤镜未产生输出图像")
+                var finalBytes: Data?
+                for idx in startIndex..<stepList.count {
+                    try Task.checkCancellation()
+                    try lifetime.checkRunning()
+                    let step = stepList[idx]
+                    let outputURL = tempDir.appendingPathComponent("mv-filter-out-\(UUID().uuidString).\(inputExt)")
+                    tempURLs.append(outputURL)
+                    try await executor.apply(step.request, input: currentInputURL, output: outputURL)
+                    try Task.checkCancellation()
+                    try lifetime.checkRunning()
+                    let stepBytes = try await ExtractIO.run { try Data(contentsOf: outputURL) }
+                    if let browse = caches.browse {
+                        try? await store(stepBytes, in: browse, for: step.cacheKey)
+                    }
+                    currentInputURL = outputURL
+                    finalBytes = stepBytes
+                }
+
+                guard let resultBytes = finalBytes ?? cachedPrefixBytes else {
+                    throw MediaError.decodeFailed("插件滤镜未产生输出图像")
+                }
+                let rendered = try await decode(resultBytes, target: target)
+                try rememberFiltered(rendered, for: decodedKey, priority: context.priority)
+                return rendered
             }
-            let rendered = try await decode(resultBytes, target: target)
-            try rememberFiltered(rendered, for: decodedKey, priority: priority)
-            return rendered
         }
     }
 
@@ -1044,10 +1049,6 @@ extension FileImagePipeline {
                 caches.preload.insert(image, for: key, cost: Self.cost(image))
             }
         }
-    }
-
-    private static func filteredDecodedKey(_ stepKey: String, _ target: DisplayTarget) -> String {
-        stepKey + "|display|\(target.pixelSize.width)x\(target.pixelSize.height)|\(target.filter.rawValue)|\(target.sharpen.bitPattern)"
     }
 
     private static func canonicalParametersHash(_ parameters: [String: JSONValue]) throws -> String {

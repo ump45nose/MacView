@@ -49,9 +49,7 @@ class Plugin:
         self._pending_lock = threading.Lock()
         self._next_id = 1
         self._pending = {}
-        self._cancelled = set()
         self._init_info = {}
-        self._shutdown = threading.Event()
         self.mv = _MVProxy(self)
 
     @property
@@ -85,9 +83,6 @@ class Plugin:
     def on_event(self, fn):
         self._event_handler = fn
         return fn
-
-    def is_cancelled(self, request_id):
-        return request_id in self._cancelled
 
     def log(self, message, level="info"):
         self._send({"jsonrpc": "2.0", "method": "log", "params": {"level": level, "message": str(message)}})
@@ -192,12 +187,8 @@ class Plugin:
                 continue
             method = msg.get("method")
             if method == "shutdown":
-                self._shutdown.set()
                 break
             if method == "$/cancelRequest":
-                cancel_id = (msg.get("params") or {}).get("id")
-                if cancel_id is not None:
-                    self._cancelled.add(cancel_id)
                 continue
             worker = threading.Thread(target=self._handle_incoming, args=(msg,), daemon=True)
             worker.start()

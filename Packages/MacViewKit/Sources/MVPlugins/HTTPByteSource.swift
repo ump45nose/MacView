@@ -3,95 +3,12 @@ import MVFoundation
 import MVIO
 import Synchronization
 
-/// 按来源实例限制 HTTP 并发（默认 4），等待队列按 `IOPriority` 从高到低出队，支持任务取消。
-final class HTTPConcurrencyLimiter: Sendable {
-    private struct Waiter {
-        var id: UUID
-        var priority: IOPriority
-        var sequence: UInt64
-        var continuation: CheckedContinuation<Void, any Error>
-    }
-
-    private struct State {
-        var active = 0
-        var sequence: UInt64 = 0
-        var waiters: [Waiter] = []
-    }
-
-    private let limit: Int
-    private let state = Mutex(State())
-
-    init(limit: Int = 4) {
-        self.limit = max(1, limit)
-    }
-
-    func withPermit<Value: Sendable>(
-        priority: IOPriority,
-        operation: () async throws -> Value
-    ) async throws -> Value {
-        try await acquire(priority: priority)
-        defer { release() }
-        return try await operation()
-    }
-
-    private func acquire(priority: IOPriority) async throws {
-        if Task.isCancelled { throw IOError.cancelled }
-        let waiterID = UUID()
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-                let acquiredImmediately: Bool = state.withLock { state in
-                    if state.active < limit {
-                        state.active += 1
-                        return true
-                    }
-                    state.sequence &+= 1
-                    state.waiters.append(Waiter(id: waiterID, priority: priority, sequence: state.sequence, continuation: continuation))
-                    return false
-                }
-                if acquiredImmediately {
-                    continuation.resume()
-                }
-            }
-        } onCancel: { [weak self] in
-            self?.cancelWaiter(id: waiterID)
-        }
-    }
-
-    private func cancelWaiter(id: UUID) {
-        let waiter = state.withLock { state -> Waiter? in
-            guard let index = state.waiters.firstIndex(where: { $0.id == id }) else { return nil }
-            return state.waiters.remove(at: index)
-        }
-        waiter?.continuation.resume(throwing: IOError.cancelled)
-    }
-
-    private func release() {
-        let next = state.withLock { state -> Waiter? in
-            if state.waiters.isEmpty {
-                state.active = max(0, state.active - 1)
-                return nil
-            }
-            // 选择优先级最高、同优先级最早入队的请求。
-            var bestIndex = 0
-            for index in 1..<state.waiters.count {
-                let candidate = state.waiters[index]
-                let best = state.waiters[bestIndex]
-                if candidate.priority > best.priority || (candidate.priority == best.priority && candidate.sequence < best.sequence) {
-                    bestIndex = index
-                }
-            }
-            return state.waiters.remove(at: bestIndex)
-        }
-        next?.continuation.resume()
-    }
-}
-
 /// 按 HTTP Range 读取远端文件；若服务器不支持 Range（回 200），则整份存入共享 `ExtractStore` 后切片读取。
 public final class HTTPByteSource: ByteSource, Sendable {
     public let identity: ContentIdentity
     public let url: URL
     public let headers: [String: String]
-    private let limiter: HTTPConcurrencyLimiter
+    private let limiter: PriorityPermitQueue
     private let extracts: ExtractStore
     private let session: URLSession
     private let timeout: TimeInterval
@@ -101,7 +18,7 @@ public final class HTTPByteSource: ByteSource, Sendable {
         identity: ContentIdentity,
         url: URL,
         headers: [String: String],
-        limiter: HTTPConcurrencyLimiter,
+        limiter: PriorityPermitQueue,
         extracts: ExtractStore,
         session: URLSession,
         timeout: TimeInterval

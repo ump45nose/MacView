@@ -13,17 +13,24 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
         var timeoutTask: Task<Void, Never>?
     }
 
+    private struct InitWaiter {
+        var id: UUID
+        var continuation: CheckedContinuation<Void, any Error>
+    }
+
     private struct State {
         var pid: pid_t?
         var stdinFD: Int32 = -1
         var nextID: Int = 1
         var pending: [Int: PendingRequest] = [:]
+        var cancelledRequestIDs: Set<Int> = []
         var activeContext: ScriptCallContext
         var closed = false
         var expectedShutdown = false
         var idleTask: Task<Void, Never>?
         var started = false
-        var initContinuations: [CheckedContinuation<Void, any Error>] = []
+        var initWaiters: [InitWaiter] = []
+        var cancelledInitWaiters: Set<UUID> = []
         var initResult: Result<Void, any Error>?
     }
 
@@ -34,9 +41,11 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
     private let configuration: PluginHostConfiguration
     private let log: ScriptLog
     private let apiHostProvider: @Sendable () -> (any PluginAPIHost)?
-    private let onExit: @Sendable (_ exitCode: Int32, _ unexpected: Bool) -> Void
+    private let onExit: @Sendable (ProcessPluginConnection, _ exitCode: Int32, _ unexpected: Bool) -> Void
     private let state: Mutex<State>
     private let writeQueue: DispatchQueue
+
+    var isClosed: Bool { state.withLock { $0.closed } }
 
     init(
         info: PluginInfo,
@@ -46,7 +55,7 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
         configuration: PluginHostConfiguration,
         log: ScriptLog,
         apiHostProvider: @escaping @Sendable () -> (any PluginAPIHost)?,
-        onExit: @escaping @Sendable (_ exitCode: Int32, _ unexpected: Bool) -> Void
+        onExit: @escaping @Sendable (ProcessPluginConnection, _ exitCode: Int32, _ unexpected: Bool) -> Void
     ) {
         self.info = info
         self.manifest = manifest
@@ -110,35 +119,54 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
             case spawn
             case wait
         }
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            let action: Action = state.withLock { state in
-                if state.closed { return .failed(PluginError.cancelled) }
-                if let result = state.initResult {
-                    switch result {
-                    case .success: return .ready
-                    case .failure(let err): return .failed(err)
+        let waiterID = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                let action: Action = state.withLock { state in
+                    if state.cancelledInitWaiters.remove(waiterID) != nil || Task.isCancelled {
+                        return .failed(CancellationError())
+                    }
+                    if state.closed { return .failed(PluginError.cancelled) }
+                    if let result = state.initResult {
+                        switch result {
+                        case .success: return .ready
+                        case .failure(let err): return .failed(err)
+                        }
+                    }
+                    state.initWaiters.append(InitWaiter(id: waiterID, continuation: continuation))
+                    if !state.started {
+                        state.started = true
+                        return .spawn
+                    }
+                    return .wait
+                }
+                switch action {
+                case .ready:
+                    continuation.resume()
+                case .failed(let error):
+                    continuation.resume(throwing: error)
+                case .wait:
+                    break
+                case .spawn:
+                    Task { [self] in
+                        await performSpawnAndInitialize()
                     }
                 }
-                state.initContinuations.append(continuation)
-                if !state.started {
-                    state.started = true
-                    return .spawn
-                }
-                return .wait
             }
-            switch action {
-            case .ready:
-                continuation.resume()
-            case .failed(let error):
-                continuation.resume(throwing: error)
-            case .wait:
-                break
-            case .spawn:
-                Task { [self] in
-                    await performSpawnAndInitialize()
-                }
-            }
+        } onCancel: { [weak self] in
+            self?.cancelInitWaiter(id: waiterID)
         }
+    }
+
+    private func cancelInitWaiter(id: UUID) {
+        let removed = state.withLock { state -> InitWaiter? in
+            if let idx = state.initWaiters.firstIndex(where: { $0.id == id }) {
+                return state.initWaiters.remove(at: idx)
+            }
+            state.cancelledInitWaiters.insert(id)
+            return nil
+        }
+        removed?.continuation.resume(throwing: CancellationError())
     }
 
     private func performSpawnAndInitialize() async {
@@ -152,21 +180,21 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
             ])
             let defaultCtx = ScriptCallContext(caller: "plugin:\(info.id)", callerName: manifest.name, session: nil, selection: [])
             _ = try await sendRequest(method: "initialize", params: initParams, timeout: configuration.requestTimeout, callContext: defaultCtx)
-            let waiters = state.withLock { state -> [CheckedContinuation<Void, any Error>] in
+            let waiters = state.withLock { state -> [InitWaiter] in
                 state.initResult = .success(())
-                let list = state.initContinuations
-                state.initContinuations.removeAll()
+                let list = state.initWaiters
+                state.initWaiters.removeAll()
                 return list
             }
-            for waiter in waiters { waiter.resume() }
+            for waiter in waiters { waiter.continuation.resume() }
         } catch {
-            let waiters = state.withLock { state -> [CheckedContinuation<Void, any Error>] in
+            let waiters = state.withLock { state -> [InitWaiter] in
                 state.initResult = .failure(error)
-                let list = state.initContinuations
-                state.initContinuations.removeAll()
+                let list = state.initWaiters
+                state.initWaiters.removeAll()
                 return list
             }
-            for waiter in waiters { waiter.resume(throwing: error) }
+            for waiter in waiters { waiter.continuation.resume(throwing: error) }
             closeProcess(expected: false, sendShutdownNotification: false, failure: error)
         }
     }
@@ -177,46 +205,52 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
         timeout: Duration,
         callContext: ScriptCallContext
     ) async throws -> JSONValue {
-        let reqIDHolder = Mutex<Int?>(nil)
+        let reqID = state.withLock { state -> Int in
+            let id = state.nextID
+            state.nextID += 1
+            return id
+        }
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                let resumeOnce = ProcessResumeOnce(continuation)
-                let reqID: Int? = state.withLock { state in
-                    guard !state.closed else { return nil }
+                let resumeOnce = OnceContinuation(continuation)
+                enum Outcome { case sent, cancelled, closed }
+                let outcome: Outcome = state.withLock { state in
+                    if state.cancelledRequestIDs.remove(reqID) != nil || Task.isCancelled {
+                        return .cancelled
+                    }
+                    guard !state.closed else { return .closed }
                     state.idleTask?.cancel()
                     state.idleTask = nil
                     state.activeContext = callContext
-                    let id = state.nextID
-                    state.nextID += 1
                     let timeoutTask = Task { [weak self] in
                         try? await Task.sleep(for: timeout)
                         guard !Task.isCancelled else { return }
-                        self?.handleTimeout(id: id, method: method)
+                        self?.handleTimeout(id: reqID, method: method)
                     }
-                    state.pending[id] = PendingRequest(
+                    state.pending[reqID] = PendingRequest(
                         method: method,
                         context: callContext,
                         resume: { result in resumeOnce.resume(with: result) },
                         timeoutTask: timeoutTask
                     )
-                    return id
+                    return .sent
                 }
-                guard let reqID else {
+                switch outcome {
+                case .cancelled:
+                    resumeOnce.resume(with: .failure(CancellationError()))
+                case .closed:
                     resumeOnce.resume(with: .failure(PluginError.cancelled))
-                    return
+                case .sent:
+                    writeMessage(.object([
+                        "jsonrpc": .string("2.0"),
+                        "id": .number(Double(reqID)),
+                        "method": .string(method),
+                        "params": params,
+                    ]))
                 }
-                reqIDHolder.withLock { $0 = reqID }
-                writeMessage(.object([
-                    "jsonrpc": .string("2.0"),
-                    "id": .number(Double(reqID)),
-                    "method": .string(method),
-                    "params": params,
-                ]))
             }
         } onCancel: { [weak self] in
-            if let reqID = reqIDHolder.withLock({ $0 }) {
-                self?.handleCancellation(id: reqID)
-            }
+            self?.handleCancellation(id: reqID)
         }
     }
 
@@ -236,9 +270,12 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
 
     private func handleCancellation(id: Int) {
         let pending = state.withLock { state -> PendingRequest? in
-            let item = state.pending.removeValue(forKey: id)
-            item?.timeoutTask?.cancel()
-            return item
+            if let item = state.pending.removeValue(forKey: id) {
+                item.timeoutTask?.cancel()
+                return item
+            }
+            state.cancelledRequestIDs.insert(id)
+            return nil
         }
         guard let pending else { return }
         writeMessage(.object([
@@ -393,64 +430,62 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
     }
 
     private func handleProcessExit(exitCode: Int32) {
-        let (pending, expected, initWaiters) = state.withLock { state -> ([PendingRequest], Bool, [CheckedContinuation<Void, any Error>]) in
+        let (fdToClose, pending, expected, initWaiters) = state.withLock { state -> (Int32, [PendingRequest], Bool, [InitWaiter]) in
             state.idleTask?.cancel()
             state.idleTask = nil
             let fd = state.stdinFD
             state.stdinFD = -1
-            if fd >= 0 { close(fd) }
             state.closed = true
             let wasExpected = state.expectedShutdown
             let items = Array(state.pending.values)
             for item in items { item.timeoutTask?.cancel() }
             state.pending.removeAll()
-            let waiters = state.initContinuations
-            state.initContinuations.removeAll()
+            let waiters = state.initWaiters
+            state.initWaiters.removeAll()
             if state.initResult == nil {
                 state.initResult = .failure(PluginError.processExited(code: exitCode))
             }
-            return (items, wasExpected, waiters)
+            return (fd, items, wasExpected, waiters)
+        }
+        if fdToClose >= 0 {
+            writeQueue.async { close(fdToClose) }
         }
         let error = PluginError.processExited(code: exitCode)
         for item in pending { item.resume(.failure(error)) }
-        for waiter in initWaiters { waiter.resume(throwing: error) }
+        for waiter in initWaiters { waiter.continuation.resume(throwing: error) }
         if !expected {
             log.append(source: manifest.name, level: .error, text: error.localizedDescription)
         }
-        onExit(exitCode, !expected)
+        onExit(self, exitCode, !expected)
     }
 
     private func closeProcess(expected: Bool, sendShutdownNotification: Bool, failure: any Error) {
-        let (pid, fd, pending, initWaiters) = state.withLock { state -> (pid_t?, Int32, [PendingRequest], [CheckedContinuation<Void, any Error>]) in
+        let (pid, fd, pending, initWaiters) = state.withLock { state -> (pid_t?, Int32, [PendingRequest], [InitWaiter]) in
             state.idleTask?.cancel()
             state.idleTask = nil
             if expected { state.expectedShutdown = true }
             let wasClosed = state.closed
             state.closed = true
             let p = state.pid
+            // 无论是否先发 shutdown，都原子接管 stdinFD，并全部串行交由 writeQueue 关闭，杜绝双关或写已关 fd。
             let f = state.stdinFD
-            if !sendShutdownNotification { state.stdinFD = -1 }
+            state.stdinFD = -1
             let items = Array(state.pending.values)
             for item in items { item.timeoutTask?.cancel() }
             state.pending.removeAll()
-            let waiters = state.initContinuations
-            state.initContinuations.removeAll()
-            if wasClosed { return (nil, -1, items, waiters) }
+            let waiters = state.initWaiters
+            state.initWaiters.removeAll()
+            if wasClosed { return (nil, f, items, waiters) }
             return (p, f, items, waiters)
         }
         for item in pending { item.resume(.failure(failure)) }
-        for waiter in initWaiters { waiter.resume(throwing: failure) }
+        for waiter in initWaiters { waiter.continuation.resume(throwing: failure) }
 
         if sendShutdownNotification && fd >= 0 {
             let line = Data(#"{"jsonrpc":"2.0","method":"shutdown","params":{}}"#.utf8) + Data([0x0A])
-            writeQueue.async { [weak self] in
+            writeQueue.async {
                 Self.writeAll(fd: fd, data: line)
-                let toClose = self?.state.withLock { state -> Int32 in
-                    let f = state.stdinFD
-                    state.stdinFD = -1
-                    return f
-                } ?? fd
-                if toClose >= 0 { close(toClose) }
+                close(fd)
             }
             if let pid {
                 DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(150)) {
@@ -654,15 +689,5 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
 
     private func posixFailure(_ code: Int32, executable: String) -> PluginError {
         PluginError.runtimeError("无法启动插件程序 \(executable)：\(String(cString: strerror(code)))")
-    }
-}
-
-private final class ProcessResumeOnce: Sendable {
-    private let continuation: Mutex<CheckedContinuation<JSONValue, any Error>?>
-    init(_ continuation: CheckedContinuation<JSONValue, any Error>) {
-        self.continuation = Mutex(continuation)
-    }
-    func resume(with result: Result<JSONValue, any Error>) {
-        continuation.withLock { $0.take() }?.resume(with: result)
     }
 }

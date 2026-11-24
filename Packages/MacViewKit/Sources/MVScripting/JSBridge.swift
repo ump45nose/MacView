@@ -66,6 +66,13 @@ public final class JSExecutionControl: Sendable {
         }
     }
 
+    public func endAndSnapshot() -> (stopped: Bool, reason: TerminationReason?) {
+        state.withLock { state in
+            state.deadline = nil
+            return (state.stopped, state.terminationReason)
+        }
+    }
+
     public func setPollInterval(_ interval: TimeInterval) {
         state.withLock { $0.pollInterval = max(0.01, interval) }
     }
@@ -165,10 +172,6 @@ public enum JSBridge {
             setLimit(JSContextGetGroup(context), control.pollInterval, shouldTerminate, pointer)
         }
         return false
-    }
-
-    public static var supportsExecutionTimeLimit: Bool {
-        setLimit != nil && clearLimit != nil
     }
 
     /// 在上下文所在的 JSContextGroup 上安装执行时限探测。调用方须保证 control 在清除时限前一直存活。
