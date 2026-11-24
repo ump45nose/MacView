@@ -13,7 +13,7 @@ extension AppDelegate {
             isEnabled: @escaping @MainActor (CommandContext) -> Bool = { _ in true },
             perform: @escaping @MainActor (CommandContext) -> Void
         ) {
-            guard let descriptor = catalog.descriptor(id) else {
+            guard let descriptor = CommandCatalog.builtInDescriptor(id) else {
                 preconditionFailure("命令清单中没有 \(id.rawValue)")
             }
             registry.register(descriptor, isEnabled: isEnabled) { context, _ in perform(context) }
@@ -117,7 +117,7 @@ extension AppDelegate {
             (.ratingSet3, 3), (.ratingSet4, 4), (.ratingSet5, 5),
         ]
         for (id, value) in ratings {
-            guard let descriptor = catalog.descriptor(id) else { continue }
+            guard let descriptor = CommandCatalog.builtInDescriptor(id) else { continue }
             registry.register(descriptor, isEnabled: { [weak self] context in
                 guard let self, let writer = metadataWriter else { return false }
                 return writer.canEdit(activeFileOrigin(for: context.session))
@@ -126,7 +126,7 @@ extension AppDelegate {
                 writer.setRating(value, origin: activeFileOrigin(for: context.session))
             }
         }
-        if let descriptor = catalog.descriptor(.metadataTagsEdit) {
+        if let descriptor = CommandCatalog.builtInDescriptor(.metadataTagsEdit) {
             registry.register(descriptor, isEnabled: { [weak self] context in
                 guard let self, let writer = metadataWriter else { return false }
                 return writer.canEdit(activeFileOrigin(for: context.session))
@@ -139,7 +139,7 @@ extension AppDelegate {
 
     /// 搜索与建立索引：⌘F 聚焦书架搜索框（隐藏时先显示），“为此文件夹建立索引”作用于书架当前或选中的文件夹。
     private func registerSearchCommands(in registry: CommandRegistry) {
-        if let descriptor = catalog.descriptor(.searchFocus) {
+        if let descriptor = CommandCatalog.builtInDescriptor(.searchFocus) {
             registry.register(descriptor, isEnabled: { [weak self] context in
                 guard let self else { return false }
                 return (controller(for: context.session) ?? mainController ?? controllers.first) != nil
@@ -148,7 +148,7 @@ extension AppDelegate {
                 target.focusBookshelfSearch()
             }
         }
-        if let descriptor = catalog.descriptor(.searchIndexFolder) {
+        if let descriptor = CommandCatalog.builtInDescriptor(.searchIndexFolder) {
             registry.register(descriptor, isEnabled: { [weak self] context in
                 guard let self, services?.indexer != nil, !IndexController.shared.isIndexing,
                       let target = controller(for: context.session) ?? mainController ?? controllers.first else { return false }
@@ -167,7 +167,7 @@ extension AppDelegate {
             isEnabled: @escaping @MainActor (ReaderWindowController) -> Bool,
             perform: @escaping @MainActor (ReaderWindowController, AppDelegate) async -> Void
         ) {
-            guard let descriptor = catalog.descriptor(id) else { preconditionFailure("命令清单中没有 \(id.rawValue)") }
+            guard let descriptor = CommandCatalog.builtInDescriptor(id) else { preconditionFailure("命令清单中没有 \(id.rawValue)") }
             registry.register(descriptor, isEnabled: { [weak self] context in
                 guard let self, services?.library != nil, let controller = controller(for: context.session) ?? mainController else { return false }
                 return isEnabled(controller)
@@ -309,7 +309,7 @@ extension AppDelegate {
             isEnabled: @escaping @MainActor (FileOperationController, FileOrigin) -> Bool,
             perform: @escaping @MainActor (FileOperationController, FileOrigin, [String: JSONValue]?) -> Void
         ) {
-            guard let descriptor = catalog.descriptor(id) else { preconditionFailure("命令清单中没有 \(id.rawValue)") }
+            guard let descriptor = CommandCatalog.builtInDescriptor(id) else { preconditionFailure("命令清单中没有 \(id.rawValue)") }
             registry.register(descriptor, isEnabled: { [weak self] context in
                 guard let self, let fileOps else { return false }
                 return isEnabled(fileOps, activeFileOrigin(for: context.session))
@@ -332,7 +332,7 @@ extension AppDelegate {
                 fileOps.chooseApplicationAndOpen(origin: origin)
             }
         }
-        if let recycleDescriptor = catalog.descriptor(.recycleEmpty) {
+        if let recycleDescriptor = CommandCatalog.builtInDescriptor(.recycleEmpty) {
             registry.register(recycleDescriptor, isEnabled: { [weak self] _ in self?.services?.fileOperations != nil }) { _, _ in }
         }
     }

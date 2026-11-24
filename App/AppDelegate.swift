@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var appearance: AppearanceController?
     private(set) var fileOps: FileOperationController?
     private(set) var metadataWriter: MetadataWriteController?
+    private(set) var extensions: ExtensionCommands?
     var isMock: Bool {
         #if DEBUG
         UserDefaults.standard.bool(forKey: "MVMockServices")
@@ -117,9 +118,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fileOps = FileOperationController(app: self)
             metadataWriter = MetadataWriteController(app: self)
             configureContextMenuProvider()
-            reloadCatalog()
-            observeBindings()
-            observeMenus()
             let dispatcher = CommandDispatcher(registry: services.commands)
             dispatcher.onDisabledCommand = { [weak self] id, controller in
                 self?.metadataWriter?.handleDisabledCommand(id, in: controller) ?? false
@@ -138,6 +136,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             registerFrameDirectionCommands(in: services.commands)
             registerWindowAppearanceCommands(in: services.commands)
             registerLayoutSchemeCommands(in: services.commands)
+            let extensions = ExtensionCommands(app: self, services: services)
+            self.extensions = extensions
+            extensions.start()
+            reloadCatalog()
+            observeBindings()
+            observeMenus()
             observeSettingsErrors()
             observeReaderActivation()
         } catch {
@@ -258,11 +262,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         contextMenuProvider = provider
     }
 
-    private func reloadCatalog() {
+    func reloadCatalog() {
         catalog = CommandCatalog(
             file: services?.keyBindings?.value() ?? KeyBindingsFile(),
-            menuFile: services?.menus?.value() ?? MenuFile()
+            menuFile: services?.menus?.value() ?? MenuFile(),
+            descriptors: services?.commands.descriptors()
         )
+        SettingsCommandCatalog.reload(from: services?.commands)
         installMenu()
         controllers.forEach { $0.updateBindings(catalog) }
     }
@@ -323,7 +329,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 配置错误按文件各一条；修好后 `message` 为 nil，这一条消失。
-    private func setFileProblem(_ file: String, _ message: String?) {
+    func setFileProblem(_ file: String, _ message: String?) {
         fileProblems.removeAll { $0.file == file }
         if let message {
             let title = file == SessionStore.fileName
@@ -453,6 +459,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         keyBindingsTask?.cancel()
         menusTask?.cancel()
         settingsErrorsTask?.cancel()
+        extensions?.stop()
         sessionSaveEnabled = false
         let snapshot = sessionStore == nil ? nil : sessionSnapshot()
         // shutdown 自己有时限，不等被卡住的 I/O。

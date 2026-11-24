@@ -1,26 +1,46 @@
 import AppKit
 import MVCommands
 import MVSettings
+import Observation
 import SwiftUI
 
-/// 设置页共享的命令清单与标题/图标查找，避免各页重复构建全量字典。
-enum SettingsCommandCatalog {
-    static let all: [CommandDescriptor] = CoreCommands.all + CommandCatalog.appCommands
-    private static let byID: [CommandID: CommandDescriptor] = Dictionary(
-        all.map { ($0.id, $0) },
+@MainActor
+@Observable
+private final class SettingsCommandCatalogStore {
+    var descriptors: [CommandDescriptor] = CommandCatalog.builtInCommands
+    var byID: [CommandID: CommandDescriptor] = Dictionary(
+        CommandCatalog.builtInCommands.map { ($0.id, $0) },
         uniquingKeysWith: { first, _ in first }
     )
+}
 
-    static func descriptor(of id: CommandID) -> CommandDescriptor? { byID[id] }
+/// 设置页共享的命令清单与标题/图标查找，避免各页重复构建全量字典。
+@MainActor
+enum SettingsCommandCatalog {
+    private static let store = SettingsCommandCatalogStore()
+
+    static var all: [CommandDescriptor] { store.descriptors }
+
+    static func reload(from registry: CommandRegistry?) {
+        let list = registry?.descriptors() ?? []
+        let effective = list.isEmpty ? CommandCatalog.builtInCommands : list
+        store.descriptors = effective
+        store.byID = Dictionary(effective.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    static func descriptor(of id: CommandID) -> CommandDescriptor? { store.byID[id] }
 
     static func title(of id: CommandID) -> String {
+        if let descriptor = store.byID[id] ?? CommandCatalog.builtInDescriptor(id) {
+            return CommandCatalog.displayTitle(for: descriptor)
+        }
         if id == .fileRename { return String(localized: "重命名…") }
         if id == .searchIndexFolder { return String(localized: "为此文件夹建立索引") }
-        return byID[id].map { String(localized: $0.title) } ?? id.rawValue
+        return id.rawValue
     }
 
     static func symbol(of id: CommandID) -> String {
-        if let symbol = byID[id]?.symbol, !symbol.isEmpty { return symbol }
+        if let symbol = (store.byID[id] ?? CommandCatalog.builtInDescriptor(id))?.symbol, !symbol.isEmpty { return symbol }
         return "command"
     }
 }

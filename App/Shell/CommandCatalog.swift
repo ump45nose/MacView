@@ -29,6 +29,23 @@ struct CommandCatalog {
         CommandDescriptor(id: .dockBottomToggle, title: LocalizedStringResource("显示或隐藏底部停靠区"), category: "window"),
     ]
 
+    static let builtInCommands: [CommandDescriptor] = CoreCommands.all + appCommands
+    private static let builtInByID: [CommandID: CommandDescriptor] = Dictionary(
+        builtInCommands.map { ($0.id, $0) },
+        uniquingKeysWith: { first, _ in first }
+    )
+
+    static func builtInDescriptor(_ id: CommandID) -> CommandDescriptor? {
+        builtInByID[id]
+    }
+
+    static func displayTitle(for descriptor: CommandDescriptor) -> String {
+        if let verbatim = descriptor.verbatimTitle { return verbatim }
+        if descriptor.id == .fileRename { return String(localized: "重命名…") }
+        if descriptor.id == .searchIndexFolder { return String(localized: "为此文件夹建立索引") }
+        return String(localized: descriptor.title)
+    }
+
     /// “文件”菜单结构：包含打开、剪贴板、用指定应用打开、移动到、复制到、重命名、删除、建立索引、回收目录、窗口、设置与关闭。
     static let fileMenu: [MenuNode] = [
         .command(.fileOpen), .separator,
@@ -67,8 +84,13 @@ struct CommandCatalog {
 
     /// `file` 是完整的 keybindings.json 文档（含键盘与鼠标/触控板/点击区域/滚轮绑定）；`menuFile` 是 menus.json 文档。
     @MainActor
-    init(file: KeyBindingsFile, menuFile: MenuFile = MenuFile()) {
-        self.init(user: file.bindings, inputBindings: InputBindings.effective(user: file), menuFile: menuFile)
+    init(file: KeyBindingsFile, menuFile: MenuFile = MenuFile(), descriptors: [CommandDescriptor]? = nil) {
+        self.init(
+            user: file.bindings,
+            inputBindings: InputBindings.effective(user: file),
+            menuFile: menuFile,
+            descriptors: descriptors
+        )
     }
 
     /// `user` 是 keybindings.json 中的键盘绑定，`menuFile` 是 menus.json 中的自定义菜单与工具栏配置。
@@ -76,9 +98,10 @@ struct CommandCatalog {
     init(
         user: [KeyBinding] = [],
         inputBindings: InputBindings = InputBindings.effective(user: KeyBindingsFile()),
-        menuFile: MenuFile = MenuFile()
+        menuFile: MenuFile = MenuFile(),
+        descriptors customDescriptors: [CommandDescriptor]? = nil
     ) {
-        let all = CoreCommands.all + Self.appCommands
+        let all = customDescriptors.flatMap { $0.isEmpty ? nil : $0 } ?? Self.builtInCommands
         descriptors = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         symbolCommands = all.filter { descriptor in
             guard let symbol = descriptor.symbol else { return false }
@@ -133,9 +156,10 @@ struct CommandCatalog {
     }
 
     func title(of id: CommandID) -> String {
+        if let descriptor = descriptors[id] ?? Self.builtInDescriptor(id) { return Self.displayTitle(for: descriptor) }
         if id == .fileRename { return String(localized: "重命名…") }
         if id == .searchIndexFolder { return String(localized: "为此文件夹建立索引") }
-        return descriptors[id].map { String(localized: $0.title) } ?? id.rawValue
+        return id.rawValue
     }
 
     /// 菜单项上显示的快捷键：该命令的第一个单键绑定。
@@ -165,7 +189,7 @@ extension AppDelegate {
     /// 注册按当前阅读方向换算上一帧/下一帧的左右翻帧命令（`frame.left` / `frame.right`）。
     func registerFrameDirectionCommands(in registry: CommandRegistry) {
         for id in [CommandID.frameLeft, .frameRight] {
-            guard let descriptor = catalog.descriptor(id) else {
+            guard let descriptor = CommandCatalog.builtInDescriptor(id) else {
                 preconditionFailure("命令清单中没有 \(id.rawValue)")
             }
             registry.register(descriptor, isEnabled: { [weak self] context in
@@ -193,7 +217,7 @@ extension AppDelegate {
     /// 注册窗口外观命令（置顶、自动隐藏标题栏、无边框）：作用于全局设置，在任意输入作用域下均可执行。
     func registerWindowAppearanceCommands(in registry: CommandRegistry) {
         func register(_ id: CommandID, mutate: @escaping @Sendable (inout AppearanceSettings) -> Void) {
-            guard let descriptor = catalog.descriptor(id) else {
+            guard let descriptor = CommandCatalog.builtInDescriptor(id) else {
                 preconditionFailure("命令清单中没有 \(id.rawValue)")
             }
             registry.register(descriptor, isEnabled: { [weak self] _ in
@@ -215,7 +239,7 @@ extension AppDelegate {
 
     /// 注册命名布局方案的保存与套用命令（`layout.scheme.save` / `layout.scheme.apply`）。
     func registerLayoutSchemeCommands(in registry: CommandRegistry) {
-        if let saveDescriptor = catalog.descriptor(.layoutSchemeSave) {
+        if let saveDescriptor = CommandCatalog.builtInDescriptor(.layoutSchemeSave) {
             registry.register(saveDescriptor, isEnabled: { [weak self] context in
                 guard let self, dock != nil, NSApp.modalWindow == nil else { return false }
                 return (controller(for: context.session) ?? mainController ?? controllers.first) != nil
@@ -232,7 +256,7 @@ extension AppDelegate {
                 presentSaveLayoutSchemeSheet(in: target)
             }
         }
-        if let applyDescriptor = catalog.descriptor(.layoutSchemeApply) {
+        if let applyDescriptor = CommandCatalog.builtInDescriptor(.layoutSchemeApply) {
             registry.register(applyDescriptor, isEnabled: { [weak self] context in
                 guard let self, let dock, !dock.schemes.isEmpty else { return false }
                 return (controller(for: context.session) ?? activeReaderController) != nil
@@ -247,7 +271,7 @@ extension AppDelegate {
                 }
             }
         }
-        if let manageDescriptor = catalog.descriptor(.layoutSchemeManage) {
+        if let manageDescriptor = CommandCatalog.builtInDescriptor(.layoutSchemeManage) {
             registry.register(manageDescriptor, isEnabled: { _ in
                 NSApp.modalWindow == nil
             }) { [weak self] _, _ in

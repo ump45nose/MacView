@@ -1,0 +1,298 @@
+import AppKit
+import Foundation
+import MVCommands
+import MVFoundation
+import MVScripting
+import MVServices
+import MVSettings
+
+/// 一次运行的对象：所在窗口与目标位置（选中项；没有选中项时为当前页）。
+@MainActor
+struct ScriptTarget {
+    let window: ReaderWindowController?
+    let locations: [Location]
+}
+
+/// 外部命令执行结果（W2.5 填充完整执行逻辑）。
+enum ExternalRunResult: Sendable, Equatable {
+    case succeeded(output: String?)
+    case failed(String)
+}
+
+/// 把脚本与外部命令登记成命令，并在变化时增删；菜单与设置页由此刷新。
+@MainActor
+final class ExtensionCommands {
+    private struct EventErrorKey: Hashable {
+        let scriptID: String
+        let message: String
+    }
+
+    private weak var app: AppDelegate?
+    private let services: CoreServices
+
+    /// 含有 problem 的全部脚本，供设置页列表使用。
+    private(set) var allScripts: [ScriptInfo] = []
+    /// 可执行的脚本（不含 problem），供菜单与命令登记使用。
+    private(set) var scriptItems: [ScriptInfo] = []
+    /// 外部命令列表（按名称排序）。
+    private(set) var externalItems: [ExternalCommand] = []
+
+    private var registeredScriptIDs: Set<String> = []
+    private var registeredExternalIDs: Set<String> = []
+    private var reportedEventErrors: Set<EventErrorKey> = []
+
+    private var scriptsTask: Task<Void, Never>?
+    private var externalCommandsTask: Task<Void, Never>?
+    private var storageTask: Task<Void, Never>?
+    private var runtimeEventsTask: Task<Void, Never>?
+
+    init(app: AppDelegate, services: CoreServices) {
+        self.app = app
+        self.services = services
+    }
+
+    func start() {
+        registerBuiltInScriptCommands()
+        if let store = services.externalCommands {
+            applyExternalCommands(store.value().commands, reload: false)
+        }
+        observeScripts()
+        observeExternalCommands()
+        observeScriptStorage()
+        observeRuntimeEvents()
+    }
+
+    func stop() {
+        scriptsTask?.cancel()
+        scriptsTask = nil
+        externalCommandsTask?.cancel()
+        externalCommandsTask = nil
+        storageTask?.cancel()
+        storageTask = nil
+        runtimeEventsTask?.cancel()
+        runtimeEventsTask = nil
+    }
+
+    /// 外部命令执行占位实现，完整实现将在 W2.5 中填充。
+    func runExternal(_ command: ExternalCommand, target: ScriptTarget) async -> ExternalRunResult {
+        _ = (command, target)
+        return .failed(String(localized: "外部命令执行尚未实现"))
+    }
+
+    // MARK: - 固定脚本命令
+
+    private func registerBuiltInScriptCommands() {
+        let registry = services.commands
+        if let stopAll = CommandCatalog.builtInDescriptor(.scriptStopAll) {
+            registry.register(stopAll, isEnabled: { [weak self] _ in
+                self?.services.scriptRuntime != nil
+            }) { [weak self] _, _ in
+                self?.services.scriptRuntime?.stopAll()
+            }
+        }
+        if let reveal = CommandCatalog.builtInDescriptor(.scriptRevealFolder) {
+            registry.register(reveal, isEnabled: { [weak self] _ in
+                self?.services.scriptLibrary != nil
+            }) { [weak self] _, _ in
+                guard let dir = self?.services.scriptLibrary?.directory else { return }
+                NSWorkspace.shared.activateFileViewerSelecting([dir])
+            }
+        }
+    }
+
+    // MARK: - 订阅变化
+
+    private func observeScripts() {
+        guard let library = services.scriptLibrary else { return }
+        let stream = library.changes()
+        scriptsTask = Task { [weak self] in
+            for await scripts in stream {
+                guard let self, !Task.isCancelled else { return }
+                self.applyScripts(scripts)
+            }
+        }
+    }
+
+    private func observeExternalCommands() {
+        guard let store = services.externalCommands else { return }
+        let stream = store.changes()
+        externalCommandsTask = Task { [weak self] in
+            for await change in stream {
+                guard let self, !Task.isCancelled else { return }
+                switch change {
+                case .reloaded:
+                    self.app?.setFileProblem("external-commands.json", nil)
+                    self.applyExternalCommands(store.value().commands, reload: true)
+                case let .fileError(message):
+                    self.app?.setFileProblem("external-commands.json", message)
+                }
+            }
+        }
+    }
+
+    private func observeScriptStorage() {
+        guard let storage = services.scriptStorage else { return }
+        let stream = storage.changes()
+        storageTask = Task { [weak self] in
+            for await change in stream {
+                guard let self, !Task.isCancelled else { return }
+                switch change {
+                case .reloaded:
+                    self.app?.setFileProblem("script-storage.json", nil)
+                case let .fileError(message):
+                    self.app?.setFileProblem("script-storage.json", message)
+                }
+            }
+        }
+    }
+
+    private func observeRuntimeEvents() {
+        guard let runtime = services.scriptRuntime else { return }
+        let stream = runtime.events()
+        runtimeEventsTask = Task { [weak self] in
+            for await event in stream {
+                guard let self, !Task.isCancelled else { return }
+                if case let .failed(run, problem) = event {
+                    self.handleScriptFailure(run: run, problem: problem)
+                }
+            }
+        }
+    }
+
+    // MARK: - 动态登记与同步
+
+    private func applyScripts(_ scripts: [ScriptInfo]) {
+        allScripts = scripts
+        let runnable = scripts.filter { $0.problem == nil }
+        scriptItems = runnable
+        // 脚本目录重载后，清除事件错误去重表，确保新一次加载能重新提示。
+        reportedEventErrors.removeAll()
+
+        let nextIDs = Set(runnable.map(\.id))
+        let removed = registeredScriptIDs.subtracting(nextIDs)
+        let registry = services.commands
+        for id in removed {
+            registry.unregister(Self.scriptCommandID(for: id))
+        }
+
+        for info in runnable {
+            let commandID = Self.scriptCommandID(for: info.id)
+            let descriptor = CommandDescriptor(
+                id: commandID,
+                title: LocalizedStringResource(stringLiteral: info.name),
+                category: "script",
+                symbol: "applescript",
+                verbatimTitle: info.name
+            )
+            registry.register(descriptor, isEnabled: { [weak self] _ in
+                self?.services.scriptRuntime != nil
+            }) { [weak self] context, arguments in
+                guard let self, let runtime = self.services.scriptRuntime else { return }
+                let target = self.resolveTarget(for: context)
+                let callContext = ScriptCallContext(
+                    caller: commandID.rawValue,
+                    callerName: info.name,
+                    session: target.window?.session.id ?? context.session,
+                    selection: target.locations.map(Self.selectionToken(for:))
+                )
+                runtime.run(info.id, arguments: arguments, context: callContext)
+            }
+        }
+
+        registeredScriptIDs = nextIDs
+        app?.reloadCatalog()
+    }
+
+    private func applyExternalCommands(_ commands: [ExternalCommand], reload: Bool) {
+        let sorted = commands.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        externalItems = sorted
+
+        let nextIDs = Set(sorted.map(\.id))
+        let removed = registeredExternalIDs.subtracting(nextIDs)
+        let registry = services.commands
+        for id in removed {
+            registry.unregister(Self.externalCommandID(for: id))
+        }
+
+        for command in sorted {
+            let commandID = Self.externalCommandID(for: command.id)
+            let descriptor = CommandDescriptor(
+                id: commandID,
+                title: LocalizedStringResource(stringLiteral: command.name),
+                category: "script",
+                symbol: "terminal",
+                verbatimTitle: command.name
+            )
+            registry.register(descriptor, isEnabled: { _ in true }) { [weak self] context, _ in
+                guard let self else { return }
+                let target = self.resolveTarget(for: context)
+                _ = await self.runExternal(command, target: target)
+            }
+        }
+
+        registeredExternalIDs = nextIDs
+        if reload {
+            app?.reloadCatalog()
+        }
+    }
+
+    // MARK: - 错误提示与目标解析
+
+    private func handleScriptFailure(run: ScriptRun, problem: ScriptProblem) {
+        let firstLine = problem.message.split(whereSeparator: \.isNewline).first.map(String.init) ?? problem.message
+        if case .event = run.trigger {
+            let key = EventErrorKey(scriptID: run.scriptID, message: firstLine)
+            guard reportedEventErrors.insert(key).inserted else { return }
+        }
+        let scriptName = allScripts.first { $0.id == run.scriptID }?.name ?? run.scriptID
+        let targetWindow: ReaderWindowController? = if let session = run.session {
+            app?.controller(for: session)
+        } else {
+            app?.mainController ?? app?.activeReaderController
+        }
+        targetWindow?.content.statusBar.showMessage(String(localized: "\(scriptName) 出错：\(firstLine)"))
+    }
+
+    private func resolveTarget(for context: CommandContext) -> ScriptTarget {
+        let window: ReaderWindowController? = if let session = context.session {
+            app?.controller(for: session) ?? app?.mainController ?? app?.activeReaderController
+        } else {
+            app?.mainController ?? app?.activeReaderController
+        }
+        if !context.selection.isEmpty {
+            return ScriptTarget(window: window, locations: context.selection)
+        }
+        if let session = window?.session,
+           let pages = session.book?.pages,
+           pages.indices.contains(session.currentPage) {
+            return ScriptTarget(window: window, locations: [pages[session.currentPage].id])
+        }
+        return ScriptTarget(window: window, locations: [])
+    }
+
+    static func scriptCommandID(for id: String) -> CommandID {
+        CommandID("script.\(id)")
+    }
+
+    static func externalCommandID(for id: String) -> CommandID {
+        CommandID("external.\(id)")
+    }
+
+    /// 位置转字符串标记（W2.3 将统一复用 ScriptLocationCodec）。
+    private static func selectionToken(for location: Location) -> String {
+        if case .local = location.root, location.layers.count == 1 {
+            let parts = location.layers[0]
+            return parts.isEmpty ? "/" : "/" + parts.joined(separator: "/")
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        if let data = try? encoder.encode(location) {
+            let base64 = data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+            return "mvloc:\(base64)"
+        }
+        return location.name
+    }
+}
