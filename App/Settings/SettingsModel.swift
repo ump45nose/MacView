@@ -35,6 +35,7 @@ final class SettingsModel {
     let pointer: PointerModel
     let menus: MenusModel
     let layoutSchemes: LayoutSchemesModel
+    let extensions: ExtensionsSettingsModel
 
     init(
         store: any SettingsStore,
@@ -55,6 +56,7 @@ final class SettingsModel {
         self.pointer = PointerModel(store: resolvedKeyBindings)
         self.menus = MenusModel(store: resolvedMenus)
         self.layoutSchemes = LayoutSchemesModel(dock: appDelegate?.dock, app: appDelegate)
+        self.extensions = ExtensionsSettingsModel(extensions: appDelegate?.extensions, supportDirectory: supportDirectory)
         let changes = store.changes()
         changesTask = Task { [weak self] in
             await self?.loadAll()
@@ -81,6 +83,7 @@ final class SettingsModel {
         pointer.reload()
         menus.reload()
         layoutSchemes.reload()
+        extensions.reload()
     }
 
     // MARK: 全局

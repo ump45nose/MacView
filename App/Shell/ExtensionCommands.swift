@@ -43,6 +43,19 @@ final class ExtensionCommands {
     private(set) var scriptItems: [ScriptInfo] = []
     /// 外部命令列表（按名称排序）。
     private(set) var externalItems: [ExternalCommand] = []
+    /// `external-commands.json` 解析错误（nil 表示正常）。
+    private(set) var externalCommandsProblem: String?
+    /// 脚本列表、外部命令列表或 JSON 错误变化时通知观察者（供设置页刷新）。
+    var onChange: (() -> Void)?
+
+    var scriptsDirectory: URL? { services.scriptLibrary?.directory }
+    var scriptRuntime: ScriptRuntime? { services.scriptRuntime }
+    var scriptLog: ScriptLog? { services.scriptLog }
+    var externalCommandsStore: JSONDocumentStore<ExternalCommandFile>? { services.externalCommands }
+
+    func runScript(_ info: ScriptInfo) {
+        runScript(info, target: ScriptTarget(window: nil, locations: []))
+    }
 
     private var registeredScriptIDs: Set<String> = []
     private var registeredExternalIDs: Set<String> = []
@@ -228,10 +241,13 @@ final class ExtensionCommands {
                 guard let self, !Task.isCancelled else { return }
                 switch change {
                 case .reloaded:
+                    self.externalCommandsProblem = nil
                     self.app?.setFileProblem("external-commands.json", nil)
                     self.applyExternalCommands(store.value().commands, reload: true)
                 case let .fileError(message):
+                    self.externalCommandsProblem = message
                     self.app?.setFileProblem("external-commands.json", message)
+                    self.onChange?()
                 }
             }
         }
@@ -308,6 +324,7 @@ final class ExtensionCommands {
         registeredScriptIDs = nextIDs
         app?.reloadCatalog()
         app?.scriptEvents?.noteInitialScanCompleted()
+        onChange?()
     }
 
     private func applyExternalCommands(_ commands: [ExternalCommand], reload: Bool) {
@@ -341,6 +358,7 @@ final class ExtensionCommands {
         if reload {
             app?.reloadCatalog()
         }
+        onChange?()
     }
 
     // MARK: - 错误提示与目标解析

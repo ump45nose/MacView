@@ -213,6 +213,16 @@
         }
       }
     },
+    "%@ 第 %lld 行：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ line %2$lld: %3$@"
+          }
+        }
+      }
+    },
     "%@ 项": {
       "localizations": {
         "en": {
@@ -309,6 +319,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ (Default)"
+          }
+        }
+      }
+    },
+    "%@：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@"
           }
         }
       }
@@ -681,6 +701,16 @@
         }
       }
     },
+    "external-commands.json %@。仍在使用上一份可用的外部命令。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "external-commands.json %@. Still using the previous valid external commands."
+          }
+        }
+      }
+    },
     "layout-schemes.json 有错误，继续使用上一份可用的方案。": {
       "localizations": {
         "en": {
@@ -913,6 +943,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "“%@” is already bookmarked"
+          }
+        }
+      }
+    },
+    "一个 .js 文件是一条命令，保存后自动重载": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each .js file is a command, reloaded on save"
           }
         }
       }
@@ -1341,6 +1381,16 @@
         }
       }
     },
+    "事件：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Event: %@"
+          }
+        }
+      }
+    },
     "亮度": {
       "localizations": {
         "en": {
@@ -1601,6 +1651,16 @@
         }
       }
     },
+    "停止": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        }
+      }
+    },
     "停止全部脚本": {
       "localizations": {
         "en": {
@@ -1759,6 +1819,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "All Scopes"
+          }
+        }
+      }
+    },
+    "全部停止": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop All"
           }
         }
       }
@@ -2155,6 +2225,16 @@
         }
       }
     },
+    "删除？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete?"
+          }
+        }
+      }
+    },
     "前后各": {
       "localizations": {
         "en": {
@@ -2293,6 +2373,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Single"
+          }
+        }
+      }
+    },
+    "占位符：{file} 第一个目标  {files} 全部目标  {folder} 所在文件夹  {name} 文件名  {book} 当前书  {page} 页码（从 1 起）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Placeholders: {file} first target  {files} all targets  {folder} folder  {name} filename  {book} current book  {page} page number (1-based)"
           }
         }
       }
@@ -2463,6 +2553,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "As Is"
+          }
+        }
+      }
+    },
+    "参数": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arguments"
           }
         }
       }
@@ -2747,12 +2847,42 @@
         }
       }
     },
+    "启动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startup"
+          }
+        }
+      }
+    },
+    "命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command"
+          }
+        }
+      }
+    },
     "命令 ID 不能为空": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Command ID cannot be empty"
+          }
+        }
+      }
+    },
+    "命令不能为空": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command cannot be empty"
           }
         }
       }
@@ -2913,6 +3043,16 @@
         }
       }
     },
+    "在编辑器中打开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Editor"
+          }
+        }
+      }
+    },
     "在虚拟书中打开这一项": {
       "localizations": {
         "en": {
@@ -3013,6 +3153,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Appearance"
+          }
+        }
+      }
+    },
+    "外部命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "External Commands"
           }
         }
       }
@@ -3177,6 +3327,16 @@
         }
       }
     },
+    "存储": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        }
+      }
+    },
     "存储键名不能为空": {
       "localizations": {
         "en": {
@@ -3307,6 +3467,16 @@
         }
       }
     },
+    "对选中项运行；没有选中项时对当前页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs on selected items, or the current page if none selected"
+          }
+        }
+      }
+    },
     "封面单独占一帧": {
       "localizations": {
         "en": {
@@ -3337,6 +3507,16 @@
         }
       }
     },
+    "就绪": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready"
+          }
+        }
+      }
+    },
     "尺寸": {
       "localizations": {
         "en": {
@@ -3363,6 +3543,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Depth"
+          }
+        }
+      }
+    },
+    "工作目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Working Directory"
           }
         }
       }
@@ -3789,6 +3979,16 @@
         }
       }
     },
+    "应用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application"
+          }
+        }
+      }
+    },
     "应用不可用": {
       "localizations": {
         "en": {
@@ -4009,6 +4209,16 @@
         }
       }
     },
+    "打开 external-commands.json": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open external-commands.json"
+          }
+        }
+      }
+    },
     "打开…": {
       "localizations": {
         "en": {
@@ -4025,6 +4235,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open a Folder or Archive"
+          }
+        }
+      }
+    },
+    "打开书": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Book Opened"
           }
         }
       }
@@ -4087,6 +4307,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Run Commands"
+          }
+        }
+      }
+    },
+    "扩展": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extensions"
           }
         }
       }
@@ -4157,6 +4387,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "File Not Found"
+          }
+        }
+      }
+    },
+    "把 .js 文件放进脚本文件夹，这里会马上列出来。文件开头用 // @name、// @event 写名称和事件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Place .js files in the scripts folder and they will appear here. Use // @name and // @event comments at the top to set the name and events."
           }
         }
       }
@@ -4369,6 +4609,16 @@
         }
       }
     },
+    "按空白拆成参数，引号内不拆；{files} 单独成一个参数时展开成多个。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Split by whitespace (preserving quotes); {files} as a standalone argument expands to multiple arguments."
+          }
+        }
+      }
+    },
     "按类型排序": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -4419,6 +4669,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sort By"
+          }
+        }
+      }
+    },
+    "排队中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Queued"
           }
         }
       }
@@ -5339,6 +5599,16 @@
         }
       }
     },
+    "显示输出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Output"
+          }
+        }
+      }
+    },
     "显示配置": {
       "localizations": {
         "en": {
@@ -5369,6 +5639,16 @@
         }
       }
     },
+    "暂无输出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No output yet"
+          }
+        }
+      }
+    },
     "更多操作": {
       "localizations": {
         "en": {
@@ -5385,6 +5665,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Replace"
+          }
+        }
+      }
+    },
+    "替换时自动加引号，不要自己加。用登录 Shell 执行，能找到 Homebrew 装的工具。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quoted automatically on expansion; do not add quotes. Runs in a login shell so Homebrew tools are available."
           }
         }
       }
@@ -5617,6 +5907,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Before and after the current frame in the viewer"
+          }
+        }
+      }
+    },
+    "标准输出进输出区，最后一行显示在状态栏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard output goes to Output; last line shown in status bar"
           }
         }
       }
@@ -6555,6 +6855,16 @@
         }
       }
     },
+    "确认删除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
     "磁盘缓存": {
       "localizations": {
         "en": {
@@ -6705,6 +7015,26 @@
         }
       }
     },
+    "程序": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Program"
+          }
+        }
+      }
+    },
+    "程序路径不存在": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Program path does not exist"
+          }
+        }
+      }
+    },
     "空格": {
       "localizations": {
         "en": {
@@ -6743,6 +7073,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Window is closed"
+          }
+        }
+      }
+    },
+    "窗口状态变化": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Window State Changed"
           }
         }
       }
@@ -6805,6 +7145,16 @@
         }
       }
     },
+    "第一个目标所在文件夹": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder of first target"
+          }
+        }
+      }
+    },
     "等待下一个键…": {
       "localizations": {
         "en": {
@@ -6851,6 +7201,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Manage Scripts…"
+          }
+        }
+      }
+    },
+    "管理脚本与外部命令…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Scripts & External Commands…"
           }
         }
       }
@@ -7319,6 +7679,16 @@
         }
       }
     },
+    "脚本的 console 输出、错误与外部命令结果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script console output, errors, and external command results"
+          }
+        }
+      }
+    },
     "自动": {
       "localizations": {
         "en": {
@@ -7639,6 +8009,26 @@
         }
       }
     },
+    "语法错误": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syntax Error"
+          }
+        }
+      }
+    },
+    "请选择或填写程序路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please choose or enter a program path"
+          }
+        }
+      }
+    },
     "读不出书签": {
       "localizations": {
         "en": {
@@ -7759,6 +8149,16 @@
         }
       }
     },
+    "越过首末页": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page Boundary"
+          }
+        }
+      }
+    },
     "跟随书": {
       "localizations": {
         "en": {
@@ -7841,6 +8241,36 @@
         }
       }
     },
+    "输出": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output"
+          }
+        }
+      }
+    },
+    "运行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run"
+          }
+        }
+      }
+    },
+    "运行中 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running %@"
+          }
+        }
+      }
+    },
     "还有 %lld 项": {
       "localizations": {
         "en": {
@@ -7867,6 +8297,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No History Yet"
+          }
+        }
+      }
+    },
+    "还没有外部命令。点下方“新建外部命令”添加。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No external commands yet. Click “New External Command” below to add one."
           }
         }
       }
@@ -7917,6 +8357,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Target Folders Yet"
+          }
+        }
+      }
+    },
+    "还没有脚本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Scripts Yet"
           }
         }
       }
@@ -8735,6 +9185,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "＋ Folder"
+          }
+        }
+      }
+    },
+    "＋ 新建外部命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ New External Command"
           }
         }
       }

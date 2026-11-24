@@ -22,6 +22,7 @@ extension AppDelegate {
         let noModal: @MainActor (CommandContext) -> Bool = { _ in NSApp.modalWindow == nil }
         let hasWindow: @MainActor (CommandContext) -> Bool = { [weak self] context in self?.controller(for: context.session) != nil }
         register(.settingsOpen, isEnabled: noModal) { [weak self] _ in _ = self?.openSettings() }
+        register(.scriptManage, isEnabled: noModal) { [weak self] _ in _ = self?.openSettings(page: .extensions) }
         register(.windowNew, isEnabled: noModal) { [weak self] _ in self?.newWindow() }
         register(.windowNewTab, isEnabled: noModal) { [weak self] context in
             guard let self else { return }

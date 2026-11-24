@@ -332,7 +332,7 @@ public enum CoreCommands {
             Section([
                 command(.scriptStopAll, .init("停止全部脚本", bundle: .main), "script", scope: .global),
                 command(.scriptRevealFolder, .init("打开脚本文件夹", bundle: .main), "script", scope: .global),
-                command(.scriptManage, .init("管理脚本…", bundle: .main), "script", scope: .global),
+                command(.scriptManage, .init("管理脚本与外部命令…", bundle: .main), "script", scope: .global),
             ]),
         ]),
         Group(title: "窗口", sections: [

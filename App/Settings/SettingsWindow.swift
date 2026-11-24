@@ -35,7 +35,7 @@ final class SettingsWindowController: NSWindowController {
             backing: .buffered, defer: true
         )
         window.title = String(localized: "设置")
-        window.minSize = NSSize(width: 560, height: 420)
+        window.minSize = NSSize(width: 640, height: 420)
         window.isReleasedWhenClosed = false
         window.isRestorable = false
         window.tabbingMode = .disallowed
