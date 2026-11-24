@@ -21,13 +21,20 @@ final class ShortcutsModel {
         var scope: InputScope
         var bindings: [KeyBinding]
         var isModified: Bool
+        var isUnknown: Bool = false
+    }
+
+    enum SectionID: Hashable {
+        case scope(InputScope)
+        case unknown
     }
 
     struct Section: Identifiable {
-        var id: InputScope { scope }
-        var scope: InputScope
+        var id: SectionID { scope.map(SectionID.scope) ?? .unknown }
+        var scope: InputScope?
         var title: String
         var rows: [Row]
+        var isUnknown: Bool { scope == nil }
     }
 
     struct PendingConflict: Equatable {
@@ -117,10 +124,48 @@ final class ShortcutsModel {
             }
         }
 
-        return activeScopes.compactMap { scope in
+        var result = activeScopes.compactMap { scope -> Section? in
             guard let rows = grouped[scope], !rows.isEmpty else { return nil }
             return Section(scope: scope, title: Self.scopeTitle(for: scope), rows: rows)
         }
+
+        let knownIDs = Set(SettingsCommandCatalog.all.map(\.id))
+        var unknownGrouped: [RowID: [KeyBinding]] = [:]
+        var unknownOrder: [RowID] = []
+        for binding in effective where !knownIDs.contains(binding.command) {
+            if let scopeFilter, binding.scope != scopeFilter { continue }
+            let rowID = RowID(command: binding.command, scope: binding.scope)
+            if unknownGrouped[rowID] == nil {
+                unknownOrder.append(rowID)
+            }
+            unknownGrouped[rowID, default: []].append(binding)
+        }
+
+        let unknownRows: [Row] = unknownOrder.compactMap { rowID in
+            guard let rowBindings = unknownGrouped[rowID], !rowBindings.isEmpty else { return nil }
+            let rawID = rowID.command.rawValue
+            if !query.isEmpty {
+                let matchesID = rawID.lowercased().contains(query)
+                let matchesKey = rowBindings.contains { binding in
+                    let display = Self.displayText(for: binding.sequence).lowercased()
+                    return display.contains(query) || display.replacingOccurrences(of: " ", with: "").contains(compactQuery)
+                }
+                guard matchesID || matchesKey else { return nil }
+            }
+            return Row(
+                command: rowID.command,
+                title: rawID,
+                scope: rowID.scope,
+                bindings: rowBindings,
+                isModified: true,
+                isUnknown: true
+            )
+        }
+
+        if !unknownRows.isEmpty {
+            result.append(Section(scope: nil, title: Self.unknownSectionTitle, rows: unknownRows))
+        }
+        return result
     }
 
     // MARK: 录制
@@ -273,6 +318,10 @@ final class ShortcutsModel {
         sequence.map(KeyMapping.displayName(for:)).joined(separator: " ")
     }
 
+    static var unknownSectionTitle: String {
+        String(localized: "未知命令")
+    }
+
     static func scopeTitle(for scope: InputScope) -> String {
         switch scope {
         case .global: String(localized: "全局")
@@ -305,6 +354,9 @@ final class ShortcutsModel {
         var byCommand: [CommandID: [KeyBinding]] = [:]
         for descriptor in SettingsCommandCatalog.all {
             byCommand[descriptor.id] = currentEffective.filter { $0.command == descriptor.id }
+        }
+        for binding in currentEffective where byCommand[binding.command] == nil {
+            byCommand[binding.command] = currentEffective.filter { $0.command == binding.command }
         }
         let before = byCommand
         mutate(&byCommand)
@@ -433,10 +485,10 @@ private struct ShortcutRowView: View {
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
                     Text(row.title)
-                        .font(.system(size: 13))
+                        .font(.system(size: 13, design: row.isUnknown ? .monospaced : .default))
                         .foregroundStyle(Color(nsColor: Theme.text))
                         .lineLimit(1)
-                    if row.isModified {
+                    if row.isModified && !row.isUnknown {
                         Text(String(localized: "· 已改"))
                             .font(.system(size: 11))
                             .foregroundStyle(Color(nsColor: Theme.text2))
@@ -464,27 +516,33 @@ private struct ShortcutRowView: View {
                         .help(String(localized: "点击删除"))
                     }
 
-                    if isRecording {
-                        let text = model.recordedChords.isEmpty
-                            ? String(localized: "按下新的按键…")
-                            : ShortcutsModel.displayText(for: model.recordedChords) + " …"
-                        Text(text)
-                            .font(.system(size: 11, design: model.recordedChords.isEmpty ? .default : .monospaced))
-                            .foregroundStyle(Color(nsColor: Theme.text))
-                            .padding(.horizontal, 6)
-                            .frame(height: 22)
-                            .background(Color(nsColor: Theme.accentSoft), in: RoundedRectangle(cornerRadius: 5))
-                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color(nsColor: Theme.accent), lineWidth: 1.5))
-                    } else {
-                        SettingsIconButton(systemImage: "plus", fontSize: 10, weight: .semibold, help: String(localized: "添加快捷键")) {
-                            model.startRecording(command: row.command, scope: row.scope)
+                    if !row.isUnknown {
+                        if isRecording {
+                            let text = model.recordedChords.isEmpty
+                                ? String(localized: "按下新的按键…")
+                                : ShortcutsModel.displayText(for: model.recordedChords) + " …"
+                            Text(text)
+                                .font(.system(size: 11, design: model.recordedChords.isEmpty ? .default : .monospaced))
+                                .foregroundStyle(Color(nsColor: Theme.text))
+                                .padding(.horizontal, 6)
+                                .frame(height: 22)
+                                .background(Color(nsColor: Theme.accentSoft), in: RoundedRectangle(cornerRadius: 5))
+                                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color(nsColor: Theme.accent), lineWidth: 1.5))
+                        } else {
+                            SettingsIconButton(systemImage: "plus", fontSize: 10, weight: .semibold, help: String(localized: "添加快捷键")) {
+                                model.startRecording(command: row.command, scope: row.scope)
+                            }
                         }
                     }
                 }
                 .frame(minWidth: 200, alignment: .trailing)
 
                 Group {
-                    if row.isModified {
+                    if row.isUnknown {
+                        SettingsIconButton(systemImage: "xmark", fontSize: 10, weight: .semibold, help: String(localized: "清除绑定")) {
+                            model.resetCommand(row.command, scope: row.scope)
+                        }
+                    } else if row.isModified {
                         SettingsIconButton(systemImage: "arrow.counterclockwise", help: String(localized: "恢复默认")) {
                             model.resetCommand(row.command, scope: row.scope)
                         }

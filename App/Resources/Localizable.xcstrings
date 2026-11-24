@@ -5499,6 +5499,16 @@
         }
       }
     },
+    "未知命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown Commands"
+          }
+        }
+      }
+    },
     "未知命令：%@": {
       "localizations": {
         "en": {
@@ -6299,6 +6309,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Clear Tags"
+          }
+        }
+      }
+    },
+    "清除绑定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Binding"
           }
         }
       }

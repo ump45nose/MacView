@@ -163,12 +163,39 @@ final class ScriptSelfTest {
 
         try FileManager.default.removeItem(at: hotkeyURL)
         let hotkeyRemoved = await waitUntil(timeoutMs: 2000) {
-            !services.commands.descriptors().contains { $0.id == hotkeyID }
+            !services.commands.descriptors().contains { $0.id == hotkeyID } &&
+            !SettingsCommandCatalog.all.contains { $0.id == hotkeyID }
         }
         await sendKey(kVK_ANSI_M, modifiers: [.control], in: window)
         let unknownTitle = SettingsCommandCatalog.title(of: hotkeyID)
         log.check(hotkeyRemoved && unknownTitle == hotkeyID.rawValue, "C2.2 删除脚本后触发旧绑定与查询标题不崩溃：\(unknownTitle)")
-        try await services.keyBindings?.update { $0.bindings.removeAll { $0.command == hotkeyID } }
+
+        let shortcutsModel = ShortcutsModel(store: services.keyBindings)
+        let expectedBinding = KeyBinding(
+            sequence: [KeyChord("m", modifiers: [.control])],
+            command: hotkeyID,
+            scope: .viewer
+        )
+        let unknownSection = shortcutsModel.sections.last
+        let unknownRow = unknownSection?.rows.first { $0.command == hotkeyID }
+        let unknownShown = unknownSection?.isUnknown == true &&
+            unknownSection?.title == ShortcutsModel.unknownSectionTitle &&
+            unknownRow?.isUnknown == true &&
+            unknownRow?.title == hotkeyID.rawValue &&
+            unknownRow?.bindings == [expectedBinding]
+        shortcutsModel.searchText = hotkeyID.rawValue
+        let unknownSearchable = shortcutsModel.sections.last?.rows.contains { $0.command == hotkeyID } == true
+        shortcutsModel.searchText = ""
+        log.check(unknownShown && unknownSearchable, "C2.2 快捷键页末尾出现「未知命令」分组并显示残留绑定与原始 ID")
+
+        if let bindingToRemove = unknownRow?.bindings.first {
+            shortcutsModel.removeBinding(bindingToRemove)
+        }
+        let unknownClearedInModel = !shortcutsModel.sections.contains(where: \.isUnknown)
+        let unknownClearedInStore = await waitUntil(timeoutMs: 2000) {
+            services.keyBindings?.value().bindings.contains(where: { $0.command == hotkeyID }) == false
+        }
+        log.check(unknownClearedInModel && unknownClearedInStore, "C2.2 清除未知命令残留绑定后分组自动消失且写回 keybindings.json")
 
         // C2.3：menus.json 自定义主菜单时不自动出现「脚本」，且命令板含 DynamicMenuID.scripts
         let scriptsMenuTitle = String(localized: "脚本")
@@ -803,6 +830,8 @@ final class ScriptSelfTest {
     ) {
         let isEnglish = Locale.preferredLanguages.first?.lowercased().hasPrefix("en") == true
         let allTitles = [scriptsMenuTitle] + fixedTitles + [
+            ShortcutsModel.unknownSectionTitle,
+            String(localized: "清除绑定"),
             ScriptHostError.windowClosed.errorDescription ?? "",
             ScriptHostError.noWindow.errorDescription ?? "",
             ScriptHostError.noBook.errorDescription ?? "",
