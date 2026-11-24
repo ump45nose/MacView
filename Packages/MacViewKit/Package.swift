@@ -13,12 +13,13 @@ let modules: [(name: String, dependencies: [String])] = [
     ("MVPipeline", ["MVFoundation", "MVIO", "MVMedia", "MVCache"]),
     ("MVSettings", ["MVFoundation", "GRDB"]),
     ("MVScripting", ["MVFoundation", "MVSettings"]),
+    ("MVPlugins", ["MVFoundation", "MVIO", "MVSettings", "MVScripting", "MVPipeline"]),
     ("MVCommands", ["MVFoundation"]),
     ("MVLayout", ["MVFoundation", "MVSettings"]),
     ("MVReading", ["MVFoundation", "MVIO", "MVMedia", "MVCache", "MVPipeline", "MVSettings"]),
     ("MVLibraryData", ["MVFoundation", "MVIO", "MVCache", "MVReading", "GRDB"]),
     ("MVSearch", ["MVFoundation", "MVIO", "MVMedia", "MVCache"]),
-    ("MVServices", ["MVFoundation", "MVIO", "MVFileOps", "MVArchive", "MVMedia", "MVMetadata", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVLibraryData", "MVSearch", "MVScripting"]),
+    ("MVServices", ["MVFoundation", "MVIO", "MVFileOps", "MVArchive", "MVMedia", "MVMetadata", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVLibraryData", "MVSearch", "MVScripting", "MVPlugins"]),
     ("MVTestSupport", ["MVFoundation", "MVIO", "MVMedia", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVServices", "MVLibraryData", "MVSearch"]),
 ]
 
