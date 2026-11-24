@@ -112,7 +112,6 @@ public final class ScriptRuntime: Sendable {
         var nextID: UInt64 = 0
         var queue: [Job] = []
         var active: [UInt64: Active] = [:]
-        var subscribers: [ScriptEventName: [ScriptInfo]] = [:]
         var statesObservers: [UUID: AsyncStream<[String: ScriptRunState]>.Continuation] = [:]
         var eventObservers: [UUID: AsyncStream<ScriptRunEvent>.Continuation] = [:]
     }
@@ -120,19 +119,11 @@ public final class ScriptRuntime: Sendable {
     private let log: ScriptLog
     private let maxConcurrent: Int
     private let state = Mutex(State())
-    private let observer = Mutex<Task<Void, Never>?>(nil)
     private static let warnedUnsupported = Mutex(false)
 
     public init(library: ScriptLibrary, log: ScriptLog, maxConcurrent: Int = 4) {
         self.library = library; self.log = log; self.maxConcurrent = max(1, maxConcurrent)
-        let changes = library.changes()
-        updateSubscribers(library.scripts())
-        let task = Task { [weak self] in
-            for await scripts in changes { self?.updateSubscribers(scripts) }
-        }
-        observer.withLock { $0 = task }
     }
-    deinit { observer.withLock { $0?.cancel() } }
     public func setHost(_ host: any ScriptHost) { state.withLock { $0.host = host } }
 
     public func run(_ id: String, arguments: [String: JSONValue]?, context: ScriptCallContext) {
@@ -142,21 +133,13 @@ public final class ScriptRuntime: Sendable {
         enqueue(info: info, trigger: .command, arguments: arguments, payload: nil, context: context)
     }
     public func dispatch(_ event: ScriptEventName, payload: [String: JSONValue], session: SessionID?) {
-        let scripts = state.withLock { $0.subscribers[event] ?? [] }
+        let scripts = library.subscribers(for: event)
         for info in scripts {
             let context = ScriptCallContext(caller: "script.\(info.id)", callerName: info.name, session: session, selection: [])
             enqueue(info: info, trigger: .event(event), arguments: nil, payload: payload, context: context)
         }
     }
-    public func hasSubscribers(for event: ScriptEventName) -> Bool { state.withLock { !($0.subscribers[event] ?? []).isEmpty } }
-    private func updateSubscribers(_ scripts: [ScriptInfo]) {
-        var subscribers: [ScriptEventName: [ScriptInfo]] = [:]
-        for script in scripts where script.problem == nil {
-            for event in script.events { subscribers[event, default: []].append(script) }
-        }
-        state.withLock { $0.subscribers = subscribers }
-    }
-
+    public func hasSubscribers(for event: ScriptEventName) -> Bool { !library.subscribers(for: event).isEmpty }
     private func enqueue(info: ScriptInfo, trigger: ScriptTrigger, arguments: [String: JSONValue]?, payload: [String: JSONValue]?, context: ScriptCallContext) {
         var dropped = false
         let start = state.withLock { state -> [Job] in

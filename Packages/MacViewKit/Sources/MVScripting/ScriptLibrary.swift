@@ -30,6 +30,8 @@ public struct ScriptInfo: Sendable, Hashable, Identifiable {
 public final class ScriptLibrary: Sendable {
     private struct State {
         var scripts: [ScriptInfo] = []
+        var subscribers: [ScriptEventName: [ScriptInfo]] = [:]
+        var scanned = false
         var observers: [UUID: AsyncStream<[ScriptInfo]>.Continuation] = [:]
         var directoryMonitor: (any DispatchSourceFileSystemObject)?
         var fileMonitors: [any DispatchSourceFileSystemObject] = []
@@ -39,7 +41,11 @@ public final class ScriptLibrary: Sendable {
     private let queue = DispatchQueue(label: "MacView.ScriptLibrary")
     private let state = Mutex(State())
 
-    public init(directory: URL) {
+    public convenience init(directory: URL) {
+        self.init(directory: directory, beforeInitialScan: {})
+    }
+
+    init(directory: URL, beforeInitialScan: @escaping @Sendable () -> Void) {
         self.directory = directory
         queue.sync {
             let exists = FileManager.default.fileExists(atPath: directory.path)
@@ -54,7 +60,10 @@ public final class ScriptLibrary: Sendable {
                 } catch { /* scripts() remains empty if the directory is unavailable. */ }
             }
             watchDirectory()
-            scan()
+        }
+        queue.async { [weak self] in
+            beforeInitialScan()
+            self?.scan()
         }
     }
 
@@ -67,11 +76,15 @@ public final class ScriptLibrary: Sendable {
     }
 
     public func scripts() -> [ScriptInfo] { state.withLock { $0.scripts } }
+    func subscribers(for event: ScriptEventName) -> [ScriptInfo] { state.withLock { $0.subscribers[event] ?? [] } }
 
     public func changes() -> AsyncStream<[ScriptInfo]> {
         let (stream, continuation) = AsyncStream.makeStream(of: [ScriptInfo].self, bufferingPolicy: .bufferingNewest(1))
         let id = UUID()
-        state.withLock { $0.observers[id] = continuation }
+        state.withLock { state in
+            state.observers[id] = continuation
+            if state.scanned { continuation.yield(state.scripts) }
+        }
         continuation.onTermination = { [weak self] _ in
             self?.state.withLock { _ = $0.observers.removeValue(forKey: id) }
         }
@@ -133,8 +146,14 @@ public final class ScriptLibrary: Sendable {
             let order = $0.name.localizedStandardCompare($1.name)
             return order == .orderedSame ? $0.id < $1.id : order == .orderedAscending
         }
+        var subscribers: [ScriptEventName: [ScriptInfo]] = [:]
+        for script in scripts where script.problem == nil {
+            for event in script.events { subscribers[event, default: []].append(script) }
+        }
         state.withLock { state in
             state.scripts = scripts
+            state.subscribers = subscribers
+            state.scanned = true
             for observer in state.observers.values { observer.yield(scripts) }
         }
     }

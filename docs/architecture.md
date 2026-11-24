@@ -888,7 +888,7 @@ public struct ScriptInfo: Sendable, Hashable, Identifiable { public var id: Stri
 public final class ScriptLibrary: Sendable {
     public init(directory: URL); public var directory: URL { get }
     public func scripts() -> [ScriptInfo]; public func changes() -> AsyncStream<[ScriptInfo]>; public func source(of id: String) throws -> String
-}   // 目录新建时复制示例；监视合并 200 ms；id 为文件名去掉 .js，保留 stopAll / revealFolder / manage
+}   // 目录新建时复制示例；首次扫描与语法检查异步，完成前 scripts 为空，完成后 changes 推送并向后续订阅者提供当前列表；监视合并 200 ms；id 为文件名去掉 .js，保留 stopAll / revealFolder / manage
 public struct ScriptCallContext: Sendable, Hashable { public var caller: String; public var callerName: String; public var session: SessionID?; public var selection: [String]; public init(caller: String, callerName: String, session: SessionID?, selection: [String]) }
 public protocol ScriptHost: Sendable { func call(_ method: ScriptAPI.Method, _ args: [JSONValue], context: ScriptCallContext) async throws -> JSONValue }
 public enum ScriptAPI { public enum Method: String, Sendable, CaseIterable { case book, page, pages, selection, command, goTo, open, toast, confirm, prompt, storageGet, storageSet, storageRemove }; public static let syncShimSource: String }

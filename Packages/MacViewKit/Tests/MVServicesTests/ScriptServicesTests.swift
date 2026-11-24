@@ -23,6 +23,15 @@ private final class ScriptServiceHost: ScriptHost, Sendable {
     let library = try #require(services.scriptLibrary)
     let runtime = try #require(services.scriptRuntime)
     #expect(services.scriptLog != nil && services.scriptStorage != nil && services.externalCommands != nil)
+    let changes = library.changes()
+    let loaded = await withTaskGroup(of: Bool.self) { group in
+        group.addTask { var iterator = changes.makeAsyncIterator(); return await iterator.next() != nil }
+        group.addTask { try? await Task.sleep(for: .seconds(2)); return false }
+        let result = await group.next() ?? false
+        group.cancelAll()
+        return result
+    }
+    try #require(loaded)
     #expect(Set(library.scripts().map(\.id)) == ["jump-middle", "ask-next-book"])
     #expect(!FileManager.default.fileExists(atPath: support.appendingPathComponent("external-commands.json").path))
     try "const start = Date.now(); while (Date.now() - start < 300) {} mv.toast('running'); while(true) {}".write(to: library.directory.appendingPathComponent("shutdown.js"), atomically: true, encoding: .utf8)

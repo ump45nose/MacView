@@ -34,6 +34,20 @@ private func waitUntil(_ predicate: @escaping @Sendable () -> Bool, timeout: Dur
     }
 }
 
+private func readyLibrary(_ directory: URL) async throws -> ScriptLibrary {
+    let library = ScriptLibrary(directory: directory)
+    let changes = library.changes()
+    let loaded = await withTaskGroup(of: Bool.self) { group in
+        group.addTask { var iterator = changes.makeAsyncIterator(); return await iterator.next() != nil }
+        group.addTask { try? await Task.sleep(for: .seconds(2)); return false }
+        let result = await group.next() ?? false
+        group.cancelAll()
+        return result
+    }
+    try #require(loaded)
+    return library
+}
+
 private let testContext = ScriptCallContext(caller: "script.test", callerName: "Test", session: nil, selection: ["selection"])
 
 @Test func runtimeBridgeAndExceptions() async throws {
@@ -47,7 +61,7 @@ private let testContext = ScriptCallContext(caller: "script.test", callerName: "
     console.log('hello'); console.warn('warn'); console.error('error');
     """])
     defer { try? FileManager.default.removeItem(at: dir) }
-    let host = RuntimeTestHost(); let log = ScriptLog(); let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: log)
+    let host = RuntimeTestHost(); let log = ScriptLog(); let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: log)
     runtime.setHost(host); runtime.run("test", arguments: ["x": .number(3)], context: testContext)
     #expect(await waitUntil { log.entries().contains { $0.text.contains("error") } })
     #expect(Set(host.state.withLock { $0.calls.map(\.method) }) == Set(ScriptAPI.Method.allCases))
@@ -61,7 +75,7 @@ private let testContext = ScriptCallContext(caller: "script.test", callerName: "
     let dir = try runtimeDirectory(["test": "// @name 名称\n// @event pageChanged\nif (mv.event.value !== 42) throw Error('payload'); mv.toast('go');", "loop": "mv.toast('loop started'); while(true) {}"])
     defer { try? FileManager.default.removeItem(at: dir) }
     let host = RuntimeTestHost(); host.state.withLock { $0.blocked = true }
-    let log = ScriptLog(); let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: log)
+    let log = ScriptLog(); let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: log)
     runtime.setHost(host)
     let recorder = RuntimeRecorder(); let events = runtime.events()
     let eventTask = Task { for await event in events { recorder.events.withLock { $0.append(event) } } }
@@ -94,7 +108,7 @@ private let testContext = ScriptCallContext(caller: "script.test", callerName: "
     let dir = try runtimeDirectory(["test": "// @event pageChanged pageEnd\nmv.toast(mv.event ? mv.event.n : mv.args.n);", "other": "mv.toast('other');"])
     defer { try? FileManager.default.removeItem(at: dir) }
     let host = RuntimeTestHost(); host.state.withLock { $0.blocked = true }
-    let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: ScriptLog(), maxConcurrent: 2); runtime.setHost(host)
+    let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: ScriptLog(), maxConcurrent: 2); runtime.setHost(host)
     let session = SessionID()
     runtime.dispatch(.pageChanged, payload: ["n": .number(0)], session: session)
     #expect(await waitUntil { host.state.withLock { $0.calls.count == 1 } })
@@ -111,7 +125,7 @@ private let testContext = ScriptCallContext(caller: "script.test", callerName: "
 @Test func runtimeFailureHasLine() async throws {
     let dir = try runtimeDirectory(["test": "// header\nconst n = 1;\nthrow Error('broken');"])
     defer { try? FileManager.default.removeItem(at: dir) }
-    let log = ScriptLog(); let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: log)
+    let log = ScriptLog(); let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: log)
     runtime.setHost(RuntimeTestHost()); runtime.run("test", arguments: nil, context: testContext)
     #expect(await waitUntil { log.entries().contains { $0.level == .error && $0.text.contains("broken") } })
     #expect(log.entries().contains { $0.text.contains("3") })
@@ -126,7 +140,7 @@ private final class RuntimeRecorder: Sendable {
     let dir = try runtimeDirectory(["test": "// @event pageChanged\nmv.toast('start');"])
     defer { try? FileManager.default.removeItem(at: dir) }
     let host = RuntimeTestHost(); host.state.withLock { $0.blocked = true }
-    let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: ScriptLog(), maxConcurrent: 1); runtime.setHost(host)
+    let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: ScriptLog(), maxConcurrent: 1); runtime.setHost(host)
     let recorder = RuntimeRecorder(); let events = runtime.events(); let states = runtime.runStateChanges()
     let eventTask = Task { for await event in events { recorder.events.withLock { $0.append(event) } } }
     let stateTask = Task { for await state in states { recorder.states.withLock { $0.append(state) } } }
@@ -154,7 +168,7 @@ private final class RuntimeRecorder: Sendable {
     let dir = try runtimeDirectory(["test": "mv.toast('start');"])
     defer { try? FileManager.default.removeItem(at: dir) }
     let host = RuntimeTestHost(); host.state.withLock { $0.blocked = true }
-    let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: ScriptLog())
+    let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: ScriptLog())
     runtime.setHost(host)
     let states = runtime.runStateChanges()
     runtime.run("test", arguments: nil, context: testContext)
@@ -168,7 +182,7 @@ private final class RuntimeRecorder: Sendable {
 @Test func exampleNextBookHandlesCommandAndPageEvents() async throws {
     let root = try runtimeDirectory([:])
     defer { try? FileManager.default.removeItem(at: root) }
-    let library = ScriptLibrary(directory: root.appendingPathComponent("Scripts"))
+    let library = try await readyLibrary(root.appendingPathComponent("Scripts"))
     let host = RuntimeTestHost(); let log = ScriptLog()
     let runtime = ScriptRuntime(library: library, log: log)
     runtime.setHost(host)
@@ -191,7 +205,7 @@ private final class RuntimeRecorder: Sendable {
     let dir = try runtimeDirectory(["test": "// @event pageChanged pageEnd\nmv.toast(mv.event.n);", "other": "mv.toast('other');"])
     defer { try? FileManager.default.removeItem(at: dir) }
     let host = RuntimeTestHost(); host.state.withLock { $0.blocked = true }
-    let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: ScriptLog(), maxConcurrent: 2); runtime.setHost(host)
+    let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: ScriptLog(), maxConcurrent: 2); runtime.setHost(host)
     let first = SessionID(), second = SessionID()
     runtime.dispatch(.pageChanged, payload: ["n": .number(1)], session: first)
     runtime.dispatch(.pageChanged, payload: ["n": .number(2)], session: second)
@@ -208,7 +222,7 @@ private final class RuntimeRecorder: Sendable {
 @Test func runtimeSubscriberReloadAndSyntaxFailure() async throws {
     let dir = try runtimeDirectory(["test": "1;"])
     defer { try? FileManager.default.removeItem(at: dir) }
-    let library = ScriptLibrary(directory: dir); let log = ScriptLog(); let runtime = ScriptRuntime(library: library, log: log)
+    let library = try await readyLibrary(dir); let log = ScriptLog(); let runtime = ScriptRuntime(library: library, log: log)
     let recorder = RuntimeRecorder(); let stream = runtime.events()
     let task = Task { for await event in stream { recorder.events.withLock { $0.append(event) } } }
     defer { task.cancel() }
@@ -236,7 +250,7 @@ private func occupyMainThread() { _ = DispatchSemaphore(value: 0).wait(timeout: 
 @Test @MainActor func runtimeMainActorHostDoesNotDeadlock() async throws {
     let dir = try runtimeDirectory(["test": "mv.confirm('ok');"])
     defer { try? FileManager.default.removeItem(at: dir) }
-    let host = MainThreadHost(); let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: ScriptLog())
+    let host = MainThreadHost(); let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: ScriptLog())
     runtime.setHost(host); runtime.run("test", arguments: nil, context: testContext)
     let heartbeat = Task { @MainActor in true }
     occupyMainThread()
@@ -261,7 +275,7 @@ private final class LateHost: ScriptHost, Sendable {
 @Test func runtimeStopDropsLateHostResult() async throws {
     let dir = try runtimeDirectory(["test": "const value = mv.toast('start'); console.log('late result', value);"])
     defer { try? FileManager.default.removeItem(at: dir) }
-    let host = LateHost(); let log = ScriptLog(); let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: log)
+    let host = LateHost(); let log = ScriptLog(); let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: log)
     runtime.setHost(host); runtime.run("test", arguments: nil, context: testContext)
     #expect(await waitUntil { host.started.withLock { $0 } })
     runtime.stop("test")
@@ -274,7 +288,7 @@ private final class LateHost: ScriptHost, Sendable {
     let dir = try runtimeDirectory(["test": "mv.toast('test');"])
     defer { try? FileManager.default.removeItem(at: dir) }
     let host = RuntimeTestHost(); host.state.withLock { $0.blocked = true }
-    let log = ScriptLog(); let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: log, maxConcurrent: 1)
+    let log = ScriptLog(); let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: log, maxConcurrent: 1)
     runtime.setHost(host); runtime.run("test", arguments: nil, context: testContext)
     #expect(await waitUntil { host.state.withLock { $0.calls.count == 1 } })
     for _ in 0..<10 { runtime.run("test", arguments: nil, context: testContext) }
@@ -299,7 +313,7 @@ private final class CrossHost: ScriptHost, Sendable {
 @Test func runtimeHostCanTriggerAnotherScript() async throws {
     let dir = try runtimeDirectory(["a": "mv.toast('a');", "b": "mv.toast('b');"])
     defer { try? FileManager.default.removeItem(at: dir) }
-    let host = CrossHost(); let log = ScriptLog(); let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: log, maxConcurrent: 2)
+    let host = CrossHost(); let log = ScriptLog(); let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: log, maxConcurrent: 2)
     host.state.withLock { $0.runtime = runtime }; runtime.setHost(host)
     runtime.run("a", arguments: nil, context: ScriptCallContext(caller: "script.a", callerName: "a", session: nil, selection: []))
     #expect(await waitUntil { host.state.withLock { $0.bCalled } && runtime.runStates().isEmpty })
@@ -320,7 +334,7 @@ private struct EchoHost: ScriptHost {
     console.log('round trips passed');
     """])
     defer { try? FileManager.default.removeItem(at: dir) }
-    let log = ScriptLog(); let runtime = ScriptRuntime(library: ScriptLibrary(directory: dir), log: log)
+    let log = ScriptLog(); let runtime = ScriptRuntime(library: try await readyLibrary(dir), log: log)
     runtime.setHost(EchoHost()); runtime.run("test", arguments: nil, context: testContext)
     #expect(await waitUntil { log.entries().contains { $0.text.contains("round trips passed") } })
     #expect(!log.entries().contains { $0.level == .error })

@@ -1,4 +1,6 @@
 import Foundation
+import MVFoundation
+import Synchronization
 import Testing
 @testable import MVScripting
 
@@ -12,7 +14,7 @@ private func write(_ source: String, _ name: String, in directory: URL) throws {
     try source.write(to: directory.appendingPathComponent(name), atomically: true, encoding: .utf8)
 }
 
-@Test func headerAndSyntax() throws {
+@Test func headerAndSyntax() async throws {
     let dir = try testDirectory()
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: dir) }
@@ -23,7 +25,9 @@ private func write(_ source: String, _ name: String, in directory: URL) throws {
     try write("let n = 1;", "revealFolder.js", in: dir)
     try write("let n = 1;", "manage.js", in: dir)
     try write("// hello\nconst a = 1;\nconst b = ;\n", "bad-syntax.js", in: dir)
-    let scripts = ScriptLibrary(directory: dir).scripts()
+    let library = ScriptLibrary(directory: dir)
+    try #require(await nextMatching(library.changes()) { _ in true })
+    let scripts = library.scripts()
     let named = try #require(scripts.first { $0.id == "a" })
     #expect(named.name == "中文名")
     #expect(named.summary == "描述")
@@ -36,15 +40,18 @@ private func write(_ source: String, _ name: String, in directory: URL) throws {
     #expect(scripts.first { $0.id == "bad-syntax" }?.name == "bad-syntax")
 }
 
-@Test func examplesOnlyForNewDirectory() throws {
+@Test func examplesOnlyForNewDirectory() async throws {
     let root = try testDirectory()
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
     let existing = root.appendingPathComponent("existing")
     try FileManager.default.createDirectory(at: existing, withIntermediateDirectories: true)
-    #expect(ScriptLibrary(directory: existing).scripts().isEmpty)
+    let existingLibrary = ScriptLibrary(directory: existing)
+    try #require(await nextMatching(existingLibrary.changes()) { _ in true })
+    #expect(existingLibrary.scripts().isEmpty)
     let new = root.appendingPathComponent("new")
     let library = ScriptLibrary(directory: new)
+    try #require(await nextMatching(library.changes()) { _ in true })
     #expect(Set(library.scripts().map(\.id)) == ["jump-middle", "ask-next-book"])
     #expect(library.scripts().allSatisfy { $0.problem == nil })
     #expect(try library.source(of: "ask-next-book").contains("pageEnd"))
@@ -98,4 +105,51 @@ private func nextMatching(_ stream: AsyncStream<[ScriptInfo]>, _ predicate: @esc
     }
     var iterator = changes.makeAsyncIterator()
     #expect(await iterator.next()?.first?.name == "Second")
+}
+
+private final class InitialScanHost: ScriptHost, Sendable {
+    let called = Mutex(false)
+    func call(_ method: ScriptAPI.Method, _ args: [JSONValue], context: ScriptCallContext) async throws -> JSONValue {
+        called.withLock { $0 = true }
+        return .null
+    }
+}
+
+@Test func initialScanIsAsyncAndReplayedWithoutLosingChanges() async throws {
+    let dir = try testDirectory()
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    try write("// @event startup\nmv.toast('first');", "first.js", in: dir)
+    let started = Mutex(false)
+    let timedOut = Mutex(false)
+    let release = DispatchSemaphore(value: 0)
+    DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(2)) {
+        timedOut.withLock { $0 = true }
+        release.signal()
+    }
+    let library = ScriptLibrary(directory: dir, beforeInitialScan: { started.withLock { $0 = true }; release.wait() })
+    defer { release.signal() }
+    for _ in 0..<100 where !started.withLock({ $0 }) { try await Task.sleep(for: .milliseconds(10)) }
+    try #require(started.withLock { $0 })
+    #expect(!timedOut.withLock { $0 })
+    #expect(library.scripts().isEmpty)
+    #expect(!timedOut.withLock { $0 })
+    let runtime = ScriptRuntime(library: library, log: ScriptLog())
+    #expect(!runtime.hasSubscribers(for: .startup))
+    let changes = library.changes()
+    try write("// @event pageChanged\n1;", "second.js", in: dir)
+    release.signal()
+    try #require(await nextMatching(changes) { Set($0.map(\.id)) == ["first", "second"] })
+    #expect(runtime.hasSubscribers(for: .startup))
+    #expect(runtime.hasSubscribers(for: .pageChanged))
+    let host = InitialScanHost()
+    runtime.setHost(host)
+    runtime.dispatch(.startup, payload: [:], session: nil)
+    for _ in 0..<100 where !host.called.withLock({ $0 }) { try await Task.sleep(for: .milliseconds(10)) }
+    #expect(host.called.withLock { $0 })
+    try #require(await nextMatching(library.changes()) { Set($0.map(\.id)) == ["first", "second"] })
+    try write("// @event pageEnd\n1;", "second.js", in: dir)
+    try #require(await nextMatching(changes) { $0.first(where: { $0.id == "second" })?.events == [.pageEnd] })
+    #expect(!runtime.hasSubscribers(for: .pageChanged))
+    #expect(runtime.hasSubscribers(for: .pageEnd))
 }
