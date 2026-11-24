@@ -226,12 +226,16 @@ S5-T1 完成（2026-11-24，`f470b95`、`0d213a9`、`2c70c1d`）：三个阶段�
 
 S5-T1 留给关口 G5：
 
-- 安装版 `/Applications/MacView.app` 上按 S5-T1 需求的 S1–S6 实机走一遍：⌃M 绑「跳到中间页」、翻过末页弹确认开下一本、外部命令「用预览打开」对页面列表 3 页与 zip 内页真正打开 Preview、Shell `sips -g pixelWidth {file}` 对带空格中文单引号的文件名、语法错误标红与停止死循环、外部改脚本与写坏 `external-commands.json`。Release 不认 `-MV…` 参数，会写真实支持目录：先备份 `~/Library/Application Support/MacView`，测完恢复。
+- 安装版实机走查（2026-11-24，`2c70c1d`，中文浅色，支持目录已备份并恢复）已过：⌃M 跳到 6 页书的第 4 页；翻过末页弹确认后打开下一本 `测试包.zip`；「用预览打开」对单页（含 `宽度 测试'图.jpg`）与 zip 内页打开 Preview；Shell「查看宽度」对 zip 内页输出 `pixelWidth: 300`；`bad.js` 显示「第 2 行」语法错误，死循环显示运行中并在 1 秒内停止；外部改 `@name` 热重载，写坏 `external-commands.json` 出横幅、修好后消失。还没测：
+  - 页面列表 Shift 多选 3 页后执行「用预览打开」。
+  - Shell 命令对带空格、中文、单引号的文件名（走查只在 zip 内页上跑了；自检 `-MVScriptSelfTest external` 的 C2.15 已覆盖）。
+  - `external-commands.json` 写坏期间，上一份外部命令仍能执行（自检 C2.17 已覆盖）。
 - 网络卷（NFS/SMB）上的页执行外部命令；网络卷断开时外部命令报错不冻结界面。
 - 用户改过 `menus.json` 时，在菜单编辑器里手动加入「脚本」动态项。
 
 S5-T1 遗留：
 
+- `external-commands.json` 解析错误横幅里英文原文以「.」结尾，后面又接「。」，显示成「column 2.。」。
 - 停止死循环依赖非公开 `JSContextGroupSetExecutionTimeLimit`；系统去掉该符号时退化为下一次调用 `mv` 时停下。
 - 外部程序自行脱离进程组时，停止不一定能结束它。
 - 应用类外部命令解出的压缩包页文件持有到 App 退出。
