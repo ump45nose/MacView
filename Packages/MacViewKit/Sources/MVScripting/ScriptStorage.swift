@@ -23,4 +23,8 @@ public final class ScriptStorage: Sendable {
             if values[script]?.isEmpty == true { values.removeValue(forKey: script) }
         }
     }
+
+    public func changes() -> AsyncStream<DocumentChange> {
+        store.changes()
+    }
 }
