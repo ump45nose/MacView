@@ -1,0 +1,19 @@
+{
+  "name": "灰度滤镜",
+  "version": "1.0",
+  "description": "使用系统 sips 将图片转为灰度",
+  "runtime": {
+    "process": {
+      "command": "/usr/bin/python3",
+      "args": ["main.py"]
+    }
+  },
+  "permissions": [],
+  "filters": [
+    {
+      "id": "grayscale",
+      "name": "灰度",
+      "parameters": []
+    }
+  ]
+}

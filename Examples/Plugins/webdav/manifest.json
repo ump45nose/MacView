@@ -1,0 +1,23 @@
+{
+  "name": "WebDAV",
+  "version": "1.0",
+  "description": "浏览 WebDAV 服务器上的图片与压缩包",
+  "runtime": {
+    "process": {
+      "command": "/usr/bin/python3",
+      "args": ["main.py"]
+    }
+  },
+  "permissions": [],
+  "sources": [
+    {
+      "id": "webdav",
+      "name": "WebDAV",
+      "fields": [
+        { "key": "url", "label": "地址", "type": "url", "required": true },
+        { "key": "user", "label": "账号", "type": "text" },
+        { "key": "password", "label": "密码", "type": "password" }
+      ]
+    }
+  ]
+}

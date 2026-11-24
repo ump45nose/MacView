@@ -1,0 +1,21 @@
+{
+  "name": "Wikimedia Commons",
+  "version": "1.0",
+  "description": "按关键词搜索并浏览 Wikimedia Commons 图片",
+  "runtime": {
+    "js": "main.js"
+  },
+  "permissions": ["network"],
+  "commands": [
+    { "id": "show-info", "title": "显示图片信息" }
+  ],
+  "sources": [
+    {
+      "id": "wikimedia",
+      "name": "Wikimedia Commons",
+      "fields": [
+        { "key": "query", "label": "搜索词", "type": "text", "required": true }
+      ]
+    }
+  ]
+}

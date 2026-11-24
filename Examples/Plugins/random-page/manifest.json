@@ -1,0 +1,15 @@
+{
+  "name": "随机跳页",
+  "version": "1.0",
+  "description": "随机跳到当前书的某一页",
+  "runtime": {
+    "process": {
+      "command": "/usr/bin/python3",
+      "args": ["main.py"]
+    }
+  },
+  "permissions": [],
+  "commands": [
+    { "id": "random", "title": "随机跳页" }
+  ]
+}
