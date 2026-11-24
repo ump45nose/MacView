@@ -94,6 +94,9 @@ extension CommandID {
     public static let layoutSchemeSave = CommandID("layout.scheme.save")
     public static let layoutSchemeApply = CommandID("layout.scheme.apply")
     public static let layoutSchemeManage = CommandID("layout.scheme.manage")
+    public static let scriptStopAll = CommandID("script.stopAll")
+    public static let scriptRevealFolder = CommandID("script.revealFolder")
+    public static let scriptManage = CommandID("script.manage")
 }
 
 /// P0 的命令元数据与默认菜单。处理器由 MVServices 和 App 注册。
@@ -322,6 +325,14 @@ public enum CoreCommands {
                 command(.searchFocus, .init("搜索", bundle: .main), "search", scope: .global,
                         keys: [KeyChord("f", modifiers: .command)], symbol: "magnifyingglass"),
                 command(.searchIndexFolder, .init("建立索引", bundle: .main), "search"),
+            ]),
+        ]),
+        Group(title: "脚本", sections: [
+            Section([], trailingNodes: [.dynamic(.scripts)]),
+            Section([
+                command(.scriptStopAll, .init("停止全部脚本", bundle: .main), "script", scope: .global),
+                command(.scriptRevealFolder, .init("打开脚本文件夹", bundle: .main), "script", scope: .global),
+                command(.scriptManage, .init("管理脚本…", bundle: .main), "script", scope: .global),
             ]),
         ]),
         Group(title: "窗口", sections: [

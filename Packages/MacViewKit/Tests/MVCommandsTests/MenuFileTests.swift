@@ -71,6 +71,8 @@ func menuFileNilFieldsResolveToDefaults() throws {
         .dynamic(.copyTo),
         .command(.fileRename),
         .command(.fileDelete),
+        .separator,
+        .submenu(titleKey: "脚本", children: [.dynamic(.scripts)]),
     ])
 
     // 默认工具栏与 ReaderWindowController.toolbarDefaultItemIdentifiers 一致。
@@ -98,7 +100,7 @@ func legacyMenuNodeJSONDecodesAndDynamicMenuIDsRoundTrip() throws {
     ]))
 
     let allDynamic = DynamicMenuID.allCases.map { MenuNode.dynamic($0) }
-    #expect(DynamicMenuID.allCases.count == 6)
+    #expect(DynamicMenuID.allCases.count == 7)
     #expect(try JSONDecoder().decode([MenuNode].self, from: JSONEncoder().encode(allDynamic)) == allDynamic)
 }
 

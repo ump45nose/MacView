@@ -71,19 +71,22 @@ public struct CommandDescriptor: Sendable {
     public var category: String
     public var defaultBindings: [KeyBinding]
     public var symbol: String?
+    public var verbatimTitle: String?
 
     public init(
         id: CommandID,
         title: LocalizedStringResource,
         category: String,
         defaultBindings: [KeyBinding] = [],
-        symbol: String? = nil
+        symbol: String? = nil,
+        verbatimTitle: String? = nil
     ) {
         self.id = id
         self.title = title
         self.category = category
         self.defaultBindings = defaultBindings
         self.symbol = symbol
+        self.verbatimTitle = verbatimTitle
     }
 }
 
@@ -128,6 +131,12 @@ public enum CommandError: Error, Sendable, Equatable {
             order.append(descriptor.id)
         }
         registrations[descriptor.id] = Registration(descriptor: descriptor, isEnabled: isEnabled, perform: perform)
+    }
+
+    /// 移除命令；再次登记时排在末尾。
+    public func unregister(_ id: CommandID) {
+        guard registrations.removeValue(forKey: id) != nil else { return }
+        order.removeAll { $0 == id }
     }
 
     /// 菜单项与工具栏按钮用来判断是否可用；没登记的命令不可用。

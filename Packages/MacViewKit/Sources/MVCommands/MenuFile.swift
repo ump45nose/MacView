@@ -8,6 +8,7 @@ public enum DynamicMenuID: String, Codable, Sendable, Hashable, CaseIterable {
     case rating
     case displayProfiles
     case layoutSchemes
+    case scripts
 }
 
 /// 工具栏条目标识：命令 ID 字符串、现有特殊条目（如 `book.title`、`view.browse`）或 `flexibleSpace`、`space`。
@@ -85,6 +86,8 @@ extension CoreCommands {
         .dynamic(.copyTo),
         .command(.fileRename),
         .command(.fileDelete),
+        .separator,
+        .submenu(titleKey: "脚本", children: [.dynamic(.scripts)]),
     ]
 
     /// 默认工具栏条目列表：与 `ReaderWindowController.toolbarDefaultItemIdentifiers` 一致。

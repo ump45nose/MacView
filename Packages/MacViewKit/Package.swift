@@ -18,7 +18,7 @@ let modules: [(name: String, dependencies: [String])] = [
     ("MVReading", ["MVFoundation", "MVIO", "MVMedia", "MVCache", "MVPipeline", "MVSettings"]),
     ("MVLibraryData", ["MVFoundation", "MVIO", "MVCache", "MVReading", "GRDB"]),
     ("MVSearch", ["MVFoundation", "MVIO", "MVMedia", "MVCache"]),
-    ("MVServices", ["MVFoundation", "MVIO", "MVFileOps", "MVArchive", "MVMedia", "MVMetadata", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVLibraryData", "MVSearch"]),
+    ("MVServices", ["MVFoundation", "MVIO", "MVFileOps", "MVArchive", "MVMedia", "MVMetadata", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVLibraryData", "MVSearch", "MVScripting"]),
     ("MVTestSupport", ["MVFoundation", "MVIO", "MVMedia", "MVCache", "MVPipeline", "MVSettings", "MVCommands", "MVReading", "MVServices", "MVLibraryData", "MVSearch"]),
 ]
 

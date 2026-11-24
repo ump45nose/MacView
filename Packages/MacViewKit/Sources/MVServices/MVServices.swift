@@ -13,6 +13,7 @@ import MVPipeline
 import MVReading
 @_exported import MVSearch
 import MVSettings
+import MVScripting
 import os
 import Synchronization
 
@@ -43,6 +44,11 @@ public struct CoreConfiguration: Sendable {
     public let indexer: FolderIndexer?
     public let keyBindings: JSONDocumentStore<KeyBindingsFile>?
     public let menus: JSONDocumentStore<MenuFile>?
+    public let scriptLibrary: ScriptLibrary?
+    public let scriptRuntime: ScriptRuntime?
+    public let externalCommands: JSONDocumentStore<ExternalCommandFile>?
+    public let scriptStorage: ScriptStorage?
+    public let scriptLog: ScriptLog?
     let loader: any BookLoader
     let runtime: Runtime?
     private var sessions: [WeakSession] = []
@@ -73,7 +79,8 @@ public struct CoreConfiguration: Sendable {
     ) {
         self.init(sources: sources, pipeline: pipeline, settings: settings, commands: commands,
                   bookshelf: bookshelf, loader: loader, keyBindings: nil, menus: nil, fileOperations: nil,
-                  library: library, availability: nil, search: search, indexer: indexer, runtime: nil)
+                  library: library, availability: nil, search: search, indexer: indexer, runtime: nil,
+                  scriptLibrary: nil, scriptRuntime: nil, externalCommands: nil, scriptStorage: nil, scriptLog: nil)
     }
 
     private init(
@@ -82,7 +89,9 @@ public struct CoreConfiguration: Sendable {
         keyBindings: JSONDocumentStore<KeyBindingsFile>?, menus: JSONDocumentStore<MenuFile>?,
         fileOperations: FileOperationService?, library: (any LibraryStore)?,
         availability: AvailabilityChecker?, search: SearchCatalog?,
-        indexer: FolderIndexer?, runtime: Runtime?
+        indexer: FolderIndexer?, runtime: Runtime?,
+        scriptLibrary: ScriptLibrary?, scriptRuntime: ScriptRuntime?,
+        externalCommands: JSONDocumentStore<ExternalCommandFile>?, scriptStorage: ScriptStorage?, scriptLog: ScriptLog?
     ) {
         self.sources = sources
         self.pipeline = pipeline
@@ -98,6 +107,8 @@ public struct CoreConfiguration: Sendable {
         self.search = search
         self.indexer = indexer
         self.runtime = runtime
+        self.scriptLibrary = scriptLibrary; self.scriptRuntime = scriptRuntime
+        self.externalCommands = externalCommands; self.scriptStorage = scriptStorage; self.scriptLog = scriptLog
         subscribeLibrary()
         let changes = settings.changes()
         settingsTask = Task { [weak self] in
@@ -136,6 +147,14 @@ public struct CoreConfiguration: Sendable {
                                                version: 2, defaultValue: KeyBindingsFile())
         let menus = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "menus.json"),
                                          version: 1, defaultValue: MenuFile())
+        let scriptLibrary = ScriptLibrary(directory: configuration.supportDirectory.appending(path: "Scripts"))
+        // ScriptLibrary 的初始化不抛错；组合根检查目录，确保无法创建时 make 报错。
+        _ = try FileManager.default.contentsOfDirectory(atPath: scriptLibrary.directory.path)
+        let scriptLog = ScriptLog()
+        let scriptRuntime = ScriptRuntime(library: scriptLibrary, log: scriptLog)
+        let scriptStorage = try ScriptStorage(fileURL: configuration.supportDirectory.appending(path: "script-storage.json"))
+        let externalCommands = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "external-commands.json"),
+                                                     version: 1, defaultValue: ExternalCommandFile(commands: []))
         let journal = configuration.supportDirectory.appending(path: "transfers.json")
         let fileOperations = try factory?(sources.fileSystem, journal) ?? FileOperationService(fileSystem: sources.fileSystem, journalURL: journal)
         let library = try SQLiteLibraryStore(databaseURL: configuration.supportDirectory.appending(path: "library.sqlite"), historyLimit: global.historyLimit)
@@ -149,7 +168,9 @@ public struct CoreConfiguration: Sendable {
                                     loader: loader, keyBindings: keyBindings, menus: menus, fileOperations: fileOperations,
                                     library: library, availability: AvailabilityChecker(sources: sources, directories: directories, store: library),
                                     search: search, indexer: indexer,
-                                    runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches))
+                                    runtime: Runtime(scheduler: scheduler, settings: settings, index: index, caches: caches),
+                                    scriptLibrary: scriptLibrary, scriptRuntime: scriptRuntime, externalCommands: externalCommands,
+                                    scriptStorage: scriptStorage, scriptLog: scriptLog)
         services.subscribe(directories: directories)
         services.recoveryTask = Task { await fileOperations.resumeInterruptedTransfers() }
         return services
@@ -389,6 +410,7 @@ public struct CoreConfiguration: Sendable {
 
     /// 留出调度余量；超时后取消剩余落盘步骤，并立即弃用辅助进程。
     public func shutdown() async {
+        scriptRuntime?.stopAll()
         if let shutdownTask { await shutdownTask.value; return }
         let timeoutAt = DispatchTime.now() + .milliseconds(900)
         pressureSource?.cancel()

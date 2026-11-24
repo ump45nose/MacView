@@ -17,6 +17,7 @@ public final class ReaderSession {
     public private(set) var settings: ResolvedBookSettings = .default
     public private(set) var loadError: (any Error)?
     public var onBookOpened: (@MainActor (Location) -> Void)?
+    public var onBoundaryReached: (@MainActor (NavigationDirection) -> Void)?
     public var isVirtualBook: Bool { book?.location.playlistID != nil }
     public private(set) var unavailablePages: Set<Location> = []
 
@@ -450,6 +451,18 @@ public final class ReaderSession {
         guard !frames.isEmpty, let book else { return }
         lastMoveAt = .now
         OSSignposter(category: .render).emitEvent("PageTurnCall")
+        let boundary: NavigationDirection?
+        switch move {
+        case .nextFrame, .nextPage: boundary = currentFrame == frames.count - 1 ? .forward : nil
+        case .previousFrame, .previousPage: boundary = currentFrame == 0 ? .backward : nil
+        default: boundary = nil
+        }
+        if let boundary {
+            // 帧翻页原先仍会保存和预取；保留这些操作，但不能改动双页帧内的锚点。
+            switch move { case .nextFrame, .previousFrame: remember(); prefetch(); default: break }
+            onBoundaryReached?(boundary)
+            return
+        }
         let target: Int?
         var pageTarget: Int?
         switch move {

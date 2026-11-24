@@ -43,6 +43,7 @@
 | MVCache | 泛型内存缓存 L0/L1、字节磁盘缓存 L2/L3（含改挂）、按容器查询的图像元数据与标签索引、目录缓存与搜索查询（SearchCatalog） | MVFoundation、GRDB.swift |
 | MVPipeline | ImagePipeline：串联各缓存层，一次读取产出多种渲染件，渐进交付，按会话管理预取计划 | MVIO、MVMedia、MVCache |
 | MVSettings | 设置模式、效果链与背景模型、显示配置、分层解析、路径规则、JSON 存储、书记忆 | MVFoundation、GRDB.swift |
+| MVScripting | 脚本库与运行时、日志和隔离存储、外部命令模板与进程运行 | MVFoundation、MVSettings、JavaScriptCore |
 | MVCommands | 命令登记、按键序列与作用域解析，以及默认命令、绑定与菜单模型 | MVFoundation |
 | MVReading | Book/Page、BookLoader、Bookshelf、PageFrameEngine、ReaderSession | MVIO、MVMedia、MVCache、MVPipeline、MVSettings |
 | MVLibraryData | 历史、书签、播放列表存储与变更；可用性检查；虚拟书加载 | MVFoundation、MVIO、MVCache、MVReading、GRDB.swift |
@@ -54,7 +55,7 @@
 | App（`MacView` target） | 窗口与标签页、停靠面板、集合视图、查看器、输入、菜单、设置界面、本地化 | MVServices 等 |
 
 - 任务 ID 中，T 表示 Core 任务，F 表示 App 任务。
-- P1 的新模块到对应阶段再建：MVScripting、MVPlugins（效果链模型放在 MVSettings，S4-T1 决定）。
+- P1 的新模块到对应阶段再建：MVPlugins（效果链模型放在 MVSettings，S4-T1 决定）。
 - 依赖选型：SQLite 统一用 GRDB.swift（MIT 许可），由第一个用到它的任务引入，MVCache 与 MVSettings 共用。其余依赖由各任务按需选用。
 - 已引入的依赖（版本以 `Packages/MacViewKit/Package.resolved` 为准）：
 
@@ -235,6 +236,9 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     - `path-rules.json`、`profiles.json`。
     - `keybindings.json`（v2，兼容 v1 读取）：键盘快捷键及非键盘输入绑定（鼠标手势、触控板、点击区域、滚轮）。
     - `menus.json`（v1）：主菜单、查看器右键菜单与工具栏自定义配置。
+    - `external-commands.json`（v1）：外部命令列表；缺文件时首次修改才写出。
+    - `script-storage.json`（v1）：按调用者隔离的脚本键值；当前实现缺文件时首次修改才写出。
+  - `Scripts/`：不递归扫描的 JavaScript 文件，首次创建目录时复制两个示例；现有目录不写入示例。
     - `layout.json`：停靠布局和各面板的视图设置；`layout-schemes.json`（v1）：命名停靠布局方案。
   - SQLite：`state.sqlite` 只存书记忆；`library.sqlite` 统一存历史、书签和播放列表，WAL、`synchronous = FULL`。
 - `~/Library/Caches/MacView/`：`thumbnails/`、`browse/`、`extract/`（压缩包临时解出）、`index.sqlite`。
@@ -258,6 +262,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 ### 3.7 命令与输入
 
 - 菜单、快捷键、手势、脚本和插件都通过 `CommandRegistry.perform` 执行命令。Core 定义命令清单和默认绑定，App 注册与界面相关的处理器；`frame.left` / `frame.right` 按当前阅读方向（左开/右开）换算为上一帧或下一帧，供手势、点击区域与横扫复用。
+- 脚本与外部命令：MVScripting 用独立队列扫描和监听脚本目录，文件头声明名称与事件，JavaScriptCore 检查语法。运行时按脚本、会话、触发种类排队并限制并发，翻页事件合并；脚本线程同步等待异步宿主，主线程不等待脚本。停止会取消宿主调用并终止脚本（不支持强制终止的系统在下次 `mv` 调用时停止）。外部命令支持安全展开文件等占位符，子进程独立进程组并随任务取消退出。默认菜单含脚本动态节点；应用侧动态登记与界面接线在后续 App 阶段完成。
 - 输入路由：
   - 文本框、弹出层和菜单先在 AppKit 响应链里处理按键。
   - 没被处理的按键由 InputRouter 转成 KeyChord，连同作用域（global/viewer/list/textInput）交给 BindingResolver。这样可以避免移植版那种“在弹出层里按方向键却触发了切书”的问题（`portable/docs/known-issues.md` 的 MAC-INPUT-005）。
@@ -374,7 +379,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 ### 3.9 P1 扩展点（P0 只体现在接口形状上）
 
 - 数据源插件以 ContainerProvider 的形式注册到 SourceRegistry，按根分派。
-- 脚本命令和插件命令注册进 CommandRegistry。
+- 脚本命令可登记进 CommandRegistry，Core 已提供脚本运行时、动态菜单节点和注销接口；应用侧动态登记及插件命令接线在对应 App 阶段完成。
 - HTML/JS 面板是一种面板类型。
 - 显示配置（S4-T1 已实现）：`DisplayProfile` 存进 `profiles.json`，按所选组保存 `BookSettings` 子集，套用时按模板语义经 `BookSettings.merge(_:)` / `ResolvedBookSettings.applying(_:)` 写入对应设置层，不新增层级。
 - 效果链（S4-T1 已实现 Core 模型）：`ColorAdjust`、`Effect`、`EffectChain`、`ViewerBackground` 放在 `MVSettings`，随 `BookSettings` 分层解析并写入书记忆；`ReaderSession` 对只改效果或背景走不重排、不预取快路径；前端在呈现时用 Core Image 滤镜在 GPU 上应用。
@@ -752,23 +757,25 @@ public struct MouseGestureTracker: Sendable { public let minSegment: CGFloat; pu
 public struct KeyBindingsFile: Codable, Sendable, Hashable { public var bindings: [KeyBinding]; public var mouseGestures: [MouseGestureBinding]?; public var trackpad: [TrackpadBinding]?; public var clickZones: [ClickZoneBinding]?; public var wheel: [WheelBinding]?; public init(bindings: [KeyBinding] = [], mouseGestures: [MouseGestureBinding]? = nil, trackpad: [TrackpadBinding]? = nil, clickZones: [ClickZoneBinding]? = nil, wheel: [WheelBinding]? = nil) }   // keybindings.json v2；新字段均可缺省，兼容 v1 读取
 public struct BindingConflict: Sendable, Hashable { public var scope: InputScope; public var first: KeyBinding; public var second: KeyBinding; public init(scope: InputScope, first: KeyBinding, second: KeyBinding) }
 extension KeyBinding { public static func effective(defaults: [CommandDescriptor], user: [KeyBinding]) -> [KeyBinding] }   // 用户按命令覆盖全部默认绑定；空序列可取消默认绑定
-public struct CommandDescriptor: Sendable { public var id: CommandID; public var title: LocalizedStringResource; public var category: String; public var defaultBindings: [KeyBinding]; public var symbol: String? }
+public struct CommandDescriptor: Sendable { public var id: CommandID; public var title: LocalizedStringResource; public var category: String; public var defaultBindings: [KeyBinding]; public var symbol: String?; public var verbatimTitle: String? }   // verbatimTitle 非 nil 时供界面原样显示
 public struct CommandContext: Sendable { public var session: SessionID?; public var scope: InputScope; public var selection: [Location] }
 public enum CommandError: Error, Sendable, Equatable { case unknownCommand(CommandID), disabled(CommandID) }
 @MainActor public final class CommandRegistry {
     public init()
     public func register(_ d: CommandDescriptor, isEnabled: @escaping @MainActor (CommandContext) -> Bool, perform: @escaping @MainActor (CommandContext, [String: JSONValue]?) async throws -> Void)
+    public func unregister(_ id: CommandID)   // 不存在时无操作；重新登记排到末尾
     public func isEnabled(_ id: CommandID, context: CommandContext) -> Bool   // 菜单项和工具栏按钮用
     public func perform(_ id: CommandID, arguments: [String: JSONValue]?, context: CommandContext) async throws   // 没登记或不可用时抛出 CommandError
     public func descriptors() -> [CommandDescriptor]
 }
-public enum DynamicMenuID: String, Codable, Sendable, Hashable, CaseIterable { case openWith, moveTo, copyTo, rating, displayProfiles, layoutSchemes }
+public enum DynamicMenuID: String, Codable, Sendable, Hashable, CaseIterable { case openWith, moveTo, copyTo, rating, displayProfiles, layoutSchemes, scripts }
 public indirect enum MenuNode: Codable, Sendable, Hashable { case command(CommandID), submenu(titleKey: String, children: [MenuNode]), dynamic(DynamicMenuID), separator }
 public struct MenuModel: Codable, Sendable, Hashable { public var roots: [MenuNode] }
 public struct ToolbarItemID: RawRepresentable, Codable, Hashable, Sendable { public var rawValue: String; public init(rawValue: String); public init(_ rawValue: String); public init(command: CommandID); public static let flexibleSpace, space, dockLeft, dockRight, bookTitle, viewWaterfallOptions, viewBrowse, viewOptions, windowFullScreen: ToolbarItemID }
 public struct MenuFile: Codable, Sendable, Hashable { public var mainMenu: [MenuNode]?; public var viewerContextMenu: [MenuNode]?; public var toolbar: [ToolbarItemID]?; public init(mainMenu: [MenuNode]? = nil, viewerContextMenu: [MenuNode]? = nil, toolbar: [ToolbarItemID]? = nil); public var resolvedMainMenu: [MenuNode] { get }; public var resolvedViewerContextMenu: [MenuNode] { get }; public var resolvedToolbar: [ToolbarItemID] { get } }   // menus.json（v1）；任一字段为 nil 时取默认
-public enum CoreCommands { public static let all: [CommandDescriptor]; public static let defaultMenu: MenuModel; public static let defaultViewerContextMenu: [MenuNode]; public static let defaultToolbar: [ToolbarItemID] }   // 文件、显示、翻页、书、窗口；标题用中文键与 .main bundle
+public enum CoreCommands { public static let all: [CommandDescriptor]; public static let defaultMenu: MenuModel; public static let defaultViewerContextMenu: [MenuNode]; public static let defaultToolbar: [ToolbarItemID] }   // 文件、显示、翻页、书、脚本、窗口；标题用中文键与 .main bundle
 extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources/MVCommands/CoreCommands.swift
+    public static let scriptStopAll, scriptRevealFolder, scriptManage: CommandID   // script 分类，无默认键
     public static let frameNext, framePrevious, frameLeft, frameRight, pageNext, pagePrevious, pageFirst, pageLast, pageJump: CommandID
     public static let bookNext, bookPrevious, fileOpen, bookReveal: CommandID
     public static let fileDelete, fileRename, fileCopy, fileCopyPath, fileReveal, fileOpenWith, recycleEmpty: CommandID
@@ -831,6 +838,7 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public private(set) var settings: ResolvedBookSettings; public private(set) var loadError: (any Error)?
     public func open(_ location: Location, at page: Location?) async
     public var onBookOpened: (@MainActor (Location) -> Void)?   // 第一批非空页到达后，每次 open 调用一次
+    public var onBoundaryReached: (@MainActor (NavigationDirection) -> Void)?   // 在首末帧继续前后翻时触发，位置不变
     public var isVirtualBook: Bool { get }
     public private(set) var unavailablePages: Set<Location>
     public func setAvailability(_ results: [Location: Availability])   // 不可用立即占位；available 仅触发重新校验，不直接清除占位
@@ -873,6 +881,40 @@ public final class FolderIndexer: Sendable {
     public func index(_ folder: Location) -> AsyncThrowingStream<IndexProgress, any Error>   // 两步索引（递归枚举 + 低优先级增量探测）；取消即停；同卷串行排队；卷降级时整步报错、已写入部分保留
 }
 
+// MVScripting
+public enum ScriptEventName: String, Sendable, Codable, CaseIterable { case startup, bookOpened, pageChanged, pageEnd, windowStateChanged }
+public struct ScriptProblem: Sendable, Hashable { public var line: Int?; public var message: String }
+public struct ScriptInfo: Sendable, Hashable, Identifiable { public var id: String; public var fileURL: URL; public var name: String; public var summary: String?; public var events: [ScriptEventName]; public var problem: ScriptProblem? }
+public final class ScriptLibrary: Sendable {
+    public init(directory: URL); public var directory: URL { get }
+    public func scripts() -> [ScriptInfo]; public func changes() -> AsyncStream<[ScriptInfo]>; public func source(of id: String) throws -> String
+}   // 目录新建时复制示例；监视合并 200 ms；id 为文件名去掉 .js，保留 stopAll / revealFolder / manage
+public struct ScriptCallContext: Sendable, Hashable { public var caller: String; public var callerName: String; public var session: SessionID?; public var selection: [String]; public init(caller: String, callerName: String, session: SessionID?, selection: [String]) }
+public protocol ScriptHost: Sendable { func call(_ method: ScriptAPI.Method, _ args: [JSONValue], context: ScriptCallContext) async throws -> JSONValue }
+public enum ScriptAPI { public enum Method: String, Sendable, CaseIterable { case book, page, pages, selection, command, goTo, open, toast, confirm, prompt, storageGet, storageSet, storageRemove }; public static let syncShimSource: String }
+public enum ScriptTrigger: Sendable, Hashable { case command, event(ScriptEventName) }
+public struct ScriptRun: Sendable, Hashable { public var runID: UInt64; public var scriptID: String; public var session: SessionID?; public var trigger: ScriptTrigger }
+public enum ScriptRunState: Sendable, Hashable { case idle, queued, running(since: Date) }
+public enum ScriptRunEvent: Sendable { case started(ScriptRun), finished(ScriptRun), failed(ScriptRun, ScriptProblem), stopped(ScriptRun) }
+public final class ScriptRuntime: Sendable {
+    public init(library: ScriptLibrary, log: ScriptLog, maxConcurrent: Int = 4)
+    public func setHost(_ host: any ScriptHost)
+    public func run(_ id: String, arguments: [String: JSONValue]?, context: ScriptCallContext)
+    public func dispatch(_ event: ScriptEventName, payload: [String: JSONValue], session: SessionID?)
+    public func hasSubscribers(for event: ScriptEventName) -> Bool
+    public func stop(_ id: String); public func stopAll()
+    public func runStates() -> [String: ScriptRunState]; public func runStateChanges() -> AsyncStream<[String: ScriptRunState]>; public func events() -> AsyncStream<ScriptRunEvent>
+}   // 同组串行；pageChanged 排队仅留最新，其他同组最多排 8 项
+public struct ScriptLogEntry: Sendable, Hashable, Identifiable { public var id: UInt64; public var date: Date; public var source: String; public var level: Level; public var text: String; public enum Level: String, Sendable { case info, warning, error } }
+public final class ScriptLog: Sendable { public init(capacity: Int = 500); public func append(source: String, level: ScriptLogEntry.Level, text: String); public func entries() -> [ScriptLogEntry]; public func changes() -> AsyncStream<[ScriptLogEntry]>; public func clear() }
+public final class ScriptStorage: Sendable { public init(fileURL: URL) throws; public func get(_ script: String, _ key: String) -> JSONValue; public func set(_ script: String, _ key: String, _ value: JSONValue) async throws; public func remove(_ script: String, _ key: String) async throws }
+public struct ExternalCommand: Codable, Sendable, Hashable, Identifiable { public enum Kind: String, Codable, Sendable { case application, program, shell }; public var id: String; public var name: String; public var kind: Kind; public var program: String?; public var arguments: String; public var workingDirectory: String?; public var showOutput: Bool }
+public struct ExternalCommandFile: Codable, Sendable, Hashable { public var commands: [ExternalCommand] }
+public struct TemplateValues: Sendable { public var files: [String]; public var book: String?; public var page: Int? }
+public enum CommandTemplate { public static func programArguments(_ template: String, values: TemplateValues) throws -> [String]; public static func shellCommand(_ template: String, values: TemplateValues) -> String; public static let placeholders: [String] }
+public struct ProcessResult: Sendable, Hashable { public var exitCode: Int32; public var stdout: String; public var stderr: String }
+public final class ProcessRunner: Sendable { public init(); public func run(executable: String, arguments: [String], workingDirectory: String?) async throws -> ProcessResult; public func runShell(_ command: String, workingDirectory: String?) async throws -> ProcessResult }   // 进程组取消时 TERM，250 ms 后 KILL；输出各保留最后 64 KB
+
 // MVServices
 public struct LibraryBookLoader: BookLoader {
     public init(files: any BookLoader, playlists: any BookLoader)
@@ -887,6 +929,8 @@ public struct CoreConfiguration: Sendable {
     public convenience init(sources: any SourceRegistry, pipeline: any ImagePipeline, settings: any SettingsStore, commands: CommandRegistry, bookshelf: any Bookshelf, loader: any BookLoader, library: (any LibraryStore)? = nil, search: SearchCatalog? = nil, indexer: FolderIndexer? = nil)   // Mock 等消费方的构造入口
     public let sources: any SourceRegistry; public let pipeline: any ImagePipeline; public let settings: any SettingsStore
     public let commands: CommandRegistry; public let bookshelf: any Bookshelf; public let keyBindings: JSONDocumentStore<KeyBindingsFile>?; public let menus: JSONDocumentStore<MenuFile>?   // Mock 为 nil；keybindings.json v2（兼容 v1），menus.json v1
+    public let scriptLibrary: ScriptLibrary?; public let scriptRuntime: ScriptRuntime?; public let externalCommands: JSONDocumentStore<ExternalCommandFile>?
+    public let scriptStorage: ScriptStorage?; public let scriptLog: ScriptLog?   // make 创建，Mock 为 nil
     public let fileOperations: FileOperationService?   // Mock 为 nil
     public let library: (any LibraryStore)?   // make 为 SQLite；makeMock 为内存 MockLibraryStore
     public let availability: AvailabilityChecker?   // Mock 为 nil
@@ -896,7 +940,7 @@ public struct CoreConfiguration: Sendable {
     public func interruptedTransfersReport() async -> ResumeReport?   // 等待启动恢复并返回同一份结果；Mock 为 nil
     public nonisolated func metadataDetails(for entry: Entry) async throws -> ImageDetails   // 经 SourceRegistry 增量读前 64 KB（上限 MediaProbe.headerLimit），压缩包内条目同样可读
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
-    public func shutdown() async   // 会话 flush → pipeline.shutdown → 设置 flush → 资料库 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
+    public func shutdown() async   // 先停止脚本；会话 flush → pipeline.shutdown → 设置 flush → 资料库 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
 // 组合根订阅文件变更：先收集 moved 涉及的元数据迁移对（含目录后代）→ 目录缓存 → MetadataIndex.move 与 .rewritten 的 store/remove + pipeline.carryOver → 冲刷相关会话及待写历史 → 按每个 moved 迁移书记忆与 library.apply → 会话（.rewritten 仅原位更新 identity 与 metadata，不重载）→ 广播。
 // library.apply 失败只记日志，其事务保持三表原样；会话照常跟随真实文件位置并广播本批，不补偿、不重试。旧资料库项由检查器显示找不到，由用户移除或重新加入。

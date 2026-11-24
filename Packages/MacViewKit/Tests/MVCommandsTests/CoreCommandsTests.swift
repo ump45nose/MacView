@@ -52,7 +52,7 @@ import Testing
     let roots = CoreCommands.defaultMenu.roots.compactMap { node -> String? in
         if case let .submenu(titleKey, _) = node { return titleKey }; return nil
     }
-    #expect(roots == ["文件", "显示", "翻页", "书", "窗口"])
+    #expect(roots == ["文件", "显示", "翻页", "书", "脚本", "窗口"])
 }
 
 private func menuCommands(_ nodes: [MenuNode]) -> [CommandID] {
