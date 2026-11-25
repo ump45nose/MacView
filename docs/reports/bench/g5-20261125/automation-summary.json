@@ -1,0 +1,1335 @@
+{
+  "关口": "G5",
+  "日期": "2026-11-25",
+  "本机": "MacPro，arm64，macOS 27.2 (26B123)，Xcode 27.2 (27B52)",
+  "源码": {
+    "提交": "88793deaac161f121a47d95d8e388bdee7331d99",
+    "独立冻结源码git状态": "",
+    "排除未跟踪Assets": true,
+    "夹具": "复用既有本地生成夹具的工作区隔离副本；3000 项 CLI 测试使用本次合成目录。"
+  },
+  "构建": [
+    {
+      "configuration": "Debug",
+      "命令": "xcodebuild -quiet -project MacView.xcodeproj -scheme MacView -configuration Debug -destination platform=macOS,arch=arm64 -derivedDataPath $RUN/derived -disableAutomaticPackageResolution -skipPackageUpdates COMPILER_INDEX_STORE_ENABLE=NO build",
+      "退出码": 0,
+      "警告数": 0,
+      "MVSourceCommit": "88793deaac161f121a47d95d8e388bdee7331d99",
+      "CDHash": "fadd4904e81435b53e1d41599ad2a0ed98f50ad6",
+      "严格签名验证退出码": 0
+    },
+    {
+      "configuration": "Release",
+      "命令": "xcodebuild -quiet -project MacView.xcodeproj -scheme MacView -configuration Release -destination platform=macOS,arch=arm64 -derivedDataPath $RUN/derived -disableAutomaticPackageResolution -skipPackageUpdates COMPILER_INDEX_STORE_ENABLE=NO build",
+      "退出码": 0,
+      "警告数": 0,
+      "MVSourceCommit": "88793deaac161f121a47d95d8e388bdee7331d99",
+      "CDHash": "16f0b75a99a5fe50b527dcc518ad992b1c8b1a8b",
+      "严格签名验证退出码": 0
+    }
+  ],
+  "Core": {
+    "命令": "make test TEST_ARGS=\"--skip-build --cache-path $RUN/swift-cache --config-path $RUN/swift-config --security-path $RUN/swift-security --manifest-cache local\"",
+    "预编译": "swift build --build-tests --package-path Packages/MacViewKit --disable-xctest，使用与 Makefile 相同的 Swift 文案导出参数；未过滤测试。",
+    "执行环境": "系统 Foundation 忽略 TMPDIR。仅本轮 Swift 测试进程将系统临时目录查询指向 $RUN/core-tmp/，以 CFFIXED_USER_HOME 隔离家目录，实际探针确认两者生效。",
+    "退出码": 0,
+    "日志 SHA256": "6cd7536b96d0c0b89829d695db1f5678674524957dc271100f39b35f7953e014",
+    "分测试目标运行数": 19,
+    "各目标项数": [
+      36,
+      23,
+      39,
+      33,
+      7,
+      29,
+      50,
+      24,
+      49,
+      6,
+      23,
+      18,
+      42,
+      36,
+      13,
+      30,
+      35,
+      25,
+      13
+    ],
+    "总数": 531,
+    "通过": 530,
+    "失败": 0,
+    "跳过": 1,
+    "跳过项目": [
+      "exclusiveRenameAcrossMountedNetworkVolumes()"
+    ],
+    "跳过原因": "没有授权写入的两个不同真实网络卷；保持默认不启用。",
+    "仅本地执行的网络命名测试": [
+      {
+        "项目": "C1.10 NFS 测试目录约 20 MB JPEG",
+        "结果": "C1.10 NFS 20MB setMetadata: size=49276048 elapsed=0.13721775 seconds"
+      },
+      {
+        "项目": "C1.16 NFS 300 个小 JPEG",
+        "结果": "[C1.16 NFS 300 JPEG] listing=52.2ms probing=40.4ms total=92.6ms"
+      }
+    ],
+    "网络覆盖边界": "两项在工作区 APFS 夹具越过 guard 并完成读写，没有对 NFS 写入，耗时不作 NFS 验收。",
+    "3000项实际命令": {
+      "准备": "冻结源码 Debug mvbench library seed-playlist --support $RUN/seed-support --name \"G5 合成 3000 项\" --count 3000 --from $RUN/seed-media；设 MV_LIBRARY_SEED_SUPPORT 后执行全套。",
+      "结果": "C1.17/C1.6 CLI 3000项读取=0.047097875 seconds, 移动100项=0.041356709 seconds"
+    },
+    "英文文案": {
+      "命令": "python3 scripts/check-core-strings.py build/core-strings App/Resources/Localizable.xcstrings",
+      "退出码": 0,
+      "冻结源文件": 153,
+      "文案出现次数": 283,
+      "唯一键": 272,
+      "缺失": 0
+    }
+  },
+  "App自检": {
+    "前台采样": {
+      "活动": 1988,
+      "总计": 1988,
+      "有采样轮数": 36
+    },
+    "运行时提示": {
+      "现象": "AppKit 在标准错误中提示 NSToolbarItem 视图尺寸有歧义。",
+      "出现轮数": 36
+    },
+    "命令模板": "open -n -W -a $DEBUG_APP --stdout $CASE/stdout --stderr $CASE/stderr --env CFFIXED_USER_HOME=$CASE/home --env TMPDIR=$CASE/tmp/ --args -MV{Script|Plugin}SelfTest $MODE -MVSelfTestActivate YES -MVSupportDirectory $CASE/support -MVCacheDirectory $CASE/cache -MVLayoutFile $CASE/layout.json -MVSelfTestOutput $CASE/output -MVPluginSelfTestRepo $SRC -AppleLanguages ($LANG) -MVAppearance $APPEARANCE",
+    "计数口径": "每次启动独立目录。明细与计数来自主进程标准输出 PASS/FAIL/SKIP；sources/panels 冷重启子进程结果由主进程相应断言检查；同一检查跨语言与主题重复计数。open 的状态与 SELFTEST 末行分别记录。截图来自窗口自身渲染，只记录输出名称，不作目视屏幕结论。",
+    "已完成轮数": 36,
+    "成功轮数": 36,
+    "断言通过": 428,
+    "断言失败": 0,
+    "断言跳过": 0,
+    "明细": [
+      {
+        "family": "plugin",
+        "mode": "commands",
+        "language": "en",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:20:26+00:00",
+        "elapsed_seconds": 2.85,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 19/19"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.13 App 包内存在 Resources/PluginSupport/python/macview_plugin.py",
+          "PASS C2.1 启用 random-page 后命令出现在 descriptors() 与「脚本」子菜单",
+          "PASS C2.1 绑定 ⌃P 后真实按键执行 random-page，页码变为 12",
+          "PASS C2.2 缺 commands 权限时 mv.command 报错进输出区且未翻页",
+          "PASS C2.2 同意 commands 权限后 mv.command 执行翻页成功",
+          "PASS C2.3 停用插件后命令从菜单与 descriptors() 消失，绑定进入「未知命令」分组",
+          "PASS C2.3 重新启用插件后命令与快捷键绑定自动恢复",
+          "PASS C2.4 无插件订阅 pageChanged 时不调用 PluginHost.dispatch（count=0）",
+          "PASS C2.4 订阅 pageChanged 的插件在翻页时收到事件（index=5）",
+          "PASS C2.14 英文环境菜单文案完整无中文：Manage Scripts, External Commands & Plugins… / Open Source / Manage Sources…"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "commands",
+        "language": "en",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:21:32+00:00",
+        "elapsed_seconds": 2.77,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 18/18"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.13 App 包内存在 Resources/PluginSupport/python/macview_plugin.py",
+          "PASS C2.1 启用 random-page 后命令出现在 descriptors() 与「脚本」子菜单",
+          "PASS C2.1 绑定 ⌃P 后真实按键执行 random-page，页码变为 6",
+          "PASS C2.2 缺 commands 权限时 mv.command 报错进输出区且未翻页",
+          "PASS C2.2 同意 commands 权限后 mv.command 执行翻页成功",
+          "PASS C2.3 停用插件后命令从菜单与 descriptors() 消失，绑定进入「未知命令」分组",
+          "PASS C2.3 重新启用插件后命令与快捷键绑定自动恢复",
+          "PASS C2.4 无插件订阅 pageChanged 时不调用 PluginHost.dispatch（count=0）",
+          "PASS C2.4 订阅 pageChanged 的插件在翻页时收到事件（index=5）",
+          "PASS C2.14 英文环境菜单文案完整无中文：Manage Scripts, External Commands & Plugins… / Open Source / Manage Sources…"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "commands",
+        "language": "zh-Hans",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:22:39+00:00",
+        "elapsed_seconds": 2.81,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 18/18"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.13 App 包内存在 Resources/PluginSupport/python/macview_plugin.py",
+          "PASS C2.1 启用 random-page 后命令出现在 descriptors() 与「脚本」子菜单",
+          "PASS C2.1 绑定 ⌃P 后真实按键执行 random-page，页码变为 7",
+          "PASS C2.2 缺 commands 权限时 mv.command 报错进输出区且未翻页",
+          "PASS C2.2 同意 commands 权限后 mv.command 执行翻页成功",
+          "PASS C2.3 停用插件后命令从菜单与 descriptors() 消失，绑定进入「未知命令」分组",
+          "PASS C2.3 重新启用插件后命令与快捷键绑定自动恢复",
+          "PASS C2.4 无插件订阅 pageChanged 时不调用 PluginHost.dispatch（count=0）",
+          "PASS C2.4 订阅 pageChanged 的插件在翻页时收到事件（index=5）",
+          "PASS C2.14 中文环境菜单文案完整：管理脚本、外部命令与插件… / 打开来源 / 管理来源…"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "commands",
+        "language": "zh-Hans",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:19:19+00:00",
+        "elapsed_seconds": 2.93,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 18/18"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.13 App 包内存在 Resources/PluginSupport/python/macview_plugin.py",
+          "PASS C2.1 启用 random-page 后命令出现在 descriptors() 与「脚本」子菜单",
+          "PASS C2.1 绑定 ⌃P 后真实按键执行 random-page，页码变为 8",
+          "PASS C2.2 缺 commands 权限时 mv.command 报错进输出区且未翻页",
+          "PASS C2.2 同意 commands 权限后 mv.command 执行翻页成功",
+          "PASS C2.3 停用插件后命令从菜单与 descriptors() 消失，绑定进入「未知命令」分组",
+          "PASS C2.3 重新启用插件后命令与快捷键绑定自动恢复",
+          "PASS C2.4 无插件订阅 pageChanged 时不调用 PluginHost.dispatch（count=0）",
+          "PASS C2.4 订阅 pageChanged 的插件在翻页时收到事件（index=5）",
+          "PASS C2.14 中文环境菜单文案完整：管理脚本、外部命令与插件… / 打开来源 / 管理来源…"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "filters",
+        "language": "en",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:20:32+00:00",
+        "elapsed_seconds": 4.05,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 30/30"
+        ],
+        "passes": 8,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS 灰度滤镜与测试滤镜插件就绪",
+          "PASS C2.9 初始打开第 1 页显示彩色原图",
+          "PASS C2.9 灰度滤镜处理、下一页预热与翻回缓存命中均通过（翻回用时 41.9 ms）",
+          "PASS C2.10/C2.11c 运行态显示「慢滤镜 Processing…」，关闭 42.9 ms 恢复原图且插件日志含取消（saw=true rest=true cancel=true）",
+          "PASS C2.11c 滤镜失败时 PluginFilterActivity 为 failed、保留原图并写入输出区",
+          "PASS C2.11 停用插件跳过滤镜并保持调色生效，重启用后当前页重新变灰",
+          "PASS C2.11b 动图页与视频页开着插件滤镜时不调用插件且不报错",
+          "PASS 连续视图主区插件滤镜生效且关闭后立即恢复原图"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "filters",
+        "language": "en",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:21:39+00:00",
+        "elapsed_seconds": 3.95,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 29/29"
+        ],
+        "passes": 8,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS 灰度滤镜与测试滤镜插件就绪",
+          "PASS C2.9 初始打开第 1 页显示彩色原图",
+          "PASS C2.9 灰度滤镜处理、下一页预热与翻回缓存命中均通过（翻回用时 43.0 ms）",
+          "PASS C2.10/C2.11c 运行态显示「慢滤镜 Processing…」，关闭 42.5 ms 恢复原图且插件日志含取消（saw=true rest=true cancel=true）",
+          "PASS C2.11c 滤镜失败时 PluginFilterActivity 为 failed、保留原图并写入输出区",
+          "PASS C2.11 停用插件跳过滤镜并保持调色生效，重启用后当前页重新变灰",
+          "PASS C2.11b 动图页与视频页开着插件滤镜时不调用插件且不报错",
+          "PASS 连续视图主区插件滤镜生效且关闭后立即恢复原图"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "filters",
+        "language": "zh-Hans",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:22:45+00:00",
+        "elapsed_seconds": 3.99,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 29/29"
+        ],
+        "passes": 8,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS 灰度滤镜与测试滤镜插件就绪",
+          "PASS C2.9 初始打开第 1 页显示彩色原图",
+          "PASS C2.9 灰度滤镜处理、下一页预热与翻回缓存命中均通过（翻回用时 41.8 ms）",
+          "PASS C2.10/C2.11c 运行态显示「慢滤镜 处理中…」，关闭 42.7 ms 恢复原图且插件日志含取消（saw=true rest=true cancel=true）",
+          "PASS C2.11c 滤镜失败时 PluginFilterActivity 为 failed、保留原图并写入输出区",
+          "PASS C2.11 停用插件跳过滤镜并保持调色生效，重启用后当前页重新变灰",
+          "PASS C2.11b 动图页与视频页开着插件滤镜时不调用插件且不报错",
+          "PASS 连续视图主区插件滤镜生效且关闭后立即恢复原图"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "filters",
+        "language": "zh-Hans",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:19:25+00:00",
+        "elapsed_seconds": 3.83,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 28/28"
+        ],
+        "passes": 8,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS 灰度滤镜与测试滤镜插件就绪",
+          "PASS C2.9 初始打开第 1 页显示彩色原图",
+          "PASS C2.9 灰度滤镜处理、下一页预热与翻回缓存命中均通过（翻回用时 41.3 ms）",
+          "PASS C2.10/C2.11c 运行态显示「慢滤镜 处理中…」，关闭 40.3 ms 恢复原图且插件日志含取消（saw=true rest=true cancel=true）",
+          "PASS C2.11c 滤镜失败时 PluginFilterActivity 为 failed、保留原图并写入输出区",
+          "PASS C2.11 停用插件跳过滤镜并保持调色生效，重启用后当前页重新变灰",
+          "PASS C2.11b 动图页与视频页开着插件滤镜时不调用插件且不报错",
+          "PASS 连续视图主区插件滤镜生效且关闭后立即恢复原图"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "panels",
+        "language": "en",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:20:48+00:00",
+        "elapsed_seconds": 14.62,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 133/133"
+        ],
+        "passes": 14,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.1 替身插件面板出现在 ⋯ 与窗口菜单，注销销毁并保留 layout.json，再登记回原区原位",
+          "PASS C2.1b 注销选中插件面板后内置面板正常回退无空白，拖内置面板到左区后重登记插件面板回到右区且为当前标签",
+          "PASS C2.2 子目录 CSS/JS/ES module 载入成功，越界路径、符号链接越界(403)与跨插件 scheme 被拒：{\"css\":\"loaded\",\"classic\":true,\"module\":\"nested-ok\",\"r1\":{\"status\":404,\"hasSecret\":false},\"r2\":{\"status\":403,\"hasSecret\":false},\"r3\":{\"status\":-1,\"hasSecret\":false}}",
+          "PASS C2.3 mv.page() 与 mv.command 正常；无 commands 权限时拒绝并恰记 1 条日志（err=Plugin panel-test lacks permission: commands, logs=1）",
+          "PASS C2.4 无 network 拦截、有 network 放行、撤销重建后再拦截且外部导航/iframe/window.open 被拒(noNet=true,allow=true,nav=true,revoke=true)",
+          "PASS C2.5 深浅色、面板字体与强调色就地更新且页面未重载：{\"instanceId\":\"xufehl4kva\",\"accent\":\"#007aff\",\"fontFamily\":\"\\\"Menlo\\\", -apple-system, BlinkMacSystemFont, sans-serif\",\"fontSize\":\"15px\",\"isDark\":false}",
+          "PASS C2.6 改入口文件 2 秒内重建(v=2)，throw/unhandledrejection/console.error 全部进插件日志([\"error:c26-console-error\", \"error:Error: c26-sync-throw\\n@macview-plugin://panel-test/panel.html:34:41\", \"error:Error: c26-unhandled-reject\\n@macview-plugin://panel-test/panel.html:35:31\\n@\"])",
+          "PASS C2.8 无监听时不构造载荷(build=1)；订阅后翻页 26.2 ms 内收到 pageChanged",
+          "PASS C2.9b 连续快速翻 10 页最终停在末页(index=9)，重建期间旧事件不投给新页面(stale=0)",
+          "PASS C2.9 双窗隔离、浮动切窗先收 targetChanged 且不再收旧窗事件、关最后窗口收 hasWindow:false",
+          "PASS C2.10 启用 page-notes 2 秒内窗口菜单与快捷键页出现，停用后消失，自定义 menus.json 不受影响",
+          "PASS C2.11 page-notes 右区显示、输入即翻页保存且新页不串页、下一页按钮与重启恢复均通过(right=true,meta=true,clean=true,saved=true,next=true,reopen=true)",
+          "PASS C2.7 死循环期间主区 125 ms 翻页，判为无响应并提示，点击重新载入 89 ms 恢复",
+          "PASS C2.12 英文界面网页面板文案完整无中文：[]"
+        ],
+        "rendered_screenshots": [
+          "panel-page-notes-en-dark.png"
+        ]
+      },
+      {
+        "family": "plugin",
+        "mode": "panels",
+        "language": "en",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:21:55+00:00",
+        "elapsed_seconds": 14.49,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 134/134"
+        ],
+        "passes": 14,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.1 替身插件面板出现在 ⋯ 与窗口菜单，注销销毁并保留 layout.json，再登记回原区原位",
+          "PASS C2.1b 注销选中插件面板后内置面板正常回退无空白，拖内置面板到左区后重登记插件面板回到右区且为当前标签",
+          "PASS C2.2 子目录 CSS/JS/ES module 载入成功，越界路径、符号链接越界(403)与跨插件 scheme 被拒：{\"css\":\"loaded\",\"classic\":true,\"module\":\"nested-ok\",\"r1\":{\"status\":404,\"hasSecret\":false},\"r2\":{\"status\":403,\"hasSecret\":false},\"r3\":{\"status\":-1,\"hasSecret\":false}}",
+          "PASS C2.3 mv.page() 与 mv.command 正常；无 commands 权限时拒绝并恰记 1 条日志（err=Plugin panel-test lacks permission: commands, logs=1）",
+          "PASS C2.4 无 network 拦截、有 network 放行、撤销重建后再拦截且外部导航/iframe/window.open 被拒(noNet=true,allow=true,nav=true,revoke=true)",
+          "PASS C2.5 深浅色、面板字体与强调色就地更新且页面未重载：{\"instanceId\":\"rrb3nhs9aj\",\"accent\":\"#007aff\",\"fontFamily\":\"\\\"Menlo\\\", -apple-system, BlinkMacSystemFont, sans-serif\",\"fontSize\":\"15px\",\"isDark\":true}",
+          "PASS C2.6 改入口文件 2 秒内重建(v=2)，throw/unhandledrejection/console.error 全部进插件日志([\"error:c26-console-error\", \"error:Error: c26-sync-throw\\n@macview-plugin://panel-test/panel.html:34:41\", \"error:Error: c26-unhandled-reject\\n@macview-plugin://panel-test/panel.html:35:31\\n@\"])",
+          "PASS C2.8 无监听时不构造载荷(build=1)；订阅后翻页 25.3 ms 内收到 pageChanged",
+          "PASS C2.9b 连续快速翻 10 页最终停在末页(index=9)，重建期间旧事件不投给新页面(stale=0)",
+          "PASS C2.9 双窗隔离、浮动切窗先收 targetChanged 且不再收旧窗事件、关最后窗口收 hasWindow:false",
+          "PASS C2.10 启用 page-notes 2 秒内窗口菜单与快捷键页出现，停用后消失，自定义 menus.json 不受影响",
+          "PASS C2.11 page-notes 右区显示、输入即翻页保存且新页不串页、下一页按钮与重启恢复均通过(right=true,meta=true,clean=true,saved=true,next=true,reopen=true)",
+          "PASS C2.7 死循环期间主区 119 ms 翻页，判为无响应并提示，点击重新载入 87 ms 恢复",
+          "PASS C2.12 英文界面网页面板文案完整无中文：[]"
+        ],
+        "rendered_screenshots": [
+          "panel-page-notes-en-light.png"
+        ]
+      },
+      {
+        "family": "plugin",
+        "mode": "panels",
+        "language": "zh-Hans",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:23:01+00:00",
+        "elapsed_seconds": 14.66,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 134/134"
+        ],
+        "passes": 14,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.1 替身插件面板出现在 ⋯ 与窗口菜单，注销销毁并保留 layout.json，再登记回原区原位",
+          "PASS C2.1b 注销选中插件面板后内置面板正常回退无空白，拖内置面板到左区后重登记插件面板回到右区且为当前标签",
+          "PASS C2.2 子目录 CSS/JS/ES module 载入成功，越界路径、符号链接越界(403)与跨插件 scheme 被拒：{\"css\":\"loaded\",\"classic\":true,\"module\":\"nested-ok\",\"r1\":{\"status\":404,\"hasSecret\":false},\"r2\":{\"status\":403,\"hasSecret\":false},\"r3\":{\"status\":-1,\"hasSecret\":false}}",
+          "PASS C2.3 mv.page() 与 mv.command 正常；无 commands 权限时拒绝并恰记 1 条日志（err=插件 panel-test 缺少权限：commands, logs=1）",
+          "PASS C2.4 无 network 拦截、有 network 放行、撤销重建后再拦截且外部导航/iframe/window.open 被拒(noNet=true,allow=true,nav=true,revoke=true)",
+          "PASS C2.5 深浅色、面板字体与强调色就地更新且页面未重载：{\"instanceId\":\"hn5t45f5dnt\",\"accent\":\"#007aff\",\"fontFamily\":\"\\\"Menlo\\\", -apple-system, BlinkMacSystemFont, sans-serif\",\"fontSize\":\"15px\",\"isDark\":false}",
+          "PASS C2.6 改入口文件 2 秒内重建(v=2)，throw/unhandledrejection/console.error 全部进插件日志([\"error:c26-console-error\", \"error:Error: c26-sync-throw\\n@macview-plugin://panel-test/panel.html:34:41\", \"error:Error: c26-unhandled-reject\\n@macview-plugin://panel-test/panel.html:35:31\\n@\"])",
+          "PASS C2.8 无监听时不构造载荷(build=1)；订阅后翻页 23.0 ms 内收到 pageChanged",
+          "PASS C2.9b 连续快速翻 10 页最终停在末页(index=9)，重建期间旧事件不投给新页面(stale=0)",
+          "PASS C2.9 双窗隔离、浮动切窗先收 targetChanged 且不再收旧窗事件、关最后窗口收 hasWindow:false",
+          "PASS C2.10 启用 page-notes 2 秒内窗口菜单与快捷键页出现，停用后消失，自定义 menus.json 不受影响",
+          "PASS C2.11 page-notes 右区显示、输入即翻页保存且新页不串页、下一页按钮与重启恢复均通过(right=true,meta=true,clean=true,saved=true,next=true,reopen=true)",
+          "PASS C2.7 死循环期间主区 97 ms 翻页，判为无响应并提示，点击重新载入 85 ms 恢复",
+          "PASS C2.12 中文界面网页面板自检通过（zh-dark）"
+        ],
+        "rendered_screenshots": [
+          "panel-page-notes-zh-dark.png"
+        ]
+      },
+      {
+        "family": "plugin",
+        "mode": "panels",
+        "language": "zh-Hans",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:19:41+00:00",
+        "elapsed_seconds": 14.61,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 134/134"
+        ],
+        "passes": 14,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.1 替身插件面板出现在 ⋯ 与窗口菜单，注销销毁并保留 layout.json，再登记回原区原位",
+          "PASS C2.1b 注销选中插件面板后内置面板正常回退无空白，拖内置面板到左区后重登记插件面板回到右区且为当前标签",
+          "PASS C2.2 子目录 CSS/JS/ES module 载入成功，越界路径、符号链接越界(403)与跨插件 scheme 被拒：{\"css\":\"loaded\",\"classic\":true,\"module\":\"nested-ok\",\"r1\":{\"status\":404,\"hasSecret\":false},\"r2\":{\"status\":403,\"hasSecret\":false},\"r3\":{\"status\":-1,\"hasSecret\":false}}",
+          "PASS C2.3 mv.page() 与 mv.command 正常；无 commands 权限时拒绝并恰记 1 条日志（err=插件 panel-test 缺少权限：commands, logs=1）",
+          "PASS C2.4 无 network 拦截、有 network 放行、撤销重建后再拦截且外部导航/iframe/window.open 被拒(noNet=true,allow=true,nav=true,revoke=true)",
+          "PASS C2.5 深浅色、面板字体与强调色就地更新且页面未重载：{\"instanceId\":\"wtuytm0dbf8\",\"accent\":\"#007aff\",\"fontFamily\":\"\\\"Menlo\\\", -apple-system, BlinkMacSystemFont, sans-serif\",\"fontSize\":\"15px\",\"isDark\":true}",
+          "PASS C2.6 改入口文件 2 秒内重建(v=2)，throw/unhandledrejection/console.error 全部进插件日志([\"error:c26-console-error\", \"error:Error: c26-sync-throw\\n@macview-plugin://panel-test/panel.html:34:41\", \"error:Error: c26-unhandled-reject\\n@macview-plugin://panel-test/panel.html:35:31\\n@\"])",
+          "PASS C2.8 无监听时不构造载荷(build=1)；订阅后翻页 23.5 ms 内收到 pageChanged",
+          "PASS C2.9b 连续快速翻 10 页最终停在末页(index=9)，重建期间旧事件不投给新页面(stale=0)",
+          "PASS C2.9 双窗隔离、浮动切窗先收 targetChanged 且不再收旧窗事件、关最后窗口收 hasWindow:false",
+          "PASS C2.10 启用 page-notes 2 秒内窗口菜单与快捷键页出现，停用后消失，自定义 menus.json 不受影响",
+          "PASS C2.11 page-notes 右区显示、输入即翻页保存且新页不串页、下一页按钮与重启恢复均通过(right=true,meta=true,clean=true,saved=true,next=true,reopen=true)",
+          "PASS C2.7 死循环期间主区 114 ms 翻页，判为无响应并提示，点击重新载入 85 ms 恢复",
+          "PASS C2.12 中文界面网页面板自检通过（zh-light）"
+        ],
+        "rendered_screenshots": [
+          "panel-page-notes-zh-light.png"
+        ]
+      },
+      {
+        "family": "plugin",
+        "mode": "settings",
+        "language": "en",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:20:36+00:00",
+        "elapsed_seconds": 12.22,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 71/71"
+        ],
+        "passes": 15,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C3.4 「管理来源…」打开扩展页并定位到插件一节(opened=true,visible=true)",
+          "PASS C3.12 640 宽度下 10 个设置页签单行完整显示(count=10)",
+          "PASS C3.1 拷入 WebDAV 示例插件 2 秒内出现在列表且状态「Disabled」",
+          "PASS C3.2 坏清单插件行显示 manifest.json、行列与原因，标红(redPx=4914)且无开关",
+          "PASS C3.2b 英文界面坏清单原因为英文(rowText=broken-manifest manifest.json line 1, column 1: Missing required field runtime Manifest Error More)",
+          "PASS C3.5 WebDAV 权限表单列出「Run External Program (Full Trust)」，取消保持未启用，启用后变为就绪",
+          "PASS C3.6 Wikimedia 仅列「Network Access」，测试插件列出「Run MacView Commands」",
+          "PASS C3.7 清单新增权限后显示「Permissions changed」，点「查看…」同意后恢复就绪",
+          "PASS C3.3 死循环插件显示运行中与停止，期间主窗/设置窗可操作，点停止 77 ms 回到就绪",
+          "PASS C3.8 添加来源无明文密码(noPlain=true,600=true,secret=true)、编辑留空保留密码(true)、删除同步删密码(true)",
+          "PASS C3.9 效果面板打开灰度后原图变灰(true->true)，慢滤镜行内出现「Processing」(true)随后消失(true)",
+          "PASS C3.9 展开带参数滤镜后显示 number/bool/choice 参数控件",
+          "PASS C3.11 显示配置保存再套用后插件滤镜条目与灰度画面恢复",
+          "PASS C3.10 停用插件后灰显「Plugin Disabled」且调色可用，重启用恢复，不可用条目可关掉移除",
+          "PASS C3.12 英文界面文案完整无遗漏中文：[]"
+        ],
+        "rendered_screenshots": [
+          "effects-plugin-filters-en-dark.png",
+          "plugins-consent-js-en-dark.png",
+          "plugins-consent-process-en-dark.png",
+          "plugins-section-en-dark.png",
+          "plugins-source-form-en-dark.png"
+        ]
+      },
+      {
+        "family": "plugin",
+        "mode": "settings",
+        "language": "en",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:21:43+00:00",
+        "elapsed_seconds": 11.96,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 73/73"
+        ],
+        "passes": 15,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C3.4 「管理来源…」打开扩展页并定位到插件一节(opened=true,visible=true)",
+          "PASS C3.12 640 宽度下 10 个设置页签单行完整显示(count=10)",
+          "PASS C3.1 拷入 WebDAV 示例插件 2 秒内出现在列表且状态「Disabled」",
+          "PASS C3.2 坏清单插件行显示 manifest.json、行列与原因，标红(redPx=4555)且无开关",
+          "PASS C3.2b 英文界面坏清单原因为英文(rowText=broken-manifest manifest.json line 1, column 1: Missing required field runtime Manifest Error More)",
+          "PASS C3.5 WebDAV 权限表单列出「Run External Program (Full Trust)」，取消保持未启用，启用后变为就绪",
+          "PASS C3.6 Wikimedia 仅列「Network Access」，测试插件列出「Run MacView Commands」",
+          "PASS C3.7 清单新增权限后显示「Permissions changed」，点「查看…」同意后恢复就绪",
+          "PASS C3.3 死循环插件显示运行中与停止，期间主窗/设置窗可操作，点停止 109 ms 回到就绪",
+          "PASS C3.8 添加来源无明文密码(noPlain=true,600=true,secret=true)、编辑留空保留密码(true)、删除同步删密码(true)",
+          "PASS C3.9 效果面板打开灰度后原图变灰(true->true)，慢滤镜行内出现「Processing」(true)随后消失(true)",
+          "PASS C3.9 展开带参数滤镜后显示 number/bool/choice 参数控件",
+          "PASS C3.11 显示配置保存再套用后插件滤镜条目与灰度画面恢复",
+          "PASS C3.10 停用插件后灰显「Plugin Disabled」且调色可用，重启用恢复，不可用条目可关掉移除",
+          "PASS C3.12 英文界面文案完整无遗漏中文：[]"
+        ],
+        "rendered_screenshots": [
+          "effects-plugin-filters-en-light.png",
+          "plugins-consent-js-en-light.png",
+          "plugins-consent-process-en-light.png",
+          "plugins-section-en-light.png",
+          "plugins-source-form-en-light.png"
+        ]
+      },
+      {
+        "family": "plugin",
+        "mode": "settings",
+        "language": "zh-Hans",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:22:49+00:00",
+        "elapsed_seconds": 12.02,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 69/69"
+        ],
+        "passes": 15,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C3.4 「管理来源…」打开扩展页并定位到插件一节(opened=true,visible=true)",
+          "PASS C3.12 640 宽度下 10 个设置页签单行完整显示(count=10)",
+          "PASS C3.1 拷入 WebDAV 示例插件 2 秒内出现在列表且状态「未启用」",
+          "PASS C3.2 坏清单插件行显示 manifest.json、行列与原因，标红(redPx=4744)且无开关",
+          "PASS C3.2b 英文界面坏清单原因为英文(rowText=broken-manifest manifest.json 第 1 行，第 1 列：缺少必填字段 runtime 清单错误 更多)",
+          "PASS C3.5 WebDAV 权限表单列出「运行外部程序（完全信任）」，取消保持未启用，启用后变为就绪",
+          "PASS C3.6 Wikimedia 仅列「访问网络」，测试插件列出「执行 MacView 命令」",
+          "PASS C3.7 清单新增权限后显示「权限有变，需重新同意」，点「查看…」同意后恢复就绪",
+          "PASS C3.3 死循环插件显示运行中与停止，期间主窗/设置窗可操作，点停止 79 ms 回到就绪",
+          "PASS C3.8 添加来源无明文密码(noPlain=true,600=true,secret=true)、编辑留空保留密码(true)、删除同步删密码(true)",
+          "PASS C3.9 效果面板打开灰度后原图变灰(true->true)，慢滤镜行内出现「处理中」(true)随后消失(true)",
+          "PASS C3.9 展开带参数滤镜后显示 number/bool/choice 参数控件",
+          "PASS C3.11 显示配置保存再套用后插件滤镜条目与灰度画面恢复",
+          "PASS C3.10 停用插件后灰显「插件未启用」且调色可用，重启用恢复，不可用条目可关掉移除",
+          "PASS C3.12 中文界面自检与截图完成"
+        ],
+        "rendered_screenshots": [
+          "effects-plugin-filters-zh-dark.png",
+          "plugins-consent-js-zh-dark.png",
+          "plugins-consent-process-zh-dark.png",
+          "plugins-section-zh-dark.png",
+          "plugins-source-form-zh-dark.png"
+        ]
+      },
+      {
+        "family": "plugin",
+        "mode": "settings",
+        "language": "zh-Hans",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:19:29+00:00",
+        "elapsed_seconds": 12.2,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 70/70"
+        ],
+        "passes": 15,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C3.4 「管理来源…」打开扩展页并定位到插件一节(opened=true,visible=true)",
+          "PASS C3.12 640 宽度下 10 个设置页签单行完整显示(count=10)",
+          "PASS C3.1 拷入 WebDAV 示例插件 2 秒内出现在列表且状态「未启用」",
+          "PASS C3.2 坏清单插件行显示 manifest.json、行列与原因，标红(redPx=4418)且无开关",
+          "PASS C3.2b 英文界面坏清单原因为英文(rowText=broken-manifest manifest.json 第 1 行，第 1 列：缺少必填字段 runtime 清单错误 更多)",
+          "PASS C3.5 WebDAV 权限表单列出「运行外部程序（完全信任）」，取消保持未启用，启用后变为就绪",
+          "PASS C3.6 Wikimedia 仅列「访问网络」，测试插件列出「执行 MacView 命令」",
+          "PASS C3.7 清单新增权限后显示「权限有变，需重新同意」，点「查看…」同意后恢复就绪",
+          "PASS C3.3 死循环插件显示运行中与停止，期间主窗/设置窗可操作，点停止 111 ms 回到就绪",
+          "PASS C3.8 添加来源无明文密码(noPlain=true,600=true,secret=true)、编辑留空保留密码(true)、删除同步删密码(true)",
+          "PASS C3.9 效果面板打开灰度后原图变灰(true->true)，慢滤镜行内出现「处理中」(true)随后消失(true)",
+          "PASS C3.9 展开带参数滤镜后显示 number/bool/choice 参数控件",
+          "PASS C3.11 显示配置保存再套用后插件滤镜条目与灰度画面恢复",
+          "PASS C3.10 停用插件后灰显「插件未启用」且调色可用，重启用恢复，不可用条目可关掉移除",
+          "PASS C3.12 中文界面自检与截图完成"
+        ],
+        "rendered_screenshots": [
+          "effects-plugin-filters-zh-light.png",
+          "plugins-consent-js-zh-light.png",
+          "plugins-consent-process-zh-light.png",
+          "plugins-section-zh-light.png",
+          "plugins-source-form-zh-light.png"
+        ]
+      },
+      {
+        "family": "plugin",
+        "mode": "sources",
+        "language": "en",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:20:29+00:00",
+        "elapsed_seconds": 3.53,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 24/24"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS WebDAV 示例插件与来源实例就绪",
+          "PASS C2.8b 「打开来源」列出来源实例，点击「管理来源…」打开扩展页并带上 settings.extensions.plugins",
+          "PASS C2.5 打开来源后书架列出远端目录与 zip，路径栏显示「测试网盘」",
+          "PASS C2.5 远端书翻页、显示图与缩略图均可用",
+          "PASS C2.5 远端目录里的 zip 压缩包打开并渲染成功",
+          "PASS C2.6 加书签后冷重启 App 从书签打开成功，书签与历史显示来源名称「测试网盘」",
+          "PASS C2.7 停服后书架与未缓存页报错并提供重试，主线程最大间隔 36.8 ms < 100 ms",
+          "PASS C2.7 恢复服务后书架与查看器重试成功",
+          "PASS C2.8 停用插件后打开来源提示「Plugin Disabled」",
+          "PASS C2.8 重新启用插件后重试成功打开来源"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "sources",
+        "language": "en",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:21:35+00:00",
+        "elapsed_seconds": 3.74,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 22/22"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS WebDAV 示例插件与来源实例就绪",
+          "PASS C2.8b 「打开来源」列出来源实例，点击「管理来源…」打开扩展页并带上 settings.extensions.plugins",
+          "PASS C2.5 打开来源后书架列出远端目录与 zip，路径栏显示「测试网盘」",
+          "PASS C2.5 远端书翻页、显示图与缩略图均可用",
+          "PASS C2.5 远端目录里的 zip 压缩包打开并渲染成功",
+          "PASS C2.6 加书签后冷重启 App 从书签打开成功，书签与历史显示来源名称「测试网盘」",
+          "PASS C2.7 停服后书架与未缓存页报错并提供重试，主线程最大间隔 31.1 ms < 100 ms",
+          "PASS C2.7 恢复服务后书架与查看器重试成功",
+          "PASS C2.8 停用插件后打开来源提示「Plugin Disabled」",
+          "PASS C2.8 重新启用插件后重试成功打开来源"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "sources",
+        "language": "zh-Hans",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:22:42+00:00",
+        "elapsed_seconds": 3.53,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 22/22"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS WebDAV 示例插件与来源实例就绪",
+          "PASS C2.8b 「打开来源」列出来源实例，点击「管理来源…」打开扩展页并带上 settings.extensions.plugins",
+          "PASS C2.5 打开来源后书架列出远端目录与 zip，路径栏显示「测试网盘」",
+          "PASS C2.5 远端书翻页、显示图与缩略图均可用",
+          "PASS C2.5 远端目录里的 zip 压缩包打开并渲染成功",
+          "PASS C2.6 加书签后冷重启 App 从书签打开成功，书签与历史显示来源名称「测试网盘」",
+          "PASS C2.7 停服后书架与未缓存页报错并提供重试，主线程最大间隔 46.7 ms < 100 ms",
+          "PASS C2.7 恢复服务后书架与查看器重试成功",
+          "PASS C2.8 停用插件后打开来源提示「插件未启用」",
+          "PASS C2.8 重新启用插件后重试成功打开来源"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "plugin",
+        "mode": "sources",
+        "language": "zh-Hans",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:19:22+00:00",
+        "elapsed_seconds": 3.78,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 23/23"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS WebDAV 示例插件与来源实例就绪",
+          "PASS C2.8b 「打开来源」列出来源实例，点击「管理来源…」打开扩展页并带上 settings.extensions.plugins",
+          "PASS C2.5 打开来源后书架列出远端目录与 zip，路径栏显示「测试网盘」",
+          "PASS C2.5 远端书翻页、显示图与缩略图均可用",
+          "PASS C2.5 远端目录里的 zip 压缩包打开并渲染成功",
+          "PASS C2.6 加书签后冷重启 App 从书签打开成功，书签与历史显示来源名称「测试网盘」",
+          "PASS C2.7 停服后书架与未缓存页报错并提供重试，主线程最大间隔 50.0 ms < 100 ms",
+          "PASS C2.7 恢复服务后书架与查看器重试成功",
+          "PASS C2.8 停用插件后打开来源提示「插件未启用」",
+          "PASS C2.8 重新启用插件后重试成功打开来源"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "commands",
+        "language": "en",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:19:56+00:00",
+        "elapsed_seconds": 6.83,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 49/49"
+        ],
+        "passes": 28,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS 初始异步扫描完成并加载内置示例脚本",
+          "PASS C2.1 放入脚本后 2 秒内 CommandRegistry 与 SettingsCommandCatalog 同步新增",
+          "PASS C2.1 改名脚本后 2 秒内命令清单同步更新",
+          "PASS C2.1 删除脚本后 2 秒内命令清单同步移除",
+          "PASS C2.2 绑定 ⌃M 后经真实按键运行脚本成功",
+          "PASS C2.2 删除脚本后触发旧绑定与查询标题不崩溃：script.selftest-hotkey",
+          "PASS C2.2 快捷键页末尾出现「未知命令」分组并显示残留绑定与原始 ID",
+          "PASS C2.2 清除未知命令残留绑定后分组自动消失且写回 keybindings.json",
+          "PASS C2.3 自定义主菜单不自动加入「脚本」，命令板含 DynamicMenuID.scripts",
+          "PASS C2.3 恢复默认主菜单后「脚本」菜单重新出现",
+          "PASS 辅助选中项脚本就绪",
+          "PASS C2.4 页面列表右键 3 页运行脚本收到对应 3 页目标",
+          "PASS C2.5 查看器右键运行脚本收到当前页目标",
+          "PASS C2.6 无脚本和外部命令时右键子菜单禁用且主菜单固定三项仍在",
+          "PASS C2.7 跳到中间页脚本将 5 页书跳到第 3 页（期望 3）",
+          "PASS C2.8 本机文件夹 mv.page() 返回 location==path（isVirtual=false）",
+          "PASS C2.8 zip mv.page() 返回 mvloc: 且 path==null",
+          "PASS C2.8 嵌套 zip mv.page() 返回 mvloc: 且 path==null",
+          "PASS C2.8 虚拟书 mv.page() 返回 location==path（isVirtual=true）",
+          "PASS C2.8 mv.open 往返打开本机文件夹成功",
+          "PASS C2.8 mv.open 往返打开zip成功",
+          "PASS C2.8 mv.open 往返打开嵌套 zip成功",
+          "PASS C2.8 mv.open 往返打开虚拟书成功",
+          "PASS C2.9 mv.confirm 弹 sheet、等待期间主线程响应、取消返回 false",
+          "PASS C2.9 确认框打开期间 stopAll 自动关闭 sheet",
+          "PASS C2.10 mv.storage 写入落盘且重新加载后可读到",
+          "PASS C2.19 英文模式下脚本菜单与新增字符串无未翻译中文：[]",
+          "PASS C2.19 英文模式下状态栏失败提示已翻译：Test failed: reason"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "commands",
+        "language": "en",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:21:03+00:00",
+        "elapsed_seconds": 6.81,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 49/49"
+        ],
+        "passes": 28,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS 初始异步扫描完成并加载内置示例脚本",
+          "PASS C2.1 放入脚本后 2 秒内 CommandRegistry 与 SettingsCommandCatalog 同步新增",
+          "PASS C2.1 改名脚本后 2 秒内命令清单同步更新",
+          "PASS C2.1 删除脚本后 2 秒内命令清单同步移除",
+          "PASS C2.2 绑定 ⌃M 后经真实按键运行脚本成功",
+          "PASS C2.2 删除脚本后触发旧绑定与查询标题不崩溃：script.selftest-hotkey",
+          "PASS C2.2 快捷键页末尾出现「未知命令」分组并显示残留绑定与原始 ID",
+          "PASS C2.2 清除未知命令残留绑定后分组自动消失且写回 keybindings.json",
+          "PASS C2.3 自定义主菜单不自动加入「脚本」，命令板含 DynamicMenuID.scripts",
+          "PASS C2.3 恢复默认主菜单后「脚本」菜单重新出现",
+          "PASS 辅助选中项脚本就绪",
+          "PASS C2.4 页面列表右键 3 页运行脚本收到对应 3 页目标",
+          "PASS C2.5 查看器右键运行脚本收到当前页目标",
+          "PASS C2.6 无脚本和外部命令时右键子菜单禁用且主菜单固定三项仍在",
+          "PASS C2.7 跳到中间页脚本将 5 页书跳到第 3 页（期望 3）",
+          "PASS C2.8 本机文件夹 mv.page() 返回 location==path（isVirtual=false）",
+          "PASS C2.8 zip mv.page() 返回 mvloc: 且 path==null",
+          "PASS C2.8 嵌套 zip mv.page() 返回 mvloc: 且 path==null",
+          "PASS C2.8 虚拟书 mv.page() 返回 location==path（isVirtual=true）",
+          "PASS C2.8 mv.open 往返打开本机文件夹成功",
+          "PASS C2.8 mv.open 往返打开zip成功",
+          "PASS C2.8 mv.open 往返打开嵌套 zip成功",
+          "PASS C2.8 mv.open 往返打开虚拟书成功",
+          "PASS C2.9 mv.confirm 弹 sheet、等待期间主线程响应、取消返回 false",
+          "PASS C2.9 确认框打开期间 stopAll 自动关闭 sheet",
+          "PASS C2.10 mv.storage 写入落盘且重新加载后可读到",
+          "PASS C2.19 英文模式下脚本菜单与新增字符串无未翻译中文：[]",
+          "PASS C2.19 英文模式下状态栏失败提示已翻译：Test failed: reason"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "commands",
+        "language": "zh-Hans",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:22:09+00:00",
+        "elapsed_seconds": 6.96,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 50/50"
+        ],
+        "passes": 28,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS 初始异步扫描完成并加载内置示例脚本",
+          "PASS C2.1 放入脚本后 2 秒内 CommandRegistry 与 SettingsCommandCatalog 同步新增",
+          "PASS C2.1 改名脚本后 2 秒内命令清单同步更新",
+          "PASS C2.1 删除脚本后 2 秒内命令清单同步移除",
+          "PASS C2.2 绑定 ⌃M 后经真实按键运行脚本成功",
+          "PASS C2.2 删除脚本后触发旧绑定与查询标题不崩溃：script.selftest-hotkey",
+          "PASS C2.2 快捷键页末尾出现「未知命令」分组并显示残留绑定与原始 ID",
+          "PASS C2.2 清除未知命令残留绑定后分组自动消失且写回 keybindings.json",
+          "PASS C2.3 自定义主菜单不自动加入「脚本」，命令板含 DynamicMenuID.scripts",
+          "PASS C2.3 恢复默认主菜单后「脚本」菜单重新出现",
+          "PASS 辅助选中项脚本就绪",
+          "PASS C2.4 页面列表右键 3 页运行脚本收到对应 3 页目标",
+          "PASS C2.5 查看器右键运行脚本收到当前页目标",
+          "PASS C2.6 无脚本和外部命令时右键子菜单禁用且主菜单固定三项仍在",
+          "PASS C2.7 跳到中间页脚本将 5 页书跳到第 3 页（期望 3）",
+          "PASS C2.8 本机文件夹 mv.page() 返回 location==path（isVirtual=false）",
+          "PASS C2.8 zip mv.page() 返回 mvloc: 且 path==null",
+          "PASS C2.8 嵌套 zip mv.page() 返回 mvloc: 且 path==null",
+          "PASS C2.8 虚拟书 mv.page() 返回 location==path（isVirtual=true）",
+          "PASS C2.8 mv.open 往返打开本机文件夹成功",
+          "PASS C2.8 mv.open 往返打开zip成功",
+          "PASS C2.8 mv.open 往返打开嵌套 zip成功",
+          "PASS C2.8 mv.open 往返打开虚拟书成功",
+          "PASS C2.9 mv.confirm 弹 sheet、等待期间主线程响应、取消返回 false",
+          "PASS C2.9 确认框打开期间 stopAll 自动关闭 sheet",
+          "PASS C2.10 mv.storage 写入落盘且重新加载后可读到",
+          "PASS C2.19 中文模式下脚本菜单与固定三项标题完整：停止全部脚本 / 打开脚本文件夹 / 管理脚本、外部命令与插件…",
+          "PASS C2.19 状态栏提示正常显示"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "commands",
+        "language": "zh-Hans",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:18:49+00:00",
+        "elapsed_seconds": 6.85,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 50/50"
+        ],
+        "passes": 28,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS 初始异步扫描完成并加载内置示例脚本",
+          "PASS C2.1 放入脚本后 2 秒内 CommandRegistry 与 SettingsCommandCatalog 同步新增",
+          "PASS C2.1 改名脚本后 2 秒内命令清单同步更新",
+          "PASS C2.1 删除脚本后 2 秒内命令清单同步移除",
+          "PASS C2.2 绑定 ⌃M 后经真实按键运行脚本成功",
+          "PASS C2.2 删除脚本后触发旧绑定与查询标题不崩溃：script.selftest-hotkey",
+          "PASS C2.2 快捷键页末尾出现「未知命令」分组并显示残留绑定与原始 ID",
+          "PASS C2.2 清除未知命令残留绑定后分组自动消失且写回 keybindings.json",
+          "PASS C2.3 自定义主菜单不自动加入「脚本」，命令板含 DynamicMenuID.scripts",
+          "PASS C2.3 恢复默认主菜单后「脚本」菜单重新出现",
+          "PASS 辅助选中项脚本就绪",
+          "PASS C2.4 页面列表右键 3 页运行脚本收到对应 3 页目标",
+          "PASS C2.5 查看器右键运行脚本收到当前页目标",
+          "PASS C2.6 无脚本和外部命令时右键子菜单禁用且主菜单固定三项仍在",
+          "PASS C2.7 跳到中间页脚本将 5 页书跳到第 3 页（期望 3）",
+          "PASS C2.8 本机文件夹 mv.page() 返回 location==path（isVirtual=false）",
+          "PASS C2.8 zip mv.page() 返回 mvloc: 且 path==null",
+          "PASS C2.8 嵌套 zip mv.page() 返回 mvloc: 且 path==null",
+          "PASS C2.8 虚拟书 mv.page() 返回 location==path（isVirtual=true）",
+          "PASS C2.8 mv.open 往返打开本机文件夹成功",
+          "PASS C2.8 mv.open 往返打开zip成功",
+          "PASS C2.8 mv.open 往返打开嵌套 zip成功",
+          "PASS C2.8 mv.open 往返打开虚拟书成功",
+          "PASS C2.9 mv.confirm 弹 sheet、等待期间主线程响应、取消返回 false",
+          "PASS C2.9 确认框打开期间 stopAll 自动关闭 sheet",
+          "PASS C2.10 mv.storage 写入落盘且重新加载后可读到",
+          "PASS C2.19 中文模式下脚本菜单与固定三项标题完整：停止全部脚本 / 打开脚本文件夹 / 管理脚本、外部命令与插件…",
+          "PASS C2.19 状态栏提示正常显示"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "events",
+        "language": "en",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:20:03+00:00",
+        "elapsed_seconds": 14.21,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 109/109"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.12 无事件脚本时翻页路径 dispatchCount == 0（实际 0）",
+          "PASS C2.11 无 pageEnd 脚本时末页再按 → 位置不变",
+          "PASS C2.11 pageEnd 脚本就绪",
+          "PASS C2.11 单页末页按 → 弹确认并打开下一本",
+          "PASS C2.11 单页首页按 ← 弹确认并打开上一本",
+          "PASS C2.11 双页末页按 → 弹确认并打开下一本",
+          "PASS C2.11 双页首页按 ← 弹确认并打开上一本",
+          "PASS C2.13 阻塞 300 ms 的 pageChanged 脚本下已预载翻页仍 ≤ 1 帧（max=3.58 ms ≤ 8.33 ms）",
+          "PASS C2.13a 关窗后 mv.page() 抛“Window is closed”且不落到别的窗口",
+          "PASS C2.13a 脚本运行期间改变选中项后 mv.selection() 仍是触发时快照"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "events",
+        "language": "en",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:21:10+00:00",
+        "elapsed_seconds": 13.68,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 108/108"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.12 无事件脚本时翻页路径 dispatchCount == 0（实际 0）",
+          "PASS C2.11 无 pageEnd 脚本时末页再按 → 位置不变",
+          "PASS C2.11 pageEnd 脚本就绪",
+          "PASS C2.11 单页末页按 → 弹确认并打开下一本",
+          "PASS C2.11 单页首页按 ← 弹确认并打开上一本",
+          "PASS C2.11 双页末页按 → 弹确认并打开下一本",
+          "PASS C2.11 双页首页按 ← 弹确认并打开上一本",
+          "PASS C2.13 阻塞 300 ms 的 pageChanged 脚本下已预载翻页仍 ≤ 1 帧（max=3.36 ms ≤ 8.33 ms）",
+          "PASS C2.13a 关窗后 mv.page() 抛“Window is closed”且不落到别的窗口",
+          "PASS C2.13a 脚本运行期间改变选中项后 mv.selection() 仍是触发时快照"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "events",
+        "language": "zh-Hans",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:22:16+00:00",
+        "elapsed_seconds": 13.72,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 107/107"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.12 无事件脚本时翻页路径 dispatchCount == 0（实际 0）",
+          "PASS C2.11 无 pageEnd 脚本时末页再按 → 位置不变",
+          "PASS C2.11 pageEnd 脚本就绪",
+          "PASS C2.11 单页末页按 → 弹确认并打开下一本",
+          "PASS C2.11 单页首页按 ← 弹确认并打开上一本",
+          "PASS C2.11 双页末页按 → 弹确认并打开下一本",
+          "PASS C2.11 双页首页按 ← 弹确认并打开上一本",
+          "PASS C2.13 阻塞 300 ms 的 pageChanged 脚本下已预载翻页仍 ≤ 1 帧（max=3.86 ms ≤ 8.33 ms）",
+          "PASS C2.13a 关窗后 mv.page() 抛“窗口已关闭”且不落到别的窗口",
+          "PASS C2.13a 脚本运行期间改变选中项后 mv.selection() 仍是触发时快照"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "events",
+        "language": "zh-Hans",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:18:56+00:00",
+        "elapsed_seconds": 13.82,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 109/109"
+        ],
+        "passes": 10,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.12 无事件脚本时翻页路径 dispatchCount == 0（实际 0）",
+          "PASS C2.11 无 pageEnd 脚本时末页再按 → 位置不变",
+          "PASS C2.11 pageEnd 脚本就绪",
+          "PASS C2.11 单页末页按 → 弹确认并打开下一本",
+          "PASS C2.11 单页首页按 ← 弹确认并打开上一本",
+          "PASS C2.11 双页末页按 → 弹确认并打开下一本",
+          "PASS C2.11 双页首页按 ← 弹确认并打开上一本",
+          "PASS C2.13 阻塞 300 ms 的 pageChanged 脚本下已预载翻页仍 ≤ 1 帧（max=3.71 ms ≤ 8.33 ms）",
+          "PASS C2.13a 关窗后 mv.page() 抛“窗口已关闭”且不落到别的窗口",
+          "PASS C2.13a 脚本运行期间改变选中项后 mv.selection() 仍是触发时快照"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "external",
+        "language": "en",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:20:17+00:00",
+        "elapsed_seconds": 1.37,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 5/5"
+        ],
+        "passes": 6,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.14 应用类外部命令对 3 页调用收到 3 个真实存在的文件 URL",
+          "PASS C2.14 应用类外部命令对 zip 内页解出并收到真实存在的文件 URL",
+          "PASS C2.15 Shell 类 sips 对特殊文件名执行成功，scriptLog 含宽度且状态栏显示最后一行（pixelWidth: 320）",
+          "PASS C2.16 程序不存在时状态栏显示失败原因（不存在的程序 failed: Couldn't run /nonexistent/macview-missing-tool: No such file or directory）",
+          "PASS C2.17 external-commands.json 写坏时 fileProblems 报文件错误，原外部命令仍可运行",
+          "PASS C2.17 external-commands.json 恢复合法后文件错误提示消失"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "external",
+        "language": "en",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:21:23+00:00",
+        "elapsed_seconds": 1.7,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 4/4"
+        ],
+        "passes": 6,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.14 应用类外部命令对 3 页调用收到 3 个真实存在的文件 URL",
+          "PASS C2.14 应用类外部命令对 zip 内页解出并收到真实存在的文件 URL",
+          "PASS C2.15 Shell 类 sips 对特殊文件名执行成功，scriptLog 含宽度且状态栏显示最后一行（pixelWidth: 320）",
+          "PASS C2.16 程序不存在时状态栏显示失败原因（不存在的程序 failed: Couldn't run /nonexistent/macview-missing-tool: No such file or directory）",
+          "PASS C2.17 external-commands.json 写坏时 fileProblems 报文件错误，原外部命令仍可运行",
+          "PASS C2.17 external-commands.json 恢复合法后文件错误提示消失"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "external",
+        "language": "zh-Hans",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:22:30+00:00",
+        "elapsed_seconds": 1.44,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 5/5"
+        ],
+        "passes": 6,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.14 应用类外部命令对 3 页调用收到 3 个真实存在的文件 URL",
+          "PASS C2.14 应用类外部命令对 zip 内页解出并收到真实存在的文件 URL",
+          "PASS C2.15 Shell 类 sips 对特殊文件名执行成功，scriptLog 含宽度且状态栏显示最后一行（pixelWidth: 320）",
+          "PASS C2.16 程序不存在时状态栏显示失败原因（不存在的程序 失败：无法运行 /nonexistent/macview-missing-tool：No such file or directory）",
+          "PASS C2.17 external-commands.json 写坏时 fileProblems 报文件错误，原外部命令仍可运行",
+          "PASS C2.17 external-commands.json 恢复合法后文件错误提示消失"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "external",
+        "language": "zh-Hans",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:19:10+00:00",
+        "elapsed_seconds": 1.42,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 4/4"
+        ],
+        "passes": 6,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C2.14 应用类外部命令对 3 页调用收到 3 个真实存在的文件 URL",
+          "PASS C2.14 应用类外部命令对 zip 内页解出并收到真实存在的文件 URL",
+          "PASS C2.15 Shell 类 sips 对特殊文件名执行成功，scriptLog 含宽度且状态栏显示最后一行（pixelWidth: 320）",
+          "PASS C2.16 程序不存在时状态栏显示失败原因（不存在的程序 失败：无法运行 /nonexistent/macview-missing-tool：No such file or directory）",
+          "PASS C2.17 external-commands.json 写坏时 fileProblems 报文件错误，原外部命令仍可运行",
+          "PASS C2.17 external-commands.json 恢复合法后文件错误提示消失"
+        ],
+        "rendered_screenshots": []
+      },
+      {
+        "family": "script",
+        "mode": "settings",
+        "language": "en",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:20:18+00:00",
+        "elapsed_seconds": 7.23,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 61/61"
+        ],
+        "passes": 6,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C3.6 主菜单「Scripts › Manage Scripts, External Commands & Plugins…」打开设置并定位到扩展页",
+          "PASS C3.1 放入脚本后 2 秒内出现在扩展页列表且状态就绪",
+          "PASS C3.2 语法错误脚本显示行号与标红(redPx=4625)，修好保存后变回就绪",
+          "PASS C3.3 死循环运行中显示(listed=true,clickedRun=true,running=true)且主窗(true)/设置窗(true)可操作，点停止(true) 58ms 内变回就绪(true)",
+          "PASS C3.5 输出区显示 console.log、外部命令输出与错误行，错误行为 danger 色(redPx: 0->3407)",
+          "PASS C3.4 外部命令(create=true,edit=true,banner=true/true,bannerText=external-commands.json has errors. Still using the previous valid external commands. Line 1, column 2: No string key for value in object around line 1, column 2. Open File,delete=true)"
+        ],
+        "rendered_screenshots": [
+          "extensions-en-dark.png"
+        ]
+      },
+      {
+        "family": "script",
+        "mode": "settings",
+        "language": "en",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:21:25+00:00",
+        "elapsed_seconds": 7.31,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 59/59"
+        ],
+        "passes": 6,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C3.6 主菜单「Scripts › Manage Scripts, External Commands & Plugins…」打开设置并定位到扩展页",
+          "PASS C3.1 放入脚本后 2 秒内出现在扩展页列表且状态就绪",
+          "PASS C3.2 语法错误脚本显示行号与标红(redPx=4271)，修好保存后变回就绪",
+          "PASS C3.3 死循环运行中显示(listed=true,clickedRun=true,running=true)且主窗(true)/设置窗(true)可操作，点停止(true) 58ms 内变回就绪(true)",
+          "PASS C3.5 输出区显示 console.log、外部命令输出与错误行，错误行为 danger 色(redPx: 0->3302)",
+          "PASS C3.4 外部命令(create=true,edit=true,banner=true/true,bannerText=external-commands.json has errors. Still using the previous valid external commands. Line 1, column 2: No string key for value in object around line 1, column 2. Open File,delete=true)"
+        ],
+        "rendered_screenshots": [
+          "extensions-en-light.png"
+        ]
+      },
+      {
+        "family": "script",
+        "mode": "settings",
+        "language": "zh-Hans",
+        "appearance": "dark",
+        "start_utc": "2026-11-25T08:22:32+00:00",
+        "elapsed_seconds": 7.25,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 61/61"
+        ],
+        "passes": 6,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C3.6 主菜单「脚本 › 管理脚本、外部命令与插件…」打开设置并定位到扩展页",
+          "PASS C3.1 放入脚本后 2 秒内出现在扩展页列表且状态就绪",
+          "PASS C3.2 语法错误脚本显示行号与标红(redPx=4906)，修好保存后变回就绪",
+          "PASS C3.3 死循环运行中显示(listed=true,clickedRun=true,running=true)且主窗(true)/设置窗(true)可操作，点停止(true) 59ms 内变回就绪(true)",
+          "PASS C3.5 输出区显示 console.log、外部命令输出与错误行，错误行为 danger 色(redPx: 0->3363)",
+          "PASS C3.4 外部命令(create=true,edit=true,banner=true/true,bannerText=external-commands.json 有错误，仍在使用上一份可用的外部命令。第 1 行，第 2 列：No string key for value in object around line 1, column 2. 打开文件,delete=true)"
+        ],
+        "rendered_screenshots": [
+          "extensions-zh-dark.png"
+        ]
+      },
+      {
+        "family": "script",
+        "mode": "settings",
+        "language": "zh-Hans",
+        "appearance": "light",
+        "start_utc": "2026-11-25T08:19:12+00:00",
+        "elapsed_seconds": 7.18,
+        "launchservices_exit": 0,
+        "selftest": [
+          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+        ],
+        "foreground": [
+          "INFO 前台采样 60/60"
+        ],
+        "passes": 6,
+        "failures": 0,
+        "skips": 0,
+        "assertions": [
+          "PASS C3.6 主菜单「脚本 › 管理脚本、外部命令与插件…」打开设置并定位到扩展页",
+          "PASS C3.1 放入脚本后 2 秒内出现在扩展页列表且状态就绪",
+          "PASS C3.2 语法错误脚本显示行号与标红(redPx=4559)，修好保存后变回就绪",
+          "PASS C3.3 死循环运行中显示(listed=true,clickedRun=true,running=true)且主窗(true)/设置窗(true)可操作，点停止(true) 58ms 内变回就绪(true)",
+          "PASS C3.5 输出区显示 console.log、外部命令输出与错误行，错误行为 danger 色(redPx: 0->3256)",
+          "PASS C3.4 外部命令(create=true,edit=true,banner=true/true,bannerText=external-commands.json 有错误，仍在使用上一份可用的外部命令。第 1 行，第 2 列：No string key for value in object around line 1, column 2. 打开文件,delete=true)"
+        ],
+        "rendered_screenshots": [
+          "extensions-zh-light.png"
+        ]
+      }
+    ]
+  }
+}
