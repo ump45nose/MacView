@@ -223,6 +223,16 @@
         }
       }
     },
+    "%@ 第 %lld 行，第 %lld 列：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ line %2$lld, column %3$lld: %4$@"
+          }
+        }
+      }
+    },
     "%@ 第 %lld 行：%@": {
       "localizations": {
         "en": {
@@ -761,6 +771,16 @@
         }
       }
     },
+    "plugins.json 有错误，仍在使用上一份可用的插件配置。%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "plugins.json has errors. Still using the previous valid plugin settings. %@"
+          }
+        }
+      }
+    },
     "storage.set 需要传入值": {
       "localizations": {
         "en": {
@@ -963,6 +983,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Each .js file is a command, reloaded on save"
+          }
+        }
+      }
+    },
+    "一个文件夹一个插件，放进插件目录后自动加载": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One folder per plugin, loaded automatically"
           }
         }
       }
@@ -1763,6 +1793,16 @@
         }
       }
     },
+    "先显示原图，处理完自动换成结果；关闭立即恢复原图。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows the original first and swaps when done; turning off restores the original immediately."
+          }
+        }
+      }
+    },
     "光圈": {
       "localizations": {
         "en": {
@@ -2335,6 +2375,16 @@
         }
       }
     },
+    "包括移动、删除文件等文件操作。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Includes file operations such as moving and deleting files."
+          }
+        }
+      }
+    },
     "升序": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -2677,6 +2727,16 @@
         }
       }
     },
+    "可以向任意网站发送请求。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can send requests to any website."
+          }
+        }
+      }
+    },
     "可能已被删除或移走，重新建立索引后会更新列表。": {
       "localizations": {
         "en": {
@@ -2877,12 +2937,42 @@
         }
       }
     },
+    "启用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable"
+          }
+        }
+      }
+    },
+    "启用「%@」？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable “%@”?"
+          }
+        }
+      }
+    },
     "命令": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Command"
+          }
+        }
+      }
+    },
+    "命令 %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commands %lld"
           }
         }
       }
@@ -3125,6 +3215,16 @@
         }
       }
     },
+    "处理中": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing"
+          }
+        }
+      }
+    },
     "复制": {
       "localizations": {
         "en": {
@@ -3187,6 +3287,16 @@
         }
       }
     },
+    "外部程序": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "External Process"
+          }
+        }
+      }
+    },
     "大图": {
       "localizations": {
         "en": {
@@ -3203,6 +3313,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Size"
+          }
+        }
+      }
+    },
+    "失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed"
           }
         }
       }
@@ -3367,6 +3487,16 @@
         }
       }
     },
+    "它以你的身份运行 %@，能读写你能访问的所有文件、访问网络。只启用你信任的插件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs %@ as you, with access to all your files and the network. Only enable plugins you trust."
+          }
+        }
+      }
+    },
     "它所在的网络卷现在没有挂载。连接后即可打开。": {
       "localizations": {
         "en": {
@@ -3473,6 +3603,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Split Wide Pages"
+          }
+        }
+      }
+    },
+    "密码不写进 plugins.json。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwords are not saved in plugins.json."
+          }
+        }
+      }
+    },
+    "密码不写进 plugins.json，留空表示不改。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwords are not saved in plugins.json. Leave blank to keep unchanged."
           }
         }
       }
@@ -4249,6 +4399,16 @@
         }
       }
     },
+    "打开 manifest.json": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open manifest.json"
+          }
+        }
+      }
+    },
     "打开…": {
       "localizations": {
         "en": {
@@ -4337,6 +4497,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Books you open appear here, newest first."
+          }
+        }
+      }
+    },
+    "执行 MacView 命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run MacView Commands"
           }
         }
       }
@@ -4437,6 +4607,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Place .js files in the scripts folder and they will appear here. Use // @name and // @event comments at the top to set the name and events."
+          }
+        }
+      }
+    },
+    "把包含 manifest.json 的插件文件夹放进插件目录，这里会马上列出来。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Place plugin folders with manifest.json in the plugins folder and they will appear here."
           }
         }
       }
@@ -4719,6 +4899,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Queued"
+          }
+        }
+      }
+    },
+    "插件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugins"
           }
         }
       }
@@ -5809,6 +5999,16 @@
         }
       }
     },
+    "未启用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disabled"
+          }
+        }
+      }
+    },
     "未打开文件夹": {
       "localizations": {
         "en": {
@@ -5921,6 +6121,26 @@
         }
       }
     },
+    "权限有变，需重新同意": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permissions changed"
+          }
+        }
+      }
+    },
+    "来源": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source"
+          }
+        }
+      }
+    },
     "来源暂时无法连接，请检查网络或服务状态。": {
       "localizations": {
         "en": {
@@ -5947,6 +6167,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Find"
+          }
+        }
+      }
+    },
+    "查看…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review…"
           }
         }
       }
@@ -6541,6 +6771,16 @@
         }
       }
     },
+    "添加 %@ 来源": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add %@ Source"
+          }
+        }
+      }
+    },
     "添加后，面板打开时按 1–0\n把当前页%@过去": {
       "localizations": {
         "en": {
@@ -6597,6 +6837,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add Rule"
+          }
+        }
+      }
+    },
+    "清单错误": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manifest Error"
           }
         }
       }
@@ -6719,6 +6969,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Scroll Device"
+          }
+        }
+      }
+    },
+    "滤镜": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter"
           }
         }
       }
@@ -7457,6 +7717,16 @@
         }
       }
     },
+    "编辑来源": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Source"
+          }
+        }
+      }
+    },
     "编辑标签": {
       "localizations": {
         "en": {
@@ -7745,6 +8015,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Scripts"
+          }
+        }
+      }
+    },
+    "脚本与插件的输出、错误与外部命令结果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script & plugin output, errors, and external command results"
           }
         }
       }
@@ -8039,6 +8319,16 @@
         }
       }
     },
+    "访问网络": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network Access"
+          }
+        }
+      }
+    },
     "评分": {
       "localizations": {
         "en": {
@@ -8095,6 +8385,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Syntax Error"
+          }
+        }
+      }
+    },
+    "请先启用插件再添加或打开来源": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable this plugin first to add or open sources"
           }
         }
       }
@@ -8351,6 +8651,26 @@
         }
       }
     },
+    "运行出错": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runtime Error"
+          }
+        }
+      }
+    },
+    "运行外部程序（完全信任）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run External Program (Full Trust)"
+          }
+        }
+      }
+    },
     "还有 %lld 项": {
       "localizations": {
         "en": {
@@ -8411,6 +8731,16 @@
         }
       }
     },
+    "还没有插件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Plugins Yet"
+          }
+        }
+      }
+    },
     "还没有播放列表": {
       "localizations": {
         "en": {
@@ -8467,6 +8797,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "This item is already being processed"
+          }
+        }
+      }
+    },
+    "这个插件不需要额外权限": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This plugin does not require extra permissions"
+          }
+        }
+      }
+    },
+    "这个插件要以下权限。同意后才会运行；以后清单要的权限变多，会再问一次。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This plugin requests the following permissions. It will only run after you allow them, and you will be asked again if it requests more."
           }
         }
       }
@@ -9295,6 +9645,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "+ New External Command"
+          }
+        }
+      }
+    },
+    "＋ 添加来源": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+ Add Source"
           }
         }
       }
