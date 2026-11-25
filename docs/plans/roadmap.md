@@ -220,7 +220,7 @@ S4-T3 / S4-F4 留给关口：
 |---|---|
 | S5-T1 | JavaScriptCore 运行时与应用 API、事件，自定义外部命令；含设置「扩展」页（原 S5-F1 中脚本管理界面的部分）。已完成（2026-11-24，`2c70c1d`） |
 | S5-T2 | 插件宿主：清单与权限、JS 插件、外部进程 JSON-RPC、来源插件、外部程序整图滤镜、设置「扩展」页「插件」一节。已完成（2026-11-25，`66e3a4d`）；解码器插件挪到增量，RAR/7z 以后再说 |
-| S5-F1 | HTML/JS 面板宿主（WKWebView 桥）（脚本与插件的管理界面已随 S5-T1、S5-T2 完成） |
+| S5-F1 | HTML/JS 面板宿主（WKWebView 桥）（脚本与插件的管理界面已随 S5-T1、S5-T2 完成）。已完成（2026-11-25，`8533aaf`） |
 
 S5-T1 完成（2026-11-24，`f470b95`、`0d213a9`、`2c70c1d`）：三个阶段合入 main，CI 通过，Release 已装到 `/Applications/MacView.app`。新模块 MVScripting：`Scripts/*.js` 一个文件一条命令（`script.<文件名>`），文件头 `@name`/`@description`/`@event` 声明元数据与事件（startup、bookOpened、pageChanged、pageEnd、windowStateChanged）；每次运行在专用线程上新建 JSContext，`mv` 同步垫片经异步 `ScriptHost.call` 调到主线程（HTML 面板以后复用同一方法表，另写 Promise 垫片）；死循环用 `JSContextGroupSetExecutionTimeLimit`（非公开，dlsym 探测）停止。外部命令存 `external-commands.json`（应用 / 程序 / Shell 三类，`external.<id>`），Shell 用 `/bin/zsh -l -c`，文件名经位置参数与 `MV_*` 环境变量传入、不拼进命令文本。翻页命令在首末帧不再禁用（越界触发 `pageEnd`，无订阅时仍提示音）；设置与菜单的命令清单改从 `CommandRegistry.descriptors()` 动态取；快捷键页新增「未知命令」分组；设置第 10 页「扩展」，窗口最小宽度 640。自检 `-MVScriptSelfTest commands|events|external|settings` 全过。需求冒烟时屏幕锁定，安装版实机走查留关口。
 
@@ -248,6 +248,21 @@ S5-T2 留给关口 G5：
 - Wikimedia Commons 示例连真实外网（自检用本地替身）。
 
 Core 诊断信息本地化（2026-11-25，S5-T2 审核时发现）：Core 里会显示到界面的错误与日志文字（插件清单、插件与脚本运行时、外部程序、压缩包损坏原因、传输记录等约 160 条）改为经 App 字符串目录翻译，英文界面不再夹中文原因；`make test` 新增 `scripts/check-core-strings.py`，核对 Core 文案都有英文翻译（顺带补上「套用布局方案」与两条外观设置范围错误的英文）。
+
+S5-F1 完成（2026-11-25，`e0322e1`、`8533aaf`）：两个阶段合入 main，CI 通过，Release 已装到 `/Applications/MacView.app`。插件清单新增 `panels`（`id`、`title`、`entry`、可选 `symbol`、`defaultEdge`），只有面板的插件可不写 `runtime`；面板 ID `plugin.<插件>.<面板>`，显示命令 `plugin.<插件>.panel.<面板>`，列在「窗口」菜单面板一节末尾（`DynamicMenuID.pluginPanels`）。面板是 WKWebView，页面经 `macview-plugin://<插件>/` 只读插件文件夹，主页面与子框架只能导航到本插件，不开新窗口；没有 `network` 权限时用内容规则拦 http(s)、ws(s)。页面里的 `mv` 与脚本同一张方法表，全部返回 Promise，经 `PluginHost.panelCall` 检查权限，拒绝由它记进插件日志；`mv.on/off` 收作用窗口的事件与面板专有的 `targetChanged`，`pageChanged` 合并投递。深浅色靠 `prefers-color-scheme`，强调色与面板字体以 CSS 变量就地更新。插件文件改动后重建面板；页面卡死不用 `reload()`（前置验证不能恢复），改为丢掉旧 WKWebView 用新配置重建，卡死只在投递事件、面板变为可见、点重新载入时探测（3 秒）。停靠布局分保存布局与显示布局，不可用的插件面板保留原位，再启用时回原处。示例插件 `Examples/Plugins/page-notes`（页面笔记）。自检 `-MVPluginSelfTest panels` 中英文浅深色全过。
+
+S5-F1 留给关口 G5：
+
+- 真实鼠标把面板拖到底区、拖出浮动；安装版实机走查 S1–S8（含「窗口」菜单面板一节目视核对）。
+- 真实外网：有 `network` 权限时面板 `fetch` 外网成功（自检用本地替身）。
+- Safari 开发菜单能看到并连上面板（前置验证无法在命令行确认）。
+- 自检截图里窗口顶部标签栏是一条白条（深色下明显），疑为自检截图方式渲染不了原生标签栏；实机目视确认。
+
+S5-F1 遗留：
+
+- 卡死的网页进程在重建后仍占一个 CPU 核心，直到退出 App（公开接口无法结束它）；面板无响应提示里已写明。
+- 完全空闲的页面自己卡死时，要到下一次投递事件、面板变为可见或点重新载入才发现。
+- 清单里的面板标题只有一种语言，英文界面下示例插件的标签名仍是「页面笔记」；需要时给清单加本地化标题。
 
 ## S6 发布准备（关口 G6）
 
