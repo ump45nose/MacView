@@ -177,6 +177,11 @@ extension Availability {
 }
 
 extension Location {
+    /// 界面显示名：优先取末端名称，插件来源根为空时回退到来源名称。
+    var displayName: String {
+        name.isEmpty ? root.displayName : name
+    }
+
     /// 界面上的路径：本机的家目录缩写为 `~`，网络卷以共享名开头，插件来源以来源名称开头。
     var displayPath: String {
         switch root {

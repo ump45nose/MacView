@@ -171,26 +171,7 @@ final class ContinuousViewer: NSView {
 
     private func syncFilterActivity(_ itemStates: [ContentIdentity: PluginFilterActivity.State], failure: String?) {
         guard session.settings.browseMode != .paged, let activity = pluginFilterActivity else { return }
-        guard !resolvedPluginFilters.isEmpty else {
-            activity.reset()
-            return
-        }
-        let combined: PluginFilterActivity.State
-        if itemStates.values.contains(.running) {
-            combined = .running
-        } else if let failedMsg = itemStates.values.compactMap({ state -> String? in
-            if case let .failed(msg) = state { return msg }
-            return nil
-        }).first {
-            combined = .failed(failedMsg)
-        } else {
-            combined = .idle
-        }
-        var next: [String: PluginFilterActivity.State] = [:]
-        for req in resolvedPluginFilters.requests {
-            next[PluginFilterActivity.key(plugin: req.plugin, filter: req.filter)] = combined
-        }
-        activity.update(next, names: resolvedPluginFilters.names)
+        activity.update(from: itemStates.values, filters: resolvedPluginFilters)
         if let failure {
             let pluginName = resolvedPluginFilters.requests.first.flatMap { resolvedPluginFilters.pluginNames[$0.plugin] ?? $0.plugin } ?? ""
             onPluginFilterFailure?(pluginName, failure)

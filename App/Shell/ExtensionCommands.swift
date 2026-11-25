@@ -382,12 +382,18 @@ final class ExtensionCommands {
             guard reportedEventErrors.insert(key).inserted else { return }
         }
         let scriptName = allScripts.first { $0.id == run.scriptID }?.name ?? run.scriptID
-        let targetWindow: ReaderWindowController? = if let session = run.session {
+        showFailureStatus(source: scriptName, session: run.session, message: firstLine)
+    }
+
+    /// 在目标窗口或前台窗口状态栏显示扩展执行失败的首行提示（脚本与插件共用）。
+    func showFailureStatus(source: String, session: SessionID?, message: String) {
+        let firstLine = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
+        let targetWindow: ReaderWindowController? = if let session {
             app?.controller(for: session)
         } else {
             app?.mainController ?? app?.activeReaderController
         }
-        targetWindow?.content.statusBar.showMessage(String(localized: "\(scriptName) 出错：\(firstLine)"))
+        targetWindow?.content.statusBar.showMessage(String(localized: "\(source) 出错：\(firstLine)"))
     }
 
     func resolveTarget(for context: CommandContext) -> ScriptTarget {

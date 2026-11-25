@@ -32,6 +32,30 @@ final class PluginFilterActivity {
         if states != nextStates { states = nextStates }
     }
 
+    func update(from itemStates: some Collection<State>, filters: ResolvedPluginFilters) {
+        guard !filters.isEmpty else {
+            reset()
+            return
+        }
+        let combined: State
+        if itemStates.contains(.running) {
+            combined = .running
+        } else if let failedMessage = itemStates.compactMap({ state -> String? in
+            if case let .failed(msg) = state { return msg }
+            return nil
+        }).first {
+            combined = .failed(failedMessage)
+        } else {
+            combined = .idle
+        }
+        var next: [String: State] = [:]
+        next.reserveCapacity(filters.requests.count)
+        for req in filters.requests {
+            next[Self.key(plugin: req.plugin, filter: req.filter)] = combined
+        }
+        update(next, names: filters.names)
+    }
+
     func reset() {
         if !states.isEmpty { states = [:] }
         if !names.isEmpty { names = [:] }
@@ -172,6 +196,7 @@ final class PageSlot {
         baseTarget = nil
         upgradeTarget = nil
         upgradeDelivered = false
+        let hadFilterState = filterState != .idle
         originalImage = nil
         activeFilters = .empty
         filterTarget = nil
@@ -185,6 +210,9 @@ final class PageSlot {
         CATransaction.commit()
         hasImage = false
         quality = nil
+        if hadFilterState {
+            onFilterStateChange?(self, .idle, nil)
+        }
         onChange?()
     }
 

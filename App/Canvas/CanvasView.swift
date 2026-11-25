@@ -745,15 +745,22 @@ final class CanvasView: NSScrollView {
     /// 连续视图主区插件滤镜：只作用于可见的静态非分块页；关闭或变参立即恢复原图。
     func setPluginFilters(_ filters: ResolvedPluginFilters) {
         guard loader.setPluginFilters(filters) else { return }
+        var evictedIndices: [Int] = []
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         for (index, tile) in tiles where !isFailed(at: index) && !isShowingPreviewFrame(at: index, identity: tile.identity) {
             if let original = loader.cachedOriginal(tile.identity) {
                 tile.layer.contents = original.contents
                 tile.layer.backgroundColor = nil
+            } else {
+                evictedIndices.append(index)
             }
         }
         CATransaction.commit()
+        if !evictedIndices.isEmpty {
+            recycle(evictedIndices)
+            updateVisible(scrolled: false)
+        }
         guard !filters.isEmpty else { return }
         for (index, tile) in tiles where tile.layer.frame.intersects(viewport) {
             requestPluginFilterIfNeeded(index, frame: tile.layer.frame)

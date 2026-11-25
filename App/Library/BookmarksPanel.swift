@@ -39,7 +39,7 @@ private final class BookmarkItem: NSObject {
 
     var isFolder: Bool { location == nil }
     /// 显示名：文件夹名，或书的自定义名、原名（插件来源根取来源名称）。
-    var title: String { label ?? location.map { $0.name.isEmpty ? $0.root.displayName : $0.name } ?? "" }
+    var title: String { label ?? location?.displayName ?? "" }
     /// 文件夹里（含子文件夹）的书数。
     var bookCount: Int { children.reduce(0) { $0 + ($1.isFolder ? $1.bookCount : 1) } }
 }
@@ -294,8 +294,7 @@ final class BookmarksPanel: NSObject, DockPanel, NSOutlineViewDataSource, NSOutl
 
     private func configure(_ cell: BookmarkCell, item: BookmarkItem) {
         if let location = item.location {
-            let originalName = location.name.isEmpty ? location.root.displayName : location.name
-            let detail = item.label != nil ? String(localized: "原名：\(originalName)") : location.parent?.displayPath ?? ""
+            let detail = item.label != nil ? String(localized: "原名：\(location.displayName)") : location.parent?.displayPath ?? ""
             let isArchive = if case .archive = EntryKind(fileName: location.name) { true } else { false }
             cell.showBook(title: item.title, detail: detail, isArchive: isArchive, availability: availability.state(of: location))
             cell.badge.onPress = { [weak self, weak cell] in

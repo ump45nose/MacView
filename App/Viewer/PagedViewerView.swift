@@ -511,35 +511,8 @@ final class PagedViewerView: NSView, NSDraggingSource {
 
     private func syncFilterActivity() {
         guard session.settings.browseMode == .paged, let activity = pluginFilterActivity else { return }
-        guard !resolvedPluginFilters.isEmpty else {
-            activity.reset()
-            return
-        }
-        let eligibleSlots = slots.filter { isStaticFilterEligible(slot: $0) }
-        guard !eligibleSlots.isEmpty else {
-            var idleStates: [String: PluginFilterActivity.State] = [:]
-            for req in resolvedPluginFilters.requests {
-                idleStates[PluginFilterActivity.key(plugin: req.plugin, filter: req.filter)] = .idle
-            }
-            activity.update(idleStates, names: resolvedPluginFilters.names)
-            return
-        }
-        let combined: PluginFilterActivity.State
-        if eligibleSlots.contains(where: { $0.filterState == .running }) {
-            combined = .running
-        } else if let failedMessage = eligibleSlots.compactMap({ slot -> String? in
-            if case let .failed(msg) = slot.filterState { return msg }
-            return nil
-        }).first {
-            combined = .failed(failedMessage)
-        } else {
-            combined = .idle
-        }
-        var states: [String: PluginFilterActivity.State] = [:]
-        for req in resolvedPluginFilters.requests {
-            states[PluginFilterActivity.key(plugin: req.plugin, filter: req.filter)] = combined
-        }
-        activity.update(states, names: resolvedPluginFilters.names)
+        let eligibleStates = slots.filter { isStaticFilterEligible(slot: $0) }.map(\.filterState)
+        activity.update(from: eligibleStates, filters: resolvedPluginFilters)
     }
 
     private func updatePluginFilterPreheat() {

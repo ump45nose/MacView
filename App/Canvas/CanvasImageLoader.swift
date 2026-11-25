@@ -93,7 +93,7 @@ final class CanvasImageLoader: NSObject {
         self.view = view
         super.init()
         followThumbnailMemoryBudget(cache, settings: settings)
-        followThumbnailMemoryBudget(filteredCache, settings: settings)
+        filteredCache.totalCostLimit = 0
     }
 
     var inFlight: Int {
@@ -120,6 +120,7 @@ final class CanvasImageLoader: NSObject {
         filterLoads.removeAll()
         filterStates.removeAll()
         filteredCache.removeAllObjects()
+        filteredCache.totalCostLimit = filters.isEmpty ? 0 : max(cache.totalCostLimit / 2, 1)
         filterGeneration &+= 1
         activePluginFilters = filters
         onFilterStateChange?(filterStates, nil)
@@ -130,7 +131,11 @@ final class CanvasImageLoader: NSObject {
     func requestFiltered(_ identity: ContentIdentity, target: PixelSize) {
         guard source == .display, !activePluginFilters.isEmpty else { return }
         let key = IdentityKey(identity)
-        if filteredCache.object(forKey: key) != nil || filterLoads[identity] != nil {
+        let targetLongSide = max(target.width, target.height)
+        if let existing = filteredCache.object(forKey: key), existing.longSide * 5 >= targetLongSide * 4 {
+            return
+        }
+        if filterLoads[identity] != nil {
             return
         }
         let generation = filterGeneration
@@ -179,8 +184,8 @@ final class CanvasImageLoader: NSObject {
     @discardableResult
     func request(_ identity: ContentIdentity, longSide: Int, target: PixelSize?, priority: IOPriority) -> Bool {
         guard loads[identity] == nil, !failures.contains(identity) else { return false }
-        // 缓存的图比需要的小不到 20%，或显示图已过占位阶段时，就够用了。
-        if let cached = cached(identity), cached.longSide * 5 >= longSide * 4, target == nil || cached.quality > .placeholder {
+        // 缓存的原图比需要的小不到 20%，或显示图已过占位阶段时，就够用了。
+        if let cached = cachedOriginal(identity), cached.longSide * 5 >= longSide * 4, target == nil || cached.quality > .placeholder {
             return false
         }
         nextID += 1

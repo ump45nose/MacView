@@ -517,7 +517,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
                 ?? LibraryActions.playlists.first { $0.id == playlistID }?.name
                 ?? ((windowTitle?.isEmpty == false) ? windowTitle! : String(localized: "播放列表"))
         }
-        return location.name.isEmpty ? location.root.displayName : location.name
+        return location.displayName
     }
 
     /// 书名与下面一行；虚拟书是“播放列表”标记加列表名，下面是“N 项，来自 M 本书”。
@@ -532,7 +532,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             path = String(localized: "\(pages.count) 项，来自 \(books) 本书")
             isPlaylist = true
         } else {
-            title = location.map { $0.name.isEmpty ? $0.root.displayName : $0.name } ?? "MacView"
+            title = location?.displayName ?? "MacView"
             path = titleDetail(location)
             isPlaylist = false
         }

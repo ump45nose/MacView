@@ -46,11 +46,7 @@ final class PluginCoordinator {
 
     private(set) var allPlugins: [PluginInfo] = []
     private(set) var enabledPlugins: [PluginInfo] = []
-    private(set) var statuses: [String: PluginStatus] = [:]
-    private(set) var settingsProblem: String?
 
-    /// 插件列表、启用状态、来源或运行状态变化时回调（供设置页刷新）。
-    var onChange: (() -> Void)?
     /// 插件启用集合或版本变化时回调（供 AppDelegate 刷新各窗口插件滤镜）。
     var onAvailabilityChange: (() -> Void)?
 
@@ -58,7 +54,6 @@ final class PluginCoordinator {
     private var lastCommandEntries: [CommandEntry] = []
     private var libraryTask: Task<Void, Never>?
     private var settingsTask: Task<Void, Never>?
-    private var statusTask: Task<Void, Never>?
     private var openSourceTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
 
     init(services: CoreServices, scripts: ExtensionCommands) {
@@ -70,7 +65,6 @@ final class PluginCoordinator {
         syncState(reloadCatalog: false)
         observeLibrary()
         observeSettings()
-        observeStatuses()
     }
 
     func stop() {
@@ -78,8 +72,6 @@ final class PluginCoordinator {
         libraryTask = nil
         settingsTask?.cancel()
         settingsTask = nil
-        statusTask?.cancel()
-        statusTask = nil
         for task in openSourceTasks.values { task.cancel() }
         openSourceTasks.removeAll()
         PluginSourceLookup.shared.update([:])
@@ -163,8 +155,9 @@ final class PluginCoordinator {
         openSourceTasks[windowKey]?.cancel()
         let sources = services.sources
         openSourceTasks[windowKey] = Task { [weak self, weak target] in
-            guard let self, let target else { return }
+            guard let self else { return }
             defer { self.openSourceTasks[windowKey] = nil }
+            guard let target else { return }
             do {
                 let provider = try sources.provider(for: location)
                 var entries: [Entry] = []
@@ -226,22 +219,6 @@ final class PluginCoordinator {
         return ResolvedPluginFilters(requests: requests, names: names, versions: versions, pluginNames: pluginNames)
     }
 
-    func filterDisplayName(plugin: String, filter: String) -> String {
-        if let info = allPlugins.first(where: { $0.id == plugin }),
-           let decl = info.manifest?.filters.first(where: { $0.id == filter }) {
-            return decl.name
-        }
-        return filter
-    }
-
-    func pluginDisplayName(for id: String) -> String {
-        allPlugins.first { $0.id == id }?.manifest?.name ?? id
-    }
-
-    func pluginVersion(for id: String) -> String? {
-        enabledPlugins.first { $0.id == id }?.manifest?.version
-    }
-
     static func commandID(plugin: String, command: String) -> CommandID {
         CommandID("plugin.\(plugin).\(command)")
     }
@@ -272,26 +249,11 @@ final class PluginCoordinator {
                 guard let self, !Task.isCancelled else { return }
                 switch change {
                 case .reloaded:
-                    self.settingsProblem = nil
                     self.scripts.app?.setFileProblem("plugins.json", nil)
                     self.syncState(reloadCatalog: true)
                 case let .fileError(message):
-                    self.settingsProblem = message
                     self.scripts.app?.setFileProblem("plugins.json", message)
-                    self.onChange?()
                 }
-            }
-        }
-    }
-
-    private func observeStatuses() {
-        guard let host = services.pluginHost else { return }
-        let stream = host.statusChanges()
-        statusTask = Task { [weak self] in
-            for await next in stream {
-                guard let self, !Task.isCancelled else { return }
-                self.statuses = next
-                self.onChange?()
             }
         }
     }
@@ -301,9 +263,6 @@ final class PluginCoordinator {
     private func syncState(reloadCatalog: Bool) {
         allPlugins = services.pluginLibrary?.plugins() ?? []
         enabledPlugins = services.pluginHost?.enabledPlugins() ?? []
-        if let host = services.pluginHost {
-            statuses = host.statuses()
-        }
         updateSourceLookup()
 
         var entries: [CommandEntry] = []
@@ -347,7 +306,6 @@ final class PluginCoordinator {
                 scripts.app?.reloadCatalog()
             }
         }
-        onChange?()
         onAvailabilityChange?()
     }
 
@@ -403,13 +361,7 @@ final class PluginCoordinator {
                 guard let self else { return }
                 let message = error.localizedDescription
                 self.services.scriptLog?.append(source: pluginName, level: .error, text: message)
-                let firstLine = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
-                let targetWindow: ReaderWindowController? = if let targetSession {
-                    self.scripts.app?.controller(for: targetSession)
-                } else {
-                    self.scripts.app?.mainController ?? self.scripts.app?.activeReaderController
-                }
-                targetWindow?.content.statusBar.showMessage(String(localized: "\(pluginName) 出错：\(firstLine)"))
+                self.scripts.showFailureStatus(source: pluginName, session: targetSession, message: message)
             }
         }
     }
