@@ -15,6 +15,7 @@ enum TestPresentation {
             || defaults.string(forKey: EffectsSelfTest.launchKey) != nil
             || defaults.string(forKey: AppearanceSelfTest.launchKey) != nil
             || defaults.string(forKey: ScriptSelfTest.launchKey) != nil
+            || defaults.string(forKey: PluginSelfTest.launchKey) != nil
             || FileOpsSelfTest.isRequested
             || [SelfTest.launchKey, "MVViewerSelfTest", "MVPanelSelfTest", "MVSettingsSelfTest", LibrarySelfTest.launchKey, SearchSelfTest.launchKey, CanvasTestWindowController.launchKey].contains { defaults.bool(forKey: $0) }
     }

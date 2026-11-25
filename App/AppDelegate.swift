@@ -214,6 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppearanceSelfTest.runIfRequested(app: self)
         VideoPreviewSelfTest.runIfRequested(app: self)
         ScriptSelfTest.runIfRequested(app: self)
+        PluginSelfTest.runIfRequested(app: self)
         debugSocket = DebugSocket.startIfRequested(app: self)
         #endif
     }
@@ -254,9 +255,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if isMock { return CoreServices.makeMock() }
         let pixels = NSScreen.screens.map { $0.frame.size.applying(.init(scaleX: $0.backingScaleFactor, y: $0.backingScaleFactor)) }
         let bounds = PixelSize(width: Int(pixels.map(\.width).max() ?? 3840), height: Int(pixels.map(\.height).max() ?? 2160))
+        let pythonLib = Bundle.main.resourceURL?.appending(path: "PluginSupport/python", directoryHint: .isDirectory)
         return try await CoreServices.make(configuration: CoreConfiguration(
             supportDirectory: supportDirectory, cacheDirectory: cacheDirectory,
-            browseBounds: bounds, helperExecutable: Bundle.main.executableURL
+            browseBounds: bounds, helperExecutable: Bundle.main.executableURL,
+            pythonLibraryDirectory: pythonLib
         ))
     }
 
