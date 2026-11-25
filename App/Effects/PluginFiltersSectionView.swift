@@ -70,7 +70,9 @@ final class PluginFiltersSectionView: NSView {
 
             for (index, item) in items.enumerated() {
                 if index > 0 {
-                    rowsStack.addArrangedSubview(SectionDivider())
+                    let divider = SectionDivider()
+                    rowsStack.addArrangedSubview(divider)
+                    divider.widthAnchor.constraint(equalTo: rowsStack.widthAnchor).isActive = true
                 }
                 let row = PluginFilterRowView(item: item)
                 row.onToggle = { [weak self] isOn in
@@ -81,6 +83,7 @@ final class PluginFiltersSectionView: NSView {
                 }
                 rowViews[item.key] = row
                 rowsStack.addArrangedSubview(row)
+                row.widthAnchor.constraint(equalTo: rowsStack.widthAnchor).isActive = true
             }
         }
 
@@ -114,8 +117,8 @@ final class PluginFiltersSectionView: NSView {
 
     private func buildUI() {
         rootStack.orientation = .vertical
-        rootStack.alignment = .width
-        rootStack.spacing = 6
+        rootStack.alignment = .leading
+        rootStack.spacing = 8
         rootStack.edgeInsets = NSEdgeInsets(top: 10, left: 12, bottom: 12, right: 12)
         rootStack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(rootStack)
@@ -123,17 +126,24 @@ final class PluginFiltersSectionView: NSView {
         titleLabel.font = Theme.font(.panels, size: 12, weight: .semibold)
         titleLabel.textColor = Theme.text
         titleLabel.setContentHuggingPriority(.required, for: .horizontal)
+        let titleSpacer = NSView()
+        titleSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let header = NSStackView(views: [titleLabel, titleSpacer])
+        header.orientation = .horizontal
+        header.alignment = .centerY
 
         rowsStack.orientation = .vertical
-        rowsStack.alignment = .width
+        rowsStack.alignment = .leading
         rowsStack.spacing = 6
+        rowsStack.setContentHuggingPriority(.init(1), for: .horizontal)
 
         hintLabel.font = Theme.font(.panels, size: 11)
         hintLabel.textColor = Theme.text2
         hintLabel.maximumNumberOfLines = 3
         hintLabel.lineBreakMode = .byWordWrapping
+        hintLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        rootStack.addArrangedSubview(titleLabel)
+        rootStack.addArrangedSubview(header)
         rootStack.addArrangedSubview(rowsStack)
         rootStack.addArrangedSubview(hintLabel)
 
@@ -142,6 +152,9 @@ final class PluginFiltersSectionView: NSView {
             rootStack.trailingAnchor.constraint(equalTo: trailingAnchor),
             rootStack.topAnchor.constraint(equalTo: topAnchor),
             rootStack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            header.widthAnchor.constraint(equalTo: rootStack.widthAnchor, constant: -24),
+            rowsStack.widthAnchor.constraint(equalTo: rootStack.widthAnchor, constant: -24),
+            hintLabel.widthAnchor.constraint(equalTo: rootStack.widthAnchor, constant: -24),
         ])
     }
 }
@@ -247,7 +260,7 @@ private final class PluginFilterRowView: NSView {
     private func buildUI(for item: PluginFilterDisplayItem) {
         let root = NSStackView()
         root.orientation = .vertical
-        root.alignment = .width
+        root.alignment = .leading
         root.spacing = 6
         root.translatesAutoresizingMaskIntoConstraints = false
         addSubview(root)
@@ -267,7 +280,11 @@ private final class PluginFilterRowView: NSView {
         textStack.orientation = .vertical
         textStack.alignment = .leading
         textStack.spacing = 1
-        textStack.setContentHuggingPriority(.init(1), for: .horizontal)
+        textStack.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let headerSpacer = NSView()
+        headerSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        headerSpacer.setContentCompressionResistancePriority(.init(1), for: .horizontal)
 
         spinner.style = .spinning
         spinner.controlSize = .mini
@@ -296,14 +313,14 @@ private final class PluginFilterRowView: NSView {
         toggleSwitch.action = #selector(switchChanged(_:))
         toggleSwitch.setAccessibilityIdentifier("effects.pluginFilter.\(item.key).switch")
 
-        let header = NSStackView(views: [textStack, statusStack, toggleSwitch])
+        let header = NSStackView(views: [textStack, headerSpacer, statusStack, toggleSwitch])
         header.orientation = .horizontal
         header.alignment = .centerY
         header.spacing = 8
         root.addArrangedSubview(header)
 
         paramsStack.orientation = .vertical
-        paramsStack.alignment = .width
+        paramsStack.alignment = .leading
         paramsStack.spacing = 4
         paramsStack.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 2, right: 0)
         for param in item.parameters {
@@ -324,6 +341,7 @@ private final class PluginFilterRowView: NSView {
             }
             paramRows[param.key] = row
             paramsStack.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: paramsStack.widthAnchor, constant: -12).isActive = true
         }
         paramsStack.isHidden = true
         root.addArrangedSubview(paramsStack)
@@ -333,6 +351,8 @@ private final class PluginFilterRowView: NSView {
             root.trailingAnchor.constraint(equalTo: trailingAnchor),
             root.topAnchor.constraint(equalTo: topAnchor),
             root.bottomAnchor.constraint(equalTo: bottomAnchor),
+            header.widthAnchor.constraint(equalTo: root.widthAnchor),
+            paramsStack.widthAnchor.constraint(equalTo: root.widthAnchor),
         ])
     }
 

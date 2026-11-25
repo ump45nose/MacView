@@ -539,10 +539,18 @@ struct PluginConsentSheet: View {
 
             HStack(spacing: 8) {
                 Spacer()
-                Button(String(localized: "取消"), action: onCancel)
-                    .controlSize(.small)
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityIdentifier("settings.plugins.consent.cancel")
+                Button(action: onCancel) {
+                    Text(String(localized: "取消"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(nsColor: Theme.text))
+                        .padding(.horizontal, 12)
+                        .frame(height: 24)
+                        .background(Color(nsColor: Theme.well), in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: Theme.lineStrong), lineWidth: 0.5))
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("settings.plugins.consent.cancel")
 
                 Button(action: onEnable) {
                     Text(String(localized: "启用"))
@@ -681,7 +689,7 @@ struct PluginSourceEditorSheet: View {
             .font(Font(Theme.serif(17, weight: .semibold)))
             .foregroundStyle(Color(nsColor: Theme.text))
 
-            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
                 formRow(label: String(localized: "名称")) {
                     TextField(String(localized: "名称"), text: $name)
                         .labelsHidden()
@@ -697,8 +705,8 @@ struct PluginSourceEditorSheet: View {
                 }
 
                 if hasPasswordField {
-                    GridRow {
-                        Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                    HStack(spacing: 10) {
+                        Color.clear.frame(width: 64, height: 1)
                         Text(
                             !request.isNew && !request.existingSecretKeys.isEmpty
                                 ? String(localized: "密码不写进 plugins.json，留空表示不改。")
@@ -710,13 +718,22 @@ struct PluginSourceEditorSheet: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 8) {
                 Spacer()
-                Button(String(localized: "取消"), action: onCancel)
-                    .controlSize(.small)
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityIdentifier("settings.plugins.sourceForm.cancel")
+                Button(action: onCancel) {
+                    Text(String(localized: "取消"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(nsColor: Theme.text))
+                        .padding(.horizontal, 12)
+                        .frame(height: 24)
+                        .background(Color(nsColor: Theme.well), in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: Theme.lineStrong), lineWidth: 0.5))
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("settings.plugins.sourceForm.cancel")
 
                 Button(action: commit) {
                     Text(String(localized: "存储"))
@@ -754,6 +771,7 @@ struct PluginSourceEditorSheet: View {
                 .labelsHidden()
                 .textFieldStyle(.roundedBorder)
                 .controlSize(.small)
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier(identifier)
         case .url:
             TextField(field.label, text: binding)
@@ -761,6 +779,7 @@ struct PluginSourceEditorSheet: View {
                 .textFieldStyle(.roundedBorder)
                 .controlSize(.small)
                 .font(.system(size: 12, design: .monospaced))
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier(identifier)
         case .number:
             TextField(field.label, text: binding)
@@ -768,6 +787,7 @@ struct PluginSourceEditorSheet: View {
                 .textFieldStyle(.roundedBorder)
                 .controlSize(.small)
                 .font(.system(size: 12).monospacedDigit())
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier(identifier)
         case .password:
             let placeholder = (!request.isNew && request.existingSecretKeys.contains(field.key)) ? "••••••••" : field.label
@@ -775,17 +795,18 @@ struct PluginSourceEditorSheet: View {
                 .labelsHidden()
                 .textFieldStyle(.roundedBorder)
                 .controlSize(.small)
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier(identifier)
         }
     }
 
     private func formRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
-        GridRow {
+        HStack(spacing: 10) {
             Text(label)
                 .font(.system(size: 12))
                 .foregroundStyle(Color(nsColor: Theme.text2))
-                .fixedSize()
-                .gridColumnAlignment(.trailing)
+                .lineLimit(1)
+                .frame(width: 64, alignment: .trailing)
             content()
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
