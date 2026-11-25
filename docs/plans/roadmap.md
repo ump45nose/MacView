@@ -219,8 +219,8 @@ S4-T3 / S4-F4 留给关口：
 | ID | 内容 |
 |---|---|
 | S5-T1 | JavaScriptCore 运行时与应用 API、事件，自定义外部命令；含设置「扩展」页（原 S5-F1 中脚本管理界面的部分）。已完成（2026-11-24，`2c70c1d`） |
-| S5-T2 | 插件宿主：清单与权限、JS 插件、外部进程 JSON-RPC、数据源接入 SourceRegistry、解码与滤镜插件接口 |
-| S5-F1 | HTML/JS 面板宿主（WKWebView 桥），插件的管理界面（脚本管理已随 S5-T1 完成） |
+| S5-T2 | 插件宿主：清单与权限、JS 插件、外部进程 JSON-RPC、来源插件、外部程序整图滤镜、设置「扩展」页「插件」一节。已完成（2026-11-25，`66e3a4d`）；解码器插件挪到增量，RAR/7z 以后再说 |
+| S5-F1 | HTML/JS 面板宿主（WKWebView 桥）（脚本与插件的管理界面已随 S5-T1、S5-T2 完成） |
 
 S5-T1 完成（2026-11-24，`f470b95`、`0d213a9`、`2c70c1d`）：三个阶段合入 main，CI 通过，Release 已装到 `/Applications/MacView.app`。新模块 MVScripting：`Scripts/*.js` 一个文件一条命令（`script.<文件名>`），文件头 `@name`/`@description`/`@event` 声明元数据与事件（startup、bookOpened、pageChanged、pageEnd、windowStateChanged）；每次运行在专用线程上新建 JSContext，`mv` 同步垫片经异步 `ScriptHost.call` 调到主线程（HTML 面板以后复用同一方法表，另写 Promise 垫片）；死循环用 `JSContextGroupSetExecutionTimeLimit`（非公开，dlsym 探测）停止。外部命令存 `external-commands.json`（应用 / 程序 / Shell 三类，`external.<id>`），Shell 用 `/bin/zsh -l -c`，文件名经位置参数与 `MV_*` 环境变量传入、不拼进命令文本。翻页命令在首末帧不再禁用（越界触发 `pageEnd`，无订阅时仍提示音）；设置与菜单的命令清单改从 `CommandRegistry.descriptors()` 动态取；快捷键页新增「未知命令」分组；设置第 10 页「扩展」，窗口最小宽度 640。自检 `-MVScriptSelfTest commands|events|external|settings` 全过。需求冒烟时屏幕锁定，安装版实机走查留关口。
 
@@ -239,6 +239,17 @@ S5-T1 遗留：
 - 外部程序自行脱离进程组时，停止不一定能结束它。
 - 应用类外部命令解出的压缩包页文件持有到 App 退出。
 - CI 上 `videoPreviewShutdownStopsActiveGeneratorAndReaders`（S4）与 `CoreServices.make` 200 ms 启动断言偶发失败，重跑通过。
+
+S5-T2 完成（2026-11-25，`e71b70c`、`b3dfa0d`、`66e3a4d`）：三个阶段合入 main，CI 通过，Release 已装到 `/Applications/MacView.app`。新模块 MVPlugins：插件是 `Plugins/<id>/` 文件夹加 `manifest.json`，`runtime` 为 `js`（JavaScriptCore 长驻上下文，30 秒执行上限）或 `process`（外部程序，stdio 按行 JSON-RPC 2.0，闲置 5 分钟退出）；两种运行时共用方法名（宿主调插件 `initialize`、`command.run`、`event`、`source.list`、`source.read`、`filter.apply`、`shutdown`、`$/cancelRequest`；插件调宿主 `mv.<ScriptAPI 方法>`、`log`，JS 另有 `mv.http`）。权限只有 `network` 与 `commands`，在 MVPlugins 里检查，首次启用与新增权限时弹确认；外部程序插件按完全信任处理。来源实例根为 `.plugin(id: "source/<UUID>")`，App 经 `HTTPByteSource` 按 Range 读直链（每来源并发 4），冷启动时重列父目录回填链接；`ExtractStore` 下沉到 MVIO，压缩包可开在插件来源上。滤镜是 `Effect.plugin`，由外部程序处理整张静态图，先显原图再替换，结果按插件版本进浏览磁盘缓存，分页模式预热前后各 1 帧。设置存 `plugins.json`，来源密码存 `plugin-secrets.json`（0600），插件存储键空间 `plugin:<id>`。示例插件 `Examples/Plugins/`（WebDAV、Wikimedia Commons、灰度、随机页）与 Python 工具库 `PluginSupport/python/macview_plugin.py`（打包进 App）。自检 `-MVPluginSelfTest commands|sources|filters|settings` 中英文浅深色全过。
+
+S5-T2 留给关口 G5：
+
+- 安装版实机走查需求场景 S1–S8：拷入示例插件、启用确认、WebDAV 来源浏览与书签重开、停服报错与重试、灰度滤镜先原图后变灰、JS 与外部程序命令、坏清单与死循环停止、停用再启用。
+- Wikimedia Commons 示例连真实外网（自检用本地替身）。
+
+S5-T2 遗留：
+
+- Core 报错原文为中文（插件清单错误、脚本错误等），英文界面只有前缀本地化；需要整体给 Core 诊断信息加错误码或本地化。
 
 ## S6 发布准备（关口 G6）
 
