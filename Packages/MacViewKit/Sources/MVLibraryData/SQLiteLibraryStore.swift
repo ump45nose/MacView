@@ -17,6 +17,20 @@ public final class SQLiteLibraryStore: LibraryStore {
 
     deinit { observers.withLock { $0.values.forEach { $0.finish() } } }
 
+    /// 归档时从同一份快照统计；独立只读连接不执行开库迁移或历史裁剪。
+    public static func summary(databaseURL: URL) throws -> LibrarySummary {
+        var configuration = Configuration()
+        configuration.readonly = true
+        let queue = try DatabaseQueue(path: databaseURL.path, configuration: configuration)
+        return try queue.read { database in
+            try LibrarySummary(
+                history: Int.fetchOne(database, sql: "SELECT COUNT(*) FROM history") ?? 0,
+                bookmarks: Int.fetchOne(database, sql: "SELECT COUNT(*) FROM bookmark WHERE kind = 'book'") ?? 0,
+                playlists: Int.fetchOne(database, sql: "SELECT COUNT(*) FROM playlist") ?? 0
+            )
+        }
+    }
+
     public func flush() async throws {
         try await database.queue.writeWithoutTransaction { try $0.execute(sql: "PRAGMA wal_checkpoint(FULL)") }
     }

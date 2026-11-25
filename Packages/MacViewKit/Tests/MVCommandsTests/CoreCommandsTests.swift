@@ -65,6 +65,32 @@ private func menuCommands(_ nodes: [MenuNode]) -> [CommandID] {
     }
 }
 
+@Test("C1.9 用户数据命令可登记，默认文件菜单在回收目录之后单列一节")
+@MainActor func userDataCommandsHaveDescriptorsAndFileMenuSection() throws {
+    let registry = CommandRegistry()
+    for descriptor in CoreCommands.all {
+        registry.register(descriptor, isEnabled: { _ in true }, perform: { _, _ in })
+    }
+    let expected: [(CommandID, String, String)] = [
+        (.dataExport, "data.export", "导出用户数据…"), (.dataImport, "data.import", "导入用户数据…"),
+    ]
+    for (id, raw, title) in expected {
+        let descriptor = try #require(registry.descriptors().first { $0.id == id })
+        #expect(id.rawValue == raw)
+        #expect(descriptor.title.key == title)
+        #expect(descriptor.category == "file")
+        #expect(descriptor.defaultBindings.isEmpty)
+    }
+
+    let file = try #require(CoreCommands.defaultMenu.roots.compactMap { node -> [MenuNode]? in
+        guard case let .submenu("文件", children) = node else { return nil }
+        return children
+    }.first)
+    let recycle = try #require(file.firstIndex(of: .command(.recycleEmpty)))
+    #expect(Array(file.dropFirst(recycle + 1).prefix(4)) ==
+            [.separator, .command(.dataExport), .command(.dataImport), .separator])
+}
+
 @Test func fileOperationCommandsHaveExpectedIDsAndBindings() {
     let expected: [(CommandID, String)] = [(.fileDelete, "file.delete"), (.fileRename, "file.rename"),
         (.fileCopy, "file.copy"), (.fileCopyPath, "file.copyPath"), (.fileReveal, "file.reveal"),

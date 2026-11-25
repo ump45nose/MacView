@@ -24,6 +24,34 @@ private func page(_ name: String, size: Int64 = 20) -> Entry {
 }
 
 extension LibraryDataTests.LibraryStoreTests {
+    @Test("C1.8 只读统计快照中的历史、书签条目和播放列表")
+    func archiveSummaryReadsSnapshotWithoutModifyingIt() async throws {
+        let fixture = LibraryFixture()
+        defer { try? fixture.clean() }
+        let store = try fixture.open()
+        for name in ["a", "b", "c"] { try await store.recordOpened(book(name), at: Date()) }
+        let folder = try await store.addBookmarkFolder(named: "收藏", into: nil, at: nil)
+        _ = try await store.addBookmarks([book("a"), book("b")], into: folder, at: nil)
+        let playlist = try await store.createPlaylist(named: "待读")
+        _ = try await store.addItems([page("1.jpg"), page("2.jpg")], to: playlist)
+
+        let snapshot = fixture.directory.appending(path: "snapshot.sqlite")
+        try await store.database.queue.writeWithoutTransaction { database in
+            try database.execute(sql: "VACUUM INTO ?", arguments: [snapshot.path])
+        }
+        let fileManager = FileManager.default
+        let modified = Date(timeIntervalSince1970: 1_600_000_000)
+        try fileManager.setAttributes([.modificationDate: modified, .posixPermissions: 0o444], ofItemAtPath: snapshot.path)
+        let summary = try SQLiteLibraryStore.summary(databaseURL: snapshot)
+        #expect(summary == LibrarySummary(history: 3, bookmarks: 2, playlists: 1))
+        let attributes = try fileManager.attributesOfItem(atPath: snapshot.path)
+        #expect(attributes[.modificationDate] as? Date == modified)
+
+        let missing = fixture.directory.appending(path: "missing.sqlite")
+        #expect(throws: DatabaseError.self) { try SQLiteLibraryStore.summary(databaseURL: missing) }
+        #expect(!fileManager.fileExists(atPath: missing.path))
+    }
+
     @Test func c12HistoryLimitsAndPersistence() async throws {
         let fixture = LibraryFixture()
         defer { try? fixture.clean() }

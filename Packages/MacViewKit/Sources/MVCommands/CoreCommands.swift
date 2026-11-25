@@ -21,6 +21,8 @@ extension CommandID {
     public static let fileReveal = CommandID("file.reveal")
     public static let fileOpenWith = CommandID("file.openWith")
     public static let recycleEmpty = CommandID("file.recycle.empty")
+    public static let dataExport = CommandID("data.export")
+    public static let dataImport = CommandID("data.import")
     public static let classifyTarget = CommandID("classify.target")
     public static let classifyModeToggle = CommandID("classify.mode.toggle")
     public static let classifyNewTarget = CommandID("classify.newTarget")
@@ -201,6 +203,10 @@ public enum CoreCommands {
                 command(.fileOpenWith, .init("用指定应用打开", bundle: .main), "file"),
                 command(.recycleEmpty, .init("清空回收目录…", bundle: .main), "file"),
             ]),
+            Section([
+                command(.dataExport, .init("导出用户数据…", bundle: .main), "file", scope: .global),
+                command(.dataImport, .init("导入用户数据…", bundle: .main), "file", scope: .global),
+            ], trailingNodes: [.separator]),
             Section("评分", [
                 commandMany(.ratingSet0, .init("清除评分", bundle: .main), "metadata", key: KeyChord("0", modifiers: .option), scopes: [.viewer, .list]),
                 commandMany(.ratingSet1, .init("1 星", bundle: .main), "metadata", key: KeyChord("1", modifiers: .option), scopes: [.viewer, .list]),

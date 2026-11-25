@@ -262,6 +262,8 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 
 公开类型及完整方法签名见 [LibraryTypes.swift](../Packages/MacViewKit/Sources/MVLibraryData/LibraryTypes.swift)；检查器与加载器接口分别见 [AvailabilityChecker.swift](../Packages/MacViewKit/Sources/MVLibraryData/AvailabilityChecker.swift)、[PlaylistBookLoader.swift](../Packages/MacViewKit/Sources/MVLibraryData/PlaylistBookLoader.swift)。§4 只保留行为契约，避免与源码重复维护声明。
 
+**用户数据导出导入**。默认「文件」菜单在「清空回收目录…」之后提供「导出用户数据…」和「导入用户数据…」。导出前 App 写出会话和布局，Core 等待历史、书记忆和资料库落盘，再将用户数据打成一个 `.macviewdata` 文件。导入先校验并暂存，用户确认后重启，在新进程创建服务前备份并替换本机数据。导入备份可回到替换前的状态。
+
 ### 3.7 命令与输入
 
 - 菜单、快捷键、手势、脚本和插件都通过 `CommandRegistry.perform` 执行命令。Core 定义命令清单和默认绑定，App 注册与界面相关的处理器；`frame.left` / `frame.right` 按当前阅读方向（左开/右开）换算为上一帧或下一帧，供手势、点击区域与横扫复用。
@@ -393,6 +395,14 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 ## 4. Core 协议契约
 
 契约已由 S0-T4 落成代码，实现时的调整已在 G0 并入本节。字段与默认值、行为约定等细节以代码和文档注释为准，说明见 [S0-T4 报告](reports/S0-T4.md)。修改公开接口时同步更新本节。
+
+**用户数据归档（MVServices）**
+
+- `UserDataItem` 的 16 项包含 12 个 JSON 文件（`settings.json`、`keybindings.json`、`menus.json`、`path-rules.json`、`profiles.json`、`layout.json`、`layout-schemes.json`、`session.json`、`external-commands.json`、`script-storage.json`、`plugins.json`、`plugin-secrets.json`）、两个数据库（`state.sqlite`、`library.sqlite`）和两个目录（`Scripts/`、`Plugins/`）。布局文件使用调用方提供的路径。导出只收录存在的项，导入后这 16 项与归档一致，缺项会删除本机对应项。缓存、`transfers.json` 和其他清单外文件保持原样。
+- 格式 1 使用 ZIP。顶层 `manifest.json` 包含 `format`、`appVersion`、`appBuild`、`createdAt`（ISO 8601）、`host`、`summary` 和 `items`，载荷位于 `data/`。SQLite 用独立只读连接执行 `VACUUM INTO`，归档只收主文件。历史、书签条目、播放列表数取自资料库快照，脚本数为 `Scripts/` 顶层的 JS 文件数，插件数为 `Plugins/` 下含 `manifest.json` 的子目录数。目录内保留文件权限与符号链接。归档含明文来源密码，导出文件以 0600 原子写入，覆盖已有文件时同样生效。
+- `UserDataArchive.stage` 先检查相对条目路径，再在 `.import-staging/` 核对清单、种类和完整性。JSON 复用对应存储的版本和解码规则，会话、布局及布局方案由 App 提供校验，SQLite 执行 `quick_check`。错误时清理暂存。确认时 `commitStaged` 核对本次 token 并写入 `ready`，取消时 `discardStaged` 删除暂存。
+- 启动时 `applyPendingImport` 先处理上次替换记录。新导入须有 `ready`，无标记的暂存直接清除。有标记时先按同一格式备份至 `Backups/before-import.macviewdata`，仅保留最近一份。写入每项原先是否存在的回滚记录后再整体替换，原 SQLite 连同 `-wal`、`-shm` 保存。恢复 `plugin-secrets.json` 的 0600 权限后标记已提交，再依次清理暂存和回滚目录。
+- 替换失败或中断时按记录恢复原文件并清除本次新增项，恢复可重复执行，期间保留已有备份。已提交的记录只需完成清理。恢复失败时保留现场并返回 `.recoveryFailed`，App 在创建服务前退出。
 
 ```swift
 // MVFoundation
@@ -733,11 +743,13 @@ public protocol SettingsStore: Sendable {
 public enum DocumentChange: Sendable, Equatable { case reloaded, fileError(message: String) }   // 解析错误带行列号，保留上一份可用值
 public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
     public convenience init(fileURL: URL, version: Int, defaultValue: Value) throws
+    public static func validate(_ data: Data, version supported: Int) throws
     public func value() -> Value
     public func update(_ change: @Sendable (inout Value) -> Void) async throws
     public func changes() -> AsyncStream<DocumentChange>
 }   // 顶层 {"version": Int, "value": Value}；原子写入并监听外部修改，未来版本报 fileError；缺文件时首次 update 才写出
 public final class FileSettingsStore: SettingsStore { public init(directory: URL) throws; public func flush() async throws; public func relocateBookMemory(from: Location, to: Location) async }   // settings.json、path-rules.json、profiles.json 与 state.sqlite（书记忆），shutdown 调用 flush
+extension FileSettingsStore { public static func validateDocument(_ item: String, data: Data) throws }
 // relocateBookMemory 按前缀迁移书位置及全部记忆中的 lastPage；目标已有记忆时保留目标。FileSettingsStore 与 Mock 一致。
 // keybindings.json（v2，兼容 v1）与 menus.json（v1）由 MVServices 用 JSONDocumentStore 管理；App 可用同一存储管理 layout.json 与 layout-schemes.json（v1）
 
@@ -801,6 +813,7 @@ extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources
     public static let frameNext, framePrevious, frameLeft, frameRight, pageNext, pagePrevious, pageFirst, pageLast, pageJump: CommandID
     public static let bookNext, bookPrevious, fileOpen, bookReveal: CommandID
     public static let fileDelete, fileRename, fileCopy, fileCopyPath, fileReveal, fileOpenWith, recycleEmpty: CommandID
+    public static let dataExport, dataImport: CommandID   // data.export、data.import，全局文件命令，无默认快捷键
     public static let classifyTarget, classifyModeToggle, classifyNewTarget, classifyPanelToggle, editUndo, editRedo: CommandID
     public static let browsePaged, browseWaterfall, browseVerticalStrip, browseHorizontalStrip: CommandID
     public static let pageModeToggle, readingDirectionToggle, firstPageSingleToggle, widePageAsIs, widePageSingle, widePageSplit: CommandID
@@ -889,6 +902,7 @@ public enum ReadingOrder { public static func sorted(_ entries: [Entry], by sort
 
 // MVLibraryData：完整类型和方法签名以 Sources/MVLibraryData/LibraryTypes.swift 为准（见 §3.6 链接）。
 // SQLiteLibraryStore(databaseURL:historyLimit:) 实现 LibraryStore；flush() 冲刷 WAL。
+// SQLiteLibraryStore.summary(databaseURL:) throws -> LibrarySummary 只读统计历史、书签条目（跳过文件夹）和播放列表。
 // AvailabilityChecker(sources:directories:store:).check(_:) 返回 AsyncStream<[Location: Availability]>。
 // PlaylistBookLoader(store:sources:directories:metadata:pipeline:) 符合 BookLoader，缺列表抛 IOError.notFound。
 // 快照 sorted → 容器独立校验及 availability → 必要时原序 sorted、静默回写 → 元数据；不可用项交付占位尺寸且流结束。
@@ -1024,6 +1038,7 @@ public struct CoreConfiguration: Sendable {
     public func interruptedTransfersReport() async -> ResumeReport?   // 等待启动恢复并返回同一份结果；Mock 为 nil
     public nonisolated func metadataDetails(for entry: Entry) async throws -> ImageDetails   // 经 SourceRegistry 增量读前 64 KB（上限 MediaProbe.headerLimit），压缩包内条目同样可读
     public func makeSession() -> ReaderSession   // 组合根弱引用会话，以便退出时 flush
+    public func flushPersistentState() async throws   // 导出前等待待写历史，冲刷书记忆与资料库
     public func shutdown() async   // 先停止脚本与插件；会话 flush → pipeline.shutdown → 设置 flush → 资料库 flush → 缓存索引 flush → 调度器 shutdown；总时限 1 秒，超时返回且不再开始写入
 }
 // 组合根订阅文件变更：先收集 moved 涉及的元数据迁移对（含目录后代）→ 目录缓存 → MetadataIndex.move 与 .rewritten 的 store/remove + pipeline.carryOver → 冲刷相关会话及待写历史 → 按每个 moved 迁移书记忆与 library.apply → 会话（.rewritten 仅原位更新 identity 与 metadata，不重载）→ 广播。

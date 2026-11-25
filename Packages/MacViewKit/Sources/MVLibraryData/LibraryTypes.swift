@@ -1,6 +1,18 @@
 import Foundation
 @_exported import MVFoundation
 
+public struct LibrarySummary: Sendable, Equatable {
+    public var history: Int
+    public var bookmarks: Int
+    public var playlists: Int
+
+    public init(history: Int, bookmarks: Int, playlists: Int) {
+        self.history = history
+        self.bookmarks = bookmarks
+        self.playlists = playlists
+    }
+}
+
 public struct HistoryEntry: Sendable, Hashable {
     public var book: Location
     public var openedAt: Date

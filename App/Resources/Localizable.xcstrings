@@ -4527,6 +4527,30 @@
         }
       }
     },
+    "导入用户数据…": {
+      "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import User Data…"
+          }
+        }
+      }
+    },
+    "导出用户数据…": {
+      "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export User Data…"
+          }
+        }
+      }
+    },
     "封面单独占一帧": {
       "localizations": {
         "en": {
