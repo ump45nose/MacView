@@ -609,8 +609,20 @@ final class ViewerContainerView: NSView, InputScoped {
     /// `item.retryFailed`：书打开失败时重开，否则重试失败的项。
     func retryFailed() {
         if session.loadError != nil {
-            onRetryBook?()
-        } else if session.settings.browseMode == .paged {
+            retryBook()
+        } else {
+            retryFailedItems()
+        }
+    }
+
+    /// 重开打开失败的书；页上留着的旧失败（如停服时当前页的探测失败）一并重试，不必再点页内的「重试」。
+    private func retryBook() {
+        retryFailedItems()
+        onRetryBook?()
+    }
+
+    private func retryFailedItems() {
+        if session.settings.browseMode == .paged {
             paged.retryFailed()
         } else {
             continuous.canvas.retryFailed()
@@ -740,7 +752,7 @@ final class ViewerContainerView: NSView, InputScoped {
     // MARK: 提示
 
     private func messageAction() {
-        session.loadError != nil && session.book != nil ? onRetryBook?() : onOpen?()
+        session.loadError != nil && session.book != nil ? retryBook() : onOpen?()
     }
 
     static func isVolumeError(_ error: any Error) -> Bool {

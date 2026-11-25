@@ -687,6 +687,14 @@ final class PagedViewerView: NSView, NSDraggingSource {
         slots.contains { $0.failure != nil || probeFailures[$0.identity] != nil }
     }
 
+    #if DEBUG
+    /// 自检：模拟停服时当前页探测失败留下的记录。
+    func debugRecordProbeFailure(_ error: any Error, for identity: ContentIdentity) {
+        probeFailures[identity] = error
+        updateFailures()
+    }
+    #endif
+
     // MARK: 输入
 
     private func viewPoint(_ event: NSEvent) -> CGPoint {

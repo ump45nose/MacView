@@ -491,6 +491,35 @@ final class PluginSelfTest {
         }
         log.check(recovered, "C2.7 恢复服务后书架与查看器重试成功")
 
+        // C2.7b 停服时当前页留下探测失败，书也打不开：恢复后只点一次书级「重试」，书重开且页上旧错误一并清除
+        let staleIdentity = controller.viewer.paged.slots.first?.identity
+        if let staleIdentity {
+            controller.viewer.paged.debugRecordProbeFailure(URLError(.cannotConnectToHost), for: staleIdentity)
+        }
+        let staleShown = controller.viewer.paged.hasFailures
+        restartedServer.stop()
+        controller.reopenBook()
+        let bookFailedAgain = await waitUntil(timeoutMs: 8000) { controller.session.loadError != nil }
+        let thirdServer = try WebDAVServerHandle(
+            scriptURL: repoRoot.appending(path: "scripts/webdav-test-server.py"),
+            root: davRoot,
+            port: serverPort,
+            user: "davuser",
+            password: "davpass"
+        )
+        defer { thirdServer.stop() }
+        controller.viewer.retryFailed()
+        let pageErrorCleared = await waitUntil(timeoutMs: 6000) {
+            controller.session.loadError == nil &&
+            controller.session.book?.pages.count == 3 &&
+            !controller.viewer.paged.slots.isEmpty &&
+            !controller.viewer.paged.hasFailures
+        }
+        log.check(
+            staleIdentity != nil && staleShown && bookFailedAgain && pageErrorCleared,
+            "C2.7b 书级重试一次即重开书并清除页上旧错误(stale=\(staleShown),failed=\(bookFailedAgain),cleared=\(pageErrorCleared))"
+        )
+
         // C2.8：停用插件后打开来源提示「插件未启用」；重新启用后能再打开
         try await pluginSettings.update { file in
             file.plugins["webdav"]?.enabled = false
