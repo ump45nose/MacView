@@ -44,6 +44,7 @@ struct SessionSnapshot: Codable, Sendable, Equatable {
 @MainActor
 final class SessionStore {
     static let fileName = "session.json"
+    nonisolated static let documentVersion = 1
     private static let saveDelay: Duration = .milliseconds(500)
 
     /// 文件有问题或者修好了（nil）。
@@ -57,7 +58,7 @@ final class SessionStore {
 
     init(fileURL: URL) {
         do {
-            let document = try JSONDocumentStore(fileURL: fileURL, version: 1, defaultValue: SessionSnapshot())
+            let document = try JSONDocumentStore(fileURL: fileURL, version: Self.documentVersion, defaultValue: SessionSnapshot())
             self.document = document
             observeTask = Task { [weak self] in
                 for await change in document.changes() {

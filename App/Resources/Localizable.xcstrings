@@ -773,6 +773,16 @@
         }
       }
     },
+    "MacView 数据 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MacView Data %@"
+          }
+        }
+      }
+    },
     "Mock 服务": {
       "localizations": {
         "en": {
@@ -1637,6 +1647,16 @@
         }
       }
     },
+    "「%@」不是 MacView 导出的数据文件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” isn’t a MacView data file."
+          }
+        }
+      }
+    },
     "一个 .js 文件是一条命令，保存后自动重载": {
       "localizations": {
         "en": {
@@ -2125,6 +2145,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bookmarks"
+          }
+        }
+      }
+    },
+    "书签 %lld 个": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld bookmark"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld bookmarks"
+                }
+              }
+            }
           }
         }
       }
@@ -3251,6 +3293,28 @@
         }
       }
     },
+    "历史 %lld 本": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld history item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld history items"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "历史上限必须为正数": {
       "comment": "Core 诊断文字，键来自 SQLiteLibraryStore.swift",
       "extractionState": "manual",
@@ -3363,6 +3427,16 @@
         }
       }
     },
+    "原因：上次导入中断且无法恢复。\n数据目录：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reason: the previous import was interrupted and couldn’t be recovered.\nData folder: %@"
+          }
+        }
+      }
+    },
     "原始尺寸": {
       "localizations": {
         "en": {
@@ -3399,6 +3473,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Original File"
+          }
+        }
+      }
+    },
+    "原来的数据备份在 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your previous data is backed up at %@."
           }
         }
       }
@@ -4539,6 +4623,26 @@
         }
       }
     },
+    "导入并重启": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import and Restart"
+          }
+        }
+      }
+    },
+    "导入没有完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import Didn’t Finish"
+          }
+        }
+      }
+    },
     "导入用户数据…": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -4547,6 +4651,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Import User Data…"
+          }
+        }
+      }
+    },
+    "导入用户数据并重启 MacView？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import User Data and Restart MacView?"
+          }
+        }
+      }
+    },
+    "导出没有完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Didn’t Finish"
           }
         }
       }
@@ -4743,6 +4867,16 @@
         }
       }
     },
+    "已保存为「%@」（%@）。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved as “%1$@” (%2$@)."
+          }
+        }
+      }
+    },
     "已保存布局方案“%@”": {
       "localizations": {
         "en": {
@@ -4903,6 +5037,26 @@
         }
       }
     },
+    "已导入用户数据": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "User Data Imported"
+          }
+        }
+      }
+    },
+    "已导出用户数据": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "User Data Exported"
+          }
+        }
+      }
+    },
     "已找到 %lld 页": {
       "localizations": {
         "en": {
@@ -5021,6 +5175,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Moved"
+          }
+        }
+      }
+    },
+    "已载入「%@」%@ 导出的数据。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loaded the data exported from “%1$@” on %2$@."
           }
         }
       }
@@ -5983,6 +6147,28 @@
         }
       }
     },
+    "插件 %lld 个": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld plug-in"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld plug-ins"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "插件 source.list 返回格式无效": {
       "comment": "Core 诊断文字，键来自 PluginSourceProvider.swift",
       "extractionState": "manual",
@@ -6279,6 +6465,28 @@
         }
       }
     },
+    "播放列表 %lld 个": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld playlist"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld playlists"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "播放列表不能加入书签": {
       "localizations": {
         "en": {
@@ -6531,12 +6739,42 @@
         }
       }
     },
+    "文件已损坏：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file is damaged: %@"
+          }
+        }
+      }
+    },
+    "文件已损坏：%@ 校验失败。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file is damaged: %@ failed its check."
+          }
+        }
+      }
+    },
     "文件操作完成后才能撤销": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Wait for file operations to finish before undoing"
+          }
+        }
+      }
+    },
+    "文件里含来源密码等全部数据，请妥善保管。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file contains all your data, including source passwords. Keep it safe."
           }
         }
       }
@@ -6963,6 +7201,16 @@
         }
       }
     },
+    "无法写入「%@」：%@。没有留下不完整的文件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t write to “%1$@”: %2$@. No partial file was left behind."
+          }
+        }
+      }
+    },
     "无法准备导入或备份本机数据。": {
       "comment": "Core 诊断文字，键来自 UserDataImport.swift",
       "extractionState": "manual",
@@ -7047,6 +7295,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The Operation Couldn’t Be Completed"
+          }
+        }
+      }
+    },
+    "无法导入这个文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t Import This File"
           }
         }
       }
@@ -7277,6 +7535,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "View"
+          }
+        }
+      }
+    },
+    "显示备份": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Backup"
           }
         }
       }
@@ -7517,6 +7785,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't replace transfer journal: %@"
+          }
+        }
+      }
+    },
+    "替换前先备份到 %@，想恢复时导入它。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current data is first backed up to %@. Import it to go back."
           }
         }
       }
@@ -7801,6 +8079,26 @@
         }
       }
     },
+    "本机数据没有改变。原因：%@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data on this Mac is unchanged. Reason: %@."
+          }
+        }
+      }
+    },
+    "本机现有的全部 MacView 数据（设置、资料库、窗口、脚本与插件）会被替换，MacView 会重启。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All MacView data on this Mac (settings, library, windows, scripts and plug-ins) will be replaced, and MacView will restart."
+          }
+        }
+      }
+    },
     "权限有变，需重新同意": {
       "localizations": {
         "en": {
@@ -7957,6 +8255,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "From "
+          }
+        }
+      }
+    },
+    "来自「%@」，%@ 导出（MacView %@）：": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From “%1$@”, exported %2$@ (MacView %3$@):"
           }
         }
       }
@@ -8215,6 +8523,16 @@
           "stringUnit": {
             "state": "new",
             "value": "正在定位到第 %1$lld 页 · 已读取 %2$lld / %3$lld 页的尺寸"
+          }
+        }
+      }
+    },
+    "正在导出用户数据…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporting User Data…"
           }
         }
       }
@@ -10195,6 +10513,28 @@
         }
       }
     },
+    "脚本 %lld 个": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld script"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld scripts"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "脚本与插件的输出、错误与外部命令结果": {
       "localizations": {
         "en": {
@@ -10551,6 +10891,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Settings…"
+          }
+        }
+      }
+    },
+    "设置、资料库、窗口、脚本与插件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings, library, windows, scripts and plug-ins"
           }
         }
       }
@@ -11099,6 +11449,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "“%@” already exists in this folder."
+          }
+        }
+      }
+    },
+    "这个文件来自更新版本的 MacView（数据格式 %lld），请先升级 MacView。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file is from a newer MacView (data format %lld). Update MacView first."
           }
         }
       }

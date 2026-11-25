@@ -53,6 +53,7 @@ struct CommandCatalog {
         .dynamic(.moveTo), .dynamic(.copyTo),
         .command(.fileRename), .command(.fileDelete), .separator,
         .command(.searchIndexFolder), .command(.recycleEmpty), .separator,
+        .command(.dataExport), .command(.dataImport), .separator,
         .command(.windowNew), .command(.windowNewTab), .separator,
         .command(.retryFailed), .command(.settingsOpen), .separator,
         .command(.windowClose),

@@ -336,5 +336,19 @@ extension AppDelegate {
         if let recycleDescriptor = CommandCatalog.builtInDescriptor(.recycleEmpty) {
             registry.register(recycleDescriptor, isEnabled: { [weak self] _ in self?.services?.fileOperations != nil }) { _, _ in }
         }
+        let canTransferData: @MainActor (CommandContext) -> Bool = { [weak self] _ in
+            guard let self, let dataTransfer, !isMock else { return false }
+            return NSApp.modalWindow == nil && !dataTransfer.isBusy
+        }
+        if let exportDescriptor = CommandCatalog.builtInDescriptor(.dataExport) {
+            registry.register(exportDescriptor, isEnabled: canTransferData) { [weak self] _, _ in
+                self?.dataTransfer?.exportUserData()
+            }
+        }
+        if let importDescriptor = CommandCatalog.builtInDescriptor(.dataImport) {
+            registry.register(importDescriptor, isEnabled: canTransferData) { [weak self] _, _ in
+                self?.dataTransfer?.importUserData()
+            }
+        }
     }
 }

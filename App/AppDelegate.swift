@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var dock: DockCoordinator?
     private(set) var appearance: AppearanceController?
     private(set) var fileOps: FileOperationController?
+    private(set) var dataTransfer: DataTransferController?
     private(set) var metadataWriter: MetadataWriteController?
     private(set) var extensions: ExtensionCommands?
     private(set) var plugins: PluginCoordinator?
@@ -107,7 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func start() async {
         #if DEBUG
         // 自检和调试接口一律指向隔离目录，不碰用户的配置、缓存和停靠布局；少给一个就直接失败退出。
-        if TestPresentation.isTestInstance {
+        if TestPresentation.isTestInstance || UserDefaults.standard.string(forKey: "MVDataTransferSelfTest") != nil {
             let missing = [Self.supportDirectoryKey, Self.cacheDirectoryKey, DockCoordinator.layoutFileKey].filter { UserDefaults.standard.string(forKey: $0) == nil }
             if !missing.isEmpty {
                 print("FAIL 测试实例缺少隔离目录参数：\(missing.map { "-" + $0 }.joined(separator: " "))")
@@ -115,11 +116,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 exit(64)
             }
         }
+        if let path = UserDefaults.standard.string(forKey: Self.supportDirectoryKey) { supportDirectory = URL(fileURLWithPath: path) }
+        if let path = UserDefaults.standard.string(forKey: Self.cacheDirectoryKey) { cacheDirectory = URL(fileURLWithPath: path) }
         #endif
+        var importOutcome: UserDataImportOutcome?
+        if !isMock {
+            let locations = DataTransferController.locations(supportDirectory: supportDirectory)
+            importOutcome = await UserDataArchive.applyPendingImport(
+                for: locations,
+                origin: DataTransferController.currentOrigin(),
+                appValidators: DataTransferController.appValidators
+            )
+            if case .recoveryFailed = importOutcome {
+                DataTransferController.presentRecoveryFailed(supportDirectory: supportDirectory)
+                NSApp.perform(#selector(NSApplication.terminate(_:)), with: nil, afterDelay: 0)
+                return
+            }
+        }
         do {
             let services = try await makeServices()
             self.services = services
             fileOps = FileOperationController(app: self)
+            dataTransfer = DataTransferController(app: self, pendingOutcome: importOutcome)
             metadataWriter = MetadataWriteController(app: self)
             configureContextMenuProvider()
             let dispatcher = CommandDispatcher(registry: services.commands)
@@ -197,6 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sessionSaveEnabled = true
         scheduleSessionSave()
         await fileOps?.presentStartupRecovery()
+        dataTransfer?.presentStartupOutcomeIfNeeded()
         scriptEvents?.notifyStartup()
         logger.info("启动完成")
         #if DEBUG
@@ -244,11 +263,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static let cacheDirectoryKey = "MVCacheDirectory"
     #endif
 
-    /// Debug 构建可覆盖目录；测试实例必须覆盖（见 `start`）。
+    /// Debug 目录覆盖已在 `start()` 提前读取。
     private func makeServices() async throws -> CoreServices {
         #if DEBUG
-        if let path = UserDefaults.standard.string(forKey: Self.supportDirectoryKey) { supportDirectory = URL(fileURLWithPath: path) }
-        if let path = UserDefaults.standard.string(forKey: Self.cacheDirectoryKey) { cacheDirectory = URL(fileURLWithPath: path) }
         await FileOpsSelfTest.prepareStartupRecoveryIfNeeded(supportDirectory: supportDirectory)
         #endif
         try? FileManager.default.removeItem(at: cacheDirectory.appending(path: "rendered", directoryHint: .isDirectory))
@@ -427,6 +444,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard sessionSaveEnabled, sessionStore != nil else { return }
         observeTabGroups()
         sessionStore?.schedule { [weak self] in self?.sessionSnapshot() }
+    }
+
+    func flushSessionStore() async {
+        guard let sessionStore else { return }
+        await sessionStore.flush(sessionSnapshot())
     }
 
     /// 拖动标签改变顺序没有窗口通知，只能观察标签组。

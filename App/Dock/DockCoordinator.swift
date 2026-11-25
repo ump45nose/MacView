@@ -19,6 +19,8 @@ final class DockCoordinator {
 
     static let layoutFileKey = "MVLayoutFile"
     static let schemesFileName = "layout-schemes.json"
+    nonisolated static let layoutDocumentVersion = 1
+    nonisolated static let schemesDocumentVersion = 1
     static let saveDelay: Duration = .milliseconds(500)
 
     let fileURL: URL
@@ -67,7 +69,7 @@ final class DockCoordinator {
         self.schemesFileURL = schemesURL
         let known = Set(DockPanels.all.map(\.id))
         do {
-            let store = try JSONDocumentStore(fileURL: fileURL, version: 1, defaultValue: DockPanels.defaultLayout)
+            let store = try JSONDocumentStore(fileURL: fileURL, version: Self.layoutDocumentVersion, defaultValue: DockPanels.defaultLayout)
             self.store = store
             // 解析失败时 store 给出默认值，错误经 changes 报告。
             current = store.value().sanitized(knownPanels: known)
@@ -80,7 +82,7 @@ final class DockCoordinator {
             )
         }
         do {
-            schemesStore = try JSONDocumentStore(fileURL: schemesURL, version: 1, defaultValue: LayoutSchemesFile())
+            schemesStore = try JSONDocumentStore(fileURL: schemesURL, version: Self.schemesDocumentVersion, defaultValue: LayoutSchemesFile())
         } catch {
             schemesStore = nil
             schemesProblem = ErrorText.describe(error)
