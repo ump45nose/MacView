@@ -485,10 +485,7 @@ final class PagedViewerView: NSView, NSDraggingSource {
         guard filters != resolvedPluginFilters else { return }
         resolvedPluginFilters = filters
         cancelFilterPreheat()
-        guard session.settings.browseMode == .paged else {
-            pluginFilterActivity?.reset()
-            return
-        }
+        guard session.settings.browseMode == .paged else { return }
         if filters.isEmpty {
             for slot in slots {
                 slot.setPluginFilters(.empty, target: nil, eligible: false)
@@ -513,7 +510,7 @@ final class PagedViewerView: NSView, NSDraggingSource {
     }
 
     private func syncFilterActivity() {
-        guard let activity = pluginFilterActivity else { return }
+        guard session.settings.browseMode == .paged, let activity = pluginFilterActivity else { return }
         guard !resolvedPluginFilters.isEmpty else {
             activity.reset()
             return

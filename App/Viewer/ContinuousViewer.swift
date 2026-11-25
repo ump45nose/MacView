@@ -164,13 +164,13 @@ final class ContinuousViewer: NSView {
         guard filters != resolvedPluginFilters else { return }
         resolvedPluginFilters = filters
         canvas.setPluginFilters(filters)
-        if filters.isEmpty {
+        if filters.isEmpty && session.settings.browseMode != .paged {
             pluginFilterActivity?.reset()
         }
     }
 
     private func syncFilterActivity(_ itemStates: [ContentIdentity: PluginFilterActivity.State], failure: String?) {
-        guard let activity = pluginFilterActivity else { return }
+        guard session.settings.browseMode != .paged, let activity = pluginFilterActivity else { return }
         guard !resolvedPluginFilters.isEmpty else {
             activity.reset()
             return
