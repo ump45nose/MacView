@@ -392,6 +392,8 @@ struct ExtensionsSettingsPage: View {
 
     @State private var editing: ExternalCommandDraft?
     @State private var confirmingDeleteID: String?
+    @State private var consentingPlugin: PluginInfo?
+    @State private var editingSource: PluginSourceEditRequest?
     @State private var pinnedToBottom = true
 
     static let readyDotColor = NSColor(name: nil) { appearance in
@@ -427,8 +429,29 @@ struct ExtensionsSettingsPage: View {
                     VStack(alignment: .leading, spacing: 16) {
                         scriptsSection
                         externalCommandsSection
-                        PluginsSettingsSection(model: model)
-                            .id("settings.extensions.plugins")
+                        PluginsSettingsSection(
+                            model: model,
+                            onRequestConsent: { info in
+                                consentingPlugin = info
+                            },
+                            onRequestAddSource: { info, declaration in
+                                editingSource = PluginSourceEditRequest(
+                                    plugin: info,
+                                    declaration: declaration,
+                                    existing: nil,
+                                    existingSecretKeys: []
+                                )
+                            },
+                            onRequestEditSource: { info, declaration, instance in
+                                editingSource = PluginSourceEditRequest(
+                                    plugin: info,
+                                    declaration: declaration,
+                                    existing: instance,
+                                    existingSecretKeys: model.existingSecretKeys(for: instance.id)
+                                )
+                            }
+                        )
+                        .id("settings.extensions.plugins")
                         outputSection
                     }
                     .padding(16)
@@ -441,6 +464,35 @@ struct ExtensionsSettingsPage: View {
                     scrollIfNeeded(proxy: proxy, target: target)
                 }
             }
+        }
+        .sheet(item: $consentingPlugin) { info in
+            if let manifest = info.manifest {
+                PluginConsentSheet(
+                    plugin: info,
+                    manifest: manifest,
+                    onCancel: { consentingPlugin = nil },
+                    onEnable: {
+                        Task {
+                            if await model.enablePlugin(info.id, granting: manifest.permissions) {
+                                consentingPlugin = nil
+                            }
+                        }
+                    }
+                )
+            }
+        }
+        .sheet(item: $editingSource) { request in
+            PluginSourceEditorSheet(
+                request: request,
+                onCancel: { editingSource = nil },
+                onSave: { instance, passwordUpdates in
+                    Task {
+                        if await model.saveSource(instance, passwordUpdates: passwordUpdates, isNew: request.isNew) {
+                            editingSource = nil
+                        }
+                    }
+                }
+            )
         }
     }
 

@@ -471,3 +471,351 @@ struct PluginsSettingsSection: View {
             .joined(separator: " · ")
     }
 }
+
+// MARK: - 权限确认表单
+
+/// 启用插件或清单权限变化时弹出的权限确认表单。
+struct PluginConsentSheet: View {
+    let plugin: PluginInfo
+    let manifest: PluginManifest
+    let onCancel: () -> Void
+    let onEnable: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "启用「\(manifest.name)」？"))
+                .font(Font(Theme.serif(17, weight: .semibold)))
+                .foregroundStyle(Color(nsColor: Theme.text))
+                .fixedSize(horizontal: false, vertical: true)
+
+            switch manifest.runtime {
+            case .javascript:
+                if manifest.permissions.isEmpty {
+                    permissionCard(
+                        symbol: "checkmark.shield",
+                        symbolColor: Theme.text2,
+                        title: String(localized: "这个插件不需要额外权限"),
+                        detail: nil,
+                        isDanger: false
+                    )
+                } else {
+                    Text(String(localized: "这个插件要以下权限。同意后才会运行；以后清单要的权限变多，会再问一次。"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(nsColor: Theme.text2))
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    ForEach(manifest.permissions, id: \.self) { permission in
+                        switch permission {
+                        case .network:
+                            permissionCard(
+                                symbol: "globe",
+                                symbolColor: Theme.text,
+                                title: String(localized: "访问网络"),
+                                detail: String(localized: "可以向任意网站发送请求。"),
+                                isDanger: false
+                            )
+                        case .commands:
+                            permissionCard(
+                                symbol: "command",
+                                symbolColor: Theme.text,
+                                title: String(localized: "执行 MacView 命令"),
+                                detail: String(localized: "包括移动、删除文件等文件操作。"),
+                                isDanger: false
+                            )
+                        }
+                    }
+                }
+
+            case let .process(command, arguments):
+                let commandLine = ([command] + arguments).joined(separator: " ")
+                permissionCard(
+                    symbol: "exclamationmark.triangle.fill",
+                    symbolColor: Theme.danger,
+                    title: String(localized: "运行外部程序（完全信任）"),
+                    detail: String(localized: "它以你的身份运行 \(commandLine)，能读写你能访问的所有文件、访问网络。只启用你信任的插件。"),
+                    isDanger: true
+                )
+            }
+
+            HStack(spacing: 8) {
+                Spacer()
+                Button(String(localized: "取消"), action: onCancel)
+                    .controlSize(.small)
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("settings.plugins.consent.cancel")
+
+                Button(action: onEnable) {
+                    Text(String(localized: "启用"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color(nsColor: Theme.onPrimary))
+                        .padding(.horizontal, 14)
+                        .frame(height: 24)
+                        .background(Color(nsColor: Theme.primary), in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("settings.plugins.consent.enable")
+            }
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(width: 440)
+        .background(Color(nsColor: Theme.ground))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.plugins.consent")
+    }
+
+    private func permissionCard(
+        symbol: String,
+        symbolColor: NSColor,
+        title: String,
+        detail: String?,
+        isDanger: Bool
+    ) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color(nsColor: symbolColor))
+                .frame(width: 18, height: 18)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color(nsColor: Theme.text))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(nsColor: Theme.text2))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(nsColor: Theme.raised), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color(nsColor: isDanger ? Theme.danger : Theme.line), lineWidth: isDanger ? 1 : 0.5)
+        )
+    }
+}
+
+// MARK: - 来源编辑表单
+
+/// 添加或编辑插件来源实例的表单上下文。
+struct PluginSourceEditRequest: Identifiable {
+    let id = UUID()
+    let plugin: PluginInfo
+    let declaration: PluginSourceDeclaration
+    let existing: SourceInstance?
+    let existingSecretKeys: Set<String>
+
+    var isNew: Bool { existing == nil }
+}
+
+/// 添加 / 编辑插件来源实例的表单。
+struct PluginSourceEditorSheet: View {
+    let request: PluginSourceEditRequest
+    let onCancel: () -> Void
+    let onSave: (SourceInstance, [String: String]) -> Void
+
+    @State private var name: String
+    @State private var fieldValues: [String: String]
+
+    init(
+        request: PluginSourceEditRequest,
+        onCancel: @escaping () -> Void,
+        onSave: @escaping (SourceInstance, [String: String]) -> Void
+    ) {
+        self.request = request
+        self.onCancel = onCancel
+        self.onSave = onSave
+        self._name = State(initialValue: request.existing?.name ?? "")
+        var initial: [String: String] = [:]
+        for field in request.declaration.fields {
+            if field.type == .password {
+                // 密码不回显原值；留空表示不改。
+                initial[field.key] = ""
+            } else {
+                initial[field.key] = request.existing?.values[field.key] ?? ""
+            }
+        }
+        self._fieldValues = State(initialValue: initial)
+    }
+
+    private var hasPasswordField: Bool {
+        request.declaration.fields.contains { $0.type == .password }
+    }
+
+    private var canSave: Bool {
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        for field in request.declaration.fields {
+            let raw = fieldValues[field.key] ?? ""
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            switch field.type {
+            case .password:
+                if field.required && raw.isEmpty && (request.isNew || !request.existingSecretKeys.contains(field.key)) {
+                    return false
+                }
+            case .number:
+                if field.required && trimmed.isEmpty { return false }
+                if !trimmed.isEmpty {
+                    guard let value = Double(trimmed), value.isFinite else { return false }
+                }
+            case .text, .url:
+                if field.required && trimmed.isEmpty { return false }
+            }
+        }
+        return true
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(
+                request.isNew
+                    ? String(localized: "添加 \(request.declaration.name) 来源")
+                    : String(localized: "编辑来源")
+            )
+            .font(Font(Theme.serif(17, weight: .semibold)))
+            .foregroundStyle(Color(nsColor: Theme.text))
+
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 10) {
+                formRow(label: String(localized: "名称")) {
+                    TextField(String(localized: "名称"), text: $name)
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("settings.plugins.sourceForm.name")
+                }
+
+                ForEach(request.declaration.fields, id: \.key) { field in
+                    formRow(label: field.label) {
+                        fieldInput(for: field)
+                    }
+                }
+
+                if hasPasswordField {
+                    GridRow {
+                        Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                        Text(
+                            !request.isNew && !request.existingSecretKeys.isEmpty
+                                ? String(localized: "密码不写进 plugins.json，留空表示不改。")
+                                : String(localized: "密码不写进 plugins.json。")
+                        )
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color(nsColor: Theme.text2))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                Spacer()
+                Button(String(localized: "取消"), action: onCancel)
+                    .controlSize(.small)
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("settings.plugins.sourceForm.cancel")
+
+                Button(action: commit) {
+                    Text(String(localized: "存储"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color(nsColor: Theme.onPrimary))
+                        .padding(.horizontal, 14)
+                        .frame(height: 24)
+                        .background(Color(nsColor: Theme.primary), in: RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSave)
+                .opacity(canSave ? 1 : 0.45)
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("settings.plugins.sourceForm.save")
+            }
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(width: 440)
+        .background(Color(nsColor: Theme.ground))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.plugins.sourceForm")
+    }
+
+    @ViewBuilder
+    private func fieldInput(for field: PluginFieldDeclaration) -> some View {
+        let binding = Binding<String>(
+            get: { fieldValues[field.key] ?? "" },
+            set: { fieldValues[field.key] = $0 }
+        )
+        let identifier = "settings.plugins.sourceForm.field.\(field.key)"
+        switch field.type {
+        case .text:
+            TextField(field.label, text: binding)
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
+                .accessibilityIdentifier(identifier)
+        case .url:
+            TextField(field.label, text: binding)
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
+                .font(.system(size: 12, design: .monospaced))
+                .accessibilityIdentifier(identifier)
+        case .number:
+            TextField(field.label, text: binding)
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
+                .font(.system(size: 12).monospacedDigit())
+                .accessibilityIdentifier(identifier)
+        case .password:
+            let placeholder = (!request.isNew && request.existingSecretKeys.contains(field.key)) ? "••••••••" : field.label
+            SecureField(placeholder, text: binding)
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
+                .accessibilityIdentifier(identifier)
+        }
+    }
+
+    private func formRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        GridRow {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(Color(nsColor: Theme.text2))
+                .fixedSize()
+                .gridColumnAlignment(.trailing)
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func commit() {
+        guard canSave else { return }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        var publicValues: [String: String] = [:]
+        var passwordUpdates: [String: String] = [:]
+        for field in request.declaration.fields {
+            let raw = fieldValues[field.key] ?? ""
+            if field.type == .password {
+                if !raw.isEmpty {
+                    passwordUpdates[field.key] = raw
+                }
+            } else {
+                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    publicValues[field.key] = trimmed
+                }
+            }
+        }
+        let instance = SourceInstance(
+            id: request.existing?.id ?? UUID(),
+            plugin: request.plugin.id,
+            type: request.declaration.id,
+            name: trimmedName,
+            values: publicValues
+        )
+        onSave(instance, passwordUpdates)
+    }
+}
