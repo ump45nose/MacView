@@ -27,7 +27,7 @@ final class ExtensionCommands {
         let message: String
     }
 
-    private weak var app: AppDelegate?
+    weak var app: AppDelegate?
     private let services: CoreServices
     private let externalRunner = ExternalCommandRunner()
 
@@ -135,6 +135,8 @@ final class ExtensionCommands {
             menu.addItem(item)
         }
 
+        app?.plugins?.populatePluginMenus(menu, target: target)
+
         if includeFixedItems {
             if !menu.items.isEmpty {
                 menu.addItem(.separator())
@@ -191,7 +193,7 @@ final class ExtensionCommands {
         runtime.run(info.id, arguments: arguments, context: callContext)
     }
 
-    private func applyMenuShortcut(to item: NSMenuItem, commandID: CommandID) {
+    func applyMenuShortcut(to item: NSMenuItem, commandID: CommandID) {
         if let chord = app?.catalog.menuBinding(for: commandID)?.sequence.first,
            let equivalent = KeyMapping.menuKeyEquivalent(for: chord) {
             item.keyEquivalent = equivalent.key
@@ -217,6 +219,16 @@ final class ExtensionCommands {
                 guard let dir = self?.services.scriptLibrary?.directory else { return }
                 NSWorkspace.shared.activateFileViewerSelecting([dir])
             }
+        }
+        let manageDescriptor = CommandDescriptor(
+            id: .scriptManage,
+            title: LocalizedStringResource("管理脚本、外部命令与插件…"),
+            category: "script"
+        )
+        registry.register(manageDescriptor, isEnabled: { _ in
+            NSApp.modalWindow == nil
+        }) { [weak self] _, _ in
+            _ = self?.app?.openSettings(page: .extensions)
         }
     }
 
@@ -378,7 +390,7 @@ final class ExtensionCommands {
         targetWindow?.content.statusBar.showMessage(String(localized: "\(scriptName) 出错：\(firstLine)"))
     }
 
-    private func resolveTarget(for context: CommandContext) -> ScriptTarget {
+    func resolveTarget(for context: CommandContext) -> ScriptTarget {
         if let session = context.session {
             guard let window = app?.controller(for: session) else {
                 return ScriptTarget(window: nil, locations: context.selection)
@@ -388,7 +400,7 @@ final class ExtensionCommands {
         return resolvedTarget(ScriptTarget(window: nil, locations: context.selection), allowFallbackWindow: true)
     }
 
-    private func resolvedTarget(_ target: ScriptTarget, allowFallbackWindow: Bool = true) -> ScriptTarget {
+    func resolvedTarget(_ target: ScriptTarget, allowFallbackWindow: Bool = true) -> ScriptTarget {
         let window = target.window ?? (allowFallbackWindow ? (app?.mainController ?? app?.activeReaderController) : nil)
         if !target.locations.isEmpty {
             return ScriptTarget(window: window, locations: target.locations)

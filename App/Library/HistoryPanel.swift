@@ -297,7 +297,7 @@ final class HistoryPanel: NSObject, DockPanel, NSTableViewDataSource, NSTableVie
             parts.append(String(localized: "播放列表"))
             path = nil
         } else {
-            name = book.name
+            name = book.name.isEmpty ? book.root.displayName : book.name
             path = book.parent?.displayPath
         }
         if let page = readTo[book] { parts.append(String(localized: "读到第 \(page) 页")) }

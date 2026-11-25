@@ -1,6 +1,7 @@
 import AppKit
 import MVFoundation
 import MVIO
+import MVPlugins
 
 extension Location.Root {
     /// 让系统挂载这个卷的地址。
@@ -16,9 +17,13 @@ extension Location.Root {
     /// 界面上的卷名。
     var displayName: String {
         switch self {
-        case .local: String(localized: "本机")
-        case let .network(_, _, share): share
-        case let .plugin(id): id
+        case .local: return String(localized: "本机")
+        case let .network(_, _, share): return share
+        case let .plugin(id):
+            if let sourceID = PluginSourceProvider.sourceID(of: self) {
+                return PluginSourceLookup.shared.entry(for: sourceID)?.name ?? String(localized: "已删除的来源")
+            }
+            return id
         }
     }
 }

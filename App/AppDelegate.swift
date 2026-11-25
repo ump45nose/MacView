@@ -22,8 +22,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var fileOps: FileOperationController?
     private(set) var metadataWriter: MetadataWriteController?
     private(set) var extensions: ExtensionCommands?
+    private(set) var plugins: PluginCoordinator?
     private(set) var scriptEvents: ScriptEvents?
     private var scriptHost: AppScriptHost?
+    private var pluginAPIHost: AppPluginHost?
     var isMock: Bool {
         #if DEBUG
         UserDefaults.standard.bool(forKey: "MVMockServices")
@@ -138,16 +140,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             registerFrameDirectionCommands(in: services.commands)
             registerWindowAppearanceCommands(in: services.commands)
             registerLayoutSchemeCommands(in: services.commands)
-            if let runtime = services.scriptRuntime {
+            if services.scriptRuntime != nil || services.pluginHost != nil {
                 let host = AppScriptHost(app: self, services: services)
                 scriptHost = host
-                runtime.setHost(host)
+                services.scriptRuntime?.setHost(host)
+                if let pluginHost = services.pluginHost {
+                    let apiHost = AppPluginHost(scriptHost: host)
+                    pluginAPIHost = apiHost
+                    pluginHost.setAPIHost(apiHost)
+                }
             }
             let scriptEvents = ScriptEvents(app: self, services: services)
             self.scriptEvents = scriptEvents
             let extensions = ExtensionCommands(app: self, services: services)
             self.extensions = extensions
+            let plugins = PluginCoordinator(services: services, scripts: extensions)
+            self.plugins = plugins
             extensions.start()
+            plugins.start()
             reloadCatalog()
             observeBindings()
             observeMenus()
@@ -471,6 +481,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menusTask?.cancel()
         settingsErrorsTask?.cancel()
         extensions?.stop()
+        plugins?.stop()
         sessionSaveEnabled = false
         let snapshot = sessionStore == nil ? nil : sessionSnapshot()
         // shutdown 自己有时限，不等被卡住的 I/O。

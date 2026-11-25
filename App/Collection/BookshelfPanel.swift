@@ -29,15 +29,18 @@ final class BookshelfPanel: CollectionPanel {
 
     private let headerStack = NSStackView()
     private var directory: Location?
-    private var entries: [Entry] = []
+    private(set) var entries: [Entry] = []
     private var covers: [Location: Cover] = [:]
     private var queue: [Location] = []
     private var running: Set<Location> = []
     private var publishTask: Task<Void, Never>?
     private var listTask: Task<Void, Never>?
     private var changesTask: Task<Void, Never>?
-    private var loadError: String?
+    private(set) var loadError: String?
     private var isListing = false
+
+    var currentDirectory: Location? { directory }
+    var hasLoadError: Bool { loadError != nil }
     /// 最近跟随的书。用户离开这个目录后，只有换了书才跟回去。
     private var followedBook: Location?
     private var observedSession: SessionID?
@@ -102,6 +105,27 @@ final class BookshelfPanel: CollectionPanel {
 
     func focusSearch() { searchBar.focusSearchField() }
     func exitSearch() { searchBar.reset(); searchController.cancelSearch() }
+
+    /// 导航书架到指定目录并列出其中的书（供「打开来源」等入口使用）。
+    func openDirectory(_ location: Location) {
+        if searchController.isSearching { exitSearch() }
+        directory = location
+        startListing()
+    }
+
+    /// 重新列出当前书架目录（供「刷新」与「重试」使用）。
+    func refreshDirectory() {
+        guard directory != nil else { return }
+        startListing()
+    }
+
+    override func addOptions(to menu: NSMenu) {
+        super.addOptions(to: menu)
+        if directory != nil {
+            menu.addItem(.separator())
+            menu.addItem(MenuAction(String(localized: "刷新")) { [weak self] in self?.refreshDirectory() }.item)
+        }
+    }
 
     func startIndexing(folder: Location? = nil) {
         guard let services = owner?.services, let target = folder ?? folderForIndexing else { return }
@@ -294,8 +318,9 @@ final class BookshelfPanel: CollectionPanel {
         collection?.message = loadError ?? (directory == nil
             ? (currentBook?.playlistID != nil ? String(localized: "播放列表没有所在的文件夹") : String(localized: "没有打开的书"))
             : entries.isEmpty && !isListing ? String(localized: "这个目录下没有书") : nil)
+        collection?.onRetryMessage = loadError != nil ? { [weak self] in self?.refreshDirectory() } : nil
         requestCovers()
-        let path = directory.map { $0.description.split(separator: "/").map(String.init).joined(separator: " › ") }
+        let path = directory?.displayBreadcrumb
         setInfo(path: path, count: directory == nil ? "" : String(localized: "\(entries.count) 本"), canGoUp: directory?.parent != nil) { [weak self] in
             self?.goUp()
         }

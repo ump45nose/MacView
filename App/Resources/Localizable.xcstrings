@@ -141,6 +141,16 @@
         }
       }
     },
+    "%@ 处理中…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Processing…"
+          }
+        }
+      }
+    },
     "%@ 失败：%@": {
       "localizations": {
         "en": {
@@ -2235,6 +2245,16 @@
         }
       }
     },
+    "刷新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        }
+      }
+    },
     "前后各": {
       "localizations": {
         "en": {
@@ -3707,6 +3727,16 @@
         }
       }
     },
+    "已删除的来源": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted Source"
+          }
+        }
+      }
+    },
     "已加 %lld 项到「%@」": {
       "localizations": {
         "en": {
@@ -4281,6 +4311,16 @@
         }
       }
     },
+    "打开来源": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Source"
+          }
+        }
+      }
+    },
     "打开脚本文件夹": {
       "localizations": {
         "en": {
@@ -4679,6 +4719,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Queued"
+          }
+        }
+      }
+    },
+    "插件未启用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin Disabled"
           }
         }
       }
@@ -5857,6 +5907,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "This Mac"
+          }
+        }
+      }
+    },
+    "来源暂时无法连接，请检查网络或服务状态。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This source is temporarily unreachable. Check your network or server status."
           }
         }
       }
@@ -7195,6 +7255,26 @@
         }
       }
     },
+    "管理来源…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Sources…"
+          }
+        }
+      }
+    },
+    "管理脚本、外部命令与插件…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Scripts, External Commands & Plugins…"
+          }
+        }
+      }
+    },
     "管理脚本与外部命令…": {
       "localizations": {
         "en": {
@@ -8387,6 +8467,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "“%@” already exists in this folder."
+          }
+        }
+      }
+    },
+    "这个来源已从设置中删除。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This source has been removed from Settings."
+          }
+        }
+      }
+    },
+    "这个来源所属的插件当前未启用。在设置中启用后会恢复可用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The plugin for this source is currently disabled. Enable it in Settings to restore access."
           }
         }
       }

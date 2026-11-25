@@ -4,6 +4,7 @@ import MVFoundation
 import MVIO
 import MVLayout
 import MVLibraryData
+import MVPlugins
 import MVReading
 import MVServices
 import MVSettings
@@ -493,7 +494,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
                 ?? LibraryActions.playlists.first { $0.id == playlistID }?.name
                 ?? ((windowTitle?.isEmpty == false) ? windowTitle! : String(localized: "播放列表"))
         }
-        return location.name.isEmpty ? location.description : location.name
+        return location.name.isEmpty ? location.root.displayName : location.name
     }
 
     /// 书名与下面一行；虚拟书是“播放列表”标记加列表名，下面是“N 项，来自 M 本书”。
@@ -508,7 +509,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
             path = String(localized: "\(pages.count) 项，来自 \(books) 本书")
             isPlaylist = true
         } else {
-            title = location?.name ?? "MacView"
+            title = location.map { $0.name.isEmpty ? $0.root.displayName : $0.name } ?? "MacView"
             path = titleDetail(location)
             isPlaylist = false
         }
@@ -638,7 +639,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     /// 显示用的路径，例如 `mock › 画集 › 系列 A`。
     private static func breadcrumb(_ location: Location) -> String {
-        location.description.split(separator: "/").map(String.init).joined(separator: " › ")
+        location.displayBreadcrumb
     }
 
     /// 打开文件夹或压缩包：经 SourceRegistry 转成 Location 后交给会话；多出的 URL 交给 `onOpenExtra`。
@@ -783,10 +784,41 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         }
     }
 
+    /// 显示书架并导航到指定目录（供「文件 › 打开来源」使用）。
+    func showBookshelf(directory: Location) {
+        let id = DockPanels.bookshelf
+        if case .floating = dock.coordinator.current.placement(of: id) {
+            if !dock.coordinator.current.isPanelVisible(id) {
+                dock.coordinator.perform(in: nil) { $0.togglingPanel(id, defaultEdge: .left) }
+            }
+            if let floating = dock.coordinator.floatingWindows[id], let shelf = floating.panel as? BookshelfPanel {
+                floating.makeKeyAndOrderFront(nil)
+                shelf.openDirectory(directory)
+            }
+        } else {
+            dock.perform { layout in
+                var next = layout
+                if !next.isPanelVisible(id) {
+                    next = next.togglingPanel(id, defaultEdge: .left)
+                }
+                return next.selecting(id)
+            }
+            if let shelf = dock.panels[id] as? BookshelfPanel {
+                window?.makeKeyAndOrderFront(nil)
+                shelf.openDirectory(directory)
+            }
+        }
+    }
+
     /// 重新打开这本书：书的位置不丢。
     func reopenBook() {
         restoringBook = false
         guard let location = session.book?.location else { return }
+        if location.layers == [[]], let sourceID = PluginSourceProvider.sourceID(of: location.root),
+           let plugins = (NSApp.delegate as? AppDelegate)?.plugins {
+            plugins.openSource(sourceID, in: self)
+            return
+        }
         openTask?.cancel()
         openTask = Task { [weak self] in await self?.session.open(location, at: nil) }
     }

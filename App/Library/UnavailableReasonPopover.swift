@@ -2,6 +2,7 @@ import AppKit
 import MVFoundation
 import MVIO
 import MVLibraryData
+import MVPlugins
 import MVServices
 
 /// 不可用条目的原因弹出层：“找不到…”或“网络卷没有连接”，按钮“移除”；卷的情况另有“连接”，打开 `Location.Root.mountURL`。
@@ -32,9 +33,26 @@ final class UnavailableReasonPopover: NSObject, NSPopoverDelegate {
         let detail: String
         if case let .volumeUnavailable(root) = availability {
             mountURL = root.mountURL
-            title = String(localized: "网络卷没有连接")
-            message = String(localized: "它所在的网络卷现在没有挂载。连接后这一条会自动恢复。")
-            detail = root.mountURL?.absoluteString ?? root.displayName
+            if let sourceID = PluginSourceProvider.sourceID(of: root) {
+                if let entry = PluginSourceLookup.shared.entry(for: sourceID) {
+                    if !entry.isPluginEnabled {
+                        title = String(localized: "插件未启用")
+                        message = String(localized: "这个来源所属的插件当前未启用。在设置中启用后会恢复可用。")
+                    } else {
+                        title = String(localized: "无法访问 \(entry.name)")
+                        message = String(localized: "来源暂时无法连接，请检查网络或服务状态。")
+                    }
+                    detail = entry.name
+                } else {
+                    title = String(localized: "已删除的来源")
+                    message = String(localized: "这个来源已从设置中删除。")
+                    detail = root.displayName
+                }
+            } else {
+                title = String(localized: "网络卷没有连接")
+                message = String(localized: "它所在的网络卷现在没有挂载。连接后这一条会自动恢复。")
+                detail = root.mountURL?.absoluteString ?? root.displayName
+            }
         } else {
             mountURL = nil
             title = String(localized: "找不到\(what)")
@@ -159,10 +177,29 @@ extension Availability {
 }
 
 extension Location {
-    /// 界面上的路径：本机的家目录缩写为 `~`，网络卷以共享名开头。
+    /// 界面上的路径：本机的家目录缩写为 `~`，网络卷以共享名开头，插件来源以来源名称开头。
     var displayPath: String {
-        guard root == .local else { return description }
-        return (description as NSString).abbreviatingWithTildeInPath
+        switch root {
+        case .local:
+            return (description as NSString).abbreviatingWithTildeInPath
+        case .network:
+            return description
+        case .plugin:
+            let rootName = root.displayName
+            let path = layers.map { $0.joined(separator: "/") }.joined(separator: "!/")
+            return path.isEmpty ? rootName : "\(rootName)/\(path)"
+        }
+    }
+
+    /// 面包屑路径（书架路径栏与窗口标题详情用）。
+    var displayBreadcrumb: String {
+        switch root {
+        case .plugin:
+            let parts = [root.displayName] + layers.flatMap { $0 }
+            return parts.filter { !$0.isEmpty }.joined(separator: " › ")
+        case .local, .network:
+            return description.split(separator: "/").map(String.init).joined(separator: " › ")
+        }
     }
 }
 

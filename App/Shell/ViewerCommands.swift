@@ -91,7 +91,12 @@ extension AppDelegate {
                 DisplayProfileHelpers.applyToBook(profiles[slot - 1], in: controller)
             }
         }
-        register(.retryFailed) { controller, _ in controller.viewer.retryFailed() }
+        register(.retryFailed) { controller, _ in
+            controller.viewer.retryFailed()
+            if controller.bookshelfPanel?.hasLoadError == true {
+                controller.bookshelfPanel?.refreshDirectory()
+            }
+        }
 
         let sorts: [(CommandID, SortKey)] = [
             (.sortName, .name), (.sortModified, .modified), (.sortCreated, .created), (.sortSize, .size), (.sortType, .type), (.sortRandom, .random),

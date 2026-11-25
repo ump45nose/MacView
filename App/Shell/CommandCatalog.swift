@@ -46,9 +46,9 @@ struct CommandCatalog {
         return String(localized: descriptor.title)
     }
 
-    /// “文件”菜单结构：包含打开、剪贴板、用指定应用打开、移动到、复制到、重命名、删除、建立索引、回收目录、窗口、设置与关闭。
+    /// “文件”菜单结构：包含打开、打开来源、剪贴板、用指定应用打开、移动到、复制到、重命名、删除、建立索引、回收目录、窗口、设置与关闭。
     static let fileMenu: [MenuNode] = [
-        .command(.fileOpen), .separator,
+        .command(.fileOpen), .dynamic(.sources), .separator,
         .command(.fileCopy), .command(.fileCopyPath), .command(.fileReveal), .dynamic(.openWith), .separator,
         .dynamic(.moveTo), .dynamic(.copyTo),
         .command(.fileRename), .command(.fileDelete), .separator,

@@ -5,6 +5,7 @@ import MVIO
 import MVLibraryData
 import MVMedia
 import MVPipeline
+import MVPlugins
 import MVReading
 import MVSettings
 import QuartzCore
@@ -730,7 +731,14 @@ final class ViewerContainerView: NSView, InputScoped {
         isEmptyState = session.book == nil && session.loadError == nil
         if let error = session.loadError {
             let hasBook = session.book != nil
-            if Self.isVolumeError(error), let root = session.book?.location.root {
+            if let root = session.book?.location.root, PluginSourceProvider.sourceID(of: root) != nil {
+                message.show(
+                    title: String(localized: "无法访问 \(root.displayName)"),
+                    detail: ErrorText.describe(error),
+                    action: String(localized: "重试"),
+                    secondary: nil
+                )
+            } else if Self.isVolumeError(error), let root = session.book?.location.root {
                 message.show(
                     title: String(localized: "无法访问 \(root.displayName)"),
                     detail: String(localized: "NAS 没有响应，或者共享已断开。已缓存的缩略图仍可浏览。"),

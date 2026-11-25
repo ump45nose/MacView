@@ -2,6 +2,7 @@ import Foundation
 import MVFoundation
 import MVIO
 import MVMedia
+import MVPlugins
 import MVServices
 
 /// 把 Core 的错误转成界面上显示的一句话。
@@ -38,7 +39,17 @@ enum ErrorText {
         switch error {
         case .timeout: return String(localized: "读取超时")
         case .cancelled: return String(localized: "已取消")
-        case .volumeUnavailable: return String(localized: "所在的卷不可用")
+        case let .volumeUnavailable(root):
+            if let sourceID = PluginSourceProvider.sourceID(of: root) {
+                guard let entry = PluginSourceLookup.shared.entry(for: sourceID) else {
+                    return String(localized: "已删除的来源")
+                }
+                if !entry.isPluginEnabled {
+                    return String(localized: "插件未启用")
+                }
+                return String(localized: "无法访问 \(entry.name)")
+            }
+            return String(localized: "所在的卷不可用")
         case .volumeDegraded: return String(localized: "所在的卷响应缓慢，已暂停访问")
         case let .notFound(location): return String(localized: "找不到“\(location.description)”")
         case let .alreadyExists(location): return String(localized: "“\(location.description)”已存在")

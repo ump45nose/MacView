@@ -66,6 +66,10 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
     var message: String? {
         didSet { updateMessage() }
     }
+    /// 有错误提示时显示「重试」按钮。
+    var onRetryMessage: (() -> Void)? {
+        didSet { updateMessage() }
+    }
 
     /// 单击或回车。
     var onActivate: ((Int) -> Void)?
@@ -86,6 +90,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
     private let tableScroll = NSScrollView()
     private let table = CollectionTable()
     private let messageLabel = NSTextField(wrappingLabelWithString: "")
+    private let retryMessageButton = FlatButton(font: Theme.font(.panels, size: 12), fill: Theme.raised, foreground: Theme.text, border: Theme.lineStrong, radius: 6, height: 24, padding: 12)
     private let rowImages: CollectionRowImages
     /// 列表和表格里加载失败的项，显示错误文字；点击时重试。
     private var failures: [ContentIdentity: String] = [:]
@@ -184,6 +189,11 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         messageLabel.alignment = .center
         messageLabel.isHidden = true
         addSubview(messageLabel)
+        retryMessageButton.setText(String(localized: "重试"))
+        retryMessageButton.target = self
+        retryMessageButton.action = #selector(retryMessageClicked(_:))
+        retryMessageButton.isHidden = true
+        addSubview(retryMessageButton)
         canvas.fontRole = .panels
         NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
         styleChanged()
@@ -191,6 +201,7 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
 
     @objc private func applyFonts() {
         messageLabel.font = Theme.font(.panels, size: 12)
+        retryMessageButton.applyFont(Theme.font(.panels, size: 12))
         guard !style.usesCanvas else { return }
         let savedSelection = table.selectedRowIndexes
         let savedOrigin = scrollOrigin
@@ -217,7 +228,17 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
 
     override func layout() {
         super.layout()
-        messageLabel.frame = bounds.insetBy(dx: 16, dy: 16).divided(atDistance: 60, from: .minYEdge).slice
+        let messageWidth = max(bounds.width - 32, 0)
+        messageLabel.preferredMaxLayoutWidth = messageWidth
+        let labelHeight = max(24, ceil(messageLabel.fittingSize.height))
+        messageLabel.frame = CGRect(x: 16, y: 16, width: messageWidth, height: min(labelHeight, max(bounds.height - 64, 24)))
+        let buttonSize = retryMessageButton.fittingSize
+        retryMessageButton.frame = CGRect(
+            x: round((bounds.width - buttonSize.width) / 2),
+            y: messageLabel.frame.maxY + 10,
+            width: buttonSize.width,
+            height: buttonSize.height
+        )
         #if DEBUG
         notifyVisibleThumbnails()
         #endif
@@ -273,6 +294,12 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
     private func updateMessage() {
         messageLabel.stringValue = message ?? ""
         messageLabel.isHidden = message == nil
+        retryMessageButton.isHidden = message == nil || onRetryMessage == nil
+        needsLayout = true
+    }
+
+    @objc private func retryMessageClicked(_ sender: Any?) {
+        onRetryMessage?()
     }
 
     private func canvasItems() -> [CanvasItem] {

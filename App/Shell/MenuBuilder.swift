@@ -248,9 +248,10 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
     }
 
     private func mainMenuScriptItems() -> [NSMenuItem] {
-        guard let extensions = (NSApp.delegate as? AppDelegate)?.extensions else { return [] }
-        let scripts = extensions.scriptItems
-        let externals = extensions.externalItems
+        guard let app = NSApp.delegate as? AppDelegate else { return [] }
+        let scripts = app.extensions?.scriptItems ?? []
+        let externals = app.extensions?.externalItems ?? []
+        let pluginGroups = app.plugins?.mainMenuPluginGroups() ?? []
         var items: [NSMenuItem] = []
         for info in scripts {
             items.append(commandItem(ExtensionCommands.scriptCommandID(for: info.id)))
@@ -260,6 +261,19 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         }
         for command in externals {
             items.append(commandItem(ExtensionCommands.externalCommandID(for: command.id)))
+        }
+        if !pluginGroups.isEmpty {
+            if !items.isEmpty {
+                items.append(.separator())
+            }
+            for group in pluginGroups {
+                let submenu = NSMenu(title: group.title)
+                submenu.delegate = self
+                for commandID in group.commandIDs {
+                    submenu.addItem(commandItem(commandID))
+                }
+                items.append(holder(for: submenu))
+            }
         }
         return items
     }
@@ -290,7 +304,11 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         case .scripts:
             nil
         case .sources:
-            nil
+            dynamicSubmenuItem(title: String(localized: "打开来源")) { submenu in
+                guard let plugins = (NSApp.delegate as? AppDelegate)?.plugins else { return false }
+                plugins.populateSourcesMenu(submenu)
+                return true
+            }
         case .layoutSchemes:
             dynamicSubmenuItem(title: String(localized: "布局方案")) { submenu in
                 (NSApp.delegate as? AppDelegate)?.populateLayoutSchemesMenu(submenu) ?? false
