@@ -56,6 +56,8 @@ final class PagedViewerView: NSView, NSDraggingSource {
     private var decodeLimit = 0
     private var probes: [ContentIdentity: Task<Void, Never>] = [:]
     private var probeFailures: [ContentIdentity: any Error] = [:]
+    /// `probeFailures` 所属的那一轮加载；会话开始新一轮加载时清空。
+    private var probeLoadID = 0
     /// 已因取图失败交给重查的页，同一页只报一次。
     private var reportedFailures: Set<Location> = []
     private var requestTimer: Timer?
@@ -126,6 +128,11 @@ final class PagedViewerView: NSView, NSDraggingSource {
     func refresh() {
         guard session.settings.browseMode == .paged else { return }
         decodeLimit = session.maxDecodeLongSide
+        if probeLoadID != session.loadID {
+            probeLoadID = session.loadID
+            probeFailures.removeAll()
+            reportedFailures.removeAll()
+        }
         var pages = session.book?.pages ?? []
         for index in pages.indices where pages[index].metadata == nil {
             pages[index].metadata = probed[pages[index].entry.identity]
@@ -258,6 +265,7 @@ final class PagedViewerView: NSView, NSDraggingSource {
             let identity = pages[element.page].entry.identity
             guard probes[identity] == nil, probeFailures[identity] == nil else { continue }
             let pipeline = pipeline
+            let loadID = probeLoadID
             probes[identity] = Task { [weak self] in
                 do {
                     let metadata = try await pipeline.metadata(for: identity, priority: .visible)
@@ -268,7 +276,8 @@ final class PagedViewerView: NSView, NSDraggingSource {
                 } catch {
                     guard let self else { return }
                     probes[identity] = nil
-                    if !(error is CancellationError) { probeFailures[identity] = error }
+                    // 上一轮加载的探测晚到时不再记成失败。
+                    if !(error is CancellationError), loadID == probeLoadID { probeFailures[identity] = error }
                     updateFailures()
                 }
             }

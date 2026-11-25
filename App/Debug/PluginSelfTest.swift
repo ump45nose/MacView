@@ -493,10 +493,12 @@ final class PluginSelfTest {
 
         // C2.7b 停服时当前页留下探测失败，书也打不开：恢复后只点一次书级「重试」，书重开且页上旧错误一并清除
         let staleIdentity = controller.viewer.paged.slots.first?.identity
+        let pageList = (controller.dock.panels[DockPanels.pageList] as? PageListPanel)?.collection
         if let staleIdentity {
             controller.viewer.paged.debugRecordProbeFailure(URLError(.cannotConnectToHost), for: staleIdentity)
+            pageList?.debugRecordFailure("无法连接服务器。", for: staleIdentity)
         }
-        let staleShown = controller.viewer.paged.hasFailures
+        let staleShown = controller.viewer.paged.hasFailures && pageList?.hasFailures == true
         restartedServer.stop()
         controller.reopenBook()
         let bookFailedAgain = await waitUntil(timeoutMs: 8000) { controller.session.loadError != nil }
@@ -513,11 +515,12 @@ final class PluginSelfTest {
             controller.session.loadError == nil &&
             controller.session.book?.pages.count == 3 &&
             !controller.viewer.paged.slots.isEmpty &&
-            !controller.viewer.paged.hasFailures
+            !controller.viewer.paged.hasFailures &&
+            pageList?.hasFailures == false
         }
         log.check(
             staleIdentity != nil && staleShown && bookFailedAgain && pageErrorCleared,
-            "C2.7b 书级重试一次即重开书并清除页上旧错误(stale=\(staleShown),failed=\(bookFailedAgain),cleared=\(pageErrorCleared))"
+            "C2.7b 书级重试一次即重开书，主区页上与页面列表的旧错误一并清除(stale=\(staleShown),failed=\(bookFailedAgain),cleared=\(pageErrorCleared))"
         )
 
         // C2.8：停用插件后打开来源提示「插件未启用」；重新启用后能再打开

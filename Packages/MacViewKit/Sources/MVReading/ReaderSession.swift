@@ -16,6 +16,8 @@ public final class ReaderSession {
     public private(set) var currentFrame = 0
     public private(set) var settings: ResolvedBookSettings = .default
     public private(set) var loadError: (any Error)?
+    /// 每开始一轮加载（打开或重新载入书）递增。界面据此丢掉上一轮留下的页级失败记录，晚到的旧结果也不再记成失败。
+    public private(set) var loadID = 0
     public var onBookOpened: (@MainActor (Location) -> Void)?
     public var onBoundaryReached: (@MainActor (NavigationDirection) -> Void)?
     public var isVirtualBook: Bool { book?.location.playlistID != nil }
@@ -119,6 +121,7 @@ public final class ReaderSession {
         settings = resolved
         seedRandomOrder()
         openedAt = Date()
+        loadID = current
         book = Book(location: location)
         pendingBookOpened = true
         removedMetadata.removeAll()
@@ -716,6 +719,7 @@ public final class ReaderSession {
         entryRecoveryTokens.removeAll()
         pipeline.cancelAll(session: id)
         remember()
+        loadID = generation
         book = Book(location: location)
         frames = []
         currentFrame = 0

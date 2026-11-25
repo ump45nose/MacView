@@ -415,6 +415,15 @@ final class CollectionView: NSView, NSTableViewDataSource, NSTableViewDelegate, 
         #endif
     }
 
+    var hasFailures: Bool { !failures.isEmpty }
+
+    #if DEBUG
+    /// 自检：模拟停服时某一行读取失败留下的记录。
+    func debugRecordFailure(_ message: String, for identity: ContentIdentity) {
+        failures[identity] = message
+    }
+    #endif
+
     /// 重新请求失败的项。
     func retryFailed() {
         canvas.retryFailed()

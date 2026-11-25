@@ -26,6 +26,8 @@ final class ContinuousViewer: NSView {
     private var knownPage: Int?
     private var book: Location?
     private var mode: BrowseMode?
+    /// 画布失败记录所属的那一轮加载（`ReaderSession.loadID`）。
+    private var failuresLoadID = 0
     private var neighborTask: Task<Void, Never>?
     private var neighborFor: Location?
     /// 瀑布流的列宽，工具栏的滑块和捏合都改它。
@@ -123,6 +125,11 @@ final class ContinuousViewer: NSView {
             neighborFor = nil
         }
         canvas.direction = settings.direction
+        if failuresLoadID != session.loadID {
+            // 新一轮加载（如重试打开失败的书）：上一轮失败的项重新请求。
+            failuresLoadID = session.loadID
+            canvas.retryFailed()
+        }
         layoutSubtreeIfNeeded()
         // 虚拟书里不可用的页：不请求图、不显示缓存里的旧图，显示错误标记和原因。
         let unavailable = session.isVirtualBook ? session.unavailablePages : []

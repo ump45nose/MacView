@@ -264,18 +264,22 @@ import Testing
         #expect(session.book?.pages[1].entry == restored)
     }
 
-    @Test("重载保留页身份，移除当前项回退原序号，越界取末页，删除列表报找不到")
+    @Test("重载保留页身份，移除当前项回退原序号，越界取末页，删除列表报找不到；每次打开与重载都开始新一轮加载")
     func reloadAnchorsAndBookOpenedCallback() async throws {
         let (session, loader, _, _, _) = setup()
         let location = Location.playlist(UUID())
         var opened: [Location] = []
         session.onBookOpened = { opened.append($0) }
+        let beforeOpen = session.loadID
         await session.open(location, at: nil)
         #expect(opened == [location])
+        #expect(session.loadID > beforeOpen)
         session.go(.index(2))
         let initial = try #require(session.book).pages
         loader.replace(with: Array(initial.reversed()))
+        let beforeReload = session.loadID
         session.reloadBook()
+        #expect(session.loadID > beforeReload)
         await wait { session.book?.pages.first?.id == initial.last?.id }
         #expect(session.currentPage == 1)
         loader.replace(with: [initial[3], initial[0]])

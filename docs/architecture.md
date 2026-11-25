@@ -229,6 +229,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 设置变更：写入书层，去抖后持久化。
   - 按浏览模式和位置生成预取计划。
   - 接收前端回报的可见范围（连续和瀑布模式）。
+  - 加载轮次：每次 `open` 或 `reloadBook` 开始新一轮加载，`loadID` 递增。前端的页级失败（分页页的元数据探测、连续画布的项、页面列表的行）都属于某一轮加载：新一轮开始时丢掉上一轮的失败并重新请求，上一轮晚到的失败不再记下。这样，任何重开入口（错误页「重试」、书签、来源重试）都不必再点页内「重试」。同一本书「已打开」只在没有 `loadError` 时成立，打开失败的同一位置（带或不带目标页）照常重新加载。
 
 ### 3.6 设置与持久化
 
@@ -264,7 +265,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 ### 3.7 命令与输入
 
 - 菜单、快捷键、手势、脚本和插件都通过 `CommandRegistry.perform` 执行命令。Core 定义命令清单和默认绑定，App 注册与界面相关的处理器；`frame.left` / `frame.right` 按当前阅读方向（左开/右开）换算为上一帧或下一帧，供手势、点击区域与横扫复用。
-- 脚本与外部命令：MVScripting 用独立队列扫描和监听脚本目录，文件头声明名称与事件，JavaScriptCore 检查语法。运行时按脚本、会话、触发种类排队并限制并发，翻页事件合并；脚本线程同步等待异步宿主，主线程不等待脚本。停止会取消宿主调用并终止脚本（不支持强制终止的系统在下次 `mv` 调用时停止）。外部命令支持安全展开文件等占位符，子进程独立进程组并随任务取消退出。默认菜单含脚本动态节点；应用侧动态登记与界面接线在后续 App 阶段完成。
+- 脚本与外部命令：MVScripting 用独立队列扫描和监听脚本目录，文件头声明名称与事件，JavaScriptCore 检查语法。运行时按脚本、会话、触发种类排队并限制并发，翻页事件合并；脚本线程同步等待异步宿主，主线程不等待脚本。停止会取消宿主调用并终止脚本（不支持强制终止的系统在下次 `mv` 调用时停止）。外部命令支持安全展开文件等占位符，子进程独立进程组并随任务取消退出。默认菜单含脚本动态节点，应用侧动态登记与「扩展」设置页已随 S5-T1 接线。
 - 输入路由：
   - 文本框、弹出层和菜单先在 AppKit 响应链里处理按键。
   - 没被处理的按键由 InputRouter 转成 KeyChord，连同作用域（global/viewer/list/textInput）交给 BindingResolver。这样可以避免移植版那种“在弹出层里按方向键却触发了切书”的问题（`portable/docs/known-issues.md` 的 MAC-INPUT-005）。
@@ -288,7 +289,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 窗口：
   - 每个窗口或标签一个 `ReaderWindowController`，持有自己的 ReaderSession 和停靠布局。
   - `tabbingMode = .preferred`。
-  - 恢复：`SessionStore` 写 `session.json`（带版本号，原子写入，去抖 500 ms），按窗口存 frame、选中的标签和各标签的书、停靠布局、瀑布流尺寸。页码来自书记忆，关窗和退出前 `flush`。窗口的 `isRestorable` 不用系统恢复。
+  - 恢复：`SessionStore` 写 `session.json`（带版本号，原子写入，去抖 500 ms），按窗口存 frame、选中的标签和各标签的书、停靠布局（各窗口的保存布局，见下文停靠一节，含暂不可用插件面板的位置；共享浮窗只由 `layout.json` 保存）、瀑布流尺寸。页码来自书记忆，关窗和退出前 `flush`。窗口的 `isRestorable` 不用系统恢复。
     - 启动时恢复；同时有要打开的 URL 时，恢复后另开标签。Mock 和其他自检不读不写。
     - 恢复打开由 App 跳过该次历史写入，避免清空或移除的历史在启动后复现；书记忆照常恢复，用户主动打开仍记录历史。Core 的打开回调及资料库接口不变。历史重启自检用 `-MVSessionSelfTest history-write|history-verify` 和同一隔离目录分次启动。
     - 书不在时窗口仍恢复，`session.book` 保留位置，显示错误和重试或连接；书记忆不被覆盖。
@@ -319,9 +320,11 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
     - “折叠”就是隐藏：区不占空间，面板与尺寸保留，没有只剩标题条的形态。区头按钮、显示命令、把分隔线拖到边缘，效果相同。
     - 面板浮动后，其他窗口中停靠着的同一面板随之移走。拖回某个窗口后，其他窗口不会自动出现这个面板。
     - 每个窗口的布局只有停靠区是自己的。`layout.json` 只存一份：最近一次改动所在窗口的完整布局，它也是新窗口的默认布局。
+    - 保存布局与显示布局（S5-F1、G5）：插件停用或未就绪时，它的面板从显示布局里去掉，但保存布局保留原位与选中项。`session.json`、`layout.json`、`layout-schemes.json` 三个出口一律写保存布局（`DockCoordinator.persistedLayout(of:)`、`savedLayout(of:)`、`current`），显示布局只用于呈现。「暂不可用」不等于用户移除，只有用户关掉面板才从保存布局删除。退出时先停插件再写会话，所以会话不能取 `WindowDock.dockLayout`。
     - 面板在区、窗口、停靠与浮动之间移动时，保留同一实例与视图设置。
     - 只有在 `DockSplitView.mouseDown` 跟踪分隔线期间，尺寸变化才算用户拖动。不能看 `NSApp.currentEvent`：点工具栏后分栏自己调整时，当前事件也是本窗口的鼠标事件，曾把宽度 0 写进布局（S1 手动验收）。读取尺寸时不低于最小值，已保存的 0 能自愈。
     - 浮动面板用 `hidesOnDeactivate`（App 失去焦点时隐藏）和 `fullScreenAuxiliary`（可以浮在全屏窗口之上）。
+    - 撤销归属：阅读窗口的文件操作撤销由 `FileOperationController.undoManager` 负责（`groupsByEvent = false`，只接受显式分组）。焦点在文字输入处（`NSText`、`NSTextField`，或 `WKWebView` 及其子视图，见 `ReaderWindow.isEditingText`）时，菜单启用、菜单执行与快捷键都用焦点自己的撤销管理器（网页面板沿响应链取到窗口的 `textUndoManager`），不碰文件操作历史；WebKit 自动登记的编辑撤销若落到文件操作的管理器会抛异常。浮动面板是独立 NSPanel，用系统默认的窗口撤销管理器，不转交阅读主窗的文件撤销。
     - 书架和页面列表是 `CollectionPanel` 的两个子类。面板的样式、尺寸和排序存在 `layout.json` 的面板设置里；区头的 ⋯ 菜单由面板和停靠区共同填充。
 - 画布引擎：
   - 基于 NSScrollView，利用它原生的滚动、惯性和捏合缩放。内容是图层池，不为每一项建一个 NSView。
@@ -381,8 +384,9 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 ### 3.9 P1 扩展点
 
 - 数据源插件（S5-T2 阶段 1 已实现 Core）：`PluginSourceProvider` 以 `ContainerProvider` 注册到 `SourceRegistry`，处理 `.plugin(id: "source/<UUID>")` 的单层非压缩包位置；组合根先登记 `ArchiveProvider`（单层读取按根分派到插件来源或文件系统）再登记 `PluginSourceProvider`，使远端目录中的 zip/tar 与本地同样可浏览，视频走 `ByteSourceAsset`；直链下载经 `HTTPByteSource`（每来源 4 并发、按 `IOPriority` 排序，200 回退存入共享 `ExtractStore`），冷启动直开某页自动回填父目录。来源密码单独存在 `plugin-secrets.json`（权限 0600），不进 `plugins.json`。
-- 插件宿主与脚本命令（S5-T2 阶段 1 已实现 Core）：`MVPlugins` 扫描监视 `Plugins/<id>/manifest.json`，提供 JS（专用线程常驻 `JSContext`，复用 `MVScripting.JSBridge`，权限检查 `network`/`commands` 在模块内完成）与外部程序（独立进程组 stdio 按行 JSON-RPC 2.0，按需启动、闲置 5 分钟退出、崩溃自动重启）两种运行时；默认文件菜单新增 `DynamicMenuID.sources`（「打开来源」），应用侧接线在后续 App 阶段完成。
+- 插件宿主与脚本命令（S5-T2 阶段 1 已实现 Core）：`MVPlugins` 扫描监视 `Plugins/<id>/manifest.json`，提供 JS（专用线程常驻 `JSContext`，复用 `MVScripting.JSBridge`，权限检查 `network`/`commands` 在模块内完成）与外部程序（独立进程组 stdio 按行 JSON-RPC 2.0，按需启动、闲置 5 分钟退出、崩溃自动重启）两种运行时；默认文件菜单新增 `DynamicMenuID.sources`（「打开来源」），应用侧接线已随 S5-T2 完成。外部程序插件按完全信任处理：清单权限只约束经宿主的调用，不是系统沙盒。
 - HTML/JS 面板（S5-F1）：Core 侧清单支持 `panels` 声明（`PluginPanelDeclaration` / `DockEdgeName`），只有面板的插件可省略 `runtime` 且不建运行时连接；`PluginHost.panelCall` 为面板调用应用 API 的唯一入口（校验启用、同意与 `commands` 权限，拒绝或失败写入 `PluginHost.log`）；`MVLayout` 的 `DockLayout.sanitized` 保留 `plugin.` 前缀面板，`displayed(available:)` 与 `merging(unavailableFrom:available:)` 分离显示布局与保存布局；`MVCommands` 新增 `DynamicMenuID.pluginPanels` 位于「窗口」菜单面板一节末尾。App 侧 `DockPanels` 改为「内置 + 插件」动态注册表，`PluginCoordinator` 随已启用且就绪（`.ready`/`.running`）插件同步面板类型（ID `plugin.<插件>.<面板>`）、显示命令（`plugin.<插件>.panel.<面板>`，全局作用域）与快照更新；`PluginWebPanel` 每实例一个非持久 `WKWebView`（`isInspectable = true`），通过 `macview-plugin://<id>/` 自定义 scheme 仅读本插件目录、无 `network` 权限时装 `WKContentRuleList` 拦截 `http(s)`/`ws(s)`、主框架与子框架仅允许本插件地址并禁止开新窗；文档开始注入 Promise 垫片 `window.mv`（`book`/`page`/`pages`/`selection`/`command`/`goTo`/`open`/`toast`/`confirm`/`prompt`/`storage.get|set|remove`/`on`/`off`，每次调用开始时固定作用窗口与选择快照，桥经 `WKScriptMessageHandlerWithReply` 校验主框架与来源后转交 `PluginHost.panelCall`）、外观 CSS 变量（`--mv-accent`/`--mv-font-family`/`--mv-font-size`，外观或面板字体变化时就地更新，深浅色走 `prefers-color-scheme`）以及 `window.onerror`/`unhandledrejection`/`console.*` 日志转发（跳过已由 `panelCall` 记录的桥拒绝）；递归 FSEvents 监视插件目录 300 ms 去抖重建；按代次与队列单路投递 `bookOpened`/`pageChanged`（合并最新）/`pageEnd`/`windowStateChanged`/`targetChanged`（无监听时不构造载荷）；在事件投递、面板可见时按需发一次 `40+2`（3 秒超时）检测无响应，崩溃或卡死时显示原因与「重新载入」按钮并以新 configuration 与非持久存储重建。示例插件位于 `Examples/Plugins/page-notes/`。
+- 停止与恢复的保证范围（G5 复核）：分三层，彼此不能互相代替。界面恢复：面板重建、错误页消失即可继续操作。请求取消：宿主调用与在途请求取消，结果不再交付。线程与进程退出：JS 死循环依赖非公开 `JSContextGroupSetExecutionTimeLimit`，符号缺失时只能在下一次调用 `mv` 时停，不调 `mv` 的纯计算循环停不下（JS 插件的 30 秒执行上限同样依赖它）；外部程序按进程组 TERM、250 ms 后 KILL，自行脱离进程组的子进程不一定能结束；卡死网页重建后，旧 WebContent 进程可能继续占一个 CPU 核直到 App 退出。界面上「已停止」「已重新载入」只表示前两层。
 - 显示配置（S4-T1 已实现）：`DisplayProfile` 存进 `profiles.json`，按所选组保存 `BookSettings` 子集，套用时按模板语义经 `BookSettings.merge(_:)` / `ResolvedBookSettings.applying(_:)` 写入对应设置层，不新增层级。
 - 效果链（S4-T1 已实现调色，S5-T2 阶段 1 新增插件滤镜 Core）：`ColorAdjust`、`PluginFilterEffect`、`Effect`（`.colorAdjust` / `.plugin`）、`EffectChain`、`ViewerBackground` 放在 `MVSettings`；调色在前端呈现时用 Core Image 实时应用，插件滤镜经 `MVPipeline.PluginFilterExecuting`（由 `MVPlugins.PluginFilterRunner` 实现、单插件串行、取消出队）与 `ImagePipeline.filteredImage` 产出派生图并进 `caches.browse` / `decoded` / `preload` 缓存，缓存键含插件版本与参数规范 JSON 的 SHA-256 前 16 位。
 
@@ -854,6 +858,7 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public init(id: SessionID = SessionID(), loader: any BookLoader, settings: any SettingsStore, bookshelf: any Bookshelf, pipeline: any ImagePipeline)   // 由 CoreServices.makeSession() 调用
     public private(set) var book: Book?; public private(set) var frames: [PageFrame]; public private(set) var currentFrame: Int
     public private(set) var settings: ResolvedBookSettings; public private(set) var loadError: (any Error)?
+    public private(set) var loadID: Int   // 每次 open / reloadBook 开始新一轮加载时递增；前端据此丢掉上一轮的页级失败（见 §3.5）
     public func open(_ location: Location, at page: Location?) async
     public var onBookOpened: (@MainActor (Location) -> Void)?   // 第一批非空页到达后，每次 open 调用一次
     public var onBoundaryReached: (@MainActor (NavigationDirection) -> Void)?   // 在首末帧继续前后翻时触发，位置不变

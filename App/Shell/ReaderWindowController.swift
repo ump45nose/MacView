@@ -698,14 +698,13 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     /// 打开书架上的一本书；传入 `page` 时打开后定位到该页（同一本书直接跳转）。
     func openBook(_ location: Location, at page: Location? = nil, restoring: Bool = false) {
-        if let page, location == session.book?.location {
+        // 同一本书已经打开且没有出错时只跳页；上次打开失败的同一本书照常重开（重试），目标页随重开带上。
+        if location == session.book?.location, session.loadError == nil {
+            guard let page else { return }
             if let index = session.book?.pages.firstIndex(where: { $0.id == page }) {
                 session.go(.index(index))
                 return
             }
-        } else if page == nil, location == session.book?.location, session.loadError == nil {
-            // 已经打开且没有出错；上次打开失败的同一本书照常重开（重试）。
-            return
         }
         restoringBook = restoring
         openTask?.cancel()

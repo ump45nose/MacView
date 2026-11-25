@@ -10,6 +10,8 @@ import Observation
 final class PageListPanel: CollectionPanel {
     /// 显示顺序到书内页码。
     private var order: [Int] = []
+    /// 列表失败记录所属的那一轮加载（`ReaderSession.loadID`）。
+    private var failuresLoadID = 0
     private var observedSession: SessionID?
     private let availability = LibraryAvailability()
     private var visibleRange = 0..<0
@@ -84,6 +86,11 @@ final class PageListPanel: CollectionPanel {
         }
         #endif
         renderControls()
+        if let loadID = owner?.session.loadID, loadID != failuresLoadID {
+            // 新一轮加载（如重试打开失败的书）：上一轮读不到的行重新请求。
+            failuresLoadID = loadID
+            collection?.retryFailed()
+        }
         guard let session = owner?.session, let book = session.book else {
             order = []
             collection?.setItems([], current: nil)

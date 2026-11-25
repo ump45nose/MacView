@@ -615,9 +615,8 @@ final class ViewerContainerView: NSView, InputScoped {
         }
     }
 
-    /// 重开打开失败的书；页上留着的旧失败（如停服时当前页的探测失败）一并重试，不必再点页内的「重试」。
+    /// 重开打开失败的书；新一轮加载开始后，各视图自己丢掉上一轮的页级失败（见 `ReaderSession.loadID`）。
     private func retryBook() {
-        retryFailedItems()
         onRetryBook?()
     }
 
