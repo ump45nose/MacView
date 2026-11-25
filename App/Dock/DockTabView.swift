@@ -50,6 +50,17 @@ final class DockTabView: NSView, NSDraggingSource {
         NotificationCenter.default.addObserver(self, selector: #selector(applyFonts), name: Theme.fontsDidChange, object: nil)
     }
 
+    func update(type: DockPanelType) {
+        if label.stringValue != type.title {
+            label.stringValue = type.title
+            setAccessibilityLabel(type.title)
+            toolTip = type.title
+            needsLayout = true
+            superview?.needsLayout = true
+        }
+        icon.image = NSImage(systemSymbolName: type.symbol, accessibilityDescription: nil) ?? NSImage()
+    }
+
     @objc private func applyFonts() {
         label.font = Theme.font(.panels, size: 11, weight: .semibold)
         needsLayout = true

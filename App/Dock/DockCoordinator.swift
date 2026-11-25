@@ -38,11 +38,18 @@ final class DockCoordinator {
     /// 方案文件或方案列表变化后调用（供设置页刷新）。
     var onSchemesChange: (() -> Void)?
     private var pool: [PanelID: any DockPanel] = [:]
+    /// 每个窗口的保存布局（含当前不可用的插件面板位置与选中项，floating 为空）。
+    private var savedLayouts: [ObjectIdentifier: DockLayout] = [:]
     private var keepOnTop = false
     private var saveTask: Task<Void, Never>?
     private var observeTask: Task<Void, Never>?
     private var observeSchemesTask: Task<Void, Never>?
+    private var panelsObserver: NSObjectProtocol?
     private let logger = Logger(category: "dock")
+
+    private var availablePanels: Set<PanelID> {
+        Set(DockPanels.all.map(\.id))
+    }
 
     /// `~/Library/Application Support/MacView/layout.json`；自检用 `-MVLayoutFile <路径>` 换成临时文件。
     static func defaultFileURL() -> URL {
@@ -100,6 +107,24 @@ final class DockCoordinator {
                 }
             }
         }
+        panelsObserver = NotificationCenter.default.addObserver(
+            forName: DockPanels.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.handlePanelsChanged()
+            }
+        }
+    }
+
+    isolated deinit {
+        saveTask?.cancel()
+        observeTask?.cancel()
+        observeSchemesTask?.cancel()
+        if let panelsObserver {
+            NotificationCenter.default.removeObserver(panelsObserver)
+        }
     }
 
     private func documentChanged(_ change: DocumentChange) {
@@ -133,17 +158,23 @@ final class DockCoordinator {
 
     /// 恢复会话：这个窗口用保存的布局，浮动面板不动。
     func restore(_ dock: WindowDock, layout: DockLayout) {
-        let known = Set(DockPanels.all.map(\.id))
+        let known = availablePanels
         commit([(dock, layout.sanitized(knownPanels: known).adoptingFloating(of: current))], current: current, save: false)
     }
 
     func detach(_ dock: WindowDock) {
         docks.removeAll { $0 === dock }
+        savedLayouts.removeValue(forKey: ObjectIdentifier(dock))
         dock.detach()
         pool.removeAll()
         if active === dock || active == nil {
             active = nil
-            if let next = docks.last { activate(next) } else { syncFloating() }
+            if let next = docks.last {
+                activate(next)
+            } else {
+                for window in floatingWindows.values { window.panel.bind(to: nil) }
+                syncFloating()
+            }
         }
     }
 
@@ -154,33 +185,67 @@ final class DockCoordinator {
         syncFloating()
     }
 
+    /// 面板注册表增删（如插件启用或停用）时，按保存布局重新投影各窗口与浮动面板。
+    private func handlePanelsChanged() {
+        let available = availablePanels
+        for (id, window) in Array(floatingWindows) {
+            if !available.contains(id) {
+                floatingWindows[id] = nil
+                window.panel.bind(to: nil)
+                window.dismiss()
+            } else if let type = DockPanels.type(id) {
+                window.update(type: type)
+            }
+        }
+        for dock in docks {
+            let saved = savedLayouts[ObjectIdentifier(dock)] ?? Self.docked(current)
+            dock.apply(Self.docked(saved.displayed(available: available)), render: true)
+        }
+        syncFloating()
+        pool.removeAll()
+    }
+
     // MARK: 变换
 
     /// 在一个窗口（nil 时只涉及浮动面板）上变换布局。
+    /// 变换在显示布局上执行，再把当前不可用的插件面板并回保存布局。
     func perform(in dock: WindowDock?, render: Bool = true, _ transform: (DockLayout) -> DockLayout) {
-        let base = layout(of: dock)
-        let next = transform(base)
-        guard next != base else { return }
-        commit(dock.map { [($0, next)] } ?? [], current: next, render: render)
+        let available = availablePanels
+        let savedBase = savedLayout(of: dock)
+        let displayedBase = savedBase.displayed(available: available)
+        let displayedNext = transform(displayedBase)
+        guard displayedNext != displayedBase else { return }
+        let savedNext = displayedNext.merging(unavailableFrom: savedBase, available: available)
+        commit(dock.map { [($0, savedNext)] } ?? [], current: savedNext, render: render)
     }
 
-    /// 让各窗口与浮动面板跟上新布局，并去抖保存。`updates` 中的窗口按顺序套用（跨窗口移动时先源后目标）。
+    /// 让各窗口与浮动面板跟上新保存布局，并去抖保存。`updates` 中的窗口按顺序套用（跨窗口移动时先源后目标）。
     private func commit(_ updates: [(WindowDock, DockLayout)], current next: DockLayout, render: Bool = true, save: Bool = true) {
+        let available = availablePanels
         let floatingChanged = next.floating.map(\.panel) != current.floating.map(\.panel)
         current = next
-        let floating = Set(next.floating.map(\.panel))
-        for (id, window) in floatingWindows where !floating.contains(id) {
+        let displayedFloating = Set(next.displayed(available: available).floating.map(\.panel))
+        for (id, window) in Array(floatingWindows) where !displayedFloating.contains(id) {
             floatingWindows[id] = nil
-            pool[id] = window.panel
+            if available.contains(id) {
+                pool[id] = window.panel
+            } else {
+                window.panel.bind(to: nil)
+            }
             window.dismiss()
         }
-        for (dock, layout) in updates {
-            dock.apply(Self.docked(layout), render: render)
+        for (dock, saved) in updates {
+            let dockedSaved = Self.docked(saved)
+            savedLayouts[ObjectIdentifier(dock)] = dockedSaved
+            dock.apply(Self.docked(dockedSaved.displayed(available: available)), render: render)
         }
         if floatingChanged {
             for dock in docks where !updates.contains(where: { $0.0 === dock }) {
-                let adopted = Self.docked(dock.dockLayout.adoptingFloating(of: next))
-                if adopted != dock.dockLayout { dock.apply(adopted, render: true) }
+                let baseSaved = savedLayouts[ObjectIdentifier(dock)] ?? Self.docked(current)
+                let adoptedSaved = Self.docked(baseSaved.adoptingFloating(of: next))
+                savedLayouts[ObjectIdentifier(dock)] = adoptedSaved
+                let adoptedDisplayed = Self.docked(adoptedSaved.displayed(available: available))
+                if adoptedDisplayed != dock.dockLayout { dock.apply(adoptedDisplayed, render: true) }
             }
         }
         syncFloating()
@@ -188,9 +253,9 @@ final class DockCoordinator {
         if save { scheduleSave() }
     }
 
-    /// 窗口（nil 时为最近一次改动后）的停靠区，加上共享的浮动面板。
-    private func layout(of dock: WindowDock?) -> DockLayout {
-        var layout = dock?.dockLayout ?? current
+    /// 窗口（nil 时为最近一次改动后）的保存停靠区，加上共享的浮动面板。
+    func savedLayout(of dock: WindowDock?) -> DockLayout {
+        var layout = dock.flatMap { savedLayouts[ObjectIdentifier($0)] } ?? current
         layout.floating = current.floating
         return layout
     }
@@ -205,6 +270,10 @@ final class DockCoordinator {
     // MARK: 面板实例
 
     func release(_ panel: any DockPanel, id: PanelID) {
+        guard availablePanels.contains(id) else {
+            panel.bind(to: nil)
+            return
+        }
         if pool[id] == nil { pool[id] = panel }
     }
 
@@ -245,7 +314,7 @@ final class DockCoordinator {
     }
 
     private func syncFloating() {
-        for item in current.floating {
+        for item in current.displayed(available: availablePanels).floating {
             let window: FloatingPanelWindow
             if let existing = floatingWindows[item.panel] {
                 window = existing
@@ -305,10 +374,17 @@ final class DockCoordinator {
             perform(in: target) { $0.moving(panel, to: destination) }
             return
         }
-        let sourceLayout = layout(of: source)
-        let targetLayout = layout(of: target)
-        let inserted = targetLayout.inserting(panel, at: destination, settings: sourceLayout.settings(of: panel))
-        commit([(source, sourceLayout.removing(panel)), (target, targetLayout.removing(panel)), (target, inserted)], current: inserted)
+        let available = availablePanels
+        let sourceSaved = savedLayout(of: source)
+        let targetSaved = savedLayout(of: target)
+        let sourceDisplayed = sourceSaved.displayed(available: available)
+        let targetDisplayed = targetSaved.displayed(available: available)
+        let nextSourceSaved = sourceDisplayed.removing(panel).merging(unavailableFrom: sourceSaved, available: available)
+        let removedTargetSaved = targetDisplayed.removing(panel).merging(unavailableFrom: targetSaved, available: available)
+        let insertedTargetSaved = targetDisplayed
+            .inserting(panel, at: destination, settings: sourceDisplayed.settings(of: panel))
+            .merging(unavailableFrom: targetSaved, available: available)
+        commit([(source, nextSourceSaved), (target, removedTargetSaved), (target, insertedTargetSaved)], current: insertedTargetSaved)
     }
 
     /// 拖动结束而没有停靠区接收：停靠的面板变成浮动面板，浮动面板移到放下的位置。
@@ -328,7 +404,7 @@ final class DockCoordinator {
 
     /// 停靠的面板在所在窗口中切换；浮动面板全应用切换（也是浮动面板的关闭按钮：隐藏，位置保留）。
     func togglePanel(_ type: DockPanelType, in dock: WindowDock?) {
-        if case .floating = current.placement(of: type.id) {
+        if case .floating = current.displayed(available: availablePanels).placement(of: type.id) {
             perform(in: nil) { $0.togglingPanel(type.id, defaultEdge: type.defaultEdge) }
         } else if let dock {
             perform(in: dock) { $0.togglingPanel(type.id, defaultEdge: type.defaultEdge) }
@@ -422,7 +498,7 @@ final class DockCoordinator {
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw SchemeError.emptyName }
         guard let schemesStore else { throw SchemeError.storeUnavailable }
-        let snapshot = layout(of: dock ?? active)
+        let snapshot = savedLayout(of: dock ?? active)
         try await schemesStore.update { file in
             if let index = file.schemes.firstIndex(where: { $0.name == name }) {
                 file.schemes[index].layout = snapshot
@@ -464,7 +540,7 @@ final class DockCoordinator {
     @discardableResult
     func applyScheme(named name: String, to dock: WindowDock?) async -> Bool {
         guard let scheme = scheme(named: name) else { return false }
-        let known = Set(DockPanels.all.map(\.id))
+        let known = availablePanels
         let targetLayout = scheme.layout.sanitized(knownPanels: known)
         let targetDock = dock ?? active
         commit(targetDock.map { [($0, targetLayout)] } ?? [], current: targetLayout, render: true, save: false)

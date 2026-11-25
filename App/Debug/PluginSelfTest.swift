@@ -27,12 +27,12 @@ import UniformTypeIdentifiers
 final class PluginSelfTest {
     static let launchKey = "MVPluginSelfTest"
 
-    private let app: AppDelegate
+    let app: AppDelegate
     private let mode: String
-    private let log = SelfTestLog()
-    private let temporary: URL
-    private let repoRoot: URL
-    private weak var keyTarget: NSWindow?
+    let log = SelfTestLog()
+    let temporary: URL
+    let repoRoot: URL
+    weak var keyTarget: NSWindow?
 
     static func runIfRequested(app: AppDelegate) {
         guard let mode = UserDefaults.standard.string(forKey: launchKey)?
@@ -91,6 +91,10 @@ final class PluginSelfTest {
                 try await runFiltersSuite(controller: controller, window: window, services: services, plugins: plugins)
             case "settings":
                 try await runSettingsSuite(controller: controller, window: window, services: services, plugins: plugins)
+            case "panels":
+                try await runPanelsSuite(controller: controller, window: window, services: services, plugins: plugins)
+            case "panels-reopen":
+                try await runPanelsReopenSuite(controller: controller, services: services, plugins: plugins)
             default:
                 log.check(false, "未知的 -MVPluginSelfTest 模式：\(mode)")
             }
@@ -763,7 +767,7 @@ final class PluginSelfTest {
 
     // MARK: - 辅助：插件、夹具与像素检测
 
-    private func copyExamplePlugin(_ id: String, to pluginsDir: URL) throws {
+    func copyExamplePlugin(_ id: String, to pluginsDir: URL) throws {
         let src = repoRoot.appending(path: "Examples/Plugins/\(id)", directoryHint: .isDirectory)
         let dst = pluginsDir.appending(path: id, directoryHint: .isDirectory)
         try? FileManager.default.removeItem(at: dst)
@@ -849,7 +853,7 @@ final class PluginSelfTest {
         try py.write(to: dir.appending(path: "main.py"), atomically: true, encoding: .utf8)
     }
 
-    private func makeColorBook(in parent: URL? = nil, name: String, count: Int, size: CGSize) throws -> URL {
+    func makeColorBook(in parent: URL? = nil, name: String, count: Int, size: CGSize) throws -> URL {
         let dir = (parent ?? temporary).appending(path: name, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let colors: [NSColor] = [
@@ -955,7 +959,7 @@ final class PluginSelfTest {
         return pluginSub.items.contains { $0.title == commandTitle }
     }
 
-    private func openBook(_ controller: ReaderWindowController, url: URL, expectedCount: Int) async {
+    func openBook(_ controller: ReaderWindowController, url: URL, expectedCount: Int) async {
         controller.open([url])
         _ = await waitUntil(timeoutMs: 5000) {
             guard let book = controller.session.book else { return false }
@@ -963,12 +967,12 @@ final class PluginSelfTest {
         }
     }
 
-    private func triggerMenuItem(_ item: NSMenuItem) {
+    func triggerMenuItem(_ item: NSMenuItem) {
         guard let action = item.action else { return }
         NSApp.sendAction(action, to: item.target, from: item)
     }
 
-    private func sendKey(_ keyCode: Int, modifiers: NSEvent.ModifierFlags = [], in window: NSWindow) async {
+    func sendKey(_ keyCode: Int, modifiers: NSEvent.ModifierFlags = [], in window: NSWindow) async {
         var cgFlags = CGEventFlags()
         if modifiers.contains(.command) { cgFlags.insert(.maskCommand) }
         if modifiers.contains(.option) { cgFlags.insert(.maskAlternate) }
@@ -991,11 +995,11 @@ final class PluginSelfTest {
         try? await Task.sleep(for: .milliseconds(50))
     }
 
-    private func settle(_ ms: Int) async {
+    func settle(_ ms: Int) async {
         try? await Task.sleep(for: .milliseconds(ms))
     }
 
-    private func waitUntil(timeoutMs: Int, intervalMs: Int = 40, condition: () -> Bool) async -> Bool {
+    func waitUntil(timeoutMs: Int, intervalMs: Int = 40, condition: () -> Bool) async -> Bool {
         let deadline = ContinuousClock.now + .milliseconds(timeoutMs)
         while ContinuousClock.now < deadline {
             if condition() { return true }
@@ -1795,7 +1799,7 @@ final class PluginSelfTest {
 
     private var nextMouseEventNumber = 1
 
-    private func sendMouseClick(at point: NSPoint, in window: NSWindow, modifiers: NSEvent.ModifierFlags = []) {
+    func sendMouseClick(at point: NSPoint, in window: NSWindow, modifiers: NSEvent.ModifierFlags = []) {
         let now = ProcessInfo.processInfo.systemUptime
         let downNo = nextMouseEventNumber
         nextMouseEventNumber += 1

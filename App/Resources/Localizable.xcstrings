@@ -2729,6 +2729,16 @@
         }
       }
     },
+    "内容规则存储不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Content rule list store is unavailable"
+          }
+        }
+      }
+    },
     "再读": {
       "localizations": {
         "en": {
@@ -3195,6 +3205,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Placeholders: {file} first target  {files} all targets  {folder} folder  {name} filename  {book} current book  {page} page number (1-based)"
+          }
+        }
+      }
+    },
+    "卡住的网页进程会在退出 App 后释放": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The stuck web process will be released after quitting the app."
           }
         }
       }
@@ -5615,6 +5635,16 @@
         }
       }
     },
+    "拒绝来自无效来源的消息": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rejected message from an invalid origin"
+          }
+        }
+      }
+    },
     "拖到左侧加入菜单，或双击直接加入；拖动左侧条目可调整顺序与层级。": {
       "localizations": {
         "en": {
@@ -5965,6 +5995,16 @@
         }
       }
     },
+    "插件宿主不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin host is unavailable"
+          }
+        }
+      }
+    },
     "插件文件夹名不合规（只能包含小写字母、数字和连字符，且不能以连字符开头）：%@": {
       "comment": "Core 诊断文字，键来自 PluginLibrary.swift",
       "extractionState": "manual",
@@ -6065,6 +6105,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Plugin permissions need to be approved again: %@"
+          }
+        }
+      }
+    },
+    "插件面板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin Panels"
           }
         }
       }
@@ -6897,6 +6947,16 @@
         }
       }
     },
+    "无法安装网络限制规则：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to install network restriction rules: %@"
+          }
+        }
+      }
+    },
     "无法完成操作": {
       "localizations": {
         "en": {
@@ -7085,6 +7145,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "View"
+          }
+        }
+      }
+    },
+    "显示或隐藏 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or Hide %@"
           }
         }
       }
@@ -7449,6 +7519,16 @@
         }
       }
     },
+    "未知事件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown event"
+          }
+        }
+      }
+    },
     "未知事件：%@": {
       "comment": "Core 诊断文字，键来自 PluginManifest.swift、ScriptLibrary.swift",
       "extractionState": "manual",
@@ -7501,6 +7581,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unknown permission: %@"
+          }
+        }
+      }
+    },
+    "未知的桥消息类型": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown bridge message type"
+          }
+        }
+      }
+    },
+    "未知的面板方法": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown panel method"
           }
         }
       }
@@ -7853,6 +7953,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Format"
+          }
+        }
+      }
+    },
+    "桥消息格式无效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid bridge message format"
           }
         }
       }
@@ -9503,6 +9613,16 @@
         }
       }
     },
+    "编译网络限制规则失败": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to compile network restriction rules"
+          }
+        }
+      }
+    },
     "编辑": {
       "localizations": {
         "en": {
@@ -9787,6 +9907,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Network Volume Disconnected"
+          }
+        }
+      }
+    },
+    "网页无响应": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web Page Unresponsive"
+          }
+        }
+      }
+    },
+    "网页进程已意外终止": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The web process terminated unexpectedly"
           }
         }
       }
@@ -11139,6 +11279,16 @@
         }
       }
     },
+    "重新载入": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload"
+          }
+        }
+      }
+    },
     "重试": {
       "localizations": {
         "en": {
@@ -11329,6 +11479,16 @@
         }
       }
     },
+    "面板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel"
+          }
+        }
+      }
+    },
     "面板 %@ 的 defaultEdge 无效，只能是 left、right 或 bottom": {
       "comment": "Core 诊断文字，键来自 PluginManifest.swift",
       "extractionState": "manual",
@@ -11435,6 +11595,26 @@
         }
       }
     },
+    "面板入口地址无效：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid panel entry address: %@"
+          }
+        }
+      }
+    },
+    "面板已关闭": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel is closed"
+          }
+        }
+      }
+    },
     "面板缺少非空 id": {
       "comment": "Core 诊断文字，键来自 PluginManifest.swift",
       "extractionState": "manual",
@@ -11453,6 +11633,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Panel Options"
+          }
+        }
+      }
+    },
+    "面板：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panels: %@"
           }
         }
       }
@@ -11493,6 +11683,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Page Sorting"
+          }
+        }
+      }
+    },
+    "页面载入失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to load page: %@"
           }
         }
       }

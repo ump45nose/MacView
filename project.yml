@@ -38,6 +38,7 @@ targets:
         product: MVServices
       - package: MacViewKit
         product: MVTestSupport
+      - sdk: WebKit.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.ump45nose.MacView

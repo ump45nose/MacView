@@ -3,6 +3,7 @@ import Foundation
 import MVCommands
 import MVFoundation
 import MVIO
+import MVLayout
 import MVPipeline
 import MVPlugins
 import MVReading
@@ -43,6 +44,14 @@ final class PluginCoordinator {
         let command: PluginCommandDeclaration
     }
 
+    private struct PanelEntry: Equatable {
+        let pluginID: String
+        let pluginName: String
+        let directory: URL
+        let panel: PluginPanelDeclaration
+        let permissions: Set<PluginPermission>
+    }
+
     private let services: CoreServices
     private let scripts: ExtensionCommands
 
@@ -62,6 +71,8 @@ final class PluginCoordinator {
 
     private var registeredCommandIDs: Set<CommandID> = []
     private var lastCommandEntries: [CommandEntry] = []
+    private var registeredPanelCommandIDs: Set<CommandID> = []
+    private var lastPanelEntries: [PanelEntry] = []
     private var libraryTask: Task<Void, Never>?
     private var settingsTask: Task<Void, Never>?
     private var statusTask: Task<Void, Never>?
@@ -88,6 +99,12 @@ final class PluginCoordinator {
         statusTask = nil
         for task in openSourceTasks.values { task.cancel() }
         openSourceTasks.removeAll()
+        for id in registeredPanelCommandIDs {
+            services.commands.unregister(id)
+        }
+        registeredPanelCommandIDs.removeAll()
+        lastPanelEntries.removeAll()
+        DockPanels.setPluginTypes([])
         PluginSourceLookup.shared.update([:])
     }
 
@@ -127,6 +144,26 @@ final class PluginCoordinator {
             guard let manifest = info.manifest, !manifest.commands.isEmpty else { return nil }
             let ids = manifest.commands.map { Self.commandID(plugin: info.id, command: $0.id) }
             return (manifest.name, ids)
+        }
+    }
+
+    /// 供主菜单「窗口」动态段 `pluginPanels` 构造插件面板分组。
+    func mainMenuPluginPanelGroups() -> [(title: String, panels: [(id: PanelID, commandID: CommandID, title: String)])] {
+        var order: [String] = []
+        var titles: [String: String] = [:]
+        var grouped: [String: [(id: PanelID, commandID: CommandID, title: String)]] = [:]
+        for entry in lastPanelEntries {
+            if titles[entry.pluginID] == nil {
+                order.append(entry.pluginID)
+                titles[entry.pluginID] = entry.pluginName
+            }
+            let pid = Self.panelID(plugin: entry.pluginID, panel: entry.panel.id)
+            let cid = Self.panelToggleCommandID(plugin: entry.pluginID, panel: entry.panel.id)
+            grouped[entry.pluginID, default: []].append((pid, cid, entry.panel.title))
+        }
+        return order.compactMap { pluginID in
+            guard let title = titles[pluginID], let panels = grouped[pluginID], !panels.isEmpty else { return nil }
+            return (title, panels)
         }
     }
 
@@ -237,6 +274,14 @@ final class PluginCoordinator {
         CommandID("plugin.\(plugin).\(command)")
     }
 
+    static func panelID(plugin: String, panel: String) -> PanelID {
+        PanelID("plugin.\(plugin).\(panel)")
+    }
+
+    static func panelToggleCommandID(plugin: String, panel: String) -> CommandID {
+        CommandID("plugin.\(plugin).panel.\(panel)")
+    }
+
     // MARK: - 观察变化
 
     private func observeLibrary() {
@@ -282,6 +327,9 @@ final class PluginCoordinator {
             for await next in stream {
                 guard let self, !Task.isCancelled else { return }
                 self.statuses = next
+                if self.syncPanels() {
+                    self.scripts.app?.reloadCatalog()
+                }
                 self.notifyChange()
             }
         }
@@ -338,12 +386,110 @@ final class PluginCoordinator {
                 }
             }
             registeredCommandIDs = nextIDs
-            if reloadCatalog {
-                scripts.app?.reloadCatalog()
-            }
+        }
+        let panelsChanged = syncPanels()
+        if (commandsChanged || panelsChanged), reloadCatalog {
+            scripts.app?.reloadCatalog()
         }
         notifyChange()
         onAvailabilityChange?()
+    }
+
+    /// 同步已启用且就绪（`.ready` 或 `.running`）插件的面板类型、显示命令与打开中面板的快照。
+    private func syncPanels() -> Bool {
+        let pluginStates = services.pluginSettings?.value().plugins ?? [:]
+        let byID = Dictionary(uniqueKeysWithValues: enabledPlugins.map { ($0.id, $0) })
+        var entries: [PanelEntry] = []
+        for info in enabledPlugins {
+            guard let manifest = info.manifest, !manifest.panels.isEmpty else { continue }
+            switch statuses[info.id] {
+            case .ready?, .running?:
+                break
+            default:
+                continue
+            }
+            let granted = pluginStates[info.id]?.grantedPermissions ?? []
+            let effectivePermissions = Set(manifest.permissions).intersection(granted)
+            for panel in manifest.panels {
+                entries.append(PanelEntry(
+                    pluginID: info.id,
+                    pluginName: manifest.name,
+                    directory: info.directory,
+                    panel: panel,
+                    permissions: effectivePermissions
+                ))
+            }
+        }
+
+        guard entries != lastPanelEntries else { return false }
+        lastPanelEntries = entries
+
+        let registry = services.commands
+        let nextCommandIDs = Set(entries.map { Self.panelToggleCommandID(plugin: $0.pluginID, panel: $0.panel.id) })
+        for id in registeredPanelCommandIDs.subtracting(nextCommandIDs) {
+            registry.unregister(id)
+        }
+
+        var dockTypes: [DockPanelType] = []
+        var snapshots: [PanelID: PluginPanelSnapshot] = [:]
+        dockTypes.reserveCapacity(entries.count)
+
+        for entry in entries {
+            guard let info = byID[entry.pluginID] else { continue }
+            let panelID = Self.panelID(plugin: entry.pluginID, panel: entry.panel.id)
+            let commandID = Self.panelToggleCommandID(plugin: entry.pluginID, panel: entry.panel.id)
+            let title = String(localized: "显示或隐藏 \(entry.panel.title)")
+            let symbol = entry.panel.symbol ?? "puzzlepiece.extension"
+            let descriptor = CommandDescriptor(
+                id: commandID,
+                title: LocalizedStringResource(stringLiteral: title),
+                category: "window",
+                symbol: symbol,
+                verbatimTitle: title
+            )
+            registry.register(descriptor, isEnabled: { [weak self] context in
+                self?.scripts.app?.controller(for: context.session) != nil
+            }) { [weak self] context, _ in
+                guard let self, let app = self.scripts.app, let type = DockPanels.type(panelID) else { return }
+                app.dock?.togglePanel(type, in: app.controller(for: context.session)?.dock)
+            }
+
+            let panelDecl = entry.panel
+            let coreServices = services
+            let edge: DockEdge = switch panelDecl.defaultEdge {
+            case .left: .left
+            case .bottom: .bottom
+            case .right, nil: .right
+            }
+            dockTypes.append(DockPanelType(
+                id: panelID,
+                title: panelDecl.title,
+                symbol: symbol,
+                toggleCommand: commandID,
+                defaultEdge: edge,
+                make: { _ in PluginWebPanel(plugin: info, panel: panelDecl, services: coreServices) }
+            ))
+            snapshots[panelID] = PluginPanelSnapshot(
+                pluginID: entry.pluginID,
+                pluginName: entry.pluginName,
+                directory: entry.directory,
+                declaration: panelDecl,
+                permissions: entry.permissions
+            )
+        }
+        registeredPanelCommandIDs = nextCommandIDs
+
+        // 先更新已打开面板的快照并按需重建，再更新停靠注册表。
+        if let dock = scripts.app?.dock {
+            let openPanels = dock.docks.flatMap { Array($0.panels.values) } + dock.floatingWindows.values.map(\.panel)
+            for case let webPanel as PluginWebPanel in openPanels {
+                if let snapshot = snapshots[webPanel.panelID] {
+                    webPanel.updateSnapshot(snapshot)
+                }
+            }
+        }
+        DockPanels.setPluginTypes(dockTypes)
+        return true
     }
 
     private func updateSourceLookup() {

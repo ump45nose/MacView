@@ -6,6 +6,7 @@ import AppKit
     func redo(_ sender: Any?)
 }
 import MVCommands
+import MVLayout
 
 /// 把菜单模型渲染成菜单栏，再加上系统菜单项（关于、服务、隐藏、编辑、窗口列表、退出）。
 ///
@@ -83,6 +84,8 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
     private let catalog: CommandCatalog
     private let isEnabled: (CommandID) -> Bool
     private let perform: (CommandID) -> Void
+    private var pluginPanelHost: (menu: NSMenu, anchor: NSMenuItem?, inserted: [NSMenuItem])?
+    private var panelsObserver: NSObjectProtocol?
 
     init(
         catalog: CommandCatalog,
@@ -92,6 +95,22 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         self.catalog = catalog
         self.isEnabled = isEnabled
         self.perform = perform
+        super.init()
+        panelsObserver = NotificationCenter.default.addObserver(
+            forName: DockPanels.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.refreshPluginPanelsInMenu()
+            }
+        }
+    }
+
+    isolated deinit {
+        if let panelsObserver {
+            NotificationCenter.default.removeObserver(panelsObserver)
+        }
     }
 
     /// 按菜单树和上下文条目提供者生成查看器右键菜单；自动合并相邻和首尾分隔线。
@@ -226,7 +245,23 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
                 if !menu.items.isEmpty { needsSeparator = true }
             case let .dynamic(id):
                 let dynamicItems = mainMenuDynamicItems(for: id)
-                if !dynamicItems.isEmpty {
+                if id == .pluginPanels {
+                    let anchor = menu.items.last
+                    var inserted: [NSMenuItem] = []
+                    if !dynamicItems.isEmpty {
+                        if needsSeparator {
+                            let sep = NSMenuItem.separator()
+                            menu.addItem(sep)
+                            inserted.append(sep)
+                            needsSeparator = false
+                        }
+                        for item in dynamicItems {
+                            menu.addItem(item)
+                            inserted.append(item)
+                        }
+                    }
+                    pluginPanelHost = (menu, anchor, inserted)
+                } else if !dynamicItems.isEmpty {
                     if needsSeparator {
                         menu.addItem(.separator())
                         needsSeparator = false
@@ -242,9 +277,80 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         switch id {
         case .scripts:
             return mainMenuScriptItems()
+        case .pluginPanels:
+            return mainMenuPluginPanelItems()
         default:
             return mainMenuDynamicItem(for: id).map { [$0] } ?? []
         }
+    }
+
+    private func mainMenuPluginPanelItems() -> [NSMenuItem] {
+        let app = NSApp.delegate as? AppDelegate
+        let groups = app?.plugins?.mainMenuPluginPanelGroups() ?? []
+        var covered: Set<PanelID> = []
+        var items: [NSMenuItem] = []
+
+        for group in groups {
+            if group.panels.count == 1, let only = group.panels.first {
+                covered.insert(only.id)
+                items.append(commandItem(only.commandID))
+            } else if group.panels.count > 1 {
+                let submenu = NSMenu(title: group.title)
+                submenu.delegate = self
+                for panel in group.panels {
+                    covered.insert(panel.id)
+                    submenu.addItem(commandItem(panel.commandID))
+                }
+                items.append(holder(for: submenu))
+            }
+        }
+
+        // 支持未经过 PluginCoordinator 直接登记进 DockPanels.plugins 的面板类型（例如自检替身）。
+        for type in DockPanels.plugins where !covered.contains(type.id) {
+            if catalog.descriptor(type.toggleCommand) != nil {
+                items.append(commandItem(type.toggleCommand))
+            } else {
+                let title = String(localized: "显示或隐藏 \(type.title)")
+                let item = MenuAction(title) { [weak app] in
+                    guard let app else { return }
+                    app.dock?.togglePanel(type, in: app.mainController?.dock)
+                }.item
+                items.append(item)
+            }
+        }
+        return items
+    }
+
+    private func refreshPluginPanelsInMenu() {
+        guard var host = pluginPanelHost else { return }
+        for item in host.inserted where item.menu === host.menu {
+            host.menu.removeItem(item)
+        }
+        host.inserted = []
+
+        let dynamicItems = mainMenuPluginPanelItems()
+        if !dynamicItems.isEmpty {
+            let insertionIndex: Int
+            if let anchor = host.anchor, let anchorIndex = host.menu.items.firstIndex(where: { $0 === anchor }) {
+                insertionIndex = anchorIndex + 1
+            } else {
+                insertionIndex = 0
+            }
+            var toInsert: [NSMenuItem] = []
+            if insertionIndex > 0, !host.menu.items[insertionIndex - 1].isSeparatorItem {
+                toInsert.append(.separator())
+            }
+            toInsert.append(contentsOf: dynamicItems)
+            if insertionIndex < host.menu.items.count, !host.menu.items[insertionIndex].isSeparatorItem {
+                toInsert.append(.separator())
+            }
+            for (offset, item) in toInsert.enumerated() {
+                host.menu.insertItem(item, at: insertionIndex + offset)
+            }
+            host.inserted = toInsert
+            Theme.applyMenuFont(to: host.menu)
+        }
+        pluginPanelHost = host
     }
 
     private func mainMenuScriptItems() -> [NSMenuItem] {
@@ -301,7 +407,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
                 .command(.ratingSet0), .command(.ratingSet1), .command(.ratingSet2),
                 .command(.ratingSet3), .command(.ratingSet4), .command(.ratingSet5),
             ]))
-        case .scripts:
+        case .scripts, .pluginPanels:
             nil
         case .sources:
             dynamicSubmenuItem(title: String(localized: "打开来源")) { submenu in

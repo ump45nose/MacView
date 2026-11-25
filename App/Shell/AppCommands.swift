@@ -89,7 +89,7 @@ extension AppDelegate {
                 self?.controller(for: context.session)?.dock.perform(transform)
             }
         }
-        for type in DockPanels.all {
+        for type in DockPanels.builtins {
             register(type.toggleCommand, isEnabled: hasWindow) { [weak self] context in
                 guard let self else { return }
                 dock?.togglePanel(type, in: controller(for: context.session)?.dock)

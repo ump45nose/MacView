@@ -76,7 +76,9 @@ enum DockPanels {
     static let info = PanelID("info")
     static let effects = PanelID("effects")
 
-    static let all: [DockPanelType] = [
+    static let didChangeNotification = Notification.Name("MacView.DockPanels.didChange")
+
+    static let builtins: [DockPanelType] = [
         DockPanelType(
             id: bookshelf, title: String(localized: "书架"), symbol: "books.vertical",
             toggleCommand: .bookshelfToggle, defaultEdge: .left, make: BookshelfPanel.init
@@ -111,8 +113,26 @@ enum DockPanels {
         ),
     ]
 
+    private(set) static var plugins: [DockPanelType] = []
+
+    static var all: [DockPanelType] { builtins + plugins }
+
     static func type(_ id: PanelID) -> DockPanelType? {
         all.first { $0.id == id }
+    }
+
+    static func setPluginTypes(_ types: [DockPanelType]) {
+        let changed = plugins.count != types.count || zip(plugins, types).contains { lhs, rhs in
+            lhs.id != rhs.id
+                || lhs.title != rhs.title
+                || lhs.symbol != rhs.symbol
+                || lhs.toggleCommand != rhs.toggleCommand
+                || lhs.defaultEdge != rhs.defaultEdge
+        }
+        plugins = types
+        if changed {
+            NotificationCenter.default.post(name: didChangeNotification, object: nil)
+        }
     }
 
     /// 没有 layout.json 或它无法解析时使用：书架在左，页面列表在右，底部区为空。

@@ -153,6 +153,9 @@ struct PluginsSettingsSection: View {
         if !manifest.commands.isEmpty {
             ExtensionsSettingsPage.chip(String(localized: "命令 \(manifest.commands.count)"))
         }
+        if !manifest.panels.isEmpty {
+            ExtensionsSettingsPage.chip(String(localized: "面板"))
+        }
     }
 
     @ViewBuilder
@@ -410,6 +413,10 @@ struct PluginsSettingsSection: View {
         case nil: String(localized: "仅面板")
         }
         var parts = [info.id, manifest.version, runtimeText]
+        if !manifest.panels.isEmpty {
+            let titles = manifest.panels.map(\.title).joined(separator: ", ")
+            parts.append(String(localized: "面板：\(titles)"))
+        }
         if let desc = manifest.description?.trimmingCharacters(in: .whitespacesAndNewlines), !desc.isEmpty {
             parts.append(desc)
         }

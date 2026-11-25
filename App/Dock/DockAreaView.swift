@@ -119,8 +119,12 @@ final class DockAreaView: NSView, NSSplitViewDelegate {
         let style = area.style
         let ids = Set(items.map(\.type.id))
         tabs = tabs.filter { ids.contains($0.key) }
-        for item in items where tabs[item.type.id] == nil {
-            tabs[item.type.id] = makeTab(item.type)
+        for item in items {
+            if let existing = tabs[item.type.id] {
+                existing.update(type: item.type)
+            } else {
+                tabs[item.type.id] = makeTab(item.type)
+            }
         }
 
         subviews.forEach { $0.removeFromSuperview() }

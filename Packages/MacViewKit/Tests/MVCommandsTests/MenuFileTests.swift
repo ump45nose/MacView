@@ -100,7 +100,7 @@ func legacyMenuNodeJSONDecodesAndDynamicMenuIDsRoundTrip() throws {
     ]))
 
     let allDynamic = DynamicMenuID.allCases.map { MenuNode.dynamic($0) }
-    #expect(DynamicMenuID.allCases.count == 8)
+    #expect(DynamicMenuID.allCases.count == 9)
     #expect(try JSONDecoder().decode([MenuNode].self, from: JSONEncoder().encode(allDynamic)) == allDynamic)
 
     // C1.24：默认文件菜单包含「打开来源」动态项，旧 menus.json 解码不受影响。
@@ -176,7 +176,8 @@ func appearanceWindowCommandsHaveExpectedMenuPositions() throws {
         .command(.windowKeepOnTopToggle), .command(.windowTitleBarAutoHideToggle),
         .command(.windowBorderlessToggle), .separator, .command(.bookshelfToggle),
     ])
-    #expect(Array(children.suffix(5)) == [
+    #expect(Array(children.suffix(6)) == [
+        .dynamic(.pluginPanels),
         .separator, .command(.layoutSchemeSave), .command(.layoutSchemeApply),
         .command(.layoutSchemeManage), .dynamic(.layoutSchemes),
     ])

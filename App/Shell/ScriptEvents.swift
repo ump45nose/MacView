@@ -19,11 +19,14 @@ final class ScriptEvents {
     private var startupDispatched = false
     private var pluginStartupDispatched = false
 
-    /// 供自检验证：记录实际调用 `ScriptRuntime.dispatch` 与 `PluginHost.dispatch` 的次数。
+    /// 供自检验证：记录实际构造载荷以及分发给脚本、插件运行时、网页面板的次数。
     private(set) var dispatchCount = 0
     private(set) var dispatchCounts: [ScriptEventName: Int] = [:]
     private(set) var pluginDispatchCount = 0
     private(set) var pluginDispatchCounts: [ScriptEventName: Int] = [:]
+    private(set) var panelDispatchCount = 0
+    private(set) var panelDispatchCounts: [ScriptEventName: Int] = [:]
+    private(set) var payloadBuildCount = 0
 
     init(app: AppDelegate, services: CoreServices) {
         self.app = app
@@ -35,6 +38,9 @@ final class ScriptEvents {
         dispatchCounts.removeAll()
         pluginDispatchCount = 0
         pluginDispatchCounts.removeAll()
+        panelDispatchCount = 0
+        panelDispatchCounts.removeAll()
+        payloadBuildCount = 0
     }
 
     /// 首次异步脚本扫描完成后由 `ExtensionCommands` 调用，补发等待中的 `startup` 事件。
@@ -133,9 +139,11 @@ final class ScriptEvents {
     ) -> Bool {
         let hasScripts = services.scriptRuntime?.hasSubscribers(for: event) == true
         let hasPlugins = services.pluginHost?.hasSubscribers(for: event) == true
-        guard hasScripts || hasPlugins else {
+        let hasPanels = PluginPanelEventHub.shared.hasSubscribers(for: event, session: session)
+        guard hasScripts || hasPlugins || hasPanels else {
             return false
         }
+        payloadBuildCount += 1
         let data = payload()
         if hasScripts, let runtime = services.scriptRuntime {
             dispatchCount += 1
@@ -146,6 +154,11 @@ final class ScriptEvents {
             pluginDispatchCount += 1
             pluginDispatchCounts[event, default: 0] += 1
             host.dispatch(event, payload: data, session: session)
+        }
+        if hasPanels {
+            panelDispatchCount += 1
+            panelDispatchCounts[event, default: 0] += 1
+            PluginPanelEventHub.shared.dispatch(event, payload: data, session: session)
         }
         return true
     }

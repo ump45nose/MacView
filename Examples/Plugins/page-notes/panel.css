@@ -1,0 +1,142 @@
+:root {
+  color-scheme: light dark;
+  --bg: #faf9f5;
+  --surface: #ffffff;
+  --text: #141413;
+  --text-2: #5e5d59;
+  --line: rgba(31, 30, 29, 0.15);
+  --danger: #a33b2a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1e1d;
+    --surface: #30302e;
+    --text: #faf9f5;
+    --text-2: #c2c0b6;
+    --line: rgba(222, 220, 209, 0.14);
+    --danger: #f09c8b;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mv-font-family, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: var(--mv-font-size, 12px);
+  line-height: 1.45;
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px;
+  gap: 8px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.page-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-size {
+  color: var(--text-2);
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+
+.next-btn {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.next-btn:hover:not(:disabled) {
+  border-color: var(--mv-accent, #d97757);
+}
+
+.next-btn:focus-visible {
+  outline: 2px solid var(--mv-accent, #d97757);
+  outline-offset: 1px;
+}
+
+.next-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.editor-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.note-input {
+  width: 100%;
+  height: 100%;
+  resize: none;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.5;
+}
+
+.note-input:focus {
+  outline: none;
+  border-color: var(--mv-accent, #d97757);
+}
+
+.note-input:disabled {
+  opacity: 0.55;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 1.4em;
+  font-size: 0.9em;
+}
+
+.save-status {
+  color: var(--text-2);
+}
+
+.error-msg {
+  color: var(--danger);
+  word-break: break-word;
+}

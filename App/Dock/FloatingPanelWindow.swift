@@ -7,8 +7,9 @@ import MVLayout
 /// 标题条其余部分照常拖动窗口。关闭按钮隐藏面板，位置保留。
 @MainActor
 final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
-    let type: DockPanelType
+    private(set) var type: DockPanelType
     let panel: any DockPanel
+    private let tabView: DockTabView
     private unowned let coordinator: DockCoordinator
     private var defaultLevel: NSWindow.Level = .floating
     private var defaultHidesOnDeactivate = true
@@ -16,6 +17,7 @@ final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
     init(type: DockPanelType, panel: any DockPanel, coordinator: DockCoordinator) {
         self.type = type
         self.panel = panel
+        self.tabView = DockTabView(type: type)
         self.coordinator = coordinator
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 260, height: 400),
@@ -38,13 +40,12 @@ final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
         delegate = self
 
         let id = type.id
-        let tab = DockTabView(type: type)
-        tab.isSelected = true
-        tab.onDragBegan = { [unowned coordinator] in coordinator.beginDrag(id, from: nil) }
-        tab.onDragEnded = { [unowned coordinator] point, accepted, cancelled in
+        tabView.isSelected = true
+        tabView.onDragBegan = { [unowned coordinator] in coordinator.beginDrag(id, from: nil) }
+        tabView.onDragEnded = { [unowned coordinator] point, accepted, cancelled in
             coordinator.endDrag(id, at: point, accepted: accepted, cancelled: cancelled)
         }
-        tab.contextMenu = { [unowned coordinator] in coordinator.menu(for: id, in: nil) }
+        tabView.contextMenu = { [unowned coordinator] in coordinator.menu(for: id, in: nil) }
         let dockButton = NSButton(
             image: NSImage(systemSymbolName: "rectangle.portrait.and.arrow.forward", accessibilityDescription: nil) ?? NSImage(),
             target: self, action: #selector(dockBack(_:))
@@ -55,7 +56,13 @@ final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
         dockButton.toolTip = String(localized: "停靠回窗口")
         dockButton.setAccessibilityLabel(dockButton.toolTip)
         dockButton.frame.size = CGSize(width: 22, height: 22)
-        contentView = PanelFrameView(tab: tab, content: panel.view, accessory: dockButton, isFloating: true)
+        contentView = PanelFrameView(tab: tabView, content: panel.view, accessory: dockButton, isFloating: true)
+    }
+
+    func update(type: DockPanelType) {
+        self.type = type
+        title = type.title
+        tabView.update(type: type)
     }
 
     /// 跟随主窗口的置顶设置：置顶时保证层级在 `.floating` 以上且失活不隐藏，关闭时恢复原值。

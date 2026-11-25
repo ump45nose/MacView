@@ -71,7 +71,7 @@ struct CommandCatalog {
     @MainActor
     static var dockMenu: [MenuNode] {
         [.command(.docksToggle), .command(.dockLeftToggle), .command(.dockRightToggle), .command(.dockBottomToggle), .separator]
-            + DockPanels.all.map { .command($0.toggleCommand) }
+            + DockPanels.builtins.map { .command($0.toggleCommand) }
     }
 
     let bindings: [KeyBinding]

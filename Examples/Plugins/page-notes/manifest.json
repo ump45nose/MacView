@@ -1,0 +1,15 @@
+{
+  "name": "页面笔记",
+  "version": "1.0.0",
+  "description": "按页记录笔记并保存到插件存储",
+  "permissions": ["commands"],
+  "panels": [
+    {
+      "id": "notes",
+      "title": "页面笔记",
+      "entry": "panel.html",
+      "symbol": "note.text",
+      "defaultEdge": "right"
+    }
+  ]
+}

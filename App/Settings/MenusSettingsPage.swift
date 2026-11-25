@@ -201,6 +201,7 @@ final class MenusModel {
         case .layoutSchemes: String(localized: "布局方案")
         case .scripts: String(localized: "脚本")
         case .sources: String(localized: "打开来源")
+        case .pluginPanels: String(localized: "插件面板")
         }
     }
 

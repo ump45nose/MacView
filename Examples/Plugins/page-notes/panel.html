@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page Notes</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div class="panel">
+    <header class="header">
+      <div class="meta">
+        <div id="page-name" class="page-name"></div>
+        <div id="page-size" class="page-size"></div>
+      </div>
+      <button id="next-btn" class="next-btn" type="button"></button>
+    </header>
+    <main class="editor-wrap">
+      <textarea id="note-input" class="note-input" spellcheck="false"></textarea>
+    </main>
+    <footer class="footer">
+      <span id="save-status" class="save-status"></span>
+      <span id="error-msg" class="error-msg" hidden></span>
+    </footer>
+  </div>
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

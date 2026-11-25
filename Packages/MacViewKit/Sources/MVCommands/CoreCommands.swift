@@ -363,7 +363,7 @@ public enum CoreCommands {
                 command(.effectsPanelToggle, .init("效果面板", bundle: .main), "window", scope: .global,
                         keys: [KeyChord("e", modifiers: [.command, .option])], symbol: "slider.horizontal.3"),
                 command(.docksToggle, .init("显示或隐藏停靠区", bundle: .main), "window", keys: [KeyChord("Tab")], symbol: "sidebar.squares.left"),
-            ]),
+            ], trailingNodes: [.dynamic(.pluginPanels)]),
             Section([
                 command(.layoutSchemeSave, .init("保存为布局方案…", bundle: .main), "window", scope: .global),
                 command(.layoutSchemeApply, .init("套用布局方案", bundle: .main), "window", scope: .global),
