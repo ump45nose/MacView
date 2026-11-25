@@ -48,6 +48,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
     private lazy var progressRow = NSStackView(views: [progressLabel, progressBar, cancelProgressButton])
     private let badge = NSTextField(labelWithString: "")
     private let volume = NSTextField(labelWithString: "")
+    private let filterStatus = NSTextField(labelWithString: "")
     /// 虚拟书里当前页的原文件路径。
     private let pagePath = NSTextField(labelWithString: "")
     private let topLine = CALayer()
@@ -63,7 +64,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.addSublayer(topLine)
-        for label in [position, pixelSize, jumpLabel, jumpTotal, messageLabel, progressLabel, volume, pagePath, badge] {
+        for label in [position, pixelSize, jumpLabel, jumpTotal, messageLabel, progressLabel, volume, filterStatus, pagePath, badge] {
             label.textColor = Theme.text2
             label.lineBreakMode = .byTruncatingTail
         }
@@ -103,7 +104,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let stack = NSStackView(views: [position, jumpLabel, jumpField, jumpTotal, pixelSize, spacer, messageLabel, progressRow, volume, pagePath, badgeIcon, badge])
+        let stack = NSStackView(views: [position, jumpLabel, jumpField, jumpTotal, pixelSize, spacer, messageLabel, progressRow, filterStatus, volume, pagePath, badgeIcon, badge])
         stack.orientation = .horizontal
         stack.spacing = 18
         stack.setCustomSpacing(6, after: jumpLabel)
@@ -123,6 +124,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         messageLabel.isHidden = true
         progressRow.isHidden = true
         volume.isHidden = true
+        filterStatus.isHidden = true
         pagePath.isHidden = true
     }
 
@@ -151,7 +153,14 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
         volume.isHidden = text == nil
     }
 
+    /// 插件滤镜处理中时显示。
+    func setFilterStatus(_ text: String?) {
+        filterStatus.stringValue = text ?? ""
+        filterStatus.isHidden = text == nil
+    }
+
     var volumeStatus: String? { volume.isHidden ? nil : volume.stringValue }
+    var filterStatusText: String? { filterStatus.isHidden ? nil : filterStatus.stringValue }
     var pagePathText: String? { pagePath.isHidden ? nil : pagePath.stringValue }
     var message: String? { messageLabel.isHidden || messageLabel.stringValue.isEmpty ? nil : messageLabel.stringValue }
     var progressText: String? { progressRow.isHidden || progressLabel.stringValue.isEmpty ? nil : progressLabel.stringValue }
@@ -243,7 +252,7 @@ final class StatusBarView: NSView, NSTextFieldDelegate {
 
     @objc private func applyFonts() {
         let regular = Theme.font(.overlays, size: 11)
-        for label in [position, jumpLabel, jumpTotal, messageLabel, progressLabel, volume, pagePath] {
+        for label in [position, jumpLabel, jumpTotal, messageLabel, progressLabel, volume, filterStatus, pagePath] {
             label.font = regular
         }
         let mono = Theme.font(.overlays, size: 11, weight: .regular, monospacedDigits: true)

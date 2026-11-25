@@ -3,6 +3,7 @@ import MVFoundation
 import MVIO
 import MVMedia
 import MVPipeline
+import MVPlugins
 import MVSettings
 import os
 import QuartzCore
@@ -56,9 +57,15 @@ final class CanvasImageLoader: NSObject {
     /// 有图可以显示时调用；返回是否真的设置了图层内容（项不在画布上时返回 false，不占限额）。
     var onReady: ((ContentIdentity, CanvasImage) -> Bool)?
     var onFailure: ((ContentIdentity) -> Void)?
+    var onFilterStateChange: (([ContentIdentity: PluginFilterActivity.State], String?) -> Void)?
     private(set) var loadedImages = 0
 
     private let cache = NSCache<IdentityKey, CanvasImage>()
+    private let filteredCache = NSCache<IdentityKey, CanvasImage>()
+    private(set) var activePluginFilters: ResolvedPluginFilters = .empty
+    private var filterGeneration: UInt64 = 0
+    private var filterLoads: [ContentIdentity: Task<Void, Never>] = [:]
+    private var filterStates: [ContentIdentity: PluginFilterActivity.State] = [:]
     #if DEBUG
     private var observedCosts: [ContentIdentity: Int] = [:]
     var debugCacheCost: Int {
@@ -86,6 +93,7 @@ final class CanvasImageLoader: NSObject {
         self.view = view
         super.init()
         followThumbnailMemoryBudget(cache, settings: settings)
+        followThumbnailMemoryBudget(filteredCache, settings: settings)
     }
 
     var inFlight: Int {
@@ -93,7 +101,64 @@ final class CanvasImageLoader: NSObject {
     }
 
     func cached(_ identity: ContentIdentity) -> CanvasImage? {
+        let key = IdentityKey(identity)
+        if !activePluginFilters.isEmpty, let filtered = filteredCache.object(forKey: key) {
+            return filtered
+        }
+        return cache.object(forKey: key)
+    }
+
+    func cachedOriginal(_ identity: ContentIdentity) -> CanvasImage? {
         cache.object(forKey: IdentityKey(identity))
+    }
+
+    /// 切换插件滤镜配置；变化时取消全部在途滤镜请求并清空滤镜内存缓存。
+    @discardableResult
+    func setPluginFilters(_ filters: ResolvedPluginFilters) -> Bool {
+        guard filters != activePluginFilters else { return false }
+        for task in filterLoads.values { task.cancel() }
+        filterLoads.removeAll()
+        filterStates.removeAll()
+        filteredCache.removeAllObjects()
+        filterGeneration &+= 1
+        activePluginFilters = filters
+        onFilterStateChange?(filterStates, nil)
+        return true
+    }
+
+    /// 对连续视图中可见的静态非分块页并行请求插件滤镜结果，到达后替换图层内容。
+    func requestFiltered(_ identity: ContentIdentity, target: PixelSize) {
+        guard source == .display, !activePluginFilters.isEmpty else { return }
+        let key = IdentityKey(identity)
+        if filteredCache.object(forKey: key) != nil || filterLoads[identity] != nil {
+            return
+        }
+        let generation = filterGeneration
+        let requests = activePluginFilters.requests
+        let pipeline = pipeline
+        filterStates[identity] = .running
+        onFilterStateChange?(filterStates, nil)
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            do {
+                let rendered = try await pipeline.filteredImage(
+                    for: identity,
+                    filters: requests,
+                    target: DisplayTarget(pixelSize: target),
+                    priority: .visible
+                )
+                await self?.receiveFiltered(rendered, for: identity, generation: generation)
+            } catch {
+                await self?.failFiltered(error, for: identity, generation: generation)
+            }
+        }
+        filterLoads[identity] = task
+    }
+
+    func cancelFilter(_ identity: ContentIdentity) {
+        filterLoads.removeValue(forKey: identity)?.cancel()
+        if filterStates.removeValue(forKey: identity) != nil {
+            onFilterStateChange?(filterStates, nil)
+        }
     }
 
     #if DEBUG
@@ -155,6 +220,10 @@ final class CanvasImageLoader: NSObject {
     func stop() {
         for load in loads.values { load.task.cancel() }
         loads.removeAll()
+        for task in filterLoads.values { task.cancel() }
+        filterLoads.removeAll()
+        filterStates.removeAll()
+        filterGeneration &+= 1
         pending.removeAll()
         link?.invalidate()
         link = nil
@@ -166,6 +235,7 @@ final class CanvasImageLoader: NSObject {
         self.pipeline = pipeline
         self.source = source
         cache.removeAllObjects()
+        filteredCache.removeAllObjects()
         #if DEBUG
         observedCosts.removeAll()
         #endif
@@ -183,6 +253,46 @@ final class CanvasImageLoader: NSObject {
         #endif
         cache.setObject(image, forKey: key, cost: cost)
         loadedImages += 1
+        // 已有滤镜结果时不让晚到的原图覆盖滤镜图。
+        if !activePluginFilters.isEmpty, filteredCache.object(forKey: key) != nil { return }
+        enqueuePending(image, for: identity)
+    }
+
+    private func receiveFiltered(_ rendered: RenderedImage, for identity: ContentIdentity, generation: UInt64) {
+        guard filterGeneration == generation else { return }
+        filterLoads[identity] = nil
+        let image = CanvasImage(rendered)
+        let cost = rendered.image.bytesPerRow * rendered.image.height
+        filteredCache.setObject(image, forKey: IdentityKey(identity), cost: cost)
+        filterStates[identity] = .idle
+        onFilterStateChange?(filterStates, nil)
+        enqueuePending(image, for: identity)
+    }
+
+    private func failFiltered(_ error: any Error, for identity: ContentIdentity, generation: UInt64) {
+        guard filterGeneration == generation else { return }
+        filterLoads[identity] = nil
+        if error is CancellationError {
+            filterStates.removeValue(forKey: identity)
+            onFilterStateChange?(filterStates, nil)
+            return
+        }
+        if case IOError.cancelled = error {
+            filterStates.removeValue(forKey: identity)
+            onFilterStateChange?(filterStates, nil)
+            return
+        }
+        if case PluginError.cancelled = error {
+            filterStates.removeValue(forKey: identity)
+            onFilterStateChange?(filterStates, nil)
+            return
+        }
+        let message = ErrorText.describe(error)
+        filterStates[identity] = .failed(message)
+        onFilterStateChange?(filterStates, message)
+    }
+
+    private func enqueuePending(_ image: CanvasImage, for identity: ContentIdentity) {
         if let index = pending.firstIndex(where: { $0.identity == identity }) {
             pending[index].image = image
         } else {

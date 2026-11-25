@@ -166,6 +166,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
 
     /// 当前窗口是否启用实时调色；默认打开，不持久化。
     private(set) var effectsEnabled = true
+    /// 主区插件滤镜处理进度（供状态栏与效果面板共用）。
+    let pluginFilterActivity = PluginFilterActivity()
 
     let session: ReaderSession
     private(set) var router: InputRouter
@@ -344,6 +346,14 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         viewer.onRetryBook = { [weak self] in self?.reopenBook() }
         viewer.onConnect = { [weak self] in self?.connectVolume() }
         viewer.onContextMenu = { [weak self] entry in self?.viewerMenu(for: entry) }
+        viewer.pluginFilterActivity = pluginFilterActivity
+        viewer.onPluginFilterFailure = { [weak self] pluginName, message in
+            guard let self else { return }
+            let source = pluginName.isEmpty ? String(localized: "插件滤镜") : pluginName
+            self.services.scriptLog?.append(source: source, level: .error, text: message)
+            let firstLine = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
+            self.content.statusBar.showMessage(String(localized: "\(source) 出错：\(firstLine)"))
+        }
         viewer.continuous.onWaterfallExtentChange = { [weak self] in
             self?.updateWaterfallControls()
             self?.onSessionChange?()
@@ -357,6 +367,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         }
         dockCoordinator.attach(dock, to: self)
         observeSession()
+        observePluginFilterActivity()
         observeVolumes()
         observePlaylists()
         normalFrame = window.frame
@@ -456,6 +467,18 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeSession() }
         }
+    }
+
+    private func observePluginFilterActivity() {
+        withObservationTracking {
+            content.statusBar.setFilterStatus(pluginFilterActivity.statusText)
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observePluginFilterActivity() }
+        }
+    }
+
+    func refreshPluginFilters() {
+        viewer.refreshPluginFilters()
     }
 
     private func render() {

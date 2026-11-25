@@ -49,8 +49,10 @@ final class PluginCoordinator {
     private(set) var statuses: [String: PluginStatus] = [:]
     private(set) var settingsProblem: String?
 
-    /// 插件列表、启用状态、来源或运行状态变化时回调（供设置页与查看器刷新）。
+    /// 插件列表、启用状态、来源或运行状态变化时回调（供设置页刷新）。
     var onChange: (() -> Void)?
+    /// 插件启用集合或版本变化时回调（供 AppDelegate 刷新各窗口插件滤镜）。
+    var onAvailabilityChange: (() -> Void)?
 
     private var registeredCommandIDs: Set<CommandID> = []
     private var lastCommandEntries: [CommandEntry] = []
@@ -203,15 +205,25 @@ final class PluginCoordinator {
     }
 
     /// 当前效果链里已启用且对应插件处于启用状态的插件滤镜解析结果。
-    func resolveFilters(in chain: EffectChain) -> [PluginFilterRequest] {
-        guard let host = services.pluginHost else { return [] }
-        let enabledIDs = Set(host.enabledPlugins().map(\.id))
-        return chain.effects.compactMap { effect in
+    func resolvedFilters(in chain: EffectChain) -> ResolvedPluginFilters {
+        guard let host = services.pluginHost else { return .empty }
+        let enabledByID = Dictionary(uniqueKeysWithValues: host.enabledPlugins().map { ($0.id, $0) })
+        var requests: [PluginFilterRequest] = []
+        var names: [String: String] = [:]
+        var versions: [String: String] = [:]
+        var pluginNames: [String: String] = [:]
+        for effect in chain.effects {
             guard case let .plugin(filter) = effect,
                   filter.enabled,
-                  enabledIDs.contains(filter.plugin) else { return nil }
-            return PluginFilterRequest(plugin: filter.plugin, filter: filter.filter, parameters: filter.parameters)
+                  let info = enabledByID[filter.plugin],
+                  let manifest = info.manifest else { continue }
+            requests.append(PluginFilterRequest(plugin: filter.plugin, filter: filter.filter, parameters: filter.parameters))
+            let key = PluginFilterActivity.key(plugin: filter.plugin, filter: filter.filter)
+            names[key] = manifest.filters.first { $0.id == filter.filter }?.name ?? filter.filter
+            versions[filter.plugin] = manifest.version
+            pluginNames[filter.plugin] = manifest.name
         }
+        return ResolvedPluginFilters(requests: requests, names: names, versions: versions, pluginNames: pluginNames)
     }
 
     func filterDisplayName(plugin: String, filter: String) -> String {
@@ -336,6 +348,7 @@ final class PluginCoordinator {
             }
         }
         onChange?()
+        onAvailabilityChange?()
     }
 
     private func updateSourceLookup() {

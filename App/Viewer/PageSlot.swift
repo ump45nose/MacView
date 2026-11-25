@@ -3,10 +3,62 @@ import MVFoundation
 import MVIO
 import MVMedia
 import MVPipeline
+import MVPlugins
 import MVReading
 import MVSettings
+import Observation
 import os
 import QuartzCore
+
+/// 主区插件滤镜的进度出口，供状态栏与效果面板共用；键为 `"<插件 id>.<滤镜 id>"`，只反映当前窗口当前页。
+@MainActor
+@Observable
+final class PluginFilterActivity {
+    enum State: Equatable {
+        case idle
+        case running
+        case failed(String)
+    }
+
+    private(set) var states: [String: State] = [:]
+    private(set) var names: [String: String] = [:]
+
+    static func key(plugin: String, filter: String) -> String {
+        "\(plugin).\(filter)"
+    }
+
+    func update(_ nextStates: [String: State], names nextNames: [String: String]) {
+        if names != nextNames { names = nextNames }
+        if states != nextStates { states = nextStates }
+    }
+
+    func reset() {
+        if !states.isEmpty { states = [:] }
+        if !names.isEmpty { names = [:] }
+    }
+
+    var statusText: String? {
+        for (key, state) in states where state == .running {
+            let name = names[key] ?? key
+            return String(localized: "\(name) 处理中…")
+        }
+        return nil
+    }
+}
+
+/// 当前窗口生效的插件滤镜请求与展示元数据快照。
+struct ResolvedPluginFilters: Equatable {
+    var requests: [PluginFilterRequest]
+    /// 键 `"<插件 id>.<滤镜 id>"` 到显示名。
+    var names: [String: String]
+    /// 参与插件 ID 到版本号快照，插件热重载换版本时据此重新处理。
+    var versions: [String: String]
+    /// 插件 ID 到插件显示名，用于错误日志来源。
+    var pluginNames: [String: String]
+
+    static let empty = ResolvedPluginFilters(requests: [], names: [:], versions: [:], pluginNames: [:])
+    var isEmpty: Bool { requests.isEmpty }
+}
 
 /// 页帧中的一页：一个图层和它的图像请求。
 ///
@@ -32,10 +84,20 @@ final class PageSlot {
     private var upgradeTask: Task<Void, Never>?
     /// 放大图已经到达：基础图不再覆盖它。
     private var upgradeDelivered = false
+    /// 最新交付的原图，供关闭插件滤镜或参数变化时立即切回。
+    private var originalImage: RenderedImage?
+    private var activeFilters: ResolvedPluginFilters = .empty
+    private var filterTarget: DisplayTarget?
+    private var filterTask: Task<Void, Never>?
+    private var filterGeneration: UInt64 = 0
+    private(set) var isShowingFiltered = false
+    private(set) var filterState: PluginFilterActivity.State = .idle
     private let pipeline: any ImagePipeline
     private let logger = Logger(category: "page-view")
     /// 有新图设到图层，或请求失败。
     var onChange: (() -> Void)?
+    /// 插件滤镜处理状态变化（最后一个参数为失败文案，仅在进入 failed 时非 nil）。
+    var onFilterStateChange: ((PageSlot, PluginFilterActivity.State, String?) -> Void)?
     var tiled: TiledPageLayer?
     var animated: AnimatedPageLayer?
 
@@ -110,6 +172,11 @@ final class PageSlot {
         baseTarget = nil
         upgradeTarget = nil
         upgradeDelivered = false
+        originalImage = nil
+        activeFilters = .empty
+        filterTarget = nil
+        isShowingFiltered = false
+        filterState = .idle
         failure = nil
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -125,8 +192,106 @@ final class PageSlot {
     func cancel() {
         baseTask?.cancel()
         upgradeTask?.cancel()
+        filterTask?.cancel()
+        filterTask = nil
+        filterGeneration &+= 1
         tiled?.cancel()
         animated?.stop()
+    }
+
+    /// 针对静态非分块页应用或撤回插件滤镜：原图照常先上屏，结果到达后按代次替换；关闭或变参立即取消并切回原图。
+    func setPluginFilters(_ filters: ResolvedPluginFilters, target: DisplayTarget?, eligible: Bool) {
+        guard !isUnavailable, !isVideo, eligible, !filters.isEmpty, let target else {
+            cancelFilterAndRestoreOriginal()
+            return
+        }
+        if filters == activeFilters && target == filterTarget && (filterTask != nil || isShowingFiltered) {
+            return
+        }
+        filterTask?.cancel()
+        filterTask = nil
+        filterGeneration &+= 1
+        activeFilters = filters
+        filterTarget = target
+        if isShowingFiltered {
+            isShowingFiltered = false
+            restoreOriginalContents()
+        }
+        let generation = filterGeneration
+        filterState = .running
+        onFilterStateChange?(self, .running, nil)
+        let pipeline = pipeline
+        let identity = identity
+        let requests = filters.requests
+        filterTask = Task { [weak self] in
+            do {
+                let rendered = try await pipeline.filteredImage(
+                    for: identity,
+                    filters: requests,
+                    target: target,
+                    priority: .visible
+                )
+                guard !Task.isCancelled, let self, self.filterGeneration == generation, !self.isUnavailable else { return }
+                self.applyFiltered(rendered)
+            } catch {
+                guard !Task.isCancelled, let self, self.filterGeneration == generation, !self.isUnavailable else { return }
+                if error is CancellationError { return }
+                if case IOError.cancelled = error { return }
+                if case PluginError.cancelled = error { return }
+                let message = ErrorText.describe(error)
+                self.filterTask = nil
+                self.filterState = .failed(message)
+                self.onFilterStateChange?(self, .failed(message), message)
+            }
+        }
+    }
+
+    /// 判断当前页槽是否已针对给定滤镜集合发出或完成了请求。
+    func needsPluginFilterUpdate(for filters: ResolvedPluginFilters) -> Bool {
+        guard !filters.isEmpty else { return isShowingFiltered || filterTask != nil || filterState != .idle }
+        return activeFilters != filters || (filterTask == nil && !isShowingFiltered && filterState == .idle)
+    }
+
+    private func cancelFilterAndRestoreOriginal() {
+        let hadWork = filterTask != nil || isShowingFiltered || !activeFilters.isEmpty || filterState != .idle
+        guard hadWork else { return }
+        filterTask?.cancel()
+        filterTask = nil
+        filterGeneration &+= 1
+        activeFilters = .empty
+        filterTarget = nil
+        if isShowingFiltered {
+            isShowingFiltered = false
+            restoreOriginalContents()
+        }
+        if filterState != .idle {
+            filterState = .idle
+            onFilterStateChange?(self, .idle, nil)
+        }
+    }
+
+    private func restoreOriginalContents() {
+        guard let original = originalImage else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        imageLayer.contents = original.surface ?? original.image
+        root.backgroundColor = nil
+        CATransaction.commit()
+        onChange?()
+    }
+
+    private func applyFiltered(_ image: RenderedImage) {
+        filterTask = nil
+        isShowingFiltered = true
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        imageLayer.contents = image.surface ?? image.image
+        root.backgroundColor = nil
+        CATransaction.commit()
+        hasImage = true
+        filterState = .idle
+        onFilterStateChange?(self, .idle, nil)
+        onChange?()
     }
 
     /// 内存命中时在本次调用里直接设到图层，不再发异步请求。
@@ -156,13 +321,16 @@ final class PageSlot {
             if image.quality < .exact, quality.map({ $0 >= .exact }) == true { return }
             upgradeDelivered = true
         }
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        OSSignposter(category: .render).emitEvent("PageLayerSetStart", "page=\(self.element.page, privacy: .public)")
-        imageLayer.contents = image.surface ?? image.image
-        root.backgroundColor = nil
-        CATransaction.commit()
-        OSSignposter(category: .render).emitEvent("PageLayerCommitted", "page=\(self.element.page, privacy: .public)")
+        originalImage = image
+        if !isShowingFiltered {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            OSSignposter(category: .render).emitEvent("PageLayerSetStart", "page=\(self.element.page, privacy: .public)")
+            imageLayer.contents = image.surface ?? image.image
+            root.backgroundColor = nil
+            CATransaction.commit()
+            OSSignposter(category: .render).emitEvent("PageLayerCommitted", "page=\(self.element.page, privacy: .public)")
+        }
         hasImage = true
         quality = image.quality
         onChange?()

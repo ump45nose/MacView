@@ -1,6 +1,7 @@
 import AppKit
 import MVFoundation
 import MVLayout
+import MVMedia
 import MVPipeline
 import MVReading
 import MVSettings
@@ -43,6 +44,9 @@ final class ContinuousViewer: NSView {
     var onRemoveUnavailable: ((Location) -> Void)?
     private var placeholders: [Location: UnavailablePageView] = [:]
     private var appliedEffects: EffectChain = .empty
+    private var resolvedPluginFilters: ResolvedPluginFilters = .empty
+    weak var pluginFilterActivity: PluginFilterActivity?
+    var onPluginFilterFailure: ((String, String) -> Void)?
 
     init(session: ReaderSession, pipeline: any ImagePipeline, settings: any SettingsStore, bookshelf: any Bookshelf) {
         self.session = session
@@ -73,6 +77,9 @@ final class ContinuousViewer: NSView {
         }
         canvas.onItemExtentChange = { [weak self] extent in
             if self?.mode == .waterfall { self?.waterfallExtent = extent }
+        }
+        canvas.onPluginFilterStateChange = { [weak self] states, failure in
+            self?.syncFilterActivity(states, failure: failure)
         }
         footer.onNext = { [weak self] in
             Task { await self?.openNext() }
@@ -121,13 +128,18 @@ final class ContinuousViewer: NSView {
         let unavailable = session.isVirtualBook ? session.unavailablePages : []
         let items = current.pages.map { page -> CanvasItem in
             let isUnavailable = unavailable.contains(page.id)
+            let isEligible: Bool = {
+                guard !isUnavailable, page.entry.kind == .image, let meta = page.metadata else { return false }
+                return meta.frameCount <= 1 && !ImageDecoder.needsTiling(meta.pixelSize, maxDecodeLongSide: session.maxDecodeLongSide)
+            }()
             return CanvasItem(
                 identity: page.entry.identity,
                 aspectRatio: page.metadata.flatMap { $0.pixelSize.height > 0 && $0.pixelSize.width > 0 ? Double($0.pixelSize.width) / Double($0.pixelSize.height) : nil },
                 badge: page.entry.kind == .video && !isUnavailable ? page.metadata?.duration.map(Self.duration) : nil,
                 isFailed: isUnavailable,
                 failureText: nil,
-                isVideo: page.entry.kind == .video && !isUnavailable
+                isVideo: page.entry.kind == .video && !isUnavailable,
+                isPluginFilterEligible: isEligible
             )
         }
         if items != canvas.items { canvas.setItems(items) }
@@ -146,6 +158,43 @@ final class ContinuousViewer: NSView {
         guard chain != appliedEffects else { return }
         appliedEffects = chain
         canvas.setEffectFilters(EffectFilters.filters(for: chain))
+    }
+
+    func setPluginFilters(_ filters: ResolvedPluginFilters) {
+        guard filters != resolvedPluginFilters else { return }
+        resolvedPluginFilters = filters
+        canvas.setPluginFilters(filters)
+        if filters.isEmpty {
+            pluginFilterActivity?.reset()
+        }
+    }
+
+    private func syncFilterActivity(_ itemStates: [ContentIdentity: PluginFilterActivity.State], failure: String?) {
+        guard let activity = pluginFilterActivity else { return }
+        guard !resolvedPluginFilters.isEmpty else {
+            activity.reset()
+            return
+        }
+        let combined: PluginFilterActivity.State
+        if itemStates.values.contains(.running) {
+            combined = .running
+        } else if let failedMsg = itemStates.values.compactMap({ state -> String? in
+            if case let .failed(msg) = state { return msg }
+            return nil
+        }).first {
+            combined = .failed(failedMsg)
+        } else {
+            combined = .idle
+        }
+        var next: [String: PluginFilterActivity.State] = [:]
+        for req in resolvedPluginFilters.requests {
+            next[PluginFilterActivity.key(plugin: req.plugin, filter: req.filter)] = combined
+        }
+        activity.update(next, names: resolvedPluginFilters.names)
+        if let failure {
+            let pluginName = resolvedPluginFilters.requests.first.flatMap { resolvedPluginFilters.pluginNames[$0.plugin] ?? $0.plugin } ?? ""
+            onPluginFilterFailure?(pluginName, failure)
+        }
     }
 
     /// 离开连续模式：停掉请求。回来时重新定位。

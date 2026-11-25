@@ -6,6 +6,7 @@ import MVLayout
 import MVLibraryData
 import MVMedia
 import MVPipeline
+import MVPlugins
 import MVReading
 import MVSettings
 import QuartzCore
@@ -35,6 +36,10 @@ final class PagedViewerView: NSView, NSDraggingSource {
     /// 效果容器：页槽、分块、动图和视频都在里面，统一挂一份 Core Image 滤镜；导航图、错误、占位与放大镜留在容器外。
     let contentContainer: NSView = EffectContainerView()
     private var appliedEffects: EffectChain = .empty
+    private var resolvedPluginFilters: ResolvedPluginFilters = .empty
+    private var filterPreheatTasks: [ContentIdentity: (target: DisplayTarget, task: Task<Void, Never>)] = [:]
+    weak var pluginFilterActivity: PluginFilterActivity?
+    var onPluginFilterFailure: ((String, String) -> Void)?
     private var errorViews: [ObjectIdentifier: ItemErrorView] = [:]
     /// 虚拟书里不可用或取图失败的页盖上占位页。
     private var placeholders: [ObjectIdentifier: UnavailablePageView] = [:]
@@ -149,15 +154,18 @@ final class PagedViewerView: NSView, NSDraggingSource {
         }
         probeUnknown(pages: pages, elements: elements.filter { !unavailable.contains(pages[$0.page].id) })
         layoutSlots()
-        requestImages(immediately: turned || slots.contains { $0.baseTarget == nil })
+        let needsFilter = !resolvedPluginFilters.isEmpty && slots.contains { $0.needsPluginFilterUpdate(for: resolvedPluginFilters) }
+        requestImages(immediately: turned || needsFilter || slots.contains { $0.baseTarget == nil })
         updateFailures()
     }
 
     /// 离开分页模式：停掉请求、播放器和动图。
     func clear() {
         pendingVideoStart = nil
+        cancelFilterPreheat()
         replaceSlots(with: [], pages: [])
         finishRetiring()
+        pluginFilterActivity?.reset()
         fit = PageFrameFit(pages: [], size: PixelSize(width: 0, height: 0))
         updateFailures()
         layoutSlots()
@@ -193,10 +201,14 @@ final class PagedViewerView: NSView, NSDraggingSource {
         slots = elements.map { element in
             let slot = PageSlot(element: element, page: pages[element.page], pipeline: pipeline)
             slot.onChange = { [weak self] in self?.slotChanged() }
+            slot.onFilterStateChange = { [weak self] slot, state, failure in
+                self?.slotFilterStateChanged(slot, state: state, failure: failure)
+            }
             if !hadImages { slot.showPlaceholder() }
             contentContainer.layer?.addSublayer(slot.root)
             return slot
         }
+        syncFilterActivity()
         retireTimer?.invalidate()
         retireTimer = nil
         if !retiring.isEmpty {
@@ -367,10 +379,17 @@ final class PagedViewerView: NSView, NSDraggingSource {
                 setTiled(false, slot: slot, source: nil)
                 slot.requestUpgrade(DisplayTarget(pixelSize: needed, filter: settings.resample, sharpen: settings.sharpen), allowOriginal: true)
             }
+            if !resolvedPluginFilters.isEmpty {
+                let target = slot.upgradeTarget ?? base
+                slot.setPluginFilters(resolvedPluginFilters, target: target, eligible: isStaticFilterEligible(slot: slot))
+            } else if slot.isShowingFiltered || slot.filterState != .idle {
+                slot.setPluginFilters(.empty, target: nil, eligible: false)
+            }
         }
         layoutSlots()
         updateVideo()
         updateAnimation()
+        updatePluginFilterPreheat()
     }
 
     private func sourceSize(of index: Int) -> PixelSize? {
@@ -448,8 +467,134 @@ final class PagedViewerView: NSView, NSDraggingSource {
     }
 
     private func frameCount(of slot: PageSlot) -> Int {
-        guard let pages = session.book?.pages, pages.indices.contains(slot.element.page) else { return 1 }
-        return (pages[slot.element.page].metadata ?? probed[slot.identity])?.frameCount ?? 1
+        metadata(of: slot)?.frameCount ?? 1
+    }
+
+    private func metadata(of slot: PageSlot) -> ImageMetadata? {
+        guard let pages = session.book?.pages, pages.indices.contains(slot.element.page) else { return nil }
+        return pages[slot.element.page].metadata ?? probed[slot.identity]
+    }
+
+    private func isStaticFilterEligible(slot: PageSlot) -> Bool {
+        guard !slot.isUnavailable, !slot.isVideo, slot.tiled == nil,
+              let meta = metadata(of: slot) else { return false }
+        return meta.frameCount <= 1 && !ImageDecoder.needsTiling(meta.pixelSize, maxDecodeLongSide: decodeLimit)
+    }
+
+    func setPluginFilters(_ filters: ResolvedPluginFilters) {
+        guard filters != resolvedPluginFilters else { return }
+        resolvedPluginFilters = filters
+        cancelFilterPreheat()
+        guard session.settings.browseMode == .paged else {
+            pluginFilterActivity?.reset()
+            return
+        }
+        if filters.isEmpty {
+            for slot in slots {
+                slot.setPluginFilters(.empty, target: nil, eligible: false)
+            }
+            pluginFilterActivity?.reset()
+            return
+        }
+        for slot in slots {
+            let target = slot.upgradeTarget ?? slot.baseTarget
+            slot.setPluginFilters(filters, target: target, eligible: isStaticFilterEligible(slot: slot))
+        }
+        syncFilterActivity()
+        updatePluginFilterPreheat()
+    }
+
+    private func slotFilterStateChanged(_ slot: PageSlot, state: PluginFilterActivity.State, failure: String?) {
+        syncFilterActivity()
+        if let failure {
+            let pluginName = resolvedPluginFilters.requests.first.flatMap { resolvedPluginFilters.pluginNames[$0.plugin] ?? $0.plugin } ?? ""
+            onPluginFilterFailure?(pluginName, failure)
+        }
+    }
+
+    private func syncFilterActivity() {
+        guard let activity = pluginFilterActivity else { return }
+        guard !resolvedPluginFilters.isEmpty else {
+            activity.reset()
+            return
+        }
+        let eligibleSlots = slots.filter { isStaticFilterEligible(slot: $0) }
+        guard !eligibleSlots.isEmpty else {
+            var idleStates: [String: PluginFilterActivity.State] = [:]
+            for req in resolvedPluginFilters.requests {
+                idleStates[PluginFilterActivity.key(plugin: req.plugin, filter: req.filter)] = .idle
+            }
+            activity.update(idleStates, names: resolvedPluginFilters.names)
+            return
+        }
+        let combined: PluginFilterActivity.State
+        if eligibleSlots.contains(where: { $0.filterState == .running }) {
+            combined = .running
+        } else if let failedMessage = eligibleSlots.compactMap({ slot -> String? in
+            if case let .failed(msg) = slot.filterState { return msg }
+            return nil
+        }).first {
+            combined = .failed(failedMessage)
+        } else {
+            combined = .idle
+        }
+        var states: [String: PluginFilterActivity.State] = [:]
+        for req in resolvedPluginFilters.requests {
+            states[PluginFilterActivity.key(plugin: req.plugin, filter: req.filter)] = combined
+        }
+        activity.update(states, names: resolvedPluginFilters.names)
+    }
+
+    private func updatePluginFilterPreheat() {
+        guard !resolvedPluginFilters.isEmpty,
+              session.settings.browseMode == .paged,
+              let pages = session.book?.pages,
+              session.frames.indices.contains(session.currentFrame) else {
+            cancelFilterPreheat()
+            return
+        }
+        let unavailable = session.isVirtualBook ? session.unavailablePages : []
+        let neighborIndices = [session.currentFrame - 1, session.currentFrame + 1]
+            .filter { session.frames.indices.contains($0) }
+        var desired: [ContentIdentity: DisplayTarget] = [:]
+        for frameIndex in neighborIndices {
+            let elements = session.frames[frameIndex].elements.filter { pages.indices.contains($0.page) }
+            guard !elements.isEmpty else { continue }
+            let frameFit = PageFrameFit.fit(
+                frame: PageFrame(elements: elements),
+                pages: pages,
+                viewport: viewportPixels,
+                backingScale: backing,
+                settings: session.settings
+            )
+            let targets = frameFit.displayTargets(settings: session.settings, maxDecodeLongSide: decodeLimit)
+            for item in targets {
+                let page = pages[item.element.page]
+                guard page.entry.kind == .image,
+                      !unavailable.contains(page.id),
+                      let meta = page.metadata ?? probed[page.entry.identity],
+                      meta.frameCount <= 1,
+                      !ImageDecoder.needsTiling(meta.pixelSize, maxDecodeLongSide: decodeLimit) else { continue }
+                desired[page.entry.identity] = item.target
+            }
+        }
+        for (identity, existing) in filterPreheatTasks where desired[identity] != existing.target {
+            existing.task.cancel()
+            filterPreheatTasks[identity] = nil
+        }
+        let requests = resolvedPluginFilters.requests
+        let pipeline = pipeline
+        for (identity, target) in desired where filterPreheatTasks[identity] == nil {
+            let task = Task.detached(priority: .background) {
+                _ = try? await pipeline.filteredImage(for: identity, filters: requests, target: target, priority: .adjacent)
+            }
+            filterPreheatTasks[identity] = (target, task)
+        }
+    }
+
+    private func cancelFilterPreheat() {
+        for entry in filterPreheatTasks.values { entry.task.cancel() }
+        filterPreheatTasks.removeAll()
     }
 
     private var isWindowVisible: Bool {
@@ -850,6 +995,7 @@ final class PagedViewerView: NSView, NSDraggingSource {
     /// 窗口关闭时取消全部请求。
     func cancelLoads() {
         pendingVideoStart = nil
+        cancelFilterPreheat()
         slots.forEach { $0.cancel() }
         retiring.forEach { $0.cancel() }
         probes.values.forEach { $0.cancel() }
@@ -857,6 +1003,7 @@ final class PagedViewerView: NSView, NSDraggingSource {
         stopVideo()
         retireTimer?.invalidate()
         requestTimer?.invalidate()
+        pluginFilterActivity?.reset()
     }
 }
 
@@ -1001,7 +1148,9 @@ final class UnavailablePageView: NSView {
             detail.stringValue = String(localized: "找不到原文件：可能已被删除，或在 MacView 之外被移走")
             mountURL = nil
         case let .volume(root):
-            detail.stringValue = String(localized: "所在的网络卷没有连接")
+            detail.stringValue = PluginSourceProvider.sourceID(of: root) != nil
+                ? ErrorText.describe(IOError.volumeUnavailable(root))
+                : String(localized: "所在的网络卷没有连接")
             mountURL = root.mountURL
         case let .failed(text):
             detail.stringValue = text

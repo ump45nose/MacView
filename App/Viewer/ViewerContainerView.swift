@@ -71,6 +71,18 @@ final class ViewerContainerView: NSView, InputScoped {
     var onConnect: (() -> Void)?
     /// 右键菜单：参数是光标下的页（分页模式点在页外时是当前页）。
     var onContextMenu: ((Entry) -> NSMenu?)?
+    weak var pluginFilterActivity: PluginFilterActivity? {
+        didSet {
+            paged.pluginFilterActivity = pluginFilterActivity
+            continuous.pluginFilterActivity = pluginFilterActivity
+        }
+    }
+    var onPluginFilterFailure: ((String, String) -> Void)? {
+        didSet {
+            paged.onPluginFilterFailure = onPluginFilterFailure
+            continuous.onPluginFilterFailure = onPluginFilterFailure
+        }
+    }
 
     init(session: ReaderSession, services: ViewerServices) {
         self.session = session
@@ -544,10 +556,21 @@ final class ViewerContainerView: NSView, InputScoped {
 
     private func applyEffectsIfNeeded() {
         let chain = effectsEnabled ? session.settings.effects : .empty
-        guard chain != appliedEffects else { return }
-        appliedEffects = chain
-        paged.setEffects(chain)
-        continuous.setEffects(chain)
+        let chainChanged = chain != appliedEffects
+        if chainChanged {
+            appliedEffects = chain
+            paged.setEffects(chain)
+            continuous.setEffects(chain)
+        }
+        refreshPluginFilters()
+    }
+
+    /// 按当前效果链与插件启用状态刷新主区插件滤镜（插件启停或版本变化时调用）。
+    func refreshPluginFilters() {
+        let chain = effectsEnabled ? session.settings.effects : .empty
+        let resolved = (NSApp.delegate as? AppDelegate)?.plugins?.resolvedFilters(in: chain) ?? .empty
+        paged.setPluginFilters(resolved)
+        continuous.setPluginFilters(resolved)
     }
 
     /// 窗口关闭时取消全部请求。

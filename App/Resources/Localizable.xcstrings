@@ -4733,6 +4733,16 @@
         }
       }
     },
+    "插件滤镜": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin Filters"
+          }
+        }
+      }
+    },
     "搜索": {
       "localizations": {
         "en": {

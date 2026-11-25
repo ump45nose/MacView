@@ -24,6 +24,8 @@ struct CanvasItem: Equatable {
     var failureText: String?
     /// 是否为可悬停预览的视频项（不可用页为 false）。
     var isVideo = false
+    /// 是否符合主区插件滤镜条件（静态且非分块图）。
+    var isPluginFilterEligible = false
 }
 
 /// 回报给预取计划的范围：可见项，以及可见区加余量内的项。砌体中可见项不一定连续，范围取最小到最大的序号。
@@ -133,6 +135,7 @@ final class CanvasView: NSScrollView {
     /// 捏合缩放改了 `itemExtent`。
     var onItemExtentChange: ((Double) -> Void)?
     var onMeasure: ((CanvasMeasure) -> Void)?
+    var onPluginFilterStateChange: (([ContentIdentity: PluginFilterActivity.State], String?) -> Void)?
 
     private struct Tile {
         let layer: CALayer
@@ -210,6 +213,9 @@ final class CanvasView: NSScrollView {
                 showError(on: tile.layer)
             }
             onImageFailure?(identity.location)
+        }
+        loader.onFilterStateChange = { [weak self] states, failure in
+            self?.onPluginFilterStateChange?(states, failure)
         }
         observeVideoHoverPreviewSetting(settings)
 
@@ -565,6 +571,7 @@ final class CanvasView: NSScrollView {
             tile.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
             spare.append(tile.layer)
             loader.cancel(tile.identity)
+            loader.cancelFilter(tile.identity)
         }
         CATransaction.commit()
     }
@@ -735,6 +742,37 @@ final class CanvasView: NSScrollView {
         contentView.layer?.filters?.count ?? 0
     }
 
+    /// 连续视图主区插件滤镜：只作用于可见的静态非分块页；关闭或变参立即恢复原图。
+    func setPluginFilters(_ filters: ResolvedPluginFilters) {
+        guard loader.setPluginFilters(filters) else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for (index, tile) in tiles where !isFailed(at: index) && !isShowingPreviewFrame(at: index, identity: tile.identity) {
+            if let original = loader.cachedOriginal(tile.identity) {
+                tile.layer.contents = original.contents
+                tile.layer.backgroundColor = nil
+            }
+        }
+        CATransaction.commit()
+        guard !filters.isEmpty else { return }
+        for (index, tile) in tiles where tile.layer.frame.intersects(viewport) {
+            requestPluginFilterIfNeeded(index, frame: tile.layer.frame)
+        }
+    }
+
+    private func requestPluginFilterIfNeeded(_ index: Int, frame: CGRect) {
+        guard loader.source == .display,
+              !loader.activePluginFilters.isEmpty,
+              items.indices.contains(index),
+              items[index].isPluginFilterEligible,
+              !items[index].isPending,
+              !items[index].isFailed,
+              !items[index].isVideo else { return }
+        let scale = window?.backingScaleFactor ?? 2
+        let size = PixelSize(width: max(1, Int((frame.width * scale).rounded(.up))), height: max(1, Int((frame.height * scale).rounded(.up))))
+        loader.requestFiltered(items[index].identity, target: size)
+    }
+
     #if DEBUG
     /// 自检用：读取指定序号已分配图层的选中环边框颜色。
     func tileBorderColor(at index: Int) -> CGColor? {
@@ -766,7 +804,11 @@ final class CanvasView: NSScrollView {
                 target = size
             }
         }
-        return loader.request(items[index].identity, longSide: longSide, target: target, priority: priority)
+        let requested = loader.request(items[index].identity, longSide: longSide, target: target, priority: priority)
+        if priority == .visible, !loader.activePluginFilters.isEmpty {
+            requestPluginFilterIfNeeded(index, frame: frame)
+        }
+        return requested
     }
 
     private func scheduleSettle() {

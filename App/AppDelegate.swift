@@ -155,6 +155,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let extensions = ExtensionCommands(app: self, services: services)
             self.extensions = extensions
             let plugins = PluginCoordinator(services: services, scripts: extensions)
+            plugins.onAvailabilityChange = { [weak self] in
+                self?.controllers.forEach { $0.refreshPluginFilters() }
+            }
             self.plugins = plugins
             extensions.start()
             plugins.start()
