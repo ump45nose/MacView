@@ -57,8 +57,6 @@ final class PluginCoordinator {
     var pluginHost: PluginHost? { services.pluginHost }
     var sourceInstances: [SourceInstance] { services.pluginSettings?.value().sources ?? [] }
 
-    /// 插件列表、启用状态、来源或运行状态变化时回调（供设置页刷新）。
-    var onChange: (() -> Void)?
     /// 插件启用集合或版本变化时回调（供 AppDelegate 刷新各窗口插件滤镜）。
     var onAvailabilityChange: (() -> Void)?
 
@@ -290,7 +288,6 @@ final class PluginCoordinator {
     }
 
     private func notifyChange() {
-        onChange?()
         NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
     }
 

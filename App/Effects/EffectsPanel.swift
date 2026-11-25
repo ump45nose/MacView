@@ -284,6 +284,13 @@ final class EffectsPanel: DockPanel {
         return items
     }
 
+    private static func matchesPluginFilter(_ effect: Effect, plugin: String, filter: String) -> Bool {
+        if case let .plugin(existing) = effect {
+            return existing.plugin == plugin && existing.filter == filter
+        }
+        return false
+    }
+
     private func setPluginFilter(plugin: String, filter: String, enabled: Bool) {
         guard let owner, owner.session.book != nil else { return }
         var chain = owner.session.settings.effects
@@ -296,10 +303,7 @@ final class EffectsPanel: DockPanel {
                 .first(where: { $0.id == filter }) else {
                 return
             }
-            if let idx = chain.effects.firstIndex(where: {
-                if case let .plugin(existing) = $0 { return existing.plugin == plugin && existing.filter == filter }
-                return false
-            }) {
+            if let idx = chain.effects.firstIndex(where: { Self.matchesPluginFilter($0, plugin: plugin, filter: filter) }) {
                 if case var .plugin(existing) = chain.effects[idx] {
                     existing.enabled = true
                     chain.effects[idx] = .plugin(existing)
@@ -313,10 +317,7 @@ final class EffectsPanel: DockPanel {
                 )))
             }
         } else {
-            chain.effects.removeAll {
-                if case let .plugin(existing) = $0 { return existing.plugin == plugin && existing.filter == filter }
-                return false
-            }
+            chain.effects.removeAll { Self.matchesPluginFilter($0, plugin: plugin, filter: filter) }
         }
         owner.session.update { $0.effects = chain }
     }
@@ -324,10 +325,8 @@ final class EffectsPanel: DockPanel {
     private func setPluginFilterParameter(plugin: String, filter: String, key: String, value: JSONValue) {
         guard let owner, owner.session.book != nil else { return }
         var chain = owner.session.settings.effects
-        guard let idx = chain.effects.firstIndex(where: {
-            if case let .plugin(existing) = $0 { return existing.plugin == plugin && existing.filter == filter }
-            return false
-        }), case var .plugin(existing) = chain.effects[idx] else { return }
+        guard let idx = chain.effects.firstIndex(where: { Self.matchesPluginFilter($0, plugin: plugin, filter: filter) }),
+              case var .plugin(existing) = chain.effects[idx] else { return }
         existing.parameters[key] = value
         chain.effects[idx] = .plugin(existing)
         owner.session.update { $0.effects = chain }

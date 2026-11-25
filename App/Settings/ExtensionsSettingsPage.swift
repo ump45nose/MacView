@@ -30,6 +30,7 @@ final class ExtensionsSettingsModel {
     @ObservationIgnored private let supportDirectory: URL
     @ObservationIgnored private var runStatesTask: Task<Void, Never>?
     @ObservationIgnored private var logTask: Task<Void, Never>?
+    @ObservationIgnored private var pluginsTask: Task<Void, Never>?
 
     var scriptsDirectory: URL {
         extensions?.scriptsDirectory ?? supportDirectory.appending(path: "Scripts", directoryHint: .isDirectory)
@@ -63,17 +64,16 @@ final class ExtensionsSettingsModel {
         extensions?.onChange = { [weak self] in
             self?.syncFromExtensions()
         }
-        pluginCoordinator?.onChange = { [weak self] in
-            self?.syncFromPlugins()
-        }
         reload()
         observeRuntime()
         observeLog()
+        observePlugins()
     }
 
     deinit {
         runStatesTask?.cancel()
         logTask?.cancel()
+        pluginsTask?.cancel()
     }
 
     func reload() {
@@ -118,6 +118,20 @@ final class ExtensionsSettingsModel {
             for await entries in stream {
                 guard let self, !Task.isCancelled else { return }
                 self.logEntries = entries
+            }
+        }
+    }
+
+    private func observePlugins() {
+        guard let coordinator = pluginCoordinator else { return }
+        let notifications = NotificationCenter.default.notifications(
+            named: PluginCoordinator.didChangeNotification,
+            object: coordinator
+        )
+        pluginsTask = Task { [weak self] in
+            for await _ in notifications {
+                guard let self, !Task.isCancelled else { return }
+                self.syncFromPlugins()
             }
         }
     }
@@ -228,15 +242,8 @@ final class ExtensionsSettingsModel {
         let url = pluginsFileURL
         if FileManager.default.fileExists(atPath: url.path) {
             NSWorkspace.shared.open(url)
-            return
-        }
-        guard let store = pluginCoordinator?.pluginSettingsStore else {
+        } else {
             revealInFinder(supportDirectory)
-            return
-        }
-        Task {
-            try? await store.update { _ in }
-            NSWorkspace.shared.open(url)
         }
     }
 
@@ -283,20 +290,33 @@ final class ExtensionsSettingsModel {
     func saveSource(_ instance: SourceInstance, passwordUpdates: [String: String], isNew: Bool) async -> Bool {
         guard let store = pluginCoordinator?.pluginSettingsStore,
               let secrets = pluginCoordinator?.pluginSecrets else { return false }
+        let previousSecrets = isNew ? [:] : secrets.values(for: instance.id)
+        var nextSecrets = previousSecrets
+        for (key, value) in passwordUpdates where !value.isEmpty {
+            nextSecrets[key] = value
+        }
+        let wroteSecrets = !nextSecrets.isEmpty || !isNew
         do {
-            var nextSecrets = isNew ? [:] : secrets.values(for: instance.id)
-            for (key, value) in passwordUpdates where !value.isEmpty {
-                nextSecrets[key] = value
-            }
-            if !nextSecrets.isEmpty || !isNew {
+            if wroteSecrets {
                 try await secrets.set(nextSecrets, for: instance.id)
             }
-            try await store.update { file in
-                if let index = file.sources.firstIndex(where: { $0.id == instance.id }) {
-                    file.sources[index] = instance
-                } else {
-                    file.sources.append(instance)
+            do {
+                try await store.update { file in
+                    if let index = file.sources.firstIndex(where: { $0.id == instance.id }) {
+                        file.sources[index] = instance
+                    } else {
+                        file.sources.append(instance)
+                    }
                 }
+            } catch {
+                if wroteSecrets {
+                    if isNew {
+                        try? await secrets.remove(source: instance.id)
+                    } else {
+                        try? await secrets.set(previousSecrets, for: instance.id)
+                    }
+                }
+                throw error
             }
             pluginWriteError = nil
             return true
@@ -392,7 +412,7 @@ struct ExtensionsSettingsPage: View {
 
     @State private var editing: ExternalCommandDraft?
     @State private var confirmingDeleteID: String?
-    @State private var consentingPlugin: PluginInfo?
+    @State private var consentingPlugin: PluginConsentRequest?
     @State private var editingSource: PluginSourceEditRequest?
     @State private var pinnedToBottom = true
 
@@ -432,7 +452,8 @@ struct ExtensionsSettingsPage: View {
                         PluginsSettingsSection(
                             model: model,
                             onRequestConsent: { info in
-                                consentingPlugin = info
+                                guard let manifest = info.manifest else { return }
+                                consentingPlugin = PluginConsentRequest(pluginID: info.id, manifest: manifest)
                             },
                             onRequestAddSource: { info, declaration in
                                 editingSource = PluginSourceEditRequest(
@@ -465,31 +486,24 @@ struct ExtensionsSettingsPage: View {
                 }
             }
         }
-        .sheet(item: $consentingPlugin) { info in
-            if let manifest = info.manifest {
-                PluginConsentSheet(
-                    plugin: info,
-                    manifest: manifest,
-                    onCancel: { consentingPlugin = nil },
-                    onEnable: {
-                        Task {
-                            if await model.enablePlugin(info.id, granting: manifest.permissions) {
-                                consentingPlugin = nil
-                            }
-                        }
+        .sheet(item: $consentingPlugin) { request in
+            PluginConsentSheet(
+                manifest: request.manifest,
+                onCancel: { consentingPlugin = nil },
+                onEnable: {
+                    if await model.enablePlugin(request.pluginID, granting: request.manifest.permissions) {
+                        consentingPlugin = nil
                     }
-                )
-            }
+                }
+            )
         }
         .sheet(item: $editingSource) { request in
             PluginSourceEditorSheet(
                 request: request,
                 onCancel: { editingSource = nil },
                 onSave: { instance, passwordUpdates in
-                    Task {
-                        if await model.saveSource(instance, passwordUpdates: passwordUpdates, isNew: request.isNew) {
-                            editingSource = nil
-                        }
+                    if await model.saveSource(instance, passwordUpdates: passwordUpdates, isNew: request.isNew) {
+                        editingSource = nil
                     }
                 }
             )
@@ -556,7 +570,7 @@ struct ExtensionsSettingsPage: View {
             }
             SettingsDivider()
             HStack(spacing: 8) {
-                Text(abbreviatedPath(model.scriptsDirectory))
+                Text(Self.abbreviatedPath(model.scriptsDirectory))
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(Color(nsColor: Theme.text2))
                     .lineLimit(1)
@@ -619,10 +633,10 @@ struct ExtensionsSettingsPage: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if let shortcutText {
-                chip(shortcutText)
+                Self.chip(shortcutText)
             }
             if !isError, let firstEvent = script.events.first {
-                chip(firstEvent.rawValue)
+                Self.chip(firstEvent.rawValue)
             }
 
             if isError {
@@ -635,11 +649,11 @@ struct ExtensionsSettingsPage: View {
                 switch runState {
                 case let .running(since):
                     TimelineView(.periodic(from: .now, by: 1.0)) { context in
-                        runningIndicator(text: String(localized: "运行中 \(Self.elapsedText(since: since, now: context.date))"))
+                        Self.runningIndicator(text: String(localized: "运行中 \(Self.elapsedText(since: since, now: context.date))"))
                     }
                     .accessibilityIdentifier("settings.extensions.script.\(script.id).status")
                 case .queued:
-                    runningIndicator(text: String(localized: "排队中"))
+                    Self.runningIndicator(text: String(localized: "排队中"))
                         .accessibilityIdentifier("settings.extensions.script.\(script.id).status")
                 case .idle:
                     HStack(spacing: 5) {
@@ -691,7 +705,7 @@ struct ExtensionsSettingsPage: View {
 
     private var externalCommandsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionHeader(
+            Self.sectionHeader(
                 title: String(localized: "外部命令"),
                 aside: String(localized: "对选中项运行；没有选中项时对当前页")
             )
@@ -783,7 +797,7 @@ struct ExtensionsSettingsPage: View {
                 .accessibilityIdentifier("settings.extensions.external.\(command.id).confirmDelete")
             } else {
                 if command.kind != .application && command.showOutput {
-                    chip(String(localized: "显示输出"))
+                    Self.chip(String(localized: "显示输出"))
                 }
                 SettingsIconButton(
                     systemImage: "pencil",
@@ -911,7 +925,7 @@ struct ExtensionsSettingsPage: View {
 
     // MARK: - 公共小组件与格式化
 
-    private func sectionHeader(title: String, aside: String) -> some View {
+    static func sectionHeader(title: String, aside: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
@@ -932,14 +946,14 @@ struct ExtensionsSettingsPage: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionHeader(title: title, aside: aside)
+            Self.sectionHeader(title: title, aside: aside)
             SettingsCard {
                 content()
             }
         }
     }
 
-    private func runningIndicator(text: String) -> some View {
+    static func runningIndicator(text: String) -> some View {
         HStack(spacing: 5) {
             ProgressView()
                 .controlSize(.mini)
@@ -952,7 +966,7 @@ struct ExtensionsSettingsPage: View {
         }
     }
 
-    private func chip(_ text: String) -> some View {
+    static func chip(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 10.5))
             .foregroundStyle(Color(nsColor: Theme.text2))
@@ -970,7 +984,7 @@ struct ExtensionsSettingsPage: View {
         return ShortcutsModel.displayText(for: binding.sequence)
     }
 
-    private func abbreviatedPath(_ url: URL) -> String {
+    static func abbreviatedPath(_ url: URL) -> String {
         (url.path(percentEncoded: false) as NSString).abbreviatingWithTildeInPath
     }
 

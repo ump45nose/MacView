@@ -14,18 +14,10 @@ struct PluginsSettingsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(String(localized: "插件"))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color(nsColor: Theme.text2))
-                Spacer(minLength: 8)
-                Text(String(localized: "一个文件夹一个插件，放进插件目录后自动加载"))
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color(nsColor: Theme.text2))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .padding(.horizontal, 12)
+            ExtensionsSettingsPage.sectionHeader(
+                title: String(localized: "插件"),
+                aside: String(localized: "一个文件夹一个插件，放进插件目录后自动加载")
+            )
 
             SettingsErrorBanner(message: model.pluginWriteError)
 
@@ -53,7 +45,7 @@ struct PluginsSettingsSection: View {
 
                 SettingsDivider()
                 HStack(spacing: 8) {
-                    Text(abbreviatedPath(model.pluginsDirectory))
+                    Text(ExtensionsSettingsPage.abbreviatedPath(model.pluginsDirectory))
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(Color(nsColor: Theme.text2))
                         .lineLimit(1)
@@ -153,13 +145,13 @@ struct PluginsSettingsSection: View {
     @ViewBuilder
     private func capabilityChips(for manifest: PluginManifest) -> some View {
         if !manifest.sources.isEmpty {
-            chip(String(localized: "来源"))
+            ExtensionsSettingsPage.chip(String(localized: "来源"))
         }
         if !manifest.filters.isEmpty {
-            chip(String(localized: "滤镜"))
+            ExtensionsSettingsPage.chip(String(localized: "滤镜"))
         }
         if !manifest.commands.isEmpty {
-            chip(String(localized: "命令 \(manifest.commands.count)"))
+            ExtensionsSettingsPage.chip(String(localized: "命令 \(manifest.commands.count)"))
         }
     }
 
@@ -192,16 +184,9 @@ struct PluginsSettingsSection: View {
 
         case let .running(since):
             TimelineView(.periodic(from: .now, by: 1.0)) { context in
-                HStack(spacing: 5) {
-                    ProgressView()
-                        .controlSize(.mini)
-                        .scaleEffect(0.75)
-                        .frame(width: 12, height: 12)
-                    Text(String(localized: "运行中 \(ExtensionsSettingsPage.elapsedText(since: since, now: context.date))"))
-                        .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(Color(nsColor: Theme.text))
-                        .fixedSize()
-                }
+                ExtensionsSettingsPage.runningIndicator(
+                    text: String(localized: "运行中 \(ExtensionsSettingsPage.elapsedText(since: since, now: context.date))")
+                )
             }
             .accessibilityIdentifier("settings.extensions.plugin.\(info.id).status")
             Button(String(localized: "停止")) {
@@ -410,22 +395,7 @@ struct PluginsSettingsSection: View {
         }
     }
 
-    // MARK: - 小组件与格式化
-
-    private func chip(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 10.5))
-            .foregroundStyle(Color(nsColor: Theme.text2))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(Color(nsColor: Theme.well), in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color(nsColor: Theme.line), lineWidth: 0.5))
-            .fixedSize()
-    }
-
-    private func abbreviatedPath(_ url: URL) -> String {
-        (url.path(percentEncoded: false) as NSString).abbreviatingWithTildeInPath
-    }
+    // MARK: - 格式化
 
     static func subtitleText(for info: PluginInfo) -> String {
         if let problem = info.problem {
@@ -474,12 +444,19 @@ struct PluginsSettingsSection: View {
 
 // MARK: - 权限确认表单
 
+struct PluginConsentRequest: Identifiable {
+    let id = UUID()
+    let pluginID: String
+    let manifest: PluginManifest
+}
+
 /// 启用插件或清单权限变化时弹出的权限确认表单。
 struct PluginConsentSheet: View {
-    let plugin: PluginInfo
     let manifest: PluginManifest
     let onCancel: () -> Void
-    let onEnable: () -> Void
+    let onEnable: () async -> Void
+
+    @State private var isSubmitting = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -537,34 +514,20 @@ struct PluginConsentSheet: View {
                 )
             }
 
-            HStack(spacing: 8) {
-                Spacer()
-                Button(action: onCancel) {
-                    Text(String(localized: "取消"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(nsColor: Theme.text))
-                        .padding(.horizontal, 12)
-                        .frame(height: 24)
-                        .background(Color(nsColor: Theme.well), in: RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: Theme.lineStrong), lineWidth: 0.5))
+            PluginSheetActions(
+                primaryTitle: String(localized: "启用"),
+                primaryDisabled: isSubmitting,
+                cancelIdentifier: "settings.plugins.consent.cancel",
+                primaryIdentifier: "settings.plugins.consent.enable",
+                onCancel: onCancel
+            ) {
+                guard !isSubmitting else { return }
+                isSubmitting = true
+                Task {
+                    await onEnable()
+                    isSubmitting = false
                 }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("settings.plugins.consent.cancel")
-
-                Button(action: onEnable) {
-                    Text(String(localized: "启用"))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color(nsColor: Theme.onPrimary))
-                        .padding(.horizontal, 14)
-                        .frame(height: 24)
-                        .background(Color(nsColor: Theme.primary), in: RoundedRectangle(cornerRadius: 6))
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("settings.plugins.consent.enable")
             }
-            .padding(.top, 4)
         }
         .padding(20)
         .frame(width: 440)
@@ -627,15 +590,16 @@ struct PluginSourceEditRequest: Identifiable {
 struct PluginSourceEditorSheet: View {
     let request: PluginSourceEditRequest
     let onCancel: () -> Void
-    let onSave: (SourceInstance, [String: String]) -> Void
+    let onSave: (SourceInstance, [String: String]) async -> Void
 
     @State private var name: String
     @State private var fieldValues: [String: String]
+    @State private var isSubmitting = false
 
     init(
         request: PluginSourceEditRequest,
         onCancel: @escaping () -> Void,
-        onSave: @escaping (SourceInstance, [String: String]) -> Void
+        onSave: @escaping (SourceInstance, [String: String]) async -> Void
     ) {
         self.request = request
         self.onCancel = onCancel
@@ -720,36 +684,14 @@ struct PluginSourceEditorSheet: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 8) {
-                Spacer()
-                Button(action: onCancel) {
-                    Text(String(localized: "取消"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color(nsColor: Theme.text))
-                        .padding(.horizontal, 12)
-                        .frame(height: 24)
-                        .background(Color(nsColor: Theme.well), in: RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: Theme.lineStrong), lineWidth: 0.5))
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("settings.plugins.sourceForm.cancel")
-
-                Button(action: commit) {
-                    Text(String(localized: "存储"))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color(nsColor: Theme.onPrimary))
-                        .padding(.horizontal, 14)
-                        .frame(height: 24)
-                        .background(Color(nsColor: Theme.primary), in: RoundedRectangle(cornerRadius: 6))
-                }
-                .buttonStyle(.plain)
-                .disabled(!canSave)
-                .opacity(canSave ? 1 : 0.45)
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("settings.plugins.sourceForm.save")
-            }
-            .padding(.top, 4)
+            PluginSheetActions(
+                primaryTitle: String(localized: "存储"),
+                primaryDisabled: !canSave || isSubmitting,
+                cancelIdentifier: "settings.plugins.sourceForm.cancel",
+                primaryIdentifier: "settings.plugins.sourceForm.save",
+                onCancel: onCancel,
+                onPrimary: commit
+            )
         }
         .padding(20)
         .frame(width: 440)
@@ -813,7 +755,7 @@ struct PluginSourceEditorSheet: View {
     }
 
     private func commit() {
-        guard canSave else { return }
+        guard canSave, !isSubmitting else { return }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         var publicValues: [String: String] = [:]
         var passwordUpdates: [String: String] = [:]
@@ -837,6 +779,52 @@ struct PluginSourceEditorSheet: View {
             name: trimmedName,
             values: publicValues
         )
-        onSave(instance, passwordUpdates)
+        isSubmitting = true
+        Task {
+            await onSave(instance, passwordUpdates)
+            isSubmitting = false
+        }
+    }
+}
+
+private struct PluginSheetActions: View {
+    let primaryTitle: String
+    let primaryDisabled: Bool
+    let cancelIdentifier: String
+    let primaryIdentifier: String
+    let onCancel: () -> Void
+    let onPrimary: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Spacer()
+            Button(action: onCancel) {
+                Text(String(localized: "取消"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(nsColor: Theme.text))
+                    .padding(.horizontal, 12)
+                    .frame(height: 24)
+                    .background(Color(nsColor: Theme.well), in: RoundedRectangle(cornerRadius: 6))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: Theme.lineStrong), lineWidth: 0.5))
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
+            .accessibilityIdentifier(cancelIdentifier)
+
+            Button(action: onPrimary) {
+                Text(primaryTitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color(nsColor: Theme.onPrimary))
+                    .padding(.horizontal, 14)
+                    .frame(height: 24)
+                    .background(Color(nsColor: Theme.primary), in: RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+            .disabled(primaryDisabled)
+            .opacity(primaryDisabled ? 0.45 : 1)
+            .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier(primaryIdentifier)
+        }
+        .padding(.top, 4)
     }
 }
