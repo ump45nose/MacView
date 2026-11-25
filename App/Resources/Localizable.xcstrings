@@ -1753,6 +1753,18 @@
         }
       }
     },
+    "上次导入中断，已恢复原数据。": {
+      "comment": "Core 诊断文字，键来自 UserDataImport.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The previous import was interrupted. Your original data has been restored."
+          }
+        }
+      }
+    },
     "下一帧": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -5133,6 +5145,18 @@
         }
       }
     },
+    "归档中的路径或文件与清单不符。": {
+      "comment": "Core 诊断文字，键来自 UserDataStaging.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The paths or files in the archive don’t match its manifest."
+          }
+        }
+      }
+    },
     "归档数据不完整": {
       "comment": "Core 诊断文字，键来自 ArchiveIndex.swift",
       "extractionState": "manual",
@@ -5235,6 +5259,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Current Menu"
+          }
+        }
+      }
+    },
+    "待导入的数据已更改，请重新选择文件。": {
+      "comment": "Core 诊断文字，键来自 UserDataStaging.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The data you selected for import has changed. Choose the file again."
           }
         }
       }
@@ -6407,6 +6443,18 @@
         }
       }
     },
+    "数据内容或版本无效。": {
+      "comment": "Core 诊断文字，键来自 UserDataStaging.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The data is invalid or its version is unsupported."
+          }
+        }
+      }
+    },
     "整个窗口一起变淡，含图片；全屏时不生效": {
       "localizations": {
         "en": {
@@ -6915,6 +6963,18 @@
         }
       }
     },
+    "无法准备导入或备份本机数据。": {
+      "comment": "Core 诊断文字，键来自 UserDataImport.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t prepare the import or back up the data on this Mac."
+          }
+        }
+      }
+    },
     "无法创建 JavaScript 环境": {
       "comment": "Core 诊断文字，键来自 JSPluginConnection.swift、ScriptRuntime.swift",
       "extractionState": "manual",
@@ -6991,6 +7051,30 @@
         }
       }
     },
+    "无法导出用户数据：%@": {
+      "comment": "Core 诊断文字，键来自 UserDataTypes.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t export user data: %@"
+          }
+        }
+      }
+    },
+    "无法恢复或清理上次导入的数据。": {
+      "comment": "Core 诊断文字，键来自 UserDataImport.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t recover or clean up data from the previous import."
+          }
+        }
+      }
+    },
     "无法打开 layout.json": {
       "localizations": {
         "en": {
@@ -7039,6 +7123,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't determine the Trash location"
+          }
+        }
+      }
+    },
+    "无法解包或读取暂存文件。": {
+      "comment": "Core 诊断文字，键来自 UserDataStaging.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t unpack the archive or read the staged files."
           }
         }
       }
@@ -7113,6 +7209,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unable to Read Original File"
+          }
+        }
+      }
+    },
+    "无法读取数据或写入归档。": {
+      "comment": "Core 诊断文字，键来自 UserDataArchive.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t read the user data or write the archive."
           }
         }
       }
@@ -7419,6 +7527,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quoted automatically on expansion; do not add quotes. Runs in a login shell so Homebrew tools are available."
+          }
+        }
+      }
+    },
+    "替换用户数据失败，已恢复原数据。": {
+      "comment": "Core 诊断文字，键来自 UserDataImport.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t replace the user data. Your original data has been restored."
           }
         }
       }
@@ -8137,6 +8257,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "This file name is reserved for a built-in script command"
+          }
+        }
+      }
+    },
+    "此文件来自更新版本的 MacView（数据格式 %lld）。": {
+      "comment": "Core 诊断文字，键来自 UserDataTypes.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file is from a newer version of MacView (data format %lld)."
           }
         }
       }
@@ -9027,6 +9159,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Replace with Current Layout"
+          }
+        }
+      }
+    },
+    "用户数据文件损坏（%@）：%@": {
+      "comment": "Core 诊断文字，键来自 UserDataTypes.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The user data file is damaged (%@): %@"
+          }
+        }
+      }
+    },
+    "用户数据文件损坏：%@": {
+      "comment": "Core 诊断文字，键来自 UserDataTypes.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The user data file is damaged: %@"
           }
         }
       }
@@ -10901,6 +11057,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "This item is already being processed"
+          }
+        }
+      }
+    },
+    "这不是 MacView 导出的用户数据文件。": {
+      "comment": "Core 诊断文字，键来自 UserDataTypes.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file isn’t a MacView user data export."
           }
         }
       }

@@ -49,6 +49,8 @@ public struct SourceInstance: Codable, Sendable, Hashable, Identifiable {
 }
 
 public struct PluginSettingsFile: Codable, Sendable, Hashable {
+    public static let documentVersion = 1
+
     public var plugins: [String: PluginState]
     public var sources: [SourceInstance]
 

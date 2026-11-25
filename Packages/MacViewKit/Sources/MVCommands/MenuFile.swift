@@ -42,6 +42,8 @@ public struct ToolbarItemID: RawRepresentable, Codable, Hashable, Sendable {
 
 /// `menus.json` 的文档内容；任一字段为 `nil` 时使用默认配置，非 `nil` 时整树/整列表替换默认。
 public struct MenuFile: Codable, Sendable, Hashable {
+    public static let documentVersion = 1
+
     public var mainMenu: [MenuNode]?
     public var viewerContextMenu: [MenuNode]?
     public var toolbar: [ToolbarItemID]?

@@ -156,11 +156,11 @@ public struct CoreConfiguration: Sendable {
         let scriptRuntime = ScriptRuntime(library: scriptLibrary, log: scriptLog)
         let scriptStorage = try ScriptStorage(fileURL: configuration.supportDirectory.appending(path: "script-storage.json"))
         let externalCommands = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "external-commands.json"),
-                                                     version: 1, defaultValue: ExternalCommandFile(commands: []))
+                                                     version: ExternalCommandFile.documentVersion, defaultValue: ExternalCommandFile(commands: []))
         let pluginLibrary = PluginLibrary(directory: configuration.supportDirectory.appending(path: "Plugins"))
         _ = try FileManager.default.contentsOfDirectory(atPath: pluginLibrary.directory.path)
         let pluginSettings = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "plugins.json"),
-                                                   version: 1, defaultValue: PluginSettingsFile())
+                                                   version: PluginSettingsFile.documentVersion, defaultValue: PluginSettingsFile())
         let pluginSecrets = try PluginSecrets(fileURL: configuration.supportDirectory.appending(path: "plugin-secrets.json"))
         let pluginHost = PluginHost(
             library: pluginLibrary,
@@ -201,9 +201,9 @@ public struct CoreConfiguration: Sendable {
             )
         )
         let keyBindings = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "keybindings.json"),
-                                               version: 2, defaultValue: KeyBindingsFile())
+                                               version: KeyBindingsFile.documentVersion, defaultValue: KeyBindingsFile())
         let menus = try JSONDocumentStore(fileURL: configuration.supportDirectory.appending(path: "menus.json"),
-                                         version: 1, defaultValue: MenuFile())
+                                         version: MenuFile.documentVersion, defaultValue: MenuFile())
         let journal = configuration.supportDirectory.appending(path: "transfers.json")
         let fileOperations = try factory?(sources.fileSystem, journal) ?? FileOperationService(fileSystem: sources.fileSystem, journalURL: journal)
         let library = try SQLiteLibraryStore(databaseURL: configuration.supportDirectory.appending(path: "library.sqlite"), historyLimit: global.historyLimit)
@@ -457,6 +457,13 @@ public struct CoreConfiguration: Sendable {
             guard !Task.isCancelled else { return }
             try await runtime.caches.browse?.setBudget(budget.browseBytes)
         } catch { Self.log.error("更新磁盘缓存预算失败：\(error.localizedDescription)") }
+    }
+
+    /// 历史任务与两个 SQLite 存储可能仍在写入；JSON 的 update 在返回前已原子落盘。
+    public func flushPersistentState() async throws {
+        for task in Array(historyTasks.values) { await task.value }
+        try await (settings as? FileSettingsStore)?.flush()
+        try await (library as? SQLiteLibraryStore)?.flush()
     }
 
     /// 留出调度余量；超时后取消剩余落盘步骤，并立即弃用辅助进程。

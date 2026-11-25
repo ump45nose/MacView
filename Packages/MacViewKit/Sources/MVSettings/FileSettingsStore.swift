@@ -20,12 +20,26 @@ public final class FileSettingsStore: SettingsStore {
     private let state: Mutex<State>
     private let queue = DispatchQueue(label: "MacView.BookMemory")
 
+    private static let settingsVersion = 1
+    private static let pathRulesVersion = 1
+    private static let profilesVersion = 1
+
+    public static func validateDocument(_ item: String, data: Data) throws {
+        switch item {
+        case "settings.json":
+            _ = try JSONDocumentStore<GlobalSettings>.decode(data, version: settingsVersion, valueDecoder: decodeGlobal)
+        case "path-rules.json": try JSONDocumentStore<[PathRule]>.validate(data, version: pathRulesVersion)
+        case "profiles.json": try JSONDocumentStore<[DisplayProfile]>.validate(data, version: profilesVersion)
+        default: throw CocoaError(.fileReadUnknown)
+        }
+    }
+
     public init(directory: URL) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        settings = try JSONDocumentStore(fileURL: directory.appending(path: "settings.json"), version: 1,
+        settings = try JSONDocumentStore(fileURL: directory.appending(path: "settings.json"), version: Self.settingsVersion,
                                          defaultValue: .default, valueDecoder: Self.decodeGlobal)
-        rules = try JSONDocumentStore(fileURL: directory.appending(path: "path-rules.json"), version: 1, defaultValue: [])
-        profileStore = try JSONDocumentStore(fileURL: directory.appending(path: "profiles.json"), version: 1, defaultValue: [])
+        rules = try JSONDocumentStore(fileURL: directory.appending(path: "path-rules.json"), version: Self.pathRulesVersion, defaultValue: [])
+        profileStore = try JSONDocumentStore(fileURL: directory.appending(path: "profiles.json"), version: Self.profilesVersion, defaultValue: [])
         var configuration = Configuration()
         configuration.prepareDatabase { database in
             try Self.enableWriteAheadLogging(database)

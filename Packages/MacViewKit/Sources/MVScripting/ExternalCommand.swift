@@ -28,6 +28,8 @@ public struct ExternalCommand: Codable, Sendable, Hashable, Identifiable {
 }
 
 public struct ExternalCommandFile: Codable, Sendable, Hashable {
+    public static let documentVersion = 1
+
     public var commands: [ExternalCommand]
     public init(commands: [ExternalCommand]) { self.commands = commands }
 }

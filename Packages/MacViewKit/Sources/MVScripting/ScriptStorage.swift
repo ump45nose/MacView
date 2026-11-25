@@ -3,10 +3,13 @@ import MVFoundation
 import MVSettings
 
 public final class ScriptStorage: Sendable {
-    private let store: JSONDocumentStore<[String: [String: JSONValue]]>
+    public static let documentVersion = 1
+
+    public typealias DocumentValue = [String: [String: JSONValue]]
+    private let store: JSONDocumentStore<DocumentValue>
 
     public init(fileURL: URL) throws {
-        store = try JSONDocumentStore(fileURL: fileURL, version: 1, defaultValue: [:])
+        store = try JSONDocumentStore(fileURL: fileURL, version: Self.documentVersion, defaultValue: [:])
     }
 
     public func get(_ script: String, _ key: String) -> JSONValue {

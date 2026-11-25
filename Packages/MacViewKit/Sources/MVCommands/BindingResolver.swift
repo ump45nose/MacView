@@ -2,6 +2,8 @@ import Foundation
 
 /// keybindings.json 的文档内容（v2；新字段均可缺省，v1 文件照常读取）；版本与原子写入由 JSONDocumentStore 管理。
 public struct KeyBindingsFile: Codable, Sendable, Hashable {
+    public static let documentVersion = 2
+
     public var bindings: [KeyBinding]
     public var mouseGestures: [MouseGestureBinding]?
     public var trackpad: [TrackpadBinding]?

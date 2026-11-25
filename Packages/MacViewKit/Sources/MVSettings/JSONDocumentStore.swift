@@ -163,19 +163,29 @@ public final class JSONDocumentStore<Value: Codable & Sendable>: Sendable {
         monitor.resume()
     }
 
+    /// 校验归档时与文件监听重载共用解码路径，不创建存储、不写入磁盘。
+    public static func validate(_ data: Data, version: Int) throws {
+        _ = try decode(data, version: version) { (try JSONDecoder().decode(Value.self, from: $0), nil) }
+    }
+
+    static func decode(_ data: Data, version: Int,
+                       valueDecoder: (Data) throws -> (Value, String?)) throws -> (Value, String?) {
+        // 先校验语法，以取得 JSONSerialization 提供的精确行列位置。
+        let object = try JSONSerialization.jsonObject(with: data)
+        let header = try JSONDecoder().decode(DocumentHeader.self, from: data)
+        guard header.version <= version else {
+            throw DocumentError(message: String(localized: "文档版本 \(header.version) 高于支持的版本 \(version)", bundle: .main), key: "version")
+        }
+        guard let dictionary = object as? [String: Any], let rawValue = dictionary["value"] else {
+            throw DocumentError(message: String(localized: "缺少 value 字段", bundle: .main), key: "value")
+        }
+        let valueData = try JSONSerialization.data(withJSONObject: rawValue, options: [.fragmentsAllowed])
+        return try valueDecoder(valueData)
+    }
+
     private func load(_ data: Data) {
         do {
-            // 先校验语法，以取得 JSONSerialization 提供的精确行列位置。
-            let object = try JSONSerialization.jsonObject(with: data)
-            let header = try JSONDecoder().decode(DocumentHeader.self, from: data)
-            guard header.version <= version else {
-                throw DocumentError(message: String(localized: "文档版本 \(header.version) 高于支持的版本 \(version)", bundle: .main), key: "version")
-            }
-            guard let dictionary = object as? [String: Any], let rawValue = dictionary["value"] else {
-                throw DocumentError(message: String(localized: "缺少 value 字段", bundle: .main), key: "value")
-            }
-            let valueData = try JSONSerialization.data(withJSONObject: rawValue, options: [.fragmentsAllowed])
-            let (value, warning) = try valueDecoder(valueData)
+            let (value, warning) = try Self.decode(data, version: version, valueDecoder: valueDecoder)
             let message = warning.map { Self.message(for: DocumentError(message: $0, key: "value"), data: data) }
             state.withLock { $0.value = value; $0.lastData = data; $0.error = message }
             publish(.reloaded)
