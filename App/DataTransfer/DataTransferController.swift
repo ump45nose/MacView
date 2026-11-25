@@ -477,24 +477,36 @@ final class DataTransferController {
     private func makeImportConfirmationAccessory(summary: UserDataSummary, backupDisplay: String) -> NSView {
         let width: CGFloat = 320
         let statsBox = StatsBoxView()
-        let statsItems = [
-            String(localized: "历史 \(summary.history) 本"),
-            String(localized: "书签 \(summary.bookmarks) 个"),
-            String(localized: "播放列表 \(summary.playlists) 个"),
-            String(localized: "脚本 \(summary.scripts) 个"),
-            String(localized: "插件 \(summary.plugins) 个"),
-        ]
-        let statsLabel = NSTextField(wrappingLabelWithString: statsItems.joined(separator: "   "))
-        statsLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
-        statsLabel.textColor = .labelColor
-        statsLabel.preferredMaxLayoutWidth = width - 20
-        statsLabel.translatesAutoresizingMaskIntoConstraints = false
-        statsBox.addSubview(statsLabel)
+        let makeStatLabel: (String) -> NSTextField = { text in
+            let label = NSTextField(labelWithString: text)
+            label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+            label.textColor = .labelColor
+            return label
+        }
+        let row1 = NSStackView(views: [
+            makeStatLabel(String(localized: "历史 \(summary.history) 本")),
+            makeStatLabel(String(localized: "书签 \(summary.bookmarks) 个")),
+            makeStatLabel(String(localized: "播放列表 \(summary.playlists) 个")),
+        ])
+        row1.orientation = .horizontal
+        row1.spacing = 12
+        let row2 = NSStackView(views: [
+            makeStatLabel(String(localized: "脚本 \(summary.scripts) 个")),
+            makeStatLabel(String(localized: "插件 \(summary.plugins) 个")),
+        ])
+        row2.orientation = .horizontal
+        row2.spacing = 12
+        let statsStack = NSStackView(views: [row1, row2])
+        statsStack.orientation = .vertical
+        statsStack.alignment = .leading
+        statsStack.spacing = 4
+        statsStack.translatesAutoresizingMaskIntoConstraints = false
+        statsBox.addSubview(statsStack)
         NSLayoutConstraint.activate([
-            statsLabel.leadingAnchor.constraint(equalTo: statsBox.leadingAnchor, constant: 10),
-            statsLabel.trailingAnchor.constraint(equalTo: statsBox.trailingAnchor, constant: -10),
-            statsLabel.topAnchor.constraint(equalTo: statsBox.topAnchor, constant: 8),
-            statsLabel.bottomAnchor.constraint(equalTo: statsBox.bottomAnchor, constant: -8),
+            statsStack.leadingAnchor.constraint(equalTo: statsBox.leadingAnchor, constant: 10),
+            statsStack.trailingAnchor.constraint(lessThanOrEqualTo: statsBox.trailingAnchor, constant: -10),
+            statsStack.topAnchor.constraint(equalTo: statsBox.topAnchor, constant: 8),
+            statsStack.bottomAnchor.constraint(equalTo: statsBox.bottomAnchor, constant: -8),
         ])
 
         let replaceLabel = NSTextField(wrappingLabelWithString: String(
