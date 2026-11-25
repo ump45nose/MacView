@@ -243,3 +243,222 @@ private func waitUntil(_ predicate: @escaping @Sendable () -> Bool, timeout: Dur
         }
     }
 }
+
+@Test func manifestParsesPanelDeclarationsAndOptionalFields() throws {
+    // C1.1: 合法面板清单解析出全部字段；省略 symbol、defaultEdge 时为 nil
+    let json = """
+    {
+      "name": "页面笔记",
+      "version": "1.0.0",
+      "permissions": ["commands"],
+      "panels": [
+        {
+          "id": "notes",
+          "title": "页面笔记",
+          "entry": "panel.html",
+          "symbol": "note.text",
+          "defaultEdge": "right"
+        },
+        {
+          "id": "sub-panel-2",
+          "title": "辅助面板",
+          "entry": "web/index.html"
+        }
+      ]
+    }
+    """
+    let result = PluginManifest.parse(data: Data(json.utf8))
+    guard case let .success(manifest) = result else {
+        Issue.record("预期合法面板清单解析成功，实际失败：\(result)")
+        return
+    }
+    #expect(manifest.runtime == nil)
+    #expect(manifest.permissions == [.commands])
+    #expect(manifest.panels == [
+        PluginPanelDeclaration(id: "notes", title: "页面笔记", entry: "panel.html", symbol: "note.text", defaultEdge: .right),
+        PluginPanelDeclaration(id: "sub-panel-2", title: "辅助面板", entry: "web/index.html", symbol: nil, defaultEdge: nil),
+    ])
+}
+
+@Test func manifestRuntimeRequirementWithAndWithoutPanels() throws {
+    // C1.2: 只有面板、没有 runtime 的清单有效
+    let panelsOnly = #"{"name":"Panels","version":"1.0","panels":[{"id":"p1","title":"P1","entry":"index.html"}]}"#
+    if case let .success(manifest) = PluginManifest.parse(data: Data(panelsOnly.utf8)) {
+        #expect(manifest.runtime == nil)
+        #expect(manifest.panels.count == 1)
+    } else {
+        Issue.record("只有面板、没有 runtime 的清单应有效")
+    }
+
+    // 有 commands 而没有 runtime 报「缺少必填字段 runtime」
+    let commandsNoRuntime = #"{"name":"Cmd","version":"1.0","commands":[{"id":"c1","title":"C1"}],"panels":[{"id":"p1","title":"P1","entry":"index.html"}]}"#
+    if case let .failure(problem) = PluginManifest.parse(data: Data(commandsNoRuntime.utf8)) {
+        #expect(problem.message == "缺少必填字段 runtime")
+    } else {
+        Issue.record("有 commands 而没有 runtime 应报错")
+    }
+
+    // 有 events / sources / filters 而没有 runtime 也报「缺少必填字段 runtime」
+    for snippet in [
+        #"{"name":"E","version":"1.0","events":["pageChanged"],"panels":[{"id":"p1","title":"P1","entry":"index.html"}]}"#,
+        #"{"name":"S","version":"1.0","sources":[{"id":"s1","name":"S1"}],"panels":[{"id":"p1","title":"P1","entry":"index.html"}]}"#,
+        #"{"name":"F","version":"1.0","filters":[{"id":"f1","name":"F1"}],"panels":[{"id":"p1","title":"P1","entry":"index.html"}]}"#,
+    ] {
+        if case let .failure(problem) = PluginManifest.parse(data: Data(snippet.utf8)) {
+            #expect(problem.message == "缺少必填字段 runtime")
+        } else {
+            Issue.record("缺少 runtime 应报错：\(snippet)")
+        }
+    }
+
+    // 既没有 runtime 也没有 panels 也报「缺少必填字段 runtime」
+    let neither = #"{"name":"Empty","version":"1.0"}"#
+    if case let .failure(problem) = PluginManifest.parse(data: Data(neither.utf8)) {
+        #expect(problem.message == "缺少必填字段 runtime")
+    } else {
+        Issue.record("既没有 runtime 也没有 panels 应报错")
+    }
+}
+
+@Test func manifestRejectsInvalidPanelsWithLocation() throws {
+    // C1.3: id 不合规、重复、title 为空、entry 为空/绝对路径/含 ..、defaultEdge 非法
+    let cases: [(label: String, json: String, expectedLine: Int)] = [
+        ("id 不合规", """
+        {
+          "name": "P",
+          "version": "1.0",
+          "panels": [
+            { "id": "Bad_ID", "title": "T", "entry": "a.html" }
+          ]
+        }
+        """, 5),
+        ("id 重复", """
+        {
+          "name": "P",
+          "version": "1.0",
+          "panels": [
+            { "id": "dup", "title": "T1", "entry": "a.html" },
+            { "id": "dup", "title": "T2", "entry": "b.html" }
+          ]
+        }
+        """, 5),
+        ("title 为空", """
+        {
+          "name": "P",
+          "version": "1.0",
+          "panels": [
+            { "id": "ok", "title": "", "entry": "a.html" }
+          ]
+        }
+        """, 5),
+        ("entry 为空", """
+        {
+          "name": "P",
+          "version": "1.0",
+          "panels": [
+            { "id": "ok", "title": "T", "entry": "" }
+          ]
+        }
+        """, 5),
+        ("entry 绝对路径", """
+        {
+          "name": "P",
+          "version": "1.0",
+          "panels": [
+            { "id": "ok", "title": "T", "entry": "/etc/passwd" }
+          ]
+        }
+        """, 5),
+        ("entry 含 .. 段", """
+        {
+          "name": "P",
+          "version": "1.0",
+          "panels": [
+            { "id": "ok", "title": "T", "entry": "web/../secret.html" }
+          ]
+        }
+        """, 5),
+        ("defaultEdge 非法", """
+        {
+          "name": "P",
+          "version": "1.0",
+          "panels": [
+            { "id": "ok", "title": "T", "entry": "a.html", "defaultEdge": "top" }
+          ]
+        }
+        """, 5),
+    ]
+    for item in cases {
+        let result = PluginManifest.parse(data: Data(item.json.utf8))
+        guard case let .failure(problem) = result else {
+            Issue.record("\(item.label) 应报错")
+            continue
+        }
+        #expect(problem.file == "manifest.json")
+        #expect(problem.line == item.expectedLine)
+        #expect((problem.column ?? 0) > 0)
+    }
+}
+
+@Test func libraryValidatesPanelEntryFileExistence() async throws {
+    // C1.4: 入口文件不存在时插件带问题、manifest 为 nil；在子文件夹里存在时有效
+    let root = try tempDir("panel-entries")
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    // 缺少入口文件的插件
+    let missingDir = root.appendingPathComponent("missing-entry")
+    try FileManager.default.createDirectory(at: missingDir, withIntermediateDirectories: true)
+    try """
+    {
+      "name": "Missing",
+      "version": "1.0",
+      "panels": [
+        { "id": "notes", "title": "笔记", "entry": "panel.html" }
+      ]
+    }
+    """.write(to: missingDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+
+    // 入口指向目录而不是普通文件
+    let dirEntryPlugin = root.appendingPathComponent("dir-entry")
+    try FileManager.default.createDirectory(at: dirEntryPlugin.appendingPathComponent("sub"), withIntermediateDirectories: true)
+    try """
+    {
+      "name": "DirEntry",
+      "version": "1.0",
+      "panels": [
+        { "id": "notes", "title": "笔记", "entry": "sub" }
+      ]
+    }
+    """.write(to: dirEntryPlugin.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+
+    // 入口文件存在于子文件夹中
+    let nestedDir = root.appendingPathComponent("nested-entry")
+    try FileManager.default.createDirectory(at: nestedDir.appendingPathComponent("web"), withIntermediateDirectories: true)
+    try """
+    {
+      "name": "Nested",
+      "version": "1.0",
+      "panels": [
+        { "id": "notes", "title": "笔记", "entry": "web/index.html" }
+      ]
+    }
+    """.write(to: nestedDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+    try "<html></html>".write(to: nestedDir.appendingPathComponent("web/index.html"), atomically: true, encoding: .utf8)
+
+    let library = PluginLibrary(directory: root)
+    #expect(await waitUntil { library.plugins().count == 3 })
+
+    let missing = try #require(library.plugins().first { $0.id == "missing-entry" })
+    #expect(missing.manifest == nil)
+    #expect(missing.problem?.file == "manifest.json")
+    #expect(missing.problem?.line == 5)
+    #expect((missing.problem?.column ?? 0) > 0)
+
+    let dirEntry = try #require(library.plugins().first { $0.id == "dir-entry" })
+    #expect(dirEntry.manifest == nil)
+    #expect(dirEntry.problem?.file == "manifest.json")
+
+    let nested = try #require(library.plugins().first { $0.id == "nested-entry" })
+    #expect(nested.problem == nil)
+    #expect(nested.manifest?.panels.first?.entry == "web/index.html")
+}

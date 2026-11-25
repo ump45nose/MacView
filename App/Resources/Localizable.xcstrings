@@ -1071,6 +1071,30 @@
         }
       }
     },
+    "panels 元素必须是对象": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each panels element must be an object"
+          }
+        }
+      }
+    },
+    "panels 必须是数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "panels must be an array"
+          }
+        }
+      }
+    },
     "parameters 元素必须是对象": {
       "comment": "Core 诊断文字，键来自 PluginManifest.swift",
       "extractionState": "manual",
@@ -2139,6 +2163,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Shrink only, don’t enlarge"
+          }
+        }
+      }
+    },
+    "仅面板": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panels only"
           }
         }
       }
@@ -5831,6 +5865,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Plugin %1$@ didn't write the output file: %2$@"
+          }
+        }
+      }
+    },
+    "插件 %@ 没有声明运行时": {
+      "comment": "Core 诊断文字，键来自 PluginHost.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin %@ does not declare a runtime"
           }
         }
       }
@@ -11283,12 +11329,120 @@
         }
       }
     },
+    "面板 %@ 的 defaultEdge 无效，只能是 left、right 或 bottom": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel %@ has an invalid defaultEdge; must be left, right, or bottom"
+          }
+        }
+      }
+    },
+    "面板 %@ 的 entry 必须是插件文件夹内的相对路径：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel %1$@ entry must be a relative path inside the plugin folder: %2$@"
+          }
+        }
+      }
+    },
+    "面板 %@ 的 symbol 必须是字符串": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel %@ symbol must be a string"
+          }
+        }
+      }
+    },
+    "面板 %@ 的入口文件不存在：%@": {
+      "comment": "Core 诊断文字，键来自 PluginLibrary.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entry file for panel %1$@ does not exist: %2$@"
+          }
+        }
+      }
+    },
+    "面板 %@ 缺少非空 entry": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel %@ is missing a non-empty entry"
+          }
+        }
+      }
+    },
+    "面板 %@ 缺少非空 title": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel %@ is missing a non-empty title"
+          }
+        }
+      }
+    },
+    "面板 id 不合规（只能包含小写字母、数字和连字符，且不能以连字符开头）：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid panel id (must contain only lowercase letters, digits, and hyphens, and cannot start with a hyphen): %@"
+          }
+        }
+      }
+    },
+    "面板 id 重复：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate panel id: %@"
+          }
+        }
+      }
+    },
     "面板与列表": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Panels & Lists"
+          }
+        }
+      }
+    },
+    "面板缺少非空 id": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel is missing a non-empty id"
           }
         }
       }

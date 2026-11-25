@@ -407,6 +407,7 @@ struct PluginsSettingsSection: View {
         let runtimeText: String = switch manifest.runtime {
         case .javascript: "JavaScript"
         case .process: String(localized: "外部程序")
+        case nil: String(localized: "仅面板")
         }
         var parts = [info.id, manifest.version, runtimeText]
         if let desc = manifest.description?.trimmingCharacters(in: .whitespacesAndNewlines), !desc.isEmpty {
@@ -466,7 +467,7 @@ struct PluginConsentSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             switch manifest.runtime {
-            case .javascript:
+            case .javascript, nil:
                 if manifest.permissions.isEmpty {
                     permissionCard(
                         symbol: "checkmark.shield",

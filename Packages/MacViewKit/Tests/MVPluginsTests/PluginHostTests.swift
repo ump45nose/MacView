@@ -164,20 +164,25 @@ private let sampleContext = ScriptCallContext(caller: "test", callerName: "Test"
     #expect(v1 == .object(["v": .number(1)]))
 
     // 修改 main.js
+    let previousSignature = library.signatures()["reload-demo"]
     try await Task.sleep(for: .milliseconds(50))
     try #"plugin.commands.ver = () => ({ v: 2 });"#
         .write(to: pluginDir.appendingPathComponent("main.js"), atomically: true, encoding: .utf8)
 
     let reloaded = await waitUntil(timeout: .seconds(3)) {
-        // 等待库签名刷新后执行一次
-        library.signatures()["reload-demo"] != nil
+        // 等待库签名刷新后再等待宿主热重载
+        library.signatures()["reload-demo"] != previousSignature
     }
     #expect(reloaded)
-    // 等待防抖与 host 热重载生效
+    // 等待防抖与 host 热重载生效（旧连接被热重载终止时在途请求可能返回 .cancelled）
     var gotV2 = false
     for _ in 0..<30 {
-        let v = try await host.runCommand(plugin: "reload-demo", command: "ver", arguments: nil, context: sampleContext)
-        if v == .object(["v": .number(2)]) { gotV2 = true; break }
+        do {
+            let v = try await host.runCommand(plugin: "reload-demo", command: "ver", arguments: nil, context: sampleContext)
+            if v == .object(["v": .number(2)]) { gotV2 = true; break }
+        } catch PluginError.cancelled {
+            // 热重载刚好切掉旧连接，继续重试
+        }
         try await Task.sleep(for: .milliseconds(100))
     }
     #expect(gotV2)
@@ -399,4 +404,205 @@ private let sampleContext = ScriptCallContext(caller: "test", callerName: "Test"
     host.stop("slow-js")
     let elapsed = ContinuousClock.now - start
     #expect(elapsed < .milliseconds(50))
+}
+
+@Test func panelOnlyPluginIsReadyWithoutCreatingAnyConnection() async throws {
+    // C1.5: 只有面板的插件启用并同意后状态为 .ready，enabledPlugins() 含它，不创建任何连接
+    let env = try makeHostEnv("panel-only")
+    defer { try? FileManager.default.removeItem(at: env.root) }
+
+    let pluginDir = env.pluginsDir.appendingPathComponent("page-notes")
+    try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+    try """
+    {
+      "name": "页面笔记",
+      "version": "1.0.0",
+      "permissions": ["commands"],
+      "panels": [
+        { "id": "notes", "title": "页面笔记", "entry": "panel.html", "symbol": "note.text", "defaultEdge": "right" }
+      ]
+    }
+    """.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+    try "<html></html>".write(to: pluginDir.appendingPathComponent("panel.html"), atomically: true, encoding: .utf8)
+
+    try await env.settings.update {
+        $0.plugins["page-notes"] = PluginState(enabled: true, grantedPermissions: [.commands])
+    }
+    let library = PluginLibrary(directory: env.pluginsDir)
+    #expect(await waitUntil { library.plugins().contains { $0.id == "page-notes" && $0.manifest != nil } })
+
+    let host = PluginHost(library: library, settings: env.settings, secrets: env.secrets, log: env.log)
+    defer { host.shutdown() }
+    let apiHost = StubAPIHost { _, _, _, _ in .object(["ok": .bool(true)]) }
+    host.setAPIHost(apiHost)
+
+    #expect(host.statuses()["page-notes"] == .ready)
+    #expect(host.enabledPlugins().map(\.id) == ["page-notes"])
+    #expect(host.createdConnectionCount == 0)
+
+    let session = SessionID()
+    let ctx = ScriptCallContext(caller: "ignored", callerName: "Ignored", session: session, selection: ["/a.jpg"])
+    _ = try await host.panelCall(plugin: "page-notes", method: .page, params: [], context: ctx)
+    #expect(host.statuses()["page-notes"] == .ready)
+    #expect(host.createdConnectionCount == 0)
+}
+
+@Test func panelCallChecksStatePermissionsContextAndLogsErrors() async throws {
+    // C1.6 & C1.6b
+    let env = try makeHostEnv("panel-call")
+    defer { try? FileManager.default.removeItem(at: env.root) }
+
+    // 1. 有效、无 commands 权限的仅面板插件
+    let noCmdDir = env.pluginsDir.appendingPathComponent("notes-ro")
+    try FileManager.default.createDirectory(at: noCmdDir, withIntermediateDirectories: true)
+    try """
+    {
+      "name": "只读笔记",
+      "version": "1.0",
+      "permissions": [],
+      "panels": [{ "id": "notes", "title": "笔记", "entry": "panel.html" }]
+    }
+    """.write(to: noCmdDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+    try "<html></html>".write(to: noCmdDir.appendingPathComponent("panel.html"), atomically: true, encoding: .utf8)
+
+    // 2. 需要 commands 权限的插件（用于测试未启用、未同意、已同意）
+    let withCmdDir = env.pluginsDir.appendingPathComponent("notes-rw")
+    try FileManager.default.createDirectory(at: withCmdDir, withIntermediateDirectories: true)
+    try """
+    {
+      "name": "读写笔记",
+      "version": "1.0",
+      "permissions": ["commands"],
+      "panels": [{ "id": "notes", "title": "笔记", "entry": "panel.html" }]
+    }
+    """.write(to: withCmdDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+    try "<html></html>".write(to: withCmdDir.appendingPathComponent("panel.html"), atomically: true, encoding: .utf8)
+
+    // 3. 有问题的插件（缺少入口文件）
+    let invalidDir = env.pluginsDir.appendingPathComponent("broken-panel")
+    try FileManager.default.createDirectory(at: invalidDir, withIntermediateDirectories: true)
+    try """
+    {
+      "name": "坏面板",
+      "version": "1.0",
+      "panels": [{ "id": "notes", "title": "笔记", "entry": "missing.html" }]
+    }
+    """.write(to: invalidDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+
+    try await env.settings.update {
+        $0.plugins["notes-ro"] = PluginState(enabled: true, grantedPermissions: [])
+        $0.plugins["notes-rw"] = PluginState(enabled: false, grantedPermissions: [])
+    }
+
+    let library = PluginLibrary(directory: env.pluginsDir)
+    #expect(await waitUntil { library.plugins().count == 3 })
+
+    let host = PluginHost(library: library, settings: env.settings, secrets: env.secrets, log: env.log)
+    defer { host.shutdown() }
+
+    let shouldThrow = Mutex(false)
+    let apiHost = StubAPIHost { _, method, params, _ in
+        if shouldThrow.withLock({ $0 }) {
+            throw PluginError.runtimeError("宿主拒绝执行")
+        }
+        return .object(["method": .string(method.rawValue), "count": .number(Double(params.count))])
+    }
+    host.setAPIHost(apiHost)
+
+    let session = SessionID()
+    let selection = ["/books/1.jpg", "/books/2.jpg"]
+    let callerContext = ScriptCallContext(caller: "web", callerName: "Web", session: session, selection: selection)
+
+    func expectFailure(
+        plugin: String,
+        method: ScriptAPI.Method,
+        params: [JSONValue] = [],
+        expectedSource: String,
+        checkError: (PluginError) -> Bool
+    ) async {
+        let beforeCount = env.log.entries().count
+        do {
+            _ = try await host.panelCall(plugin: plugin, method: method, params: params, context: callerContext)
+            Issue.record("预期 panelCall(\(plugin), \(method)) 失败")
+        } catch let error as PluginError {
+            #expect(checkError(error))
+            let entries = env.log.entries()
+            #expect(entries.count == beforeCount + 1)
+            #expect(entries.last?.level == .error)
+            #expect(entries.last?.source == expectedSource)
+            #expect(entries.last?.text == error.localizedDescription)
+        } catch {
+            Issue.record("预期 PluginError，实际：\(error)")
+        }
+    }
+
+    // 插件不存在 -> notFound
+    await expectFailure(plugin: "nope", method: .book, expectedSource: "nope") {
+        $0 == .notFound("nope")
+    }
+
+    // 有问题 -> invalid
+    await expectFailure(plugin: "broken-panel", method: .book, expectedSource: "broken-panel") {
+        if case .invalid = $0 { return true }
+        return false
+    }
+
+    // 未启用 -> disabled（来源为插件名）
+    await expectFailure(plugin: "notes-rw", method: .book, expectedSource: "读写笔记") {
+        $0 == .disabled("notes-rw")
+    }
+
+    // 启用但权限未同意 -> needsConsent
+    try await env.settings.update {
+        $0.plugins["notes-rw"] = PluginState(enabled: true, grantedPermissions: [])
+    }
+    await expectFailure(plugin: "notes-rw", method: .book, expectedSource: "读写笔记") {
+        $0 == .needsConsent("notes-rw")
+    }
+
+    // 没有 commands 权限调 command -> missingPermission
+    await expectFailure(plugin: "notes-ro", method: .command, params: [.string("page.next")], expectedSource: "只读笔记") {
+        $0 == .missingPermission(plugin: "notes-ro", permission: .commands)
+    }
+    #expect(apiHost.calls.withLock { $0.isEmpty })
+
+    // 没有 commands 权限调其他方法照常成功，且不写日志
+    let logCountBeforeSuccess = env.log.entries().count
+    let pageResult = try await host.panelCall(
+        plugin: "notes-ro",
+        method: .page,
+        params: [.number(3)],
+        context: callerContext
+    )
+    #expect(pageResult == .object(["method": .string("page"), "count": .number(1)]))
+    #expect(env.log.entries().count == logCountBeforeSuccess)
+
+    let recorded = try #require(apiHost.calls.withLock { $0.last })
+    #expect(recorded.plugin == "notes-ro")
+    #expect(recorded.method == .page)
+    #expect(recorded.params == [.number(3)])
+    #expect(recorded.context.caller == "plugin:notes-ro")
+    #expect(recorded.context.callerName == "只读笔记")
+    #expect(recorded.context.session == session)
+    #expect(recorded.context.selection == selection)
+
+    // 同意 commands 权限后可调 command，且不写日志
+    try await env.settings.update {
+        $0.plugins["notes-rw"] = PluginState(enabled: true, grantedPermissions: [.commands])
+    }
+    let cmdResult = try await host.panelCall(
+        plugin: "notes-rw",
+        method: .command,
+        params: [.string("page.next")],
+        context: callerContext
+    )
+    #expect(cmdResult == .object(["method": .string("command"), "count": .number(1)]))
+    #expect(env.log.entries().count == logCountBeforeSuccess)
+
+    // 替身抛错 -> 记一条错误，来源为插件名，文本为本地化原因
+    shouldThrow.withLock { $0 = true }
+    await expectFailure(plugin: "notes-rw", method: .book, expectedSource: "读写笔记") {
+        $0 == .runtimeError("宿主拒绝执行")
+    }
+    #expect(host.createdConnectionCount == 0)
 }

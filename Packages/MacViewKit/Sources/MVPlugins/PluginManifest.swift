@@ -149,6 +149,32 @@ public struct PluginFilterDeclaration: Sendable, Hashable, Codable, Identifiable
     }
 }
 
+public enum DockEdgeName: String, Sendable, Hashable, Codable {
+    case left, right, bottom
+}
+
+public struct PluginPanelDeclaration: Sendable, Hashable, Codable, Identifiable {
+    public var id: String
+    public var title: String
+    public var entry: String
+    public var symbol: String?
+    public var defaultEdge: DockEdgeName?
+
+    public init(
+        id: String,
+        title: String,
+        entry: String,
+        symbol: String? = nil,
+        defaultEdge: DockEdgeName? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.entry = entry
+        self.symbol = symbol
+        self.defaultEdge = defaultEdge
+    }
+}
+
 public struct PluginProblem: Sendable, Hashable, Error, LocalizedError {
     public var file: String
     public var line: Int?
@@ -177,23 +203,25 @@ public struct PluginManifest: Sendable, Hashable, Codable {
     public var name: String
     public var version: String
     public var description: String?
-    public var runtime: PluginRuntimeKind
+    public var runtime: PluginRuntimeKind?
     public var permissions: [PluginPermission]
     public var commands: [PluginCommandDeclaration]
     public var events: [ScriptEventName]
     public var sources: [PluginSourceDeclaration]
     public var filters: [PluginFilterDeclaration]
+    public var panels: [PluginPanelDeclaration]
 
     public init(
         name: String,
         version: String,
         description: String? = nil,
-        runtime: PluginRuntimeKind,
+        runtime: PluginRuntimeKind? = nil,
         permissions: [PluginPermission] = [],
         commands: [PluginCommandDeclaration] = [],
         events: [ScriptEventName] = [],
         sources: [PluginSourceDeclaration] = [],
-        filters: [PluginFilterDeclaration] = []
+        filters: [PluginFilterDeclaration] = [],
+        panels: [PluginPanelDeclaration] = []
     ) {
         self.name = name
         self.version = version
@@ -204,6 +232,7 @@ public struct PluginManifest: Sendable, Hashable, Codable {
         self.events = events
         self.sources = sources
         self.filters = filters
+        self.panels = panels
     }
 
     /// 校验文件夹名是否满足 `[a-z0-9][a-z0-9-]*`。
@@ -252,43 +281,46 @@ public struct PluginManifest: Sendable, Hashable, Codable {
             description = nil
         }
 
-        // runtime
-        guard let rawRuntime = root["runtime"] as? [String: Any] else {
-            let msg: String.LocalizationValue = root["runtime"] == nil ? "缺少必填字段 runtime" : "runtime 必须是对象"
-            return .failure(problem(msg, key: "runtime"))
-        }
-        let hasJS = rawRuntime["js"] != nil && !(rawRuntime["js"] is NSNull)
-        let hasProcess = rawRuntime["process"] != nil && !(rawRuntime["process"] is NSNull)
-        guard hasJS != hasProcess else {
-            return .failure(problem("runtime 必须且只能声明 js 或 process 之一", key: "runtime"))
-        }
-        let runtime: PluginRuntimeKind
-        if hasJS {
-            guard let entry = rawRuntime["js"] as? String, !entry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                return .failure(problem("runtime.js 必须是非空字符串", key: "js"))
+        // runtime（声明 panels 且无 commands/events/sources/filters 时可省）
+        let runtime: PluginRuntimeKind?
+        if let rawValue = root["runtime"], !(rawValue is NSNull) {
+            guard let rawRuntime = rawValue as? [String: Any] else {
+                return .failure(problem("runtime 必须是对象", key: "runtime"))
             }
-            runtime = .javascript(entry: entry)
-        } else {
-            guard let proc = rawRuntime["process"] as? [String: Any] else {
-                return .failure(problem("runtime.process 必须是对象", key: "process"))
+            let hasJS = rawRuntime["js"] != nil && !(rawRuntime["js"] is NSNull)
+            let hasProcess = rawRuntime["process"] != nil && !(rawRuntime["process"] is NSNull)
+            guard hasJS != hasProcess else {
+                return .failure(problem("runtime 必须且只能声明 js 或 process 之一", key: "runtime"))
             }
-            guard let command = proc["command"] as? String, !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                let msg: String.LocalizationValue = proc["command"] == nil ? "缺少必填字段 runtime.process.command" : "runtime.process.command 必须是非空字符串"
-                return .failure(problem(msg, key: "command"))
-            }
-            var arguments: [String] = []
-            if let rawArgs = proc["args"], !(rawArgs is NSNull) {
-                guard let arr = rawArgs as? [Any] else {
-                    return .failure(problem("runtime.process.args 必须是字符串数组", key: "args"))
+            if hasJS {
+                guard let entry = rawRuntime["js"] as? String, !entry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    return .failure(problem("runtime.js 必须是非空字符串", key: "js"))
                 }
-                for item in arr {
-                    guard let s = item as? String else {
-                        return .failure(problem("runtime.process.args 的元素必须是字符串", key: "args"))
+                runtime = .javascript(entry: entry)
+            } else {
+                guard let proc = rawRuntime["process"] as? [String: Any] else {
+                    return .failure(problem("runtime.process 必须是对象", key: "process"))
+                }
+                guard let command = proc["command"] as? String, !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    let msg: String.LocalizationValue = proc["command"] == nil ? "缺少必填字段 runtime.process.command" : "runtime.process.command 必须是非空字符串"
+                    return .failure(problem(msg, key: "command"))
+                }
+                var arguments: [String] = []
+                if let rawArgs = proc["args"], !(rawArgs is NSNull) {
+                    guard let arr = rawArgs as? [Any] else {
+                        return .failure(problem("runtime.process.args 必须是字符串数组", key: "args"))
                     }
-                    arguments.append(s)
+                    for item in arr {
+                        guard let s = item as? String else {
+                            return .failure(problem("runtime.process.args 的元素必须是字符串", key: "args"))
+                        }
+                        arguments.append(s)
+                    }
                 }
+                runtime = .process(command: command, arguments: arguments)
             }
-            runtime = .process(command: command, arguments: arguments)
+        } else {
+            runtime = nil
         }
 
         // permissions
@@ -406,7 +438,7 @@ public struct PluginManifest: Sendable, Hashable, Codable {
             guard let arr = rawFilters as? [Any] else {
                 return .failure(problem("filters 必须是数组", key: "filters"))
             }
-            if !arr.isEmpty, case .javascript = runtime {
+            if !arr.isEmpty, case .javascript? = runtime {
                 return .failure(problem("JS 插件不支持声明 filters，只有外部程序插件可以提供滤镜", key: "filters"))
             }
             var seenIDs: Set<String> = []
@@ -492,6 +524,60 @@ public struct PluginManifest: Sendable, Hashable, Codable {
             }
         }
 
+        // panels
+        var panels: [PluginPanelDeclaration] = []
+        if let rawPanels = root["panels"], !(rawPanels is NSNull) {
+            guard let arr = rawPanels as? [Any] else {
+                return .failure(problem("panels 必须是数组", key: "panels"))
+            }
+            var seenIDs: Set<String> = []
+            for item in arr {
+                guard let dict = item as? [String: Any] else {
+                    return .failure(problem("panels 元素必须是对象", key: "panels"))
+                }
+                guard let id = dict["id"] as? String, !id.isEmpty else {
+                    return .failure(problem("面板缺少非空 id", key: "panels"))
+                }
+                guard isValidPluginID(id) else {
+                    return .failure(problem("面板 id 不合规（只能包含小写字母、数字和连字符，且不能以连字符开头）：\(id)", key: "panels", valueToken: id))
+                }
+                guard seenIDs.insert(id).inserted else {
+                    return .failure(problem("面板 id 重复：\(id)", key: "panels", valueToken: id))
+                }
+                guard let title = dict["title"] as? String, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    return .failure(problem("面板 \(id) 缺少非空 title", key: "title", valueToken: id))
+                }
+                guard let entry = dict["entry"] as? String, !entry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    return .failure(problem("面板 \(id) 缺少非空 entry", key: "entry", valueToken: id))
+                }
+                if entry.hasPrefix("/") || entry.split(separator: "/").contains("..") {
+                    return .failure(problem("面板 \(id) 的 entry 必须是插件文件夹内的相对路径：\(entry)", key: "entry", valueToken: entry))
+                }
+                var symbol: String?
+                if let rawSymbol = dict["symbol"], !(rawSymbol is NSNull) {
+                    guard let s = rawSymbol as? String else {
+                        return .failure(problem("面板 \(id) 的 symbol 必须是字符串", key: "symbol", valueToken: id))
+                    }
+                    let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                    symbol = trimmed.isEmpty ? nil : trimmed
+                }
+                var defaultEdge: DockEdgeName?
+                if let rawEdge = dict["defaultEdge"], !(rawEdge is NSNull) {
+                    guard let s = rawEdge as? String, let edge = DockEdgeName(rawValue: s) else {
+                        return .failure(problem("面板 \(id) 的 defaultEdge 无效，只能是 left、right 或 bottom", key: "defaultEdge", valueToken: rawEdge as? String ?? id))
+                    }
+                    defaultEdge = edge
+                }
+                panels.append(PluginPanelDeclaration(id: id, title: title, entry: entry, symbol: symbol, defaultEdge: defaultEdge))
+            }
+        }
+
+        if runtime == nil {
+            if !commands.isEmpty || !events.isEmpty || !sources.isEmpty || !filters.isEmpty || panels.isEmpty {
+                return .failure(problem("缺少必填字段 runtime", key: "runtime"))
+            }
+        }
+
         return .success(PluginManifest(
             name: name,
             version: version,
@@ -501,7 +587,8 @@ public struct PluginManifest: Sendable, Hashable, Codable {
             commands: commands,
             events: events,
             sources: sources,
-            filters: filters
+            filters: filters,
+            panels: panels
         ))
     }
 
@@ -545,7 +632,7 @@ public struct PluginManifest: Sendable, Hashable, Codable {
         return PluginProblem(file: file, line: line, column: column, message: detail)
     }
 
-    private static func locate(key: String?, valueToken: String?, in text: String) -> (line: Int, column: Int) {
+    static func locate(key: String?, valueToken: String?, in text: String) -> (line: Int, column: Int) {
         if let valueToken, let range = text.range(of: "\"\(valueToken)\"") {
             return lineColumn(at: range.lowerBound, in: text)
         }

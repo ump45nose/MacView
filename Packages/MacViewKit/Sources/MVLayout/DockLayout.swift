@@ -12,6 +12,11 @@ public struct PanelID: RawRepresentable, Hashable, Codable, Sendable, CodingKeyR
     public init(_ rawValue: String) {
         self.rawValue = rawValue
     }
+
+    /// rawValue 以 "plugin." 开头。
+    public var isPluginPanel: Bool {
+        rawValue.hasPrefix("plugin.")
+    }
 }
 
 public enum DockEdge: String, Codable, Sendable, CaseIterable {
@@ -332,12 +337,12 @@ public struct DockLayout: Codable, Sendable, Hashable {
         return next
     }
 
-    /// 整理从文件读入的布局：去掉未登记的面板；同一面板出现多次时只保留第一次（左、右、底、浮动的顺序）。
+    /// 整理从文件读入的布局：去掉未登记的非插件面板（`plugin.` 前缀面板视同已知）；同一面板出现多次时只保留第一次（左、右、底、浮动的顺序）。
     public func sanitized(knownPanels: Set<PanelID>) -> DockLayout {
         var next = self
         var seen: Set<PanelID> = []
         func keep(_ panel: PanelID) -> Bool {
-            knownPanels.contains(panel) && seen.insert(panel).inserted
+            (knownPanels.contains(panel) || panel.isPluginPanel) && seen.insert(panel).inserted
         }
         for edge in DockEdge.allCases {
             next[edge].panels = self[edge].panels.filter(keep)
@@ -348,6 +353,64 @@ public struct DockLayout: Codable, Sendable, Hashable {
         let docked = Set(DockEdge.allCases.flatMap { next[$0].panels })
         next.hidden = hidden.intersection(docked)
         next.settings = settings.filter { docked.contains($0.key) }
+        return next
+    }
+
+    /// 显示布局：去掉不在 `available` 里的面板（停靠、浮动、隐藏集合、权重、选中都按剩下的算；选中项不可用时为 nil，由现有规则回退到第一个可见面板）。
+    public func displayed(available: Set<PanelID>) -> DockLayout {
+        var next = self
+        for edge in DockEdge.allCases {
+            next[edge].panels = self[edge].panels.filter { available.contains($0) }
+            next[edge].weights = self[edge].weights.filter { next[edge].panels.contains($0.key) }
+            if let selected = next[edge].selected, !next[edge].panels.contains(selected) { next[edge].selected = nil }
+        }
+        next.floating = floating.filter { available.contains($0.panel) }
+        let docked = Set(DockEdge.allCases.flatMap { next[$0].panels })
+        next.hidden = hidden.intersection(docked)
+        next.settings = settings.filter { docked.contains($0.key) }
+        return next
+    }
+
+    /// 把 `saved` 里不在 `available` 中的面板并回 `self`（`self` 是用户操作后的显示布局）：
+    /// 停靠的按它在 `saved` 同区里的原序号插回（超出末尾放末尾）并带回权重；浮动的原样带回；隐藏集合、视图设置带回；
+    /// `saved` 中该区选中的是不可用面板、且 `self` 的选中项仍是显示布局回退出来的那一个时，保留 `saved` 的选中。
+    public func merging(unavailableFrom saved: DockLayout, available: Set<PanelID>) -> DockLayout {
+        var next = self
+        let savedDisplayed = saved.displayed(available: available)
+
+        for edge in DockEdge.allCases {
+            var area = next[edge]
+            for (index, panel) in saved[edge].panels.enumerated() where !available.contains(panel) {
+                guard next.placement(of: panel) == nil && !area.panels.contains(panel) else { continue }
+                let targetIndex = min(index, area.panels.count)
+                area.panels.insert(panel, at: targetIndex)
+                if let weight = saved[edge].weights[panel] {
+                    area.weights[panel] = weight
+                }
+                if saved.hidden.contains(panel) {
+                    next.hidden.insert(panel)
+                }
+                if let panelSettings = saved.settings[panel] {
+                    next.settings[panel] = panelSettings
+                }
+            }
+            if let savedSelected = saved[edge].selected,
+               !available.contains(savedSelected),
+               area.panels.contains(savedSelected) {
+                let currentSelected = self[edge].selected
+                let selfFallback = self.visiblePanels(in: edge).first
+                let savedFallback = savedDisplayed.currentTab(in: edge)
+                if currentSelected == nil || currentSelected == selfFallback || currentSelected == savedFallback {
+                    area.selected = savedSelected
+                }
+            }
+            next[edge] = area
+        }
+
+        for item in saved.floating where !available.contains(item.panel) {
+            guard next.placement(of: item.panel) == nil else { continue }
+            next.floating.append(item)
+        }
         return next
     }
 

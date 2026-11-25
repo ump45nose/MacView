@@ -20,6 +20,7 @@ public final class PluginHost: Sendable {
     private struct State {
         var apiHost: (any PluginAPIHost)?
         var connections: [String: any PluginConnection] = [:]
+        var createdConnectionCount = 0
         var inFlight: [String: Int] = [:]
         var runningSince: [String: Date] = [:]
         var failures: [String: String] = [:]
@@ -108,6 +109,34 @@ public final class PluginHost: Sendable {
 
     public func hasSubscribers(for event: ScriptEventName) -> Bool {
         enabledPlugins().contains { $0.manifest?.events.contains(event) == true }
+    }
+
+    /// 面板调用应用 API 的唯一入口。检查插件存在、有效、已启用、权限已同意；
+    /// `method == .command` 时要求 `.commands` 权限。通过后交给 `PluginAPIHost`，`context.caller` 固定为 `"plugin:<id>"`，
+    /// `context.callerName` 为插件名，`session` 与 `selection` 保持调用方给的值。
+    public func panelCall(
+        plugin: String,
+        method: ScriptAPI.Method,
+        params: [JSONValue],
+        context: ScriptCallContext
+    ) async throws -> JSONValue {
+        let (sourceName, lookup) = lookupEnabledPlugin(plugin)
+        do {
+            let (_, manifest) = try lookup.get()
+            if method == .command && !manifest.permissions.contains(.commands) {
+                throw PluginError.missingPermission(plugin: plugin, permission: .commands)
+            }
+            guard let host = state.withLock({ $0.apiHost }) else {
+                throw PluginError.runtimeError(String(localized: "插件宿主 API 不可用", bundle: .main))
+            }
+            var callContext = context
+            callContext.caller = "plugin:\(plugin)"
+            callContext.callerName = manifest.name
+            return try await host.call(plugin: plugin, method: method, params: params, context: callContext)
+        } catch {
+            log.append(source: sourceName, level: .error, text: error.localizedDescription)
+            throw error
+        }
     }
 
     public func runCommand(
@@ -290,31 +319,43 @@ public final class PluginHost: Sendable {
         }
     }
 
-    private func requireEnabledPlugin(_ id: String) throws -> PluginInfo {
+    var createdConnectionCount: Int {
+        state.withLock { $0.createdConnectionCount }
+    }
+
+    private func lookupEnabledPlugin(_ id: String) -> (sourceName: String, result: Result<(info: PluginInfo, manifest: PluginManifest), PluginError>) {
         guard let info = library.plugins().first(where: { $0.id == id }) else {
-            throw PluginError.notFound(id)
+            return (id, .failure(.notFound(id)))
         }
+        let name = info.manifest?.name ?? info.id
         if let problem = info.problem {
-            throw PluginError.invalid(problem)
+            return (name, .failure(.invalid(problem)))
         }
         guard let manifest = info.manifest else {
-            throw PluginError.invalid(PluginProblem(file: "manifest.json", message: String(localized: "清单无效", bundle: .main)))
+            return (name, .failure(.invalid(PluginProblem(file: "manifest.json", message: String(localized: "清单无效", bundle: .main)))))
         }
         guard let pluginState = settings.value().plugins[id], pluginState.enabled else {
-            throw PluginError.disabled(id)
+            return (name, .failure(.disabled(id)))
         }
         guard Set(manifest.permissions).isSubset(of: Set(pluginState.grantedPermissions)) else {
-            throw PluginError.needsConsent(id)
+            return (name, .failure(.needsConsent(id)))
         }
-        return info
+        return (name, .success((info, manifest)))
+    }
+
+    private func requireEnabledPlugin(_ id: String) throws -> PluginInfo {
+        try lookupEnabledPlugin(id).result.get().info
     }
 
     private func getOrCreateConnection(for info: PluginInfo, manifest: PluginManifest) throws -> any PluginConnection {
+        guard let runtime = manifest.runtime else {
+            throw PluginError.runtimeError(String(localized: "插件 \(info.id) 没有声明运行时", bundle: .main))
+        }
         if let existing = state.withLock({ $0.connections[info.id] }), !existing.isClosed {
             return existing
         }
         let created: any PluginConnection
-        switch manifest.runtime {
+        switch runtime {
         case .javascript(let entry):
             created = JSPluginConnection(
                 info: info,
@@ -348,6 +389,7 @@ public final class PluginHost: Sendable {
                 return created // 已有并发创建的活跃连接，释放刚建的
             }
             state.connections[info.id] = created
+            state.createdConnectionCount += 1
             return nil
         }
         if let toDrop {
@@ -397,7 +439,7 @@ public final class PluginHost: Sendable {
             var dropped: [any PluginConnection] = []
             for (id, conn) in state.connections {
                 let sigChanged = newSignatures.map { state.lastSignatures[id] != $0[id] } ?? false
-                let runnable = pluginMap[id].map { Self.isRunnable($0, states: settingsMap) } ?? false
+                let runnable = pluginMap[id].map { Self.isRunnable($0, states: settingsMap) && $0.manifest?.runtime != nil } ?? false
                 if sigChanged || !runnable {
                     dropped.append(conn)
                     state.connections.removeValue(forKey: id)

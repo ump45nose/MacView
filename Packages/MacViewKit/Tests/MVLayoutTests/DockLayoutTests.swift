@@ -241,3 +241,94 @@ private func panels(_ layout: DockLayout) -> [[String]] {
     #expect(clean.hidden == [b])
     #expect(clean.settings.keys.sorted { $0.rawValue < $1.rawValue } == [a, c])
 }
+
+@Test func sanitizingPreservesPluginPanelsAndDropsDuplicates() {
+    // C1.7: 停靠（含隐藏、选中、权重、视图设置）和浮动的 plugin.x.y 面板在 knownPanels 不含它时原样保留；
+    // 未知的非插件面板照旧去掉；重复的插件面板只留第一个。
+    let pDocked = PanelID("plugin.x.y")
+    let pHidden = PanelID("plugin.x.hidden")
+    let pFloat = PanelID("plugin.z.float")
+    let unknown = PanelID("unknown")
+
+    #expect(pDocked.isPluginPanel)
+    #expect(!a.isPluginPanel)
+
+    var layout = sample()
+    layout.left.panels = [a, pHidden, unknown]
+    layout.right.panels = [c, pDocked, pDocked]
+    layout.right.weights = [c: 1, pDocked: 2.5, unknown: 3]
+    layout.right.selected = pDocked
+    layout.floating = [
+        FloatingPanel(panel: pDocked, frame: frame, home: .right), // 与右区重复，应去掉
+        FloatingPanel(panel: pFloat, frame: frame, home: .bottom, isHidden: true, settings: .string("f-set")),
+        FloatingPanel(panel: unknown, frame: frame, home: .left),
+    ]
+    layout.hidden = [pHidden, unknown]
+    layout.settings = [a: .string("a-settings"), pDocked: .number(9), pHidden: .bool(true), unknown: .null]
+
+    let clean = layout.sanitized(knownPanels: [a, b, c, d])
+    #expect(panels(clean) == [["a", "plugin.x.hidden"], ["c", "plugin.x.y"], [], ["plugin.z.float"]])
+    #expect(clean.right.weights == [c: 1, pDocked: 2.5])
+    #expect(clean.right.selected == pDocked)
+    #expect(clean.hidden == [pHidden])
+    #expect(clean.settings == [a: .string("a-settings"), pDocked: .number(9), pHidden: .bool(true)])
+    #expect(clean.floating == [FloatingPanel(panel: pFloat, frame: frame, home: .bottom, isHidden: true, settings: .string("f-set"))])
+}
+
+@Test func displayedAndMergingPreserveUnavailablePluginPanelPositionSelectionAndState() {
+    // C1.7b: 右区 [pageList, plugin.a.x(选中), info]，plugin.a.x 不可用：
+    // 显示布局为 [pageList, info]、选中回退到 pageList；
+    // 在显示布局上把 info 拖到最前再并回，按原序号插回得到 [info, plugin.a.x, pageList]，选中仍为 plugin.a.x；
+    // plugin.a.x 恢复可用后显示布局里它回到该位置且为选中。
+    // 浮动与隐藏的不可用插件面板并回后原样保留。
+    let pageList = PanelID("pageList")
+    let info = PanelID("info")
+    let bookshelf = PanelID("bookshelf")
+    let pluginAX = PanelID("plugin.a.x")
+    let pluginHidden = PanelID("plugin.b.hidden")
+    let pluginFloat = PanelID("plugin.c.float")
+    let floatingItem = FloatingPanel(panel: pluginFloat, frame: frame, home: .bottom, isHidden: false, settings: .string("float-state"))
+
+    let saved = DockLayout(
+        left: DockArea(panels: [bookshelf, pluginHidden], selected: bookshelf, weights: [bookshelf: 1, pluginHidden: 1.5], size: 240),
+        right: DockArea(panels: [pageList, pluginAX, info], selected: pluginAX, weights: [pageList: 1, pluginAX: 2, info: 1], size: 260),
+        bottom: DockArea(size: 180),
+        floating: [floatingItem],
+        hidden: [pluginHidden],
+        settings: [pluginAX: .string("ax-view"), pluginHidden: .bool(true)]
+    )
+
+    let availableWithoutPlugins: Set<PanelID> = [bookshelf, pageList, info]
+    let displayed = saved.displayed(available: availableWithoutPlugins)
+    #expect(displayed.right.panels == [pageList, info])
+    #expect(displayed.right.selected == nil)
+    #expect(displayed.currentTab(in: .right) == pageList)
+    #expect(displayed.right.weights == [pageList: 1, info: 1])
+    #expect(displayed.left.panels == [bookshelf])
+    #expect(displayed.floating.isEmpty)
+    #expect(displayed.hidden.isEmpty)
+    #expect(displayed.settings.isEmpty)
+
+    // 在显示布局上把 info 拖到最前再并回（moving 会清掉被拖面板的旧权重，pluginAX 的权重应从 saved 带回）
+    let dragged = displayed.moving(info, to: .area(.right, index: 0))
+    let merged = dragged.merging(unavailableFrom: saved, available: availableWithoutPlugins)
+    #expect(merged.right.panels == [info, pluginAX, pageList])
+    #expect(merged.right.selected == pluginAX)
+    #expect(merged.right.weights == [pageList: 1, pluginAX: 2])
+    #expect(merged.left.panels == [bookshelf, pluginHidden])
+    #expect(merged.left.weights == [bookshelf: 1, pluginHidden: 1.5])
+    #expect(merged.hidden == [pluginHidden])
+    #expect(merged.settings == [pluginAX: .string("ax-view"), pluginHidden: .bool(true)])
+    #expect(merged.floating == [floatingItem])
+
+    // plugin.a.x 恢复可用后显示布局里它回到该位置且为选中
+    let restored = merged.displayed(available: [bookshelf, pageList, info, pluginAX])
+    #expect(restored.right.panels == [info, pluginAX, pageList])
+    #expect(restored.right.selected == pluginAX)
+    #expect(restored.currentTab(in: .right) == pluginAX)
+
+    // 若用户显式切到非回退标签（info），并回时尊重用户选中
+    let switched = displayed.selecting(info)
+    let mergedAfterSwitch = switched.merging(unavailableFrom: saved, available: availableWithoutPlugins)
+    #expect(mergedAfterSwitch.right.selected == info)
+}

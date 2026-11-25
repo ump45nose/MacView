@@ -382,7 +382,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 
 - 数据源插件（S5-T2 阶段 1 已实现 Core）：`PluginSourceProvider` 以 `ContainerProvider` 注册到 `SourceRegistry`，处理 `.plugin(id: "source/<UUID>")` 的单层非压缩包位置；组合根先登记 `ArchiveProvider`（单层读取按根分派到插件来源或文件系统）再登记 `PluginSourceProvider`，使远端目录中的 zip/tar 与本地同样可浏览，视频走 `ByteSourceAsset`；直链下载经 `HTTPByteSource`（每来源 4 并发、按 `IOPriority` 排序，200 回退存入共享 `ExtractStore`），冷启动直开某页自动回填父目录。来源密码单独存在 `plugin-secrets.json`（权限 0600），不进 `plugins.json`。
 - 插件宿主与脚本命令（S5-T2 阶段 1 已实现 Core）：`MVPlugins` 扫描监视 `Plugins/<id>/manifest.json`，提供 JS（专用线程常驻 `JSContext`，复用 `MVScripting.JSBridge`，权限检查 `network`/`commands` 在模块内完成）与外部程序（独立进程组 stdio 按行 JSON-RPC 2.0，按需启动、闲置 5 分钟退出、崩溃自动重启）两种运行时；默认文件菜单新增 `DynamicMenuID.sources`（「打开来源」），应用侧接线在后续 App 阶段完成。
-- HTML/JS 面板是一种面板类型（S5-F1）。
+- HTML/JS 面板（S5-F1 阶段 1 已实现 Core）：清单新增 `panels` 声明（`PluginPanelDeclaration` / `DockEdgeName`），只有面板的插件可省略 `runtime` 且不建运行时连接；`PluginHost.panelCall` 为面板调用应用 API 的唯一入口（校验启用、同意与 `commands` 权限，拒绝或失败写入 `PluginHost.log`）；`MVLayout` 的 `DockLayout.sanitized` 保留 `plugin.` 前缀面板，`displayed(available:)` 与 `merging(unavailableFrom:available:)` 分离显示布局与保存布局。App 侧网页面板宿主在阶段 2 完成。
 - 显示配置（S4-T1 已实现）：`DisplayProfile` 存进 `profiles.json`，按所选组保存 `BookSettings` 子集，套用时按模板语义经 `BookSettings.merge(_:)` / `ResolvedBookSettings.applying(_:)` 写入对应设置层，不新增层级。
 - 效果链（S4-T1 已实现调色，S5-T2 阶段 1 新增插件滤镜 Core）：`ColorAdjust`、`PluginFilterEffect`、`Effect`（`.colorAdjust` / `.plugin`）、`EffectChain`、`ViewerBackground` 放在 `MVSettings`；调色在前端呈现时用 Core Image 实时应用，插件滤镜经 `MVPipeline.PluginFilterExecuting`（由 `MVPlugins.PluginFilterRunner` 实现、单插件串行、取消出队）与 `ImagePipeline.filteredImage` 产出派生图并进 `caches.browse` / `decoded` / `preload` 缓存，缓存键含插件版本与参数规范 JSON 的 SHA-256 前 16 位。
 
@@ -954,11 +954,13 @@ public final class ProcessRunner: Sendable { public init(); public func run(exec
 // MVPlugins
 public enum PluginPermission: String, Sendable, Codable, CaseIterable, Hashable { case network, commands }
 public enum PluginRuntimeKind: Sendable, Hashable, Codable { case javascript(entry: String), process(command: String, arguments: [String]) }
+public enum DockEdgeName: String, Sendable, Hashable, Codable { case left, right, bottom }
+public struct PluginPanelDeclaration: Sendable, Hashable, Codable, Identifiable { public var id, title, entry: String; public var symbol: String?; public var defaultEdge: DockEdgeName? }
 public struct PluginProblem: Sendable, Hashable, Error, LocalizedError { public var file: String; public var line: Int?; public var column: Int?; public var message: String }
 public struct PluginManifest: Sendable, Hashable, Codable {
-    public var name, version: String; public var description: String?; public var runtime: PluginRuntimeKind
+    public var name, version: String; public var description: String?; public var runtime: PluginRuntimeKind?
     public var permissions: [PluginPermission]; public var commands: [PluginCommandDeclaration]; public var events: [ScriptEventName]
-    public var sources: [PluginSourceDeclaration]; public var filters: [PluginFilterDeclaration]
+    public var sources: [PluginSourceDeclaration]; public var filters: [PluginFilterDeclaration]; public var panels: [PluginPanelDeclaration]
     public static func isValidPluginID(_ id: String) -> Bool
     public static func parse(data: Data, file: String = "manifest.json") -> Result<PluginManifest, PluginProblem>
 }
@@ -972,10 +974,12 @@ public final class PluginSecrets: Sendable { public init(fileURL: URL) throws; p
 public protocol PluginAPIHost: Sendable { func call(plugin: String, method: ScriptAPI.Method, params: [JSONValue], context: ScriptCallContext) async throws -> JSONValue }
 public struct PluginHostConfiguration: Sendable { public var pythonLibraryDirectory: URL?; public var supportDirectory: URL?; public var appVersion, language: String; public var idleTimeout, requestTimeout, filterTimeout: Duration; public var httpHandler: (@Sendable (PluginHTTPRequest) async throws -> PluginHTTPResponse)? }
 public final class PluginHost: Sendable {
+    public let log: ScriptLog
     public init(library: PluginLibrary, settings: JSONDocumentStore<PluginSettingsFile>, secrets: PluginSecrets, log: ScriptLog, configuration: PluginHostConfiguration = PluginHostConfiguration())
     public func setAPIHost(_ host: any PluginAPIHost)
     public func statuses() -> [String: PluginStatus]; public func statusChanges() -> AsyncStream<[String: PluginStatus]>
     public func enabledPlugins() -> [PluginInfo]
+    public func panelCall(plugin: String, method: ScriptAPI.Method, params: [JSONValue], context: ScriptCallContext) async throws -> JSONValue
     public func runCommand(plugin: String, command: String, arguments: [String: JSONValue]?, context: ScriptCallContext) async throws -> JSONValue
     public func hasSubscribers(for event: ScriptEventName) -> Bool
     public func dispatch(_ event: ScriptEventName, payload: [String: JSONValue], session: SessionID?)
@@ -1050,7 +1054,7 @@ public struct CollectionLayout: Sendable {   // 砌体和两种条只排已知�
     public func reorderAnchor(in viewport: CGRect, selected: Int?) -> LayoutAnchor?   // 整体重排时用：选中项，没有时取中心项
     public func viewportOrigin(restoring anchor: LayoutAnchor) -> CGPoint?   // 锚点项还没排时为 nil
 }
-public struct PanelID: RawRepresentable, Hashable, Codable, Sendable, CodingKeyRepresentable { public var rawValue: String; public init(rawValue: String); public init(_ rawValue: String) }
+public struct PanelID: RawRepresentable, Hashable, Codable, Sendable, CodingKeyRepresentable { public var rawValue: String; public init(rawValue: String); public init(_ rawValue: String); public var isPluginPanel: Bool { get } }
 public enum DockEdge: String, Codable, Sendable, CaseIterable { case left, right, bottom }
 public enum DockStackStyle: String, Codable, Sendable { case tabs, split }
 public struct DockArea: Codable, Sendable, Hashable {
@@ -1090,7 +1094,9 @@ public struct DockLayout: Codable, Sendable, Hashable {   // layout.json 的内�
     public func movingFloating(_ panel: PanelID, to frame: DockFrame) -> DockLayout
     public func settingSettings(_ value: JSONValue, for panel: PanelID) -> DockLayout
     public func adoptingFloating(of other: DockLayout) -> DockLayout   // 浮动面板全应用一份：采用对方的浮动列表，并移走自己停靠着的同一面板
-    public func sanitized(knownPanels: Set<PanelID>) -> DockLayout   // 整理从文件读入的布局
+    public func sanitized(knownPanels: Set<PanelID>) -> DockLayout   // 整理从文件读入的布局；plugin. 前缀面板视同已知
+    public func displayed(available: Set<PanelID>) -> DockLayout     // 去掉不在 available 中的面板，选中项不可用时为 nil
+    public func merging(unavailableFrom saved: DockLayout, available: Set<PanelID>) -> DockLayout   // 把 saved 中不可用面板按原位并回显示布局
 }
 public struct LayoutScheme: Codable, Sendable, Hashable { public var name: String; public var layout: DockLayout; public init(name: String, layout: DockLayout) }
 public struct LayoutSchemesFile: Codable, Sendable, Hashable { public var schemes: [LayoutScheme]; public init(schemes: [LayoutScheme] = []) }   // layout-schemes.json（v1）的内容

@@ -184,10 +184,42 @@ public final class PluginLibrary: Sendable {
         }
         switch PluginManifest.parse(data: data, file: "manifest.json") {
         case .success(let manifest):
+            if let panelProblem = verifyPanelEntries(manifest.panels, in: directory, manifestData: data) {
+                return (PluginInfo(id: id, directory: directory, manifest: nil, problem: panelProblem), signature)
+            }
             return (PluginInfo(id: id, directory: directory, manifest: manifest, problem: nil), signature)
         case .failure(let problem):
             return (PluginInfo(id: id, directory: directory, manifest: nil, problem: problem), signature)
         }
+    }
+
+    private static func verifyPanelEntries(
+        _ panels: [PluginPanelDeclaration],
+        in directory: URL,
+        manifestData: Data
+    ) -> PluginProblem? {
+        guard !panels.isEmpty else { return nil }
+        let rootPath = directory.resolvingSymlinksInPath().standardizedFileURL.path
+        let rootPrefix = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        for panel in panels {
+            let entryURL = directory.appendingPathComponent(panel.entry)
+            let resolvedPath = entryURL.resolvingSymlinksInPath().standardizedFileURL.path
+            var st = stat()
+            let isRegularFile = resolvedPath.hasPrefix(rootPrefix)
+                && stat(entryURL.path, &st) == 0
+                && (st.st_mode & S_IFMT) == S_IFREG
+            if !isRegularFile {
+                let text = String(decoding: manifestData, as: UTF8.self)
+                let pos = PluginManifest.locate(key: "panels", valueToken: panel.entry, in: text)
+                return PluginProblem(
+                    file: "manifest.json",
+                    line: pos.line,
+                    column: pos.column,
+                    message: String(localized: "面板 \(panel.id) 的入口文件不存在：\(panel.entry)", bundle: .main)
+                )
+            }
+        }
+        return nil
     }
 
     private static func directorySignature(_ directory: URL) -> String {
