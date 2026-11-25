@@ -1,6 +1,7 @@
 import AppKit
 import MVFoundation
 import MVLayout
+import MVPlugins
 import MVReading
 import MVSettings
 import Observation
@@ -24,6 +25,7 @@ final class EffectsPanel: DockPanel {
 
     private var observedSession: SessionID?
     private var effectsObserver: NSObjectProtocol?
+    private var pluginsObserver: NSObjectProtocol?
     private var profilesTask: Task<Void, Never>?
     private var colorPanelTarget: ColorPanelRelay?
     private var lastCustomColor = NSColor(srgbRed: 0x3B / 255, green: 0x4A / 255, blue: 0x5C / 255, alpha: 1)
@@ -48,6 +50,12 @@ final class EffectsPanel: DockPanel {
         }
         panelView.onPickCustomColor = { [weak self] in
             self?.openColorPanel()
+        }
+        panelView.pluginFiltersSection.onToggleFilter = { [weak self] pluginID, filterID, isOn in
+            self?.setPluginFilter(plugin: pluginID, filter: filterID, enabled: isOn)
+        }
+        panelView.pluginFiltersSection.onChangeParameter = { [weak self] pluginID, filterID, key, value in
+            self?.setPluginFilterParameter(plugin: pluginID, filter: filterID, key: key, value: value)
         }
 
         let list = panelView.profileListView
@@ -81,6 +89,7 @@ final class EffectsPanel: DockPanel {
     isolated deinit {
         profilesTask?.cancel()
         if let effectsObserver { NotificationCenter.default.removeObserver(effectsObserver) }
+        if let pluginsObserver { NotificationCenter.default.removeObserver(pluginsObserver) }
     }
 
     func bind(to window: ReaderWindowController?) {
@@ -88,6 +97,10 @@ final class EffectsPanel: DockPanel {
         if let effectsObserver {
             NotificationCenter.default.removeObserver(effectsObserver)
             self.effectsObserver = nil
+        }
+        if let pluginsObserver {
+            NotificationCenter.default.removeObserver(pluginsObserver)
+            self.pluginsObserver = nil
         }
         profilesTask?.cancel()
         profilesTask = nil
@@ -97,6 +110,13 @@ final class EffectsPanel: DockPanel {
             effectsObserver = NotificationCenter.default.addObserver(
                 forName: ReaderWindowController.effectsEnabledDidChangeNotification,
                 object: window,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.renderState() }
+            }
+            pluginsObserver = NotificationCenter.default.addObserver(
+                forName: PluginCoordinator.didChangeNotification,
+                object: nil,
                 queue: .main
             ) { [weak self] _ in
                 MainActor.assumeIsolated { self?.renderState() }
@@ -140,6 +160,7 @@ final class EffectsPanel: DockPanel {
             _ = owner.session.book
             _ = owner.session.settings
             _ = owner.session.isVirtualBook
+            _ = owner.pluginFilterActivity.states
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self, self.observedSession == id else { return }
@@ -159,6 +180,7 @@ final class EffectsPanel: DockPanel {
                 background: .auto,
                 customColor: lastCustomColor
             )
+            panelView.applyPluginFilters([], hasBook: false, effectsEnabled: true)
             renderProfiles()
             return
         }
@@ -166,13 +188,19 @@ final class EffectsPanel: DockPanel {
         if case let .custom(red, green, blue) = settings.background {
             lastCustomColor = NSColor(srgbRed: red, green: green, blue: blue, alpha: 1)
         }
+        let hasBook = owner.session.book != nil
         panelView.apply(
-            hasBook: owner.session.book != nil,
+            hasBook: hasBook,
             isVirtualBook: owner.session.isVirtualBook,
             effectsEnabled: owner.effectsEnabled,
             adjust: settings.effects.colorAdjust,
             background: settings.background,
             customColor: lastCustomColor
+        )
+        panelView.applyPluginFilters(
+            buildPluginFilterItems(chain: settings.effects, activity: owner.pluginFilterActivity),
+            hasBook: hasBook,
+            effectsEnabled: owner.effectsEnabled
         )
         renderProfiles()
     }
@@ -183,6 +211,142 @@ final class EffectsPanel: DockPanel {
             hasBook: owner?.session.book != nil,
             isVirtualBook: owner?.session.isVirtualBook ?? false
         )
+    }
+
+    // MARK: 插件滤镜
+
+    private func buildPluginFilterItems(
+        chain: EffectChain,
+        activity: PluginFilterActivity
+    ) -> [PluginFilterDisplayItem] {
+        let coordinator = (NSApp.delegate as? AppDelegate)?.plugins
+        let enabledPlugins = coordinator?.enabledPlugins ?? []
+        let allPlugins = coordinator?.allPlugins ?? []
+
+        var configuredByKey: [String: PluginFilterEffect] = [:]
+        var chainEntries: [PluginFilterEffect] = []
+        for effect in chain.effects {
+            if case let .plugin(filter) = effect {
+                let key = PluginFilterActivity.key(plugin: filter.plugin, filter: filter.filter)
+                configuredByKey[key] = filter
+                chainEntries.append(filter)
+            }
+        }
+
+        var items: [PluginFilterDisplayItem] = []
+        var coveredKeys: Set<String> = []
+        for info in enabledPlugins {
+            guard let manifest = info.manifest else { continue }
+            for decl in manifest.filters {
+                let key = PluginFilterActivity.key(plugin: info.id, filter: decl.id)
+                coveredKeys.insert(key)
+                let existing = configuredByKey[key]
+                let isOn = existing?.enabled ?? false
+                let values = existing?.parameters ?? Self.defaultParameters(for: decl)
+                let state = isOn ? (activity.states[key] ?? .idle) : .idle
+                items.append(PluginFilterDisplayItem(
+                    pluginID: info.id,
+                    filterID: decl.id,
+                    title: decl.name,
+                    subtitle: info.id,
+                    isAvailable: true,
+                    isOn: isOn,
+                    parameters: decl.parameters,
+                    values: values,
+                    activity: state
+                ))
+            }
+        }
+
+        for entry in chainEntries {
+            let key = PluginFilterActivity.key(plugin: entry.plugin, filter: entry.filter)
+            guard !coveredKeys.contains(key) else { continue }
+            coveredKeys.insert(key)
+            let knownName = allPlugins
+                .first { $0.id == entry.plugin }?
+                .manifest?
+                .filters
+                .first { $0.id == entry.filter }?
+                .name
+            items.append(PluginFilterDisplayItem(
+                pluginID: entry.plugin,
+                filterID: entry.filter,
+                title: knownName ?? entry.filter,
+                subtitle: String(localized: "插件未启用"),
+                isAvailable: false,
+                isOn: entry.enabled,
+                parameters: [],
+                values: entry.parameters,
+                activity: .idle
+            ))
+        }
+
+        return items
+    }
+
+    private func setPluginFilter(plugin: String, filter: String, enabled: Bool) {
+        guard let owner, owner.session.book != nil else { return }
+        var chain = owner.session.settings.effects
+        if enabled {
+            let coordinator = (NSApp.delegate as? AppDelegate)?.plugins
+            guard let decl = coordinator?.enabledPlugins
+                .first(where: { $0.id == plugin })?
+                .manifest?
+                .filters
+                .first(where: { $0.id == filter }) else {
+                return
+            }
+            if let idx = chain.effects.firstIndex(where: {
+                if case let .plugin(existing) = $0 { return existing.plugin == plugin && existing.filter == filter }
+                return false
+            }) {
+                if case var .plugin(existing) = chain.effects[idx] {
+                    existing.enabled = true
+                    chain.effects[idx] = .plugin(existing)
+                }
+            } else {
+                chain.effects.append(.plugin(PluginFilterEffect(
+                    plugin: plugin,
+                    filter: filter,
+                    parameters: Self.defaultParameters(for: decl),
+                    enabled: true
+                )))
+            }
+        } else {
+            chain.effects.removeAll {
+                if case let .plugin(existing) = $0 { return existing.plugin == plugin && existing.filter == filter }
+                return false
+            }
+        }
+        owner.session.update { $0.effects = chain }
+    }
+
+    private func setPluginFilterParameter(plugin: String, filter: String, key: String, value: JSONValue) {
+        guard let owner, owner.session.book != nil else { return }
+        var chain = owner.session.settings.effects
+        guard let idx = chain.effects.firstIndex(where: {
+            if case let .plugin(existing) = $0 { return existing.plugin == plugin && existing.filter == filter }
+            return false
+        }), case var .plugin(existing) = chain.effects[idx] else { return }
+        existing.parameters[key] = value
+        chain.effects[idx] = .plugin(existing)
+        owner.session.update { $0.effects = chain }
+    }
+
+    private static func defaultParameters(for decl: PluginFilterDeclaration) -> [String: JSONValue] {
+        var result: [String: JSONValue] = [:]
+        for param in decl.parameters {
+            if let defaultVal = param.defaultValue {
+                result[param.key] = defaultVal
+            } else {
+                switch param.type {
+                case .number: result[param.key] = .number(param.min ?? 0)
+                case .bool: result[param.key] = .bool(false)
+                case .choice: result[param.key] = .string(param.options?.first ?? "")
+                }
+            }
+        }
+        return result
     }
 
     // MARK: 调色与背景

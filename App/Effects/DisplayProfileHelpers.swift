@@ -58,11 +58,21 @@ enum DisplayProfileHelpers {
 
         case .effects:
             let adjust = settings.effects.colorAdjust
-            if adjust.isIdentity { return String(localized: "原值") }
-            let parts = EffectsPanelView.AdjustField.allCases.compactMap { field -> String? in
+            var parts = adjust.isIdentity ? [] : EffectsPanelView.AdjustField.allCases.compactMap { field -> String? in
                 let value = field.value(in: adjust)
                 guard abs(value - field.defaultValue) > 0.0001 else { return nil }
                 return "\(field.title) \(field.format(value))"
+            }
+            for effect in settings.effects.effects {
+                if case let .plugin(filter) = effect, filter.enabled {
+                    let displayName = (NSApp.delegate as? AppDelegate)?.plugins?.allPlugins
+                        .first { $0.id == filter.plugin }?
+                        .manifest?
+                        .filters
+                        .first { $0.id == filter.filter }?
+                        .name ?? filter.filter
+                    parts.append(displayName)
+                }
             }
             return parts.isEmpty ? String(localized: "原值") : parts.joined(separator: " · ")
 

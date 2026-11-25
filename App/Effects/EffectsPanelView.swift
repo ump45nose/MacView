@@ -1,7 +1,7 @@
 import AppKit
 import MVSettings
 
-/// 效果面板视图：自上而下为“调色”“背景”“显示配置”三段。
+/// 效果面板视图：自上而下为“调色”“插件滤镜（按需显示）”“背景”“显示配置”四段。
 @MainActor
 final class EffectsPanelView: NSView {
     enum AdjustField: CaseIterable {
@@ -122,6 +122,10 @@ final class EffectsPanelView: NSView {
         font: Theme.font(.panels, size: 12), fill: .clear, foreground: Theme.text2, border: nil, radius: 6, height: 24, padding: 6
     )
 
+    // 插件滤镜段（有可用插件滤镜或效果链含插件滤镜条目时显示）
+    let pluginFiltersSection = PluginFiltersSectionView()
+    private let pluginFiltersDivider = SectionDivider()
+
     // 背景段
     private var swatches: [BackgroundOption: BackgroundSwatchView] = [:]
 
@@ -147,6 +151,7 @@ final class EffectsPanelView: NSView {
         resetButton.applyFont(Theme.font(.panels, size: 12))
         shortcutBadge.applyFonts()
         sliderRows.values.forEach { $0.applyFonts() }
+        pluginFiltersSection.applyFonts()
         swatches.values.forEach { $0.applyFonts() }
         needsLayout = true
     }
@@ -238,9 +243,22 @@ final class EffectsPanelView: NSView {
 
         contentStack.addArrangedSubview(buildColorSection())
         contentStack.addArrangedSubview(SectionDivider())
+        pluginFiltersSection.isHidden = true
+        pluginFiltersDivider.isHidden = true
+        contentStack.addArrangedSubview(pluginFiltersSection)
+        contentStack.addArrangedSubview(pluginFiltersDivider)
         contentStack.addArrangedSubview(buildBackgroundSection())
         contentStack.addArrangedSubview(SectionDivider())
         contentStack.addArrangedSubview(buildProfilesContainer())
+    }
+
+    func applyPluginFilters(_ items: [PluginFilterDisplayItem], hasBook: Bool, effectsEnabled: Bool) {
+        let show = !items.isEmpty
+        pluginFiltersSection.isHidden = !show
+        pluginFiltersDivider.isHidden = !show
+        if show {
+            pluginFiltersSection.apply(items: items, hasBook: hasBook, effectsEnabled: effectsEnabled)
+        }
     }
 
     private func buildColorSection() -> NSView {
