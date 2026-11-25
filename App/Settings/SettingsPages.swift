@@ -71,7 +71,7 @@ struct SettingsRootView: View {
                 case .pointer: PointerSettingsPage(model: state.model.pointer)
                 case .menus: MenusSettingsPage(model: state.model.menus)
                 case .appearance: AppearanceSettingsPage(model: state.model, scrollTarget: state.scrollTarget)
-                case .extensions: ExtensionsSettingsPage(model: state.model.extensions, shortcuts: state.model.shortcuts)
+                case .extensions: ExtensionsSettingsPage(model: state.model.extensions, shortcuts: state.model.shortcuts, scrollTarget: state.scrollTarget)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

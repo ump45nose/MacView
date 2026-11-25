@@ -1,13 +1,14 @@
 import AppKit
 import Foundation
 import MVCommands
+import MVPlugins
 import MVScripting
 import MVSettings
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// 设置 › 扩展 页的模型：桥接脚本列表、运行状态、外部命令与输出日志。
+/// 设置 › 扩展 页的模型：桥接脚本列表、运行状态、外部命令、插件与输出日志。
 @MainActor
 @Observable
 final class ExtensionsSettingsModel {
@@ -18,7 +19,14 @@ final class ExtensionsSettingsModel {
     private(set) var externalCommandsProblem: String?
     private(set) var writeError: String?
 
+    private(set) var plugins: [PluginInfo] = []
+    private(set) var pluginStatuses: [String: PluginStatus] = [:]
+    private(set) var pluginSources: [SourceInstance] = []
+    private(set) var pluginsProblem: String?
+    private(set) var pluginWriteError: String?
+
     @ObservationIgnored private weak var extensions: ExtensionCommands?
+    @ObservationIgnored private weak var pluginCoordinator: PluginCoordinator?
     @ObservationIgnored private let supportDirectory: URL
     @ObservationIgnored private var runStatesTask: Task<Void, Never>?
     @ObservationIgnored private var logTask: Task<Void, Never>?
@@ -29,6 +37,14 @@ final class ExtensionsSettingsModel {
 
     var externalCommandsFileURL: URL {
         supportDirectory.appending(path: "external-commands.json")
+    }
+
+    var pluginsDirectory: URL {
+        pluginCoordinator?.pluginsDirectory ?? supportDirectory.appending(path: "Plugins", directoryHint: .isDirectory)
+    }
+
+    var pluginsFileURL: URL {
+        supportDirectory.appending(path: "plugins.json")
     }
 
     var hasRunningScripts: Bool {
@@ -42,9 +58,13 @@ final class ExtensionsSettingsModel {
 
     init(extensions: ExtensionCommands?, supportDirectory: URL) {
         self.extensions = extensions
+        self.pluginCoordinator = extensions?.app?.plugins
         self.supportDirectory = supportDirectory
         extensions?.onChange = { [weak self] in
             self?.syncFromExtensions()
+        }
+        pluginCoordinator?.onChange = { [weak self] in
+            self?.syncFromPlugins()
         }
         reload()
         observeRuntime()
@@ -58,6 +78,7 @@ final class ExtensionsSettingsModel {
 
     func reload() {
         syncFromExtensions()
+        syncFromPlugins()
         if let runtime = extensions?.scriptRuntime {
             runStates = runtime.runStates()
         }
@@ -70,6 +91,13 @@ final class ExtensionsSettingsModel {
         scripts = extensions?.allScripts ?? []
         externalCommands = extensions?.externalItems ?? []
         externalCommandsProblem = extensions?.externalCommandsProblem
+    }
+
+    private func syncFromPlugins() {
+        plugins = pluginCoordinator?.allPlugins ?? []
+        pluginStatuses = pluginCoordinator?.statuses ?? [:]
+        pluginSources = pluginCoordinator?.sourceInstances ?? []
+        pluginsProblem = pluginCoordinator?.settingsProblem
     }
 
     private func observeRuntime() {
@@ -164,6 +192,134 @@ final class ExtensionsSettingsModel {
         }
     }
 
+    // MARK: - 插件操作
+
+    func pluginStatus(for info: PluginInfo) -> PluginStatus {
+        if let status = pluginStatuses[info.id] {
+            return status
+        }
+        if let problem = info.problem {
+            return .invalid(problem)
+        }
+        return .disabled
+    }
+
+    func sources(for pluginID: String) -> [SourceInstance] {
+        pluginSources.filter { $0.plugin == pluginID }
+    }
+
+    func stopPlugin(_ id: String) {
+        pluginCoordinator?.pluginHost?.stop(id)
+    }
+
+    func revealPluginsFolder() {
+        revealInFinder(pluginsDirectory)
+    }
+
+    func revealPluginFolder(_ info: PluginInfo) {
+        revealInFinder(info.directory)
+    }
+
+    func openPluginManifest(_ info: PluginInfo) {
+        NSWorkspace.shared.open(info.directory.appending(path: "manifest.json"))
+    }
+
+    func openPluginsFile() {
+        let url = pluginsFileURL
+        if FileManager.default.fileExists(atPath: url.path) {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        guard let store = pluginCoordinator?.pluginSettingsStore else {
+            revealInFinder(supportDirectory)
+            return
+        }
+        Task {
+            try? await store.update { _ in }
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    func openSource(_ id: UUID) {
+        pluginCoordinator?.openSource(id, in: nil)
+    }
+
+    func disablePlugin(_ id: String) async {
+        guard let store = pluginCoordinator?.pluginSettingsStore else { return }
+        do {
+            try await store.update { file in
+                if var state = file.plugins[id] {
+                    state.enabled = false
+                    file.plugins[id] = state
+                } else {
+                    file.plugins[id] = PluginState(enabled: false, grantedPermissions: [])
+                }
+            }
+            pluginWriteError = nil
+        } catch {
+            pluginWriteError = ErrorText.describe(error)
+        }
+    }
+
+    func enablePlugin(_ id: String, granting permissions: [PluginPermission]) async -> Bool {
+        guard let store = pluginCoordinator?.pluginSettingsStore else { return false }
+        do {
+            try await store.update { file in
+                file.plugins[id] = PluginState(enabled: true, grantedPermissions: permissions)
+            }
+            pluginWriteError = nil
+            return true
+        } catch {
+            pluginWriteError = ErrorText.describe(error)
+            return false
+        }
+    }
+
+    func existingSecretKeys(for sourceID: UUID) -> Set<String> {
+        let values = pluginCoordinator?.pluginSecrets?.values(for: sourceID) ?? [:]
+        return Set(values.compactMap { $0.value.isEmpty ? nil : $0.key })
+    }
+
+    func saveSource(_ instance: SourceInstance, passwordUpdates: [String: String], isNew: Bool) async -> Bool {
+        guard let store = pluginCoordinator?.pluginSettingsStore,
+              let secrets = pluginCoordinator?.pluginSecrets else { return false }
+        do {
+            var nextSecrets = isNew ? [:] : secrets.values(for: instance.id)
+            for (key, value) in passwordUpdates where !value.isEmpty {
+                nextSecrets[key] = value
+            }
+            if !nextSecrets.isEmpty || !isNew {
+                try await secrets.set(nextSecrets, for: instance.id)
+            }
+            try await store.update { file in
+                if let index = file.sources.firstIndex(where: { $0.id == instance.id }) {
+                    file.sources[index] = instance
+                } else {
+                    file.sources.append(instance)
+                }
+            }
+            pluginWriteError = nil
+            return true
+        } catch {
+            pluginWriteError = ErrorText.describe(error)
+            return false
+        }
+    }
+
+    func deleteSource(id: UUID) async {
+        guard let store = pluginCoordinator?.pluginSettingsStore,
+              let secrets = pluginCoordinator?.pluginSecrets else { return }
+        do {
+            try await store.update { file in
+                file.sources.removeAll { $0.id == id }
+            }
+            try await secrets.remove(source: id)
+            pluginWriteError = nil
+        } catch {
+            pluginWriteError = ErrorText.describe(error)
+        }
+    }
+
     // MARK: - 日志
 
     func clearLog() {
@@ -228,16 +384,17 @@ private extension ExternalCommand.Kind {
     }
 }
 
-/// 设置 › 扩展：脚本、外部命令、输出。
+/// 设置 › 扩展：脚本、外部命令、插件、输出。
 struct ExtensionsSettingsPage: View {
     let model: ExtensionsSettingsModel
     let shortcuts: ShortcutsModel
+    let scrollTarget: SettingsWindowState.ScrollTarget?
 
     @State private var editing: ExternalCommandDraft?
     @State private var confirmingDeleteID: String?
     @State private var pinnedToBottom = true
 
-    private static let readyDotColor = NSColor(name: nil) { appearance in
+    static let readyDotColor = NSColor(name: nil) { appearance in
         appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             ? NSColor(srgbRed: 0x9C / 255, green: 0xC4 / 255, blue: 0x90 / 255, alpha: 1)
             : NSColor(srgbRed: 0x4F / 255, green: 0x7A / 255, blue: 0x4A / 255, alpha: 1)
@@ -252,44 +409,70 @@ struct ExtensionsSettingsPage: View {
     var body: some View {
         VStack(spacing: 0) {
             if let problem = model.externalCommandsProblem {
-                jsonErrorBanner(problem: problem)
+                jsonErrorBanner(
+                    message: String(localized: "external-commands.json 有错误，仍在使用上一份可用的外部命令。\(problem)"),
+                    identifier: "settings.extensions.jsonError",
+                    openAction: { model.openExternalCommandsFile() }
+                )
             }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    scriptsSection
-                    externalCommandsSection
-                    outputSection
+            if let problem = model.pluginsProblem {
+                jsonErrorBanner(
+                    message: String(localized: "plugins.json 有错误，仍在使用上一份可用的插件配置。\(problem)"),
+                    identifier: "settings.extensions.pluginsJsonError",
+                    openAction: { model.openPluginsFile() }
+                )
+            }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        scriptsSection
+                        externalCommandsSection
+                        PluginsSettingsSection(model: model)
+                            .id("settings.extensions.plugins")
+                        outputSection
+                    }
+                    .padding(16)
                 }
-                .padding(16)
+                .onAppear {
+                    model.reload()
+                    scrollIfNeeded(proxy: proxy, target: scrollTarget)
+                }
+                .onChange(of: scrollTarget) { _, target in
+                    scrollIfNeeded(proxy: proxy, target: target)
+                }
             }
         }
-        .onAppear {
-            model.reload()
+    }
+
+    private func scrollIfNeeded(proxy: ScrollViewProxy, target: SettingsWindowState.ScrollTarget?) {
+        guard let target else { return }
+        DispatchQueue.main.async {
+            proxy.scrollTo(target.section, anchor: .top)
         }
     }
 
     // MARK: - 顶部 JSON 错误横幅
 
-    private func jsonErrorBanner(problem: String) -> some View {
+    private func jsonErrorBanner(message: String, identifier: String, openAction: @escaping () -> Void) -> some View {
         HStack(spacing: 12) {
-            Text(String(localized: "external-commands.json 有错误，仍在使用上一份可用的外部命令。\(problem)"))
+            Text(message)
                 .font(.system(size: 12))
                 .foregroundStyle(Color(nsColor: Theme.danger))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
-            Button(action: { model.openExternalCommandsFile() }) {
+            Button(action: openAction) {
                 Text(String(localized: "打开文件")).underline()
             }
             .buttonStyle(.plain)
             .font(.system(size: 12))
             .foregroundStyle(Color(nsColor: Theme.danger))
-            .accessibilityIdentifier("settings.extensions.jsonError.openFile")
+            .accessibilityIdentifier("\(identifier).openFile")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(Color(nsColor: Theme.dangerSoft))
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("settings.extensions.jsonError")
+        .accessibilityIdentifier(identifier)
     }
 
     // MARK: - 1. 脚本
@@ -602,7 +785,7 @@ struct ExtensionsSettingsPage: View {
     private var outputSection: some View {
         sectionContainer(
             title: String(localized: "输出"),
-            aside: String(localized: "脚本的 console 输出、错误与外部命令结果")
+            aside: String(localized: "脚本与插件的输出、错误与外部命令结果")
         ) {
             ScrollViewReader { proxy in
                 ScrollView {
@@ -739,7 +922,7 @@ struct ExtensionsSettingsPage: View {
         (url.path(percentEncoded: false) as NSString).abbreviatingWithTildeInPath
     }
 
-    private static func elapsedText(since: Date, now: Date) -> String {
+    static func elapsedText(since: Date, now: Date) -> String {
         let total = max(0, Int(now.timeIntervalSince(since)))
         let minutes = total / 60
         let seconds = total % 60
