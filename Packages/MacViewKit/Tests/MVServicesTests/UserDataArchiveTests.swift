@@ -125,7 +125,7 @@ private func mode(_ url: URL) throws -> Int? {
 
 // 归档会启动子进程并连续写 SQLite，与同模块的一秒退出计时共用串行套件。
 extension CoreIntegrationTests {
-    @Suite struct UserDataArchiveTests {}
+    @Suite(.serialized) struct UserDataArchiveTests {}
 }
 
 extension CoreIntegrationTests.UserDataArchiveTests {
@@ -222,30 +222,35 @@ extension CoreIntegrationTests.UserDataArchiveTests {
     @Test("C1.2 并发写入期间导出的库含导出前已提交的历史")
     func concurrentSnapshot() async throws {
         let f = try ArchiveFixture()
-        let library = try SQLiteLibraryStore(databaseURL: UserDataItem.library.url(in: f.source), historyLimit: 100_000)
-        let first = Location(root: .local, layers: [["已提交"]])
-        let committed = [first] + (1...10).map { Location(root: .local, layers: [["committed-\($0)"]]) }
+        let library = try SQLiteLibraryStore(databaseURL: UserDataItem.library.url(in: f.source), historyLimit: 16)
+        let committed = (0..<3).map { Location(root: .local, layers: [["committed-\($0)"]]) }
+        let active = (0..<4).map { Location(root: .local, layers: [["page-\($0)"]]) }
         for book in committed { try await library.recordOpened(book, at: .now) }
-        let (started, signal) = AsyncStream<Void>.makeStream()
-        let writer = Task {
-            var count = 0
-            while !Task.isCancelled {
-                try await library.recordOpened(.init(root: .local, layers: [["page-\(count)"]]), at: .now)
-                count += 1
-                if count == 1 { signal.yield(); signal.finish() }
+        try await withThrowingTaskGroup(of: Int.self) { group in
+            let (started, signal) = AsyncStream<Void>.makeStream()
+            group.addTask {
+                defer { signal.finish() }
+                var count = 0
+                while !Task.isCancelled {
+                    try await library.recordOpened(active[count % active.count], at: .now)
+                    count += 1
+                    if count == 1 { signal.yield() }
+                    if count > 1 { try? await Task.sleep(for: .milliseconds(2)) }
+                }
+                return count
             }
-            return count
+            for await _ in started {
+                try await f.export()
+                break
+            }
+            group.cancelAll()
+            #expect((try await group.next() ?? 0) > 1)
         }
-        defer { writer.cancel() }
-        for await _ in started { break }
-        _ = try await f.export()
-        writer.cancel()
-        #expect(try await writer.value > 1)
         _ = try await f.stageAndCommit() // 包含 quick_check
-        let snapshot = try SQLiteLibraryStore(databaseURL: f.staging.appending(path: "data/library.sqlite"), historyLimit: 100_000)
+        let snapshot = try SQLiteLibraryStore(databaseURL: f.staging.appending(path: "data/library.sqlite"), historyLimit: 16)
         let exported = Set(try await snapshot.history().map(\.book))
         #expect(Set(committed).isSubset(of: exported))
-        #expect(exported.contains(.init(root: .local, layers: [["page-0"]])))
+        #expect(exported.contains(active[0]))
     }
 
     @Test("C1.3 / C1.5 白名单外的文件保留，缺项删除，再导入备份可反悔")
@@ -374,34 +379,45 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         #expect(!manager.fileExists(atPath: escapesTo.path))
     }
 
-    @Test("C1.4c 12 种 JSON 的真实校验均拒绝错误结构", arguments: UserDataItem.allCases.filter { $0.kind == .json })
-    func validatesEveryJSON(_ item: UserDataItem) async throws {
+    @Test("C1.4c 12 种 JSON 的真实校验均拒绝错误结构")
+    func validatesEveryJSON() async throws {
         let f = try ArchiveFixture()
-        try write("[]", item.url(in: f.source))
+        let items = UserDataItem.allCases.filter { $0.kind == .json }
+        for item in items { try write("[]", item.url(in: f.source)) }
         let manifest = try await f.export()
         #expect(manifest.items.isEmpty)
-        if appItems.contains(item) {
+        for item in appItems {
+            let validators = appValidators.filter { $0.key != item }
             await #expect(throws: UserDataArchiveError.self) {
-                try await UserDataArchive.export(from: f.source, origin: origin, appValidators: [:], to: f.zip)
+                try await UserDataArchive.export(from: f.source, origin: origin, appValidators: validators, to: f.zip)
             }
         }
-        // 导出会略去无效项。将它作为外部归档的清单项重新放入，独立验证暂存的拒绝路径。
-        try f.changeZip("""
-            import json
-            name = sys.argv[2]
-            manifest = json.loads(entries['manifest.json'])
-            manifest['items'].append(name)
-            entries['manifest.json'] = json.dumps(manifest)
-            entries['data/' + name] = b'[]'
-            """, [item.rawValue])
-        do {
-            _ = try await UserDataArchive.stage(f.zip, for: f.target, appValidators: appValidators)
-            Issue.record("接受了错误结构")
-        } catch let error as UserDataArchiveError {
-            guard case let .damaged(name, _) = error else { Issue.record("错误分类不符"); return }
-            #expect(name == item.rawValue)
+        // 共用一次真实导出的清单，每份外部包只含一个无效项，让每个校验器都走到。
+        try command("/usr/bin/python3", ["-c", """
+            import json, pathlib, sys, zipfile
+            base = pathlib.Path(sys.argv[1])
+            with zipfile.ZipFile(base) as src:
+                manifest = json.loads(src.read('manifest.json'))
+            for name in sys.argv[2:]:
+                manifest['items'] = [name]
+                with zipfile.ZipFile(base.with_name(name + '.zip'), 'w') as dst:
+                    dst.writestr('manifest.json', json.dumps(manifest))
+                    dst.writestr('data/' + name, b'[]')
+            """, f.zip.path] + items.map(\.rawValue))
+        for item in items {
+            let archive = f.root.appending(path: item.rawValue + ".zip")
+            do {
+                _ = try await UserDataArchive.stage(archive, for: f.target, appValidators: appValidators)
+                Issue.record("接受了错误结构：\(item.rawValue)")
+            } catch let error as UserDataArchiveError {
+                if case let .damaged(name, _) = error {
+                    #expect(name == item.rawValue)
+                } else {
+                    Issue.record("错误分类不符：\(item.rawValue)，\(error)")
+                }
+            }
+            #expect(try f.snapshot(f.target.supportDirectory).isEmpty)
         }
-        #expect(try f.snapshot(f.target.supportDirectory).isEmpty)
     }
 
     @Test("C1.4 清单项必须是普通文件，不能用指向另一文件的链接替代")
