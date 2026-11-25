@@ -338,7 +338,7 @@ extension AppDelegate {
         }
         let canTransferData: @MainActor (CommandContext) -> Bool = { [weak self] _ in
             guard let self, let dataTransfer, !isMock else { return false }
-            return NSApp.modalWindow == nil && !dataTransfer.isBusy
+            return dataTransfer.canStart
         }
         if let exportDescriptor = CommandCatalog.builtInDescriptor(.dataExport) {
             registry.register(exportDescriptor, isEnabled: canTransferData) { [weak self] _, _ in

@@ -120,7 +120,10 @@ final class DataTransferSelfTest {
             try? saveState(s)
             state = s
         }
-        let totalFailures = priorFailures + Int(log.summarize())
+        if priorFailures > 0 {
+            log.check(false, "前序接力进程存在 \(priorFailures) 项失败")
+        }
+        let totalFailures = priorFailures + Int(log.summarize()) - (priorFailures > 0 ? 1 : 0)
         if let donePath = UserDefaults.standard.string(forKey: Self.doneFileKey) {
             let summary = "SELFTEST \(totalFailures == 0 ? "OK" : "FAILED \(totalFailures)") commit=\(BuildIdentity.commit ?? "无") cdhash=\(BuildIdentity.cdhash ?? "无")"
             let lines = (state?.accumulatedLog ?? logLines) + [summary]

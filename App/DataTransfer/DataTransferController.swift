@@ -63,7 +63,6 @@ final class DataTransferController {
     static func relativeDisplayPath(for url: URL, supportDirectory: URL) -> String {
         let target = url.resolvingSymlinksInPath().standardizedFileURL.path
         let appSupport = URL.applicationSupportDirectory.resolvingSymlinksInPath().standardizedFileURL.path
-        if target == appSupport { return url.lastPathComponent }
         if target.hasPrefix(appSupport + "/") {
             return String(target.dropFirst(appSupport.count + 1))
         }
@@ -91,10 +90,14 @@ final class DataTransferController {
         app?.activeReaderController?.window ?? app?.controllers.first?.window
     }
 
+    var canStart: Bool {
+        !isBusy && NSApp.modalWindow == nil && presentationWindow?.attachedSheet == nil
+    }
+
     // MARK: 导出
 
     func exportUserData() {
-        guard !isBusy, let app, app.services != nil, !app.isMock else { return }
+        guard canStart, let app, app.services != nil, !app.isMock else { return }
         isBusy = true
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -144,14 +147,17 @@ final class DataTransferController {
         panel.isExtensionHidden = false
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = Self.defaultExportFileName()
+        return await presentFilePanel(panel, tag: "save-panel")
+    }
 
+    private func presentFilePanel(_ panel: NSSavePanel, tag: String) async -> URL? {
         if let window = presentationWindow {
             return await withCheckedContinuation { continuation in
                 panel.beginSheetModal(for: window) { response in
                     continuation.resume(returning: response == .OK ? panel.url : nil)
                 }
                 #if DEBUG
-                debugOnSheetPresented?("save-panel", panel, nil)
+                debugOnSheetPresented?(tag, panel, nil)
                 #endif
             }
         }
@@ -238,10 +244,10 @@ final class DataTransferController {
         alert.alertStyle = .informational
         alert.messageText = String(localized: "已导出用户数据")
         alert.informativeText = String(localized: "已保存为「\(displayLocation)」（\(sizeText)）。")
-        alert.accessoryView = makeSingleLineAccessory(
-            text: String(localized: "文件里含来源密码等全部数据，请妥善保管。"),
-            color: .systemRed
-        )
+        alert.accessoryView = makeWrappingAccessory(NSAttributedString(
+            string: String(localized: "文件里含来源密码等全部数据，请妥善保管。"),
+            attributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.systemRed]
+        ))
         alert.addButton(withTitle: String(localized: "好"))
         alert.addButton(withTitle: String(localized: "在 Finder 中显示"))
 
@@ -265,18 +271,19 @@ final class DataTransferController {
     // MARK: 导入
 
     func importUserData() {
-        guard !isBusy, let app, app.services != nil, !app.isMock else { return }
+        guard canStart, let app, app.services != nil, !app.isMock else { return }
         isBusy = true
         Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { self.isBusy = false }
-            await self.runImport()
+            let keepBusy = await self.runImport()
+            if !keepBusy { self.isBusy = false }
         }
     }
 
-    private func runImport() async {
-        guard let app else { return }
-        guard let archive = await chooseImportSource() else { return }
+    /// 返回 `true` 表示已发起重启，保持忙碌状态直到进程退出。
+    private func runImport() async -> Bool {
+        guard let app else { return false }
+        guard let archive = await chooseImportSource() else { return false }
         let locations = Self.locations(supportDirectory: app.supportDirectory)
 
         let staged: StagedImport
@@ -285,13 +292,13 @@ final class DataTransferController {
         } catch {
             logger.warning("无法暂存导入文件：\(String(describing: error), privacy: .public)")
             await presentImportError(archive: archive, error: error)
-            return
+            return false
         }
 
         let confirmed = await presentImportConfirmation(manifest: staged.manifest, locations: locations)
         guard confirmed else {
             await discardStagedInBackground(locations: locations)
-            return
+            return false
         }
 
         do {
@@ -299,16 +306,18 @@ final class DataTransferController {
             #if DEBUG
             let arguments = debugRelaunchArguments?() ?? Array(ProcessInfo.processInfo.arguments.dropFirst())
             if let intercept = debugInterceptRelaunch, intercept(arguments) {
-                return
+                return false
             }
             try AppRelauncher.relaunch(arguments: arguments)
             #else
             try AppRelauncher.relaunch()
             #endif
+            return true
         } catch {
             logger.error("提交导入或重启失败：\(String(describing: error), privacy: .public)")
             await discardStagedInBackground(locations: locations)
             await presentRolledBackAlert(reason: ErrorText.describe(error))
+            return false
         }
     }
 
@@ -328,18 +337,7 @@ final class DataTransferController {
             panel.directoryURL = dir
         }
         #endif
-
-        if let window = presentationWindow {
-            return await withCheckedContinuation { continuation in
-                panel.beginSheetModal(for: window) { response in
-                    continuation.resume(returning: response == .OK ? panel.url : nil)
-                }
-                #if DEBUG
-                debugOnSheetPresented?("open-panel", panel, nil)
-                #endif
-            }
-        }
-        return panel.runModal() == .OK ? panel.url : nil
+        return await presentFilePanel(panel, tag: "open-panel")
     }
 
     private func presentImportConfirmation(manifest: UserDataManifest, locations: UserDataLocations) async -> Bool {
@@ -388,8 +386,10 @@ final class DataTransferController {
     func presentStartupOutcomeIfNeeded() {
         guard let outcome = pendingOutcome else { return }
         pendingOutcome = nil
+        isBusy = true
         Task { @MainActor [weak self] in
             guard let self else { return }
+            defer { self.isBusy = false }
             switch outcome {
             case let .imported(manifest, backup):
                 await self.presentImportDone(manifest: manifest, backup: backup)
@@ -402,7 +402,7 @@ final class DataTransferController {
     }
 
     private func presentImportDone(manifest: UserDataManifest, backup: URL) async {
-        let supportDirectory = app?.supportDirectory ?? backup.deletingLastPathComponent().deletingLastPathComponent()
+        guard let supportDirectory = app?.supportDirectory else { return }
         let backupPath = Self.relativeDisplayPath(for: backup, supportDirectory: supportDirectory)
         let timeText = Self.formatTimestamp(manifest.createdAt)
 
@@ -410,9 +410,8 @@ final class DataTransferController {
         alert.alertStyle = .informational
         alert.messageText = String(localized: "已导入用户数据")
         alert.informativeText = String(localized: "已载入「\(manifest.host)」\(timeText) 导出的数据。")
-        alert.accessoryView = makeBackupPathAccessory(
-            fullText: String(localized: "原来的数据备份在 \(backupPath)。"),
-            highlightedPath: backupPath
+        alert.accessoryView = makeWrappingAccessory(
+            Self.attributedBackupNote(fullText: String(localized: "原来的数据备份在 \(backupPath)。"), highlightedPath: backupPath)
         )
         alert.addButton(withTitle: String(localized: "好"))
         alert.addButton(withTitle: String(localized: "显示备份"))
@@ -453,21 +452,9 @@ final class DataTransferController {
         return alert.runModal()
     }
 
-    private func makeSingleLineAccessory(text: String, color: NSColor) -> NSView {
-        let width: CGFloat = 300
-        let label = NSTextField(wrappingLabelWithString: text)
-        label.font = .systemFont(ofSize: 12)
-        label.textColor = color
-        label.preferredMaxLayoutWidth = width
-        let size = label.sizeThatFits(NSSize(width: width, height: .greatestFiniteMagnitude))
-        label.frame = NSRect(origin: .zero, size: NSSize(width: width, height: ceil(size.height)))
-        return label
-    }
-
-    private func makeBackupPathAccessory(fullText: String, highlightedPath: String) -> NSView {
-        let width: CGFloat = 300
+    private func makeWrappingAccessory(_ attributed: NSAttributedString, width: CGFloat = 300) -> NSView {
         let label = NSTextField(wrappingLabelWithString: "")
-        label.attributedStringValue = Self.attributedBackupNote(fullText: fullText, highlightedPath: highlightedPath)
+        label.attributedStringValue = attributed
         label.preferredMaxLayoutWidth = width
         let size = label.sizeThatFits(NSSize(width: width, height: .greatestFiniteMagnitude))
         label.frame = NSRect(origin: .zero, size: NSSize(width: width, height: ceil(size.height)))
@@ -580,9 +567,7 @@ final class DataTransferController {
                 return String(localized: "这个文件来自更新版本的 MacView（数据格式 \(format)），请先升级 MacView。")
             case let .damaged(item?, _):
                 return String(localized: "文件已损坏：\(item) 校验失败。")
-            case let .damaged(nil, reason):
-                return String(localized: "文件已损坏：\(reason)")
-            case let .writeFailed(reason):
+            case let .damaged(nil, reason), let .writeFailed(reason):
                 return String(localized: "文件已损坏：\(reason)")
             }
         }
