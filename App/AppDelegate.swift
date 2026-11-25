@@ -234,6 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         VideoPreviewSelfTest.runIfRequested(app: self)
         ScriptSelfTest.runIfRequested(app: self)
         PluginSelfTest.runIfRequested(app: self)
+        DataTransferSelfTest.runIfRequested(app: self)
         debugSocket = DebugSocket.startIfRequested(app: self)
         #endif
     }
