@@ -123,7 +123,8 @@ extension UserDataArchive {
                 guard try type(of: path) == (item.kind == .directory ? S_IFDIR : S_IFREG) else { throw structureError }
                 switch item.kind {
                 case .directory: break
-                case .json: try validateJSON(item, at: path, appValidators: appValidators)
+                case .json:
+                    guard try isValidJSON(item, at: path, appValidators: appValidators) else { throw structureError }
                 case .sqlite:
                     // SQLite 将零字节文件当成新空库；归档中的快照必须已有数据库头。
                     let handle = try FileHandle(forReadingFrom: path)
@@ -139,29 +140,37 @@ extension UserDataArchive {
         }
     }
 
-    private static func validateJSON(_ item: UserDataItem, at path: URL, appValidators: UserDataValidators) throws {
-        func contents() throws -> Data { try Data(contentsOf: path) }
+    /// 内容或版本无效时返回 false。读取失败或缺少 App 校验函数时抛错。
+    static func isValidJSON(_ item: UserDataItem, at path: URL, appValidators: UserDataValidators) throws -> Bool {
+        let validate: (Data) throws -> Void
         switch item {
         case .settings, .pathRules, .profiles:
-            try FileSettingsStore.validateDocument(item.rawValue, data: contents())
+            validate = { try FileSettingsStore.validateDocument(item.rawValue, data: $0) }
         case .keyBindings:
-            try JSONDocumentStore<KeyBindingsFile>.validate(contents(), version: KeyBindingsFile.documentVersion)
+            validate = { try JSONDocumentStore<KeyBindingsFile>.validate($0, version: KeyBindingsFile.documentVersion) }
         case .menus:
-            try JSONDocumentStore<MenuFile>.validate(contents(), version: MenuFile.documentVersion)
+            validate = { try JSONDocumentStore<MenuFile>.validate($0, version: MenuFile.documentVersion) }
         case .externalCommands:
-            try JSONDocumentStore<ExternalCommandFile>.validate(contents(), version: ExternalCommandFile.documentVersion)
+            validate = { try JSONDocumentStore<ExternalCommandFile>.validate($0, version: ExternalCommandFile.documentVersion) }
         case .scriptStorage:
-            try JSONDocumentStore<ScriptStorage.DocumentValue>.validate(contents(), version: ScriptStorage.documentVersion)
+            validate = { try JSONDocumentStore<ScriptStorage.DocumentValue>.validate($0, version: ScriptStorage.documentVersion) }
         case .plugins:
-            try JSONDocumentStore<PluginSettingsFile>.validate(contents(), version: PluginSettingsFile.documentVersion)
+            validate = { try JSONDocumentStore<PluginSettingsFile>.validate($0, version: PluginSettingsFile.documentVersion) }
         case .pluginSecrets:
             // 来源密码使用无版本外壳的独立存储。它在读取时会把暂存的副本设为 0600。
-            _ = try PluginSecrets(fileURL: path)
+            do {
+                _ = try PluginSecrets(fileURL: path)
+                return true
+            } catch is DecodingError {
+                return false
+            }
         case .layout, .layoutSchemes, .session:
-            guard let validate = appValidators[item] else { throw structureError }
-            try validate(contents())
+            guard let appValidator = appValidators[item] else { throw structureError }
+            validate = appValidator
         case .bookMemory, .library, .scripts, .pluginFiles:
             preconditionFailure("Expected a JSON document")
         }
+        let data = try Data(contentsOf: path)
+        return (try? validate(data)) != nil
     }
 }

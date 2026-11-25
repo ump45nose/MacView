@@ -1,7 +1,9 @@
 import Darwin
 import Foundation
 import GRDB
+import MVFoundation
 import MVLibraryData
+import os
 
 public enum UserDataArchive {
     public static let formatVersion = 1
@@ -9,6 +11,7 @@ public enum UserDataArchive {
 
     // 导入、导出和 token 检查共用一条队列。阻塞的文件 I/O 与子进程均在队列上运行。
     static let queue = DispatchQueue(label: "MacView.UserDataArchive", qos: .userInitiated)
+    private static let log = Logger(category: "user-data")
     static var files: FileManager { .default }
 
     public static func backupURL(for locations: UserDataLocations) -> URL {
@@ -21,11 +24,13 @@ public enum UserDataArchive {
         }
     }
 
-    public static func export(from locations: UserDataLocations, origin: UserDataOrigin, to destination: URL) async throws -> UserDataManifest {
-        try await perform { try writeArchive(from: locations, origin: origin, to: destination) }
+    public static func export(from locations: UserDataLocations, origin: UserDataOrigin,
+                              appValidators: UserDataValidators, to destination: URL) async throws -> UserDataManifest {
+        try await perform { try writeArchive(from: locations, origin: origin, appValidators: appValidators, to: destination) }
     }
 
-    static func writeArchive(from locations: UserDataLocations, origin: UserDataOrigin, to destination: URL) throws -> UserDataManifest {
+    static func writeArchive(from locations: UserDataLocations, origin: UserDataOrigin,
+                             appValidators: UserDataValidators, to destination: URL) throws -> UserDataManifest {
         // 目标同卷的私有替换目录也适用于网络卷；明文归档与解包中的文件仅当前用户可见。
         let parent = destination.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL
         do {
@@ -49,17 +54,27 @@ public enum UserDataArchive {
                 let source = item.url(in: locations), target = payload.appending(path: item.rawValue)
                 guard let type = try type(of: source) else { continue }
                 guard type == (item.kind == .directory ? S_IFDIR : S_IFREG) else { throw CocoaError(.fileReadCorruptFile) }
-                if item.kind == .sqlite {
+                switch item.kind {
+                case .json:
+                    // 校验副本，避免校验后原件被改写，也避免密码存储校验时更改原件权限。
+                    let copy = temporary.appending(path: item.rawValue)
+                    try files.copyItem(at: source, to: copy)
+                    guard try isValidJSON(item, at: copy, appValidators: appValidators) else {
+                        log.warning("略过无效的用户数据项 \(item.rawValue, privacy: .public)")
+                        continue
+                    }
+                    try files.moveItem(at: copy, to: target)
+                case .sqlite:
                     let db = try reader(source)
                     try db.writeWithoutTransaction { try $0.execute(sql: "VACUUM INTO ?", arguments: [target.path]) }
-                } else if insidePayload, item.kind == .directory {
+                case .directory where insidePayload:
                     // 同名覆盖时跳过这次的输出和私有快照。其余归档作为用户文件保留。
                     let output = parent.appending(path: destination.lastPathComponent)
                     let filter = ExportCopyFilter(excluding: [temporary, output], options: comparison)
                     let copier = FileManager()
                     copier.delegate = filter
                     try withExtendedLifetime(filter) { try copier.copyItem(at: source, to: target) }
-                } else {
+                case .directory:
                     try files.copyItem(at: source, to: target)
                 }
                 items.append(item)

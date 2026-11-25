@@ -35,14 +35,44 @@ private final class ArchiveFixture: Sendable {
 
     deinit { try? manager.removeItem(at: root) }
 
+    @MainActor func populateStores(in locations: UserDataLocations, memory: BookMemory) async throws -> CoreServices {
+        let core = try await CoreServices.make(configuration: .init(supportDirectory: locations.supportDirectory,
+            cacheDirectory: root.appending(path: "cache"), browseBounds: PixelSize(width: 640, height: 480)))
+        await core.settings.saveBookMemory(memory)
+        try await core.settings.updateGlobal { $0.historyLimit = 42 }
+        try await core.settings.updatePathRules { _ in }
+        try await core.settings.updateProfiles { _ in }
+        try await core.keyBindings?.update { _ in }
+        try await core.menus?.update { _ in }
+        try await core.externalCommands?.update { _ in }
+        try await core.pluginSettings?.update { $0.plugins["sample"] = .init(enabled: true) }
+        try await core.scriptStorage?.set("sample", "note", .string("note"))
+        let sourceID = UUID()
+        try await core.pluginSecrets?.set(["test": "fixture"], for: sourceID)
+        let library = try #require(core.library)
+        try await library.recordOpened(memory.book, at: Date(timeIntervalSince1970: 123))
+        let folder = try await library.addBookmarkFolder(named: "收藏", into: nil, at: nil)
+        _ = try await library.addBookmarks([memory.book], into: folder, at: 0)
+        _ = try await library.createPlaylist(named: "列表")
+        for item in appItems {
+            let store = try JSONDocumentStore(fileURL: item.url(in: locations), version: 1, defaultValue: [String]())
+            try await store.update { $0 = ["fixture"] }
+        }
+        return core
+    }
+
     @discardableResult func export() async throws -> UserDataManifest {
-        try await UserDataArchive.export(from: source, origin: origin, to: zip)
+        try await UserDataArchive.export(from: source, origin: origin, appValidators: appValidators, to: zip)
     }
 
     @discardableResult func stageAndCommit(_ url: URL? = nil) async throws -> StagedImport {
         let staged = try await UserDataArchive.stage(url ?? zip, for: target, appValidators: appValidators)
         try UserDataArchive.commitStaged(staged, for: target)
         return staged
+    }
+
+    func applyPendingImport() async -> UserDataImportOutcome? {
+        await UserDataArchive.applyPendingImport(for: target, origin: origin, appValidators: appValidators)
     }
 
     func snapshot(_ url: URL) throws -> [String: String] {
@@ -102,30 +132,10 @@ extension CoreIntegrationTests.UserDataArchiveTests {
     @Test("C1.1 / C1.4c 16 项按真实存储往返，统计来自快照，权限、链接与空目录保留")
     @MainActor func roundTrip() async throws {
         let f = try ArchiveFixture()
-        let core = try await CoreServices.make(configuration: .init(supportDirectory: f.source.supportDirectory,
-            cacheDirectory: f.root.appending(path: "cache"), browseBounds: PixelSize(width: 640, height: 480)))
         let book = Location(root: .local, layers: [["书 O'Brien"]])
         let memory = BookMemory(book: book, lastPageIndex: 4)
-        await core.settings.saveBookMemory(memory)
-        try await core.settings.updateGlobal { $0.historyLimit = 42 }
-        try await core.settings.updatePathRules { _ in }
-        try await core.settings.updateProfiles { _ in }
-        try await core.keyBindings?.update { _ in }
-        try await core.menus?.update { _ in }
-        try await core.externalCommands?.update { _ in }
-        try await core.pluginSettings?.update { $0.plugins["sample"] = .init(enabled: true) }
-        try await core.scriptStorage?.set("sample", "note", .string("note"))
-        let sourceID = UUID()
-        try await core.pluginSecrets?.set(["test": "fixture"], for: sourceID)
+        let core = try await f.populateStores(in: f.source, memory: memory)
         let library = try #require(core.library)
-        try await library.recordOpened(book, at: Date(timeIntervalSince1970: 123))
-        let folder = try await library.addBookmarkFolder(named: "收藏", into: nil, at: nil)
-        _ = try await library.addBookmarks([book], into: folder, at: 0)
-        _ = try await library.createPlaylist(named: "列表")
-        for item in appItems {
-            let store = try JSONDocumentStore(fileURL: item.url(in: f.source), version: 1, defaultValue: [String]())
-            try await store.update { $0 = ["fixture"] }
-        }
         let scripts = UserDataItem.scripts.url(in: f.source)
         try write("sample", scripts.appending(path: "测试.js"))
         let plugin = UserDataItem.pluginFiles.url(in: f.source).appending(path: "test")
@@ -154,7 +164,7 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         #expect(!listing.contains(".sqlite-wal") && !listing.contains(".sqlite-shm"))
         let staged = try await f.stageAndCommit()
         #expect(staged.manifest == manifest)
-        let result = await UserDataArchive.applyPendingImport(for: f.target, origin: origin)
+        let result = await f.applyPendingImport()
         #expect(result == .imported(manifest, backup: UserDataArchive.backupURL(for: f.target)))
         for item in UserDataItem.allCases {
             let a = item.url(in: f.source), b = item.url(in: f.target)
@@ -198,10 +208,10 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         try write("sample", directory.appending(path: "a.js"))
         try write("keep", directory.appending(path: "other.macviewdata"))
         let zip = directory.appending(path: "export.macviewdata")
-        _ = try await UserDataArchive.export(from: source, origin: origin, to: zip)
+        _ = try await UserDataArchive.export(from: source, origin: origin, appValidators: appValidators, to: zip)
         let insensitive = try directory.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames == false
         let overwrite = insensitive ? directory.appending(path: "EXPORT.macviewdata") : zip
-        let manifest = try await UserDataArchive.export(from: source, origin: origin, to: overwrite)
+        let manifest = try await UserDataArchive.export(from: source, origin: origin, appValidators: appValidators, to: overwrite)
         let staged = try await f.stageAndCommit(overwrite)
         #expect(staged.manifest == manifest)
         let copied = f.staging.appending(path: "data").appending(path: item.rawValue).appending(path: folder)
@@ -253,13 +263,74 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         let manifest = try await f.export()
         try await f.stageAndCommit()
         let backup = UserDataArchive.backupURL(for: f.target)
-        #expect(await UserDataArchive.applyPendingImport(for: f.target, origin: origin) == .imported(manifest, backup: backup))
+        #expect(await f.applyPendingImport() == .imported(manifest, backup: backup))
         #expect(!manager.fileExists(atPath: old.path))
         let staged = try await f.stageAndCommit(backup)
-        #expect(await UserDataArchive.applyPendingImport(for: f.target, origin: origin) == .imported(staged.manifest, backup: backup))
+        #expect(await f.applyPendingImport() == .imported(staged.manifest, backup: backup))
         #expect(try String(contentsOf: old, encoding: .utf8) == #"{"version":1,"value":["旧"]}"#)
         #expect(!manager.fileExists(atPath: UserDataItem.session.url(in: f.target).path))
         for path in kept { #expect(try String(contentsOf: f.target.supportDirectory.appending(path: path), encoding: .utf8) == path) }
+    }
+
+    @Test("C1.5b 本机无效的会话与高版本快捷键从导出和备份中略过，备份可恢复其余数据")
+    @MainActor func backupSkipsInvalidDocuments() async throws {
+        let f = try ArchiveFixture()
+        let session = UserDataItem.session, keys = UserDataItem.keyBindings
+        let invalid = [session: "{", keys: #"{"version":\#(KeyBindingsFile.documentVersion + 1),"value":{"bindings":[]}}"#]
+        let memory = BookMemory(book: Location(root: .local, layers: [["书"]]), lastPageIndex: 17)
+        do {
+            let core = try await f.populateStores(in: f.target, memory: memory)
+            try await core.flushPersistentState()
+            await core.shutdown()
+        }
+        for (item, contents) in invalid { try write(contents, item.url(in: f.target)) }
+        let scripts = UserDataItem.scripts.url(in: f.target)
+        try write("original", scripts.appending(path: "note.js"))
+        let plugin = UserDataItem.pluginFiles.url(in: f.target).appending(path: "sample")
+        try manager.createDirectory(at: plugin, withIntermediateDirectories: true)
+        try write("{}", plugin.appending(path: "manifest.json"))
+
+        // 比较 JSON 原始字节、目录内的每个条目和两个数据库的全部表、记录。
+        func snapshot(_ item: UserDataItem) throws -> [String: String] {
+            let url = item.url(in: f.target)
+            switch item.kind {
+            case .json: return ["": SHA256.hash(data: try Data(contentsOf: url)).description]
+            case .directory: return try f.snapshot(url)
+            case .sqlite:
+                let dump = try command("/usr/bin/sqlite3", ["-batch", "-readonly", url.path, ".dump"])
+                return ["": SHA256.hash(data: Data(dump.utf8)).description]
+            }
+        }
+        let expected = Set(UserDataItem.allCases).subtracting(invalid.keys)
+        let before = try Dictionary(uniqueKeysWithValues: expected.map { ($0, try snapshot($0)) })
+        let manual = f.root.appending(path: "manual.macviewdata")
+        let exported = try await UserDataArchive.export(from: f.target, origin: origin, appValidators: appValidators, to: manual)
+        #expect(Set(exported.items) == expected)
+        let manualStage = try await UserDataArchive.stage(manual, for: f.target, appValidators: appValidators)
+        #expect(manualStage.manifest == exported)
+        for (item, contents) in invalid {
+            #expect(try Data(contentsOf: item.url(in: f.target)) == Data(contents.utf8))
+        }
+
+        // 先导入含有效会话和快捷键的归档，确认第二次导入确实删除了这两项。
+        try write(#"{"version":1,"value":["新会话"]}"#, session.url(in: f.source))
+        try write(#"{"version":\#(KeyBindingsFile.documentVersion),"value":{"bindings":[]}}"#, keys.url(in: f.source))
+        let incoming = try await f.export()
+        try await f.stageAndCommit()
+        let backup = UserDataArchive.backupURL(for: f.target)
+        #expect(await f.applyPendingImport() == .imported(incoming, backup: backup))
+        for item in [session, keys] {
+            #expect(try Data(contentsOf: item.url(in: f.target)) == Data(contentsOf: item.url(in: f.source)))
+        }
+        for archive in [manual, backup] {
+            let entries = try command("/usr/bin/zipinfo", ["-1", archive.path]).split(separator: "\n")
+            for item in [session, keys] { #expect(!entries.contains("data/\(item.rawValue)")) }
+        }
+        let staged = try await f.stageAndCommit(backup)
+        #expect(Set(staged.manifest.items) == expected)
+        #expect(await f.applyPendingImport() == .imported(staged.manifest, backup: backup))
+        for item in [session, keys] { #expect(!manager.fileExists(atPath: item.url(in: f.target).path)) }
+        for item in expected { #expect(try snapshot(item) == before[item]) }
     }
 
     enum Invalid: CaseIterable { case ordinary, notZip, newer, json, database, traversal, absolute, version, structure, missing, extra }
@@ -307,7 +378,22 @@ extension CoreIntegrationTests.UserDataArchiveTests {
     func validatesEveryJSON(_ item: UserDataItem) async throws {
         let f = try ArchiveFixture()
         try write("[]", item.url(in: f.source))
-        _ = try await f.export()
+        let manifest = try await f.export()
+        #expect(manifest.items.isEmpty)
+        if appItems.contains(item) {
+            await #expect(throws: UserDataArchiveError.self) {
+                try await UserDataArchive.export(from: f.source, origin: origin, appValidators: [:], to: f.zip)
+            }
+        }
+        // 导出会略去无效项。将它作为外部归档的清单项重新放入，独立验证暂存的拒绝路径。
+        try f.changeZip("""
+            import json
+            name = sys.argv[2]
+            manifest = json.loads(entries['manifest.json'])
+            manifest['items'].append(name)
+            entries['manifest.json'] = json.dumps(manifest)
+            entries['data/' + name] = b'[]'
+            """, [item.rawValue])
         do {
             _ = try await UserDataArchive.stage(f.zip, for: f.target, appValidators: appValidators)
             Issue.record("接受了错误结构")
@@ -369,8 +455,8 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         #expect(try f.snapshot(f.target.supportDirectory).isEmpty)
     }
 
-    @Test("C1.3 / C1.6 导出不能替换完整目标时保留旧文件，备份失败时不开始导入")
-    func failedBackup() async throws {
+    @Test("C1.3 / C1.6 导出不能替换完整目标时保留旧文件，备份失败时不开始导入", arguments: [false, true])
+    func failedBackup(damagedDatabase: Bool) async throws {
         let f = try ArchiveFixture()
         try write("previous", f.zip)
         let db = UserDataItem.bookMemory.url(in: f.source)
@@ -385,11 +471,18 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         #expect(try !manager.contentsOfDirectory(atPath: f.root.path).contains { $0.hasPrefix(".macview-export-") })
         try manager.removeItem(at: db)
         _ = try await f.export()
-        try write("keep", f.target.supportDirectory.appending(path: "Backups"))
+        if damagedDatabase {
+            let backup = UserDataArchive.backupURL(for: f.target)
+            try manager.createDirectory(at: backup.deletingLastPathComponent(), withIntermediateDirectories: false)
+            try write("previous backup", backup)
+            try write("damaged", UserDataItem.bookMemory.url(in: f.target))
+        } else {
+            try write("keep", f.target.supportDirectory.appending(path: "Backups"))
+        }
         try write("original", UserDataItem.plugins.url(in: f.target))
         let before = try f.snapshot(f.target.supportDirectory)
         try await f.stageAndCommit()
-        guard case .rolledBack = await UserDataArchive.applyPendingImport(for: f.target, origin: origin) else {
+        guard case .rolledBack = await f.applyPendingImport() else {
             Issue.record("备份失败后未终止导入")
             return
         }
@@ -404,7 +497,7 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         let new = try await UserDataArchive.stage(f.zip, for: f.target, appValidators: appValidators)
         #expect(old.token != new.token)
         #expect(throws: UserDataArchiveError.self) { try UserDataArchive.commitStaged(old, for: f.target) }
-        #expect(await UserDataArchive.applyPendingImport(for: f.target, origin: origin) == nil)
+        #expect(await f.applyPendingImport() == nil)
         #expect(!manager.fileExists(atPath: f.staging.path))
         _ = try await f.stageAndCommit()
         UserDataArchive.discardStaged(for: f.target)
@@ -430,7 +523,7 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         let old = try f.snapshot(f.target.supportDirectory)
         _ = try await f.export()
         try await f.stageAndCommit()
-        let result = await UserDataArchive.applyPendingImport(for: f.target, origin: origin) { from, to, scratchID in
+        let result = await UserDataArchive.applyPendingImport(for: f.target, origin: origin, appValidators: appValidators) { from, to, scratchID in
             if to == UserDataItem.scripts.url(in: f.target) { throw CocoaError(.fileWriteUnknown) }
             try UserDataArchive.move(from, to, scratchID)
         }
@@ -460,7 +553,7 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         _ = try await f.export()
         let staged = try await UserDataArchive.stage(f.zip, for: target, appValidators: appValidators)
         try UserDataArchive.commitStaged(staged, for: target)
-        let applied = await UserDataArchive.applyPendingImport(for: target, origin: origin) { from, to, id in
+        let applied = await UserDataArchive.applyPendingImport(for: target, origin: origin, appValidators: appValidators) { from, to, id in
             let bytes = try Data(contentsOf: target.rollback.appending(path: "journal.json"))
             let record = try JSONSerialization.jsonObject(with: bytes) as? [String: Any]
             #expect(record?["layoutPath"] as? String == target.layoutFile.path)
@@ -490,7 +583,7 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         let unrelatedCopy = f.root.appending(path: ".macview-move-\(id)")
         try write("unrelated layout", newLayout)
         try write("unrelated copy", unrelatedCopy)
-        let outcome = await UserDataArchive.applyPendingImport(for: restarted, origin: origin)
+        let outcome = await UserDataArchive.applyPendingImport(for: restarted, origin: origin, appValidators: appValidators)
         switch (committed, outcome) {
         case (true, nil), (false, .rolledBack): break
         default: Issue.record("布局恢复结果与记录状态不符")
@@ -504,7 +597,7 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         #expect(try String(contentsOf: unrelatedCopy, encoding: .utf8) == "unrelated copy")
         #expect(!manager.fileExists(atPath: partial.path))
         #expect(try String(contentsOf: unrelated, encoding: .utf8) == "other")
-        #expect(await UserDataArchive.applyPendingImport(for: target, origin: origin) == nil)
+        #expect(await UserDataArchive.applyPendingImport(for: target, origin: origin, appValidators: appValidators) == nil)
     }
 
     enum Interruption: CaseIterable { case halfway, committed, halfRestored, cannotRecover, unknownLayout, legacyCleanup }
@@ -550,7 +643,7 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         case .cannotRecover: break
         }
         let before = try f.snapshot(f.target.supportDirectory)
-        let result = await UserDataArchive.applyPendingImport(for: f.target, origin: origin)
+        let result = await f.applyPendingImport()
         switch point {
         case .cannotRecover, .unknownLayout:
             guard case .recoveryFailed = result else { Issue.record("未报告恢复失败"); return }
@@ -566,7 +659,7 @@ extension CoreIntegrationTests.UserDataArchiveTests {
         }
         if point != .cannotRecover, point != .unknownLayout {
             #expect(!manager.fileExists(atPath: f.staging.path) && !manager.fileExists(atPath: f.rollback.path))
-            #expect(await UserDataArchive.applyPendingImport(for: f.target, origin: origin) == nil)
+            #expect(await f.applyPendingImport() == nil)
         }
         #expect(try String(contentsOf: f.target.layoutFile, encoding: .utf8) == "unrelated")
         #expect(try String(contentsOf: unrelatedCopy, encoding: .utf8) == "unrelated copy")

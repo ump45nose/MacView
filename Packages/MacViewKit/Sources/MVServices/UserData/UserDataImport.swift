@@ -36,15 +36,16 @@ extension UserDataArchive {
         return parts
     }
 
-    public static func applyPendingImport(for locations: UserDataLocations, origin: UserDataOrigin) async -> UserDataImportOutcome? {
-        await applyPendingImport(for: locations, origin: origin, move: move)
+    public static func applyPendingImport(for locations: UserDataLocations, origin: UserDataOrigin,
+                                          appValidators: UserDataValidators) async -> UserDataImportOutcome? {
+        await applyPendingImport(for: locations, origin: origin, appValidators: appValidators, move: move)
     }
 
-    static func applyPendingImport(for locations: UserDataLocations, origin: UserDataOrigin,
+    static func applyPendingImport(for locations: UserDataLocations, origin: UserDataOrigin, appValidators: UserDataValidators,
                                    move: @escaping @Sendable (URL, URL, UUID) throws -> Void) async -> UserDataImportOutcome? {
         await withCheckedContinuation { continuation in
             queue.async {
-                do { continuation.resume(returning: try apply(locations, origin: origin, move: move)) }
+                do { continuation.resume(returning: try apply(locations, origin: origin, appValidators: appValidators, move: move)) }
                 catch {
                     continuation.resume(returning: .recoveryFailed(reason: String(localized: "无法恢复或清理上次导入的数据。", bundle: .main)))
                 }
@@ -52,7 +53,7 @@ extension UserDataArchive {
         }
     }
 
-    private static func apply(_ requested: UserDataLocations, origin: UserDataOrigin,
+    private static func apply(_ requested: UserDataLocations, origin: UserDataOrigin, appValidators: UserDataValidators,
                               move: (URL, URL, UUID) throws -> Void) throws -> UserDataImportOutcome? {
         var locations = requested
         let journalFile = locations.rollback.appending(path: "journal.json")
@@ -96,7 +97,7 @@ extension UserDataArchive {
             }
             manifest = try readManifest(in: locations.staging)
             try files.createDirectory(at: backup.deletingLastPathComponent(), withIntermediateDirectories: true)
-            _ = try writeArchive(from: locations, origin: origin, to: backup)
+            _ = try writeArchive(from: locations, origin: origin, appValidators: appValidators, to: backup)
             var existed: [String: Bool] = [:]
             for part in UserDataItem.allCases.flatMap({ parts(for: $0, in: locations) }) {
                 existed[part.name] = try type(of: part.live) != nil

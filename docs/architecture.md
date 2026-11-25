@@ -400,7 +400,8 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 
 - `UserDataItem` 的 16 项包含 12 个 JSON 文件（`settings.json`、`keybindings.json`、`menus.json`、`path-rules.json`、`profiles.json`、`layout.json`、`layout-schemes.json`、`session.json`、`external-commands.json`、`script-storage.json`、`plugins.json`、`plugin-secrets.json`）、两个数据库（`state.sqlite`、`library.sqlite`）和两个目录（`Scripts/`、`Plugins/`）。布局文件使用调用方提供的路径。导出只收录存在的项，导入后这 16 项与归档一致，缺项会删除本机对应项。缓存、`transfers.json` 和其他清单外文件保持原样。
 - 格式 1 使用 ZIP。顶层 `manifest.json` 包含 `format`、`appVersion`、`appBuild`、`createdAt`（ISO 8601）、`host`、`summary` 和 `items`，载荷位于 `data/`。SQLite 用独立只读连接执行 `VACUUM INTO`，归档只收主文件。历史、书签条目、播放列表数取自资料库快照，脚本数为 `Scripts/` 顶层的 JS 文件数，插件数为 `Plugins/` 下含 `manifest.json` 的子目录数。目录内保留文件权限与符号链接。归档含明文来源密码，导出文件以 0600 原子写入，覆盖已有文件时同样生效。
-- `UserDataArchive.stage` 先检查相对条目路径，再在 `.import-staging/` 核对清单、种类和完整性。JSON 复用对应存储的版本和解码规则，会话、布局及布局方案由 App 提供校验，SQLite 执行 `quick_check`。错误时清理暂存。确认时 `commitStaged` 核对本次 token 并写入 `ready`，取消时 `discardStaged` 删除暂存。
+- `export`、`stage` 和 `applyPendingImport` 均要求 App 通过 `appValidators` 提供会话、布局及布局方案的校验。其余 JSON 项复用各自存储的版本与解码规则。手动导出与导入前备份共用打包函数，对即将归档的 JSON 副本执行与暂存相同的版本和解码校验。校验未通过的项从 `data/` 和 `manifest.items` 中略去，日志只记项名。恢复该归档时删除本机对应项，存储使用默认值。SQLite 快照失败会终止导出或备份。
+- `UserDataArchive.stage` 先检查相对条目路径，再在 `.import-staging/` 核对清单、种类和完整性。JSON 校验失败或 SQLite 未通过 `quick_check` 时拒绝整个归档并清理暂存。确认时 `commitStaged` 核对本次 token 并写入 `ready`，取消时 `discardStaged` 删除暂存。
 - 启动时 `applyPendingImport` 先处理上次替换记录。新导入须有 `ready`，无标记的暂存直接清除。有标记时先按同一格式备份至 `Backups/before-import.macviewdata`，仅保留最近一份。写入每项原先是否存在的回滚记录后再整体替换，原 SQLite 连同 `-wal`、`-shm` 保存。恢复 `plugin-secrets.json` 的 0600 权限后标记已提交，再依次清理暂存和回滚目录。
 - 替换失败或中断时按记录恢复原文件并清除本次新增项，恢复可重复执行，期间保留已有备份。已提交的记录只需完成清理。恢复失败时保留现场并返回 `.recoveryFailed`，App 在创建服务前退出。
 
