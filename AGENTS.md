@@ -57,6 +57,7 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 
 - Swift 6 语言模式，完整并发检查，零警告。
 - 单元测试用 Swift Testing。
+- Core 里会显示到界面的文字用 `String(localized: "…", bundle: .main)`，英文翻译加进 `App/Resources/Localizable.xcstrings`；`make test` 会核对缺失的翻译（见 architecture.md §2）。
 - 性能数据来自 mvbench 与 signpost；界面性能用 `xctrace`（Animation Hitches）采集。
 - App 没有测试目标，界面行为用 `-MVSelfTest`、`-MVDockSelfTest`、`-MVFileOpsSelfTest` 等自检（参数见 architecture.md）。要前台的自检加 `-MVSelfTestActivate YES` 并经 `open -n -W -a <App> --args …` 启动，从终端直接起的进程拿不到前台；每次运行用独立的 `-MVSupportDirectory`、`-MVCacheDirectory`、`-MVLayoutFile`。点击和拖动要走真实事件路径（经 `NSApp.sendEvent` 发送），`performClick` 测不到依赖当前事件的逻辑；读模型也证明不了屏幕上的显示，这类结果由用户确认。Release 构建不认任何 `-MV…` 自检参数（包括 `-MVSupportDirectory`），会直接读写真实的 `~/Library/Application Support/MacView`：不要对 Release 起自检；对安装版实机走查前先备份该目录，测完恢复。访问网络卷的自检和冒烟直接执行 `MacView.app/Contents/MacOS/MacView`：ad-hoc 签名每次构建都变，经 `open` 启动后第一次读网络卷要等系统授权弹窗，9 秒后被判超时、卷降级；要前台又要网络卷时，由用户在场点“允许”。
 

@@ -27,18 +27,18 @@ enum TarIndex {
             let header = try await reader.read(offset, count: 512)
             if header.allSatisfy({ $0 == 0 }) { return index }
             guard isHeader(header), let headerSize = number(header, range: 124..<136), headerSize >= 0,
-                  let mtime = number(header, range: 136..<148) else { throw IOError.corrupted(source.identity.location, "无效的 tar 头部或校验和") }
+                  let mtime = number(header, range: 136..<148) else { throw IOError.corrupted(source.identity.location, String(localized: "无效的 tar 头部或校验和", bundle: .main)) }
             let type = header[156]
             let payload = offset + 512
             var size = headerSize
             if type != UInt8(ascii: "x"), type != UInt8(ascii: "g"), type != UInt8(ascii: "L"), type != UInt8(ascii: "K") {
                 if let text = local["size"] ?? global["size"] {
-                    guard let value = Int64(text), value >= 0 else { throw IOError.corrupted(source.identity.location, "无效的 pax size") }
+                    guard let value = Int64(text), value >= 0 else { throw IOError.corrupted(source.identity.location, String(localized: "无效的 pax size", bundle: .main)) }
                     size = value
                 }
             }
             guard size <= source.identity.size - payload,
-                  size <= Int64.max - 511 else { throw IOError.corrupted(source.identity.location, "tar 条目数据越界") }
+                  size <= Int64.max - 511 else { throw IOError.corrupted(source.identity.location, String(localized: "tar 条目数据越界", bundle: .main)) }
             if type == UInt8(ascii: "x") || type == UInt8(ascii: "g") {
                 let data = try await archiveRead(source, payload..<payload + size, priority: priority)
                 let values = try pax(data, at: source.identity.location)
@@ -55,11 +55,11 @@ enum TarIndex {
                 let name = local["path"] ?? global["path"] ?? longName ?? (prefix.isEmpty ? short : prefix + "/" + short)
                 let nanos: Int64
                 if let text = local["mtime"] ?? global["mtime"] {
-                    guard let value = paxTimeNanos(text) else { throw IOError.corrupted(source.identity.location, "无效的 pax mtime") }
+                    guard let value = paxTimeNanos(text) else { throw IOError.corrupted(source.identity.location, String(localized: "无效的 pax mtime", bundle: .main)) }
                     nanos = value
                 } else {
                     let (value, overflow) = mtime.multipliedReportingOverflow(by: 1_000_000_000)
-                    guard !overflow else { throw IOError.corrupted(source.identity.location, "tar 时间超出范围") }
+                    guard !overflow else { throw IOError.corrupted(source.identity.location, String(localized: "tar 时间超出范围", bundle: .main)) }
                     nanos = value
                 }
                 let kind: EntryKind = switch type {
@@ -74,7 +74,7 @@ enum TarIndex {
             }
             offset = payload + ((size + 511) / 512) * 512
         }
-        guard offset == source.identity.size else { throw IOError.corrupted(source.identity.location, "tar 结尾不完整") }
+        guard offset == source.identity.size else { throw IOError.corrupted(source.identity.location, String(localized: "tar 结尾不完整", bundle: .main)) }
         return index
     }
 
@@ -142,15 +142,15 @@ enum TarIndex {
             while space < data.count, data[space] != 32 {
                 let byte = data[space]
                 guard byte >= 48, byte <= 57, count <= (Int.max - Int(byte - 48)) / 10 else {
-                    throw IOError.corrupted(location, "无效的 pax 记录长度")
+                    throw IOError.corrupted(location, String(localized: "无效的 pax 记录长度", bundle: .main))
                 }
                 count = count * 10 + Int(byte - 48)
                 space += 1
             }
             guard space > offset, space < data.count, count > space - offset + 2,
-                  count <= data.count - offset, data[offset + count - 1] == 10 else { throw IOError.corrupted(location, "无效的 pax 记录长度") }
+                  count <= data.count - offset, data[offset + count - 1] == 10 else { throw IOError.corrupted(location, String(localized: "无效的 pax 记录长度", bundle: .main)) }
             let body = data[space + 1..<offset + count - 1]
-            guard let equal = body.firstIndex(of: 61), equal > body.startIndex else { throw IOError.corrupted(location, "无效的 pax 键值") }
+            guard let equal = body.firstIndex(of: 61), equal > body.startIndex else { throw IOError.corrupted(location, String(localized: "无效的 pax 键值", bundle: .main)) }
             let keyBytes = body[..<equal]
             let key: String
             if keyBytes.elementsEqual("path".utf8) { key = "path" }
@@ -162,7 +162,7 @@ enum TarIndex {
                 continue
             }
             guard let value = String(data: body[body.index(after: equal)...], encoding: .utf8) else {
-                throw IOError.corrupted(location, "无效的 pax 键值")
+                throw IOError.corrupted(location, String(localized: "无效的 pax 键值", bundle: .main))
             }
             values[key] = value
             offset += count

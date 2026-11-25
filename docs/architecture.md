@@ -56,6 +56,7 @@
 | App（`MacView` target） | 窗口与标签页、停靠面板、集合视图、查看器、输入、菜单、设置界面、本地化 | MVServices 等 |
 
 - 任务 ID 中，T 表示 Core 任务，F 表示 App 任务。
+- 本地化：界面文案只放在 App 的 `App/Resources/Localizable.xcstrings`（源语言简体中文）。Core 里会显示到界面的文字（清单与脚本错误、压缩包损坏原因、`IOError.underlying` 说明、插件与脚本日志等）写成 `String(localized: "…", bundle: .main)` 或 `String.LocalizationValue` 参数，运行时由 App 的目录翻译；单元测试里取不到目录，仍是中文原文。`make test` 编译时加 `-emit-localized-strings` 写出键，再由 `scripts/check-core-strings.py` 核对每个键都有英文。只进系统日志、调试或界面不显示的原因（如解码失败细节、卷变慢原因）保持原文。
 - P1 模块 `MVPlugins` 已在 S5-T2 阶段 1 建立（效果链模型放在 MVSettings，S4-T1 决定）。
 - 依赖选型：SQLite 统一用 GRDB.swift（MIT 许可），由第一个用到它的任务引入，MVCache 与 MVSettings 共用。其余依赖由各任务按需选用。
 - 已引入的依赖（版本以 `Packages/MacViewKit/Package.resolved` 为准）：

@@ -45,7 +45,7 @@ public enum CommandTemplate {
     public enum TemplateError: Error, LocalizedError, Sendable {
         case unclosedQuote, trailingEscape
         public var errorDescription: String? {
-            switch self { case .unclosedQuote: "参数模板中的引号没有闭合"; case .trailingEscape: "参数模板末尾缺少转义字符" }
+            switch self { case .unclosedQuote: String(localized: "参数模板中的引号没有闭合", bundle: .main); case .trailingEscape: String(localized: "参数模板末尾缺少转义字符", bundle: .main) }
         }
     }
 

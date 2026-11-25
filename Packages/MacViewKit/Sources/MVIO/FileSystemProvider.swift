@@ -136,7 +136,7 @@ public final class FileSystemProvider: ContainerProvider {
         let (volume, path) = try resolve(location)
         guard volume.isLocal else { throw IOError.unsupported(location) }
         guard let result = try await execute(.trash(path: path), at: location), let targetVolume = scheduler.table.volume(containing: result) else {
-            throw IOError.underlying("无法确定废纸篓的位置")
+            throw IOError.underlying(String(localized: "无法确定废纸篓的位置", bundle: .main))
         }
         return Location(root: targetVolume.root, layers: [targetVolume.components(ofPath: result)])
     }
@@ -199,7 +199,7 @@ public final class FileSystemProvider: ContainerProvider {
         case let .system(call, code):
             .underlying("\(call): \(String(cString: strerror(code)))")
         case .changed:
-            .corrupted(location, "文件在打开后被修改")
+            .corrupted(location, String(localized: "文件在打开后被修改", bundle: .main))
         case .helperLost:
             .volumeDegraded(volume.root)
         }
@@ -283,9 +283,9 @@ public final class FileSourceRegistry: SourceRegistry {
 
     /// 只查挂载表，不访问文件，网络卷卡住时也立即返回。路径不解析符号链接。
     public func location(for fileURL: URL) async throws -> Location {
-        guard fileURL.isFileURL else { throw IOError.underlying("不是文件 URL：\(fileURL)") }
+        guard fileURL.isFileURL else { throw IOError.underlying(String(localized: "不是文件 URL：\(String(describing: fileURL))", bundle: .main)) }
         let path = fileURL.standardizedFileURL.path
-        guard let volume = scheduler.table.volume(containing: path) else { throw IOError.underlying("找不到 \(path) 所在的卷") }
+        guard let volume = scheduler.table.volume(containing: path) else { throw IOError.underlying(String(localized: "找不到 \(path) 所在的卷", bundle: .main)) }
         return Location(root: volume.root, layers: [volume.components(ofPath: path)])
     }
 

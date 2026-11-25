@@ -74,7 +74,7 @@ public final class HTTPByteSource: ByteSource, Sendable {
             }
 
             guard let http = response as? HTTPURLResponse else {
-                throw IOError.underlying("非 HTTP 响应：\(url.absoluteString)")
+                throw IOError.underlying(String(localized: "非 HTTP 响应：\(url.absoluteString)", bundle: .main))
             }
 
             switch http.statusCode {

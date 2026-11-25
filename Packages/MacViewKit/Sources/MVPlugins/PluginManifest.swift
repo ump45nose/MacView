@@ -32,7 +32,7 @@ public enum PluginRuntimeKind: Sendable, Hashable, Codable {
             self = .process(command: spec.command, arguments: spec.args ?? [])
         default:
             throw DecodingError.dataCorrupted(
-                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "runtime 必须且只能包含 js 或 process")
+                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: String(localized: "runtime 必须且只能包含 js 或 process", bundle: .main))
             )
         }
     }
@@ -226,20 +226,20 @@ public struct PluginManifest: Sendable, Hashable, Codable {
             return .failure(syntaxProblem(error, text: text, file: file))
         }
         guard let root = rawObject as? [String: Any] else {
-            return .failure(PluginProblem(file: file, line: 1, column: 1, message: "清单顶层必须是 JSON 对象"))
+            return .failure(PluginProblem(file: file, line: 1, column: 1, message: String(localized: "清单顶层必须是 JSON 对象", bundle: .main)))
         }
 
-        func problem(_ message: String, key: String? = nil, valueToken: String? = nil) -> PluginProblem {
+        func problem(_ message: String.LocalizationValue, key: String? = nil, valueToken: String? = nil) -> PluginProblem {
             let pos = locate(key: key, valueToken: valueToken, in: text)
-            return PluginProblem(file: file, line: pos.line, column: pos.column, message: message)
+            return PluginProblem(file: file, line: pos.line, column: pos.column, message: String(localized: message, bundle: .main))
         }
 
         guard let name = root["name"] as? String, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            let msg = root["name"] == nil ? "缺少必填字段 name" : "name 必须是非空字符串"
+            let msg: String.LocalizationValue = root["name"] == nil ? "缺少必填字段 name" : "name 必须是非空字符串"
             return .failure(problem(msg, key: "name"))
         }
         guard let version = root["version"] as? String, !version.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            let msg = root["version"] == nil ? "缺少必填字段 version" : "version 必须是非空字符串"
+            let msg: String.LocalizationValue = root["version"] == nil ? "缺少必填字段 version" : "version 必须是非空字符串"
             return .failure(problem(msg, key: "version"))
         }
         let description: String?
@@ -254,7 +254,7 @@ public struct PluginManifest: Sendable, Hashable, Codable {
 
         // runtime
         guard let rawRuntime = root["runtime"] as? [String: Any] else {
-            let msg = root["runtime"] == nil ? "缺少必填字段 runtime" : "runtime 必须是对象"
+            let msg: String.LocalizationValue = root["runtime"] == nil ? "缺少必填字段 runtime" : "runtime 必须是对象"
             return .failure(problem(msg, key: "runtime"))
         }
         let hasJS = rawRuntime["js"] != nil && !(rawRuntime["js"] is NSNull)
@@ -273,7 +273,7 @@ public struct PluginManifest: Sendable, Hashable, Codable {
                 return .failure(problem("runtime.process 必须是对象", key: "process"))
             }
             guard let command = proc["command"] as? String, !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                let msg = proc["command"] == nil ? "缺少必填字段 runtime.process.command" : "runtime.process.command 必须是非空字符串"
+                let msg: String.LocalizationValue = proc["command"] == nil ? "缺少必填字段 runtime.process.command" : "runtime.process.command 必须是非空字符串"
                 return .failure(problem(msg, key: "command"))
             }
             var arguments: [String] = []
@@ -300,7 +300,7 @@ public struct PluginManifest: Sendable, Hashable, Codable {
             for item in arr {
                 guard let s = item as? String, let perm = PluginPermission(rawValue: s) else {
                     let token = item as? String
-                    return .failure(problem("未知权限：\(item)", key: "permissions", valueToken: token))
+                    return .failure(problem("未知权限：\(String(describing: item))", key: "permissions", valueToken: token))
                 }
                 if !permissions.contains(perm) { permissions.append(perm) }
             }
@@ -338,7 +338,7 @@ public struct PluginManifest: Sendable, Hashable, Codable {
             }
             for item in arr {
                 guard let s = item as? String, let event = ScriptEventName(rawValue: s) else {
-                    return .failure(problem("未知事件：\(item)", key: "events", valueToken: item as? String))
+                    return .failure(problem("未知事件：\(String(describing: item))", key: "events", valueToken: item as? String))
                 }
                 if !events.contains(event) { events.append(event) }
             }

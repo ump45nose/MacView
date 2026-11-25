@@ -14,7 +14,7 @@ struct RangeByteSource: ByteSource {
         let data = try await archiveRead(outer, offset + lower..<offset + upper, priority: priority, group: group)
         if lower == 0, upper == identity.size, let checksum = identity.checksum,
            ArchiveCRC.checksum(data) != checksum {
-            throw IOError.corrupted(identity.location, "zip CRC32 不一致")
+            throw IOError.corrupted(identity.location, String(localized: "zip CRC32 不一致", bundle: .main))
         }
         return data
     }

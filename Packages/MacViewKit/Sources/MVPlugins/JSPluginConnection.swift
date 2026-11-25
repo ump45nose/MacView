@@ -172,13 +172,13 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             if let context { return context }
             if loadError != nil { return nil }
             guard let source = try? String(contentsOf: entryURL, encoding: .utf8) else {
-                loadError = "无法读取 JS 插件入口：\(entryFile)"
+                loadError = String(localized: "无法读取 JS 插件入口：\(entryFile)", bundle: .main)
                 log.append(source: manifest.name, level: .error, text: loadError!)
                 onLoadFailure(self, loadError!)
                 return nil
             }
             guard let created = makeJSContext() else {
-                loadError = "无法创建 JavaScript 环境"
+                loadError = String(localized: "无法创建 JavaScript 环境", bundle: .main)
                 onLoadFailure(self, loadError!)
                 return nil
             }
@@ -193,7 +193,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
                 return nil
             }
             if let problem = JSBridge.exceptionProblem(from: created) {
-                let message = problem.line.map { "第 \($0) 行：\(problem.message)" } ?? problem.message
+                let message = problem.line.map { String(localized: "第 \($0) 行：\(problem.message)", bundle: .main) } ?? problem.message
                 loadError = message
                 log.append(source: manifest.name, level: .error, text: message)
                 onLoadFailure(self, message)
@@ -259,7 +259,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             if wasStopped {
                 return .failure(termReason == .timedOut ? PluginError.timeout(method: item.method) : PluginError.cancelled)
             }
-            return .failure(PluginError.runtimeError(loadError() ?? "插件上下文不可用"))
+            return .failure(PluginError.runtimeError(loadError() ?? String(localized: "插件上下文不可用", bundle: .main)))
         }
         activeContext.withLock { $0 = item.callContext }
         context.exception = nil
@@ -276,7 +276,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         }
         if let problem = JSBridge.exceptionProblem(from: context) {
             context.exception = nil
-            let message = problem.line.map { "第 \($0) 行：\(problem.message)" } ?? problem.message
+            let message = problem.line.map { String(localized: "第 \($0) 行：\(problem.message)", bundle: .main) } ?? problem.message
             return .failure(PluginError.runtimeError(message))
         }
         if let jsResult {
@@ -331,7 +331,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             """)
             return fn?.call(withArguments: [paramsValue])
         default:
-            context.exception = JSValue(newErrorFromMessage: "不支持的插件方法：\(method)", in: context)
+            context.exception = JSValue(newErrorFromMessage: String(localized: "不支持的插件方法：\(method)", bundle: .main), in: context)
             return nil
         }
     }
@@ -352,7 +352,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
             guard case let .object(reqObj) = args.first,
                   case let .string(urlString)? = reqObj["url"],
                   !urlString.isEmpty else {
-                throw PluginError.runtimeError("mv.http 需要包含有效 url 的对象参数")
+                throw PluginError.runtimeError(String(localized: "mv.http 需要包含有效 url 的对象参数", bundle: .main))
             }
             let method: String
             if case let .string(m)? = reqObj["method"], !m.isEmpty { method = m } else { method = "GET" }
@@ -390,7 +390,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
                     throw PluginError.missingPermission(plugin: pluginID, permission: .commands)
                 }
                 guard let host = apiHostProvider() else {
-                    throw PluginError.runtimeError("插件宿主 API 不可用")
+                    throw PluginError.runtimeError(String(localized: "插件宿主 API 不可用", bundle: .main))
                 }
                 let ctx = self?.activeContext.withLock { $0 } ?? ScriptCallContext(caller: "plugin:\(pluginID)", callerName: manifestName, session: nil, selection: [])
                 return try control.syncCall {
@@ -406,7 +406,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
 
     private static func performHTTP(_ request: PluginHTTPRequest) async throws -> PluginHTTPResponse {
         guard let url = URL(string: request.url) else {
-            throw PluginError.runtimeError("无效的 URL：\(request.url)")
+            throw PluginError.runtimeError(String(localized: "无效的 URL：\(request.url)", bundle: .main))
         }
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = request.method
@@ -418,7 +418,7 @@ final class JSPluginConnection: PluginConnection, @unchecked Sendable {
         }
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
         guard let http = response as? HTTPURLResponse else {
-            throw PluginError.runtimeError("非 HTTP 响应")
+            throw PluginError.runtimeError(String(localized: "非 HTTP 响应", bundle: .main))
         }
         var headers: [String: String] = [:]
         for (key, value) in http.allHeaderFields {

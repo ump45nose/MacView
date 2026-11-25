@@ -162,11 +162,11 @@ public final class ScriptLibrary: Sendable {
         let id = url.deletingPathExtension().lastPathComponent
         var info = ScriptInfo(id: id, fileURL: url, name: id, summary: nil, events: [], problem: nil)
         guard let source = try? String(contentsOf: url, encoding: .utf8) else {
-            info.problem = ScriptProblem(line: nil, message: "无法读取脚本文件")
+            info.problem = ScriptProblem(line: nil, message: String(localized: "无法读取脚本文件", bundle: .main))
             return info
         }
         if ["stopAll", "revealFolder", "manage"].contains(id) {
-            info.problem = ScriptProblem(line: nil, message: "此文件名由内置脚本命令保留")
+            info.problem = ScriptProblem(line: nil, message: String(localized: "此文件名由内置脚本命令保留", bundle: .main))
         }
         for (index, rawLine) in source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n").components(separatedBy: "\n").enumerated() {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
@@ -184,7 +184,7 @@ public final class ScriptLibrary: Sendable {
                     if let event = ScriptEventName(rawValue: String(word)) {
                         if !info.events.contains(event) { info.events.append(event) }
                     } else if info.problem == nil {
-                        info.problem = ScriptProblem(line: index + 1, message: "未知事件：\(word)")
+                        info.problem = ScriptProblem(line: index + 1, message: String(localized: "未知事件：\(word)", bundle: .main))
                     }
                 }
             default: break
@@ -216,7 +216,7 @@ public final class ScriptLibrary: Sendable {
             var buffer = [CChar](repeating: 0, count: JSStringGetMaximumUTF8CStringSize(string))
             let count = JSStringGetUTF8CString(string, &buffer, buffer.count)
             message = String(decoding: buffer.prefix(max(0, count - 1)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
-        } else { message = "JavaScript 语法错误" }
+        } else { message = String(localized: "JavaScript 语法错误", bundle: .main) }
         return ScriptProblem(line: line, message: message)
     }
 }

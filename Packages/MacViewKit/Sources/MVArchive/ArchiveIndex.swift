@@ -49,7 +49,7 @@ struct ArchiveIndex: Sendable {
 func archivePath(_ name: String, at location: Location) throws -> [String] {
     let components = name.split(separator: "/").map(String.init).filter { $0 != "." }
     guard !components.isEmpty, !components.contains(".."), !components.contains(where: { $0.contains("\0") }) else {
-        throw IOError.corrupted(location, "无效的归档路径")
+        throw IOError.corrupted(location, String(localized: "无效的归档路径", bundle: .main))
     }
     return components
 }
@@ -62,11 +62,11 @@ func archiveRead(_ source: any ByteSource, _ range: Range<Int64>, priority: IOPr
                  group: IORequestGroup? = nil) async throws -> Data {
     try archiveCheckCancellation()
     guard range.lowerBound >= 0, range.upperBound <= source.identity.size else {
-        throw IOError.corrupted(source.identity.location, "归档数据超出文件范围")
+        throw IOError.corrupted(source.identity.location, String(localized: "归档数据超出文件范围", bundle: .main))
     }
     let data = try await source.read(range, priority: priority, group: group)
     guard Int64(data.count) == range.upperBound - range.lowerBound else {
-        throw IOError.corrupted(source.identity.location, "归档数据不完整")
+        throw IOError.corrupted(source.identity.location, String(localized: "归档数据不完整", bundle: .main))
     }
     return data
 }

@@ -502,7 +502,7 @@ public final class FileOperationService: Sendable {
                 if Task.isCancelled { throw IOError.cancelled }
                 let end = min(entry.size, offset + Int64(4 << 20))
                 let data = try await source.read(offset..<end, priority: .background, group: nil)
-                guard !data.isEmpty else { throw IOError.corrupted(entry.location, "复制时读到文件末尾") }
+                guard !data.isEmpty else { throw IOError.corrupted(entry.location, String(localized: "复制时读到文件末尾", bundle: .main)) }
                 sourceHash.update(data: data)
                 var output = data
                 if corruptCopy && offset == 0 && !output.isEmpty { output[output.startIndex] ^= 0xff }
@@ -636,7 +636,7 @@ public final class FileOperationService: Sendable {
             if Task.isCancelled { throw IOError.cancelled }
             let end = min(entry.size, offset + Int64(4 << 20))
             let chunk = try await fileSystem.readUncached(entry.location, range: offset..<end, priority: .background)
-            guard !chunk.isEmpty else { throw IOError.corrupted(entry.location, "读取元数据时读到文件末尾") }
+            guard !chunk.isEmpty else { throw IOError.corrupted(entry.location, String(localized: "读取元数据时读到文件末尾", bundle: .main)) }
             original.append(chunk)
             offset += Int64(chunk.count)
         }

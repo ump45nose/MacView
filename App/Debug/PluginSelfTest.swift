@@ -1113,6 +1113,10 @@ final class PluginSelfTest {
         await settle(150)
         let brokenRedPx = countDangerPixels(inAXIdentifier: "settings.extensions.plugin.broken-manifest", in: settingsWindow)
         log.check(c32Detected && brokenRedPx > 0, "C3.2 坏清单插件行显示 manifest.json、行列与原因，标红(redPx=\(brokenRedPx))且无开关")
+        // 原因来自 Core，英文界面下整行不能夹中文
+        let brokenRowText = axText(identifier: "settings.extensions.plugin.broken-manifest", in: settingsWindow)
+        let brokenRowHasCJK = brokenRowText.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }
+        log.check(!isEnglish || !brokenRowHasCJK, "C3.2b 英文界面坏清单原因为英文(rowText=\(brokenRowText))")
 
         // MARK: C3.5 打开 WebDAV 开关弹出「运行外部程序（完全信任）」，取消回关闭，启用变就绪
         let readyText = String(localized: "就绪")

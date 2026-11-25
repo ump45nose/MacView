@@ -671,6 +671,42 @@
         }
       }
     },
+    "CRC32 不一致": {
+      "comment": "Core 诊断文字，键来自 ArchiveInflate.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CRC32 mismatch"
+          }
+        }
+      }
+    },
+    "DEFLATE 尾部有多余数据": {
+      "comment": "Core 诊断文字，键来自 ArchiveInflate.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra data after DEFLATE stream"
+          }
+        }
+      }
+    },
+    "DEFLATE 数据不完整": {
+      "comment": "Core 诊断文字，键来自 ArchiveInflate.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incomplete DEFLATE data"
+          }
+        }
+      }
+    },
     "GPS": {
       "localizations": {
         "en": {
@@ -701,6 +737,42 @@
         }
       }
     },
+    "JS 插件不支持声明 filters，只有外部程序插件可以提供滤镜": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JS plugins can't declare filters; only external program plugins can provide filters"
+          }
+        }
+      }
+    },
+    "JavaScript 语法错误": {
+      "comment": "Core 诊断文字，键来自 ScriptLibrary.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript syntax error"
+          }
+        }
+      }
+    },
+    "JavaScript 运行错误": {
+      "comment": "Core 诊断文字，键来自 JSBridge.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JavaScript runtime error"
+          }
+        }
+      }
+    },
     "Mock 服务": {
       "localizations": {
         "en": {
@@ -721,12 +793,216 @@
         }
       }
     },
+    "ZIP64 扩展字段不完整": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incomplete ZIP64 extra field"
+          }
+        }
+      }
+    },
+    "ZIP64 结尾越界": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ZIP64 end record out of bounds"
+          }
+        }
+      }
+    },
+    "ZIP64 缺少定位记录": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing ZIP64 end locator"
+          }
+        }
+      }
+    },
+    "ZIP64 缺少扩展字段": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing ZIP64 extra field"
+          }
+        }
+      }
+    },
+    "choice 类型滤镜参数 %@ 必须提供非空 options": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choice filter parameter %@ must provide non-empty options"
+          }
+        }
+      }
+    },
+    "commands 元素必须是对象": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "commands items must be objects"
+          }
+        }
+      }
+    },
+    "commands 必须是数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "commands must be an array"
+          }
+        }
+      }
+    },
+    "description 必须是字符串": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "description must be a string"
+          }
+        }
+      }
+    },
+    "events 必须是字符串数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "events must be an array of strings"
+          }
+        }
+      }
+    },
     "external-commands.json 有错误，仍在使用上一份可用的外部命令。%@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "external-commands.json has errors. Still using the previous valid external commands. %@"
+          }
+        }
+      }
+    },
+    "fields 元素必须是对象": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fields items must be objects"
+          }
+        }
+      }
+    },
+    "filters 元素必须是对象": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "filters items must be objects"
+          }
+        }
+      }
+    },
+    "filters 必须是数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "filters must be an array"
+          }
+        }
+      }
+    },
+    "gzip ISIZE 不一致": {
+      "comment": "Core 诊断文字，键来自 GzipDecoder.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gzip ISIZE mismatch"
+          }
+        }
+      }
+    },
+    "gzip 头部 CRC16 不一致": {
+      "comment": "Core 诊断文字，键来自 GzipDecoder.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gzip header CRC16 mismatch"
+          }
+        }
+      }
+    },
+    "gzip 头部不完整": {
+      "comment": "Core 诊断文字，键来自 GzipDecoder.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incomplete gzip header"
+          }
+        }
+      }
+    },
+    "gzip 头部越界": {
+      "comment": "Core 诊断文字，键来自 GzipDecoder.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gzip header out of bounds"
+          }
+        }
+      }
+    },
+    "gzip 文件不完整": {
+      "comment": "Core 诊断文字，键来自 GzipDecoder.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incomplete gzip file"
           }
         }
       }
@@ -771,6 +1047,54 @@
         }
       }
     },
+    "mv.http 需要包含有效 url 的对象参数": {
+      "comment": "Core 诊断文字，键来自 JSPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mv.http needs an object argument with a valid url"
+          }
+        }
+      }
+    },
+    "name 必须是非空字符串": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "name must be a non-empty string"
+          }
+        }
+      }
+    },
+    "parameters 元素必须是对象": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "parameters items must be objects"
+          }
+        }
+      }
+    },
+    "permissions 必须是字符串数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "permissions must be an array of strings"
+          }
+        }
+      }
+    },
     "plugins.json 有错误，仍在使用上一份可用的插件配置。%@": {
       "localizations": {
         "en": {
@@ -781,12 +1105,180 @@
         }
       }
     },
+    "runtime 必须且只能包含 js 或 process": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "runtime must contain exactly one of js or process"
+          }
+        }
+      }
+    },
+    "runtime 必须且只能声明 js 或 process 之一": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "runtime must declare exactly one of js or process"
+          }
+        }
+      }
+    },
+    "runtime 必须是对象": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "runtime must be an object"
+          }
+        }
+      }
+    },
+    "runtime.js 必须是非空字符串": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "runtime.js must be a non-empty string"
+          }
+        }
+      }
+    },
+    "runtime.process 必须是对象": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "runtime.process must be an object"
+          }
+        }
+      }
+    },
+    "runtime.process.args 必须是字符串数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "runtime.process.args must be an array of strings"
+          }
+        }
+      }
+    },
+    "runtime.process.args 的元素必须是字符串": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "runtime.process.args items must be strings"
+          }
+        }
+      }
+    },
+    "runtime.process.command 必须是非空字符串": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "runtime.process.command must be a non-empty string"
+          }
+        }
+      }
+    },
+    "sources 元素必须是对象": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sources items must be objects"
+          }
+        }
+      }
+    },
+    "sources 必须是数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sources must be an array"
+          }
+        }
+      }
+    },
     "storage.set 需要传入值": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "storage.set requires a value"
+          }
+        }
+      }
+    },
+    "stored 大小不一致": {
+      "comment": "Core 诊断文字，键来自 ArchiveProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stored entry size mismatch"
+          }
+        }
+      }
+    },
+    "tar 时间超出范围": {
+      "comment": "Core 诊断文字，键来自 TarIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tar timestamp out of range"
+          }
+        }
+      }
+    },
+    "tar 条目数据越界": {
+      "comment": "Core 诊断文字，键来自 TarIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tar entry data out of bounds"
+          }
+        }
+      }
+    },
+    "tar 结尾不完整": {
+      "comment": "Core 诊断文字，键来自 TarIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incomplete tar end"
           }
         }
       }
@@ -803,6 +1295,150 @@
           "stringUnit": {
             "state": "translated",
             "value": "显示"
+          }
+        }
+      }
+    },
+    "version 必须是非空字符串": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "version must be a non-empty string"
+          }
+        }
+      }
+    },
+    "zip CRC32 不一致": {
+      "comment": "Core 诊断文字，键来自 ByteSources.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zip CRC32 mismatch"
+          }
+        }
+      }
+    },
+    "zip UTF-8 文件名无效": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid UTF-8 file name in zip"
+          }
+        }
+      }
+    },
+    "zip 中央目录越界": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zip central directory out of bounds"
+          }
+        }
+      }
+    },
+    "zip 大小超出支持范围": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zip size exceeds the supported range"
+          }
+        }
+      }
+    },
+    "zip 扩展字段不完整": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incomplete zip extra field"
+          }
+        }
+      }
+    },
+    "zip 扩展字段越界": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zip extra field out of bounds"
+          }
+        }
+      }
+    },
+    "zip 文件名无法解码": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't decode file name in zip"
+          }
+        }
+      }
+    },
+    "zip 本地头与中央目录不一致": {
+      "comment": "Core 诊断文字，键来自 ArchiveProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zip local header doesn't match the central directory"
+          }
+        }
+      }
+    },
+    "zip 本地头越界": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zip local header out of bounds"
+          }
+        }
+      }
+    },
+    "zip 条目名称或扩展字段越界": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zip entry name or extra field out of bounds"
+          }
+        }
+      }
+    },
+    "zip 缺少结尾记录": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zip end record missing"
           }
         }
       }
@@ -1179,12 +1815,48 @@
         }
       }
     },
+    "不支持的传输记录版本": {
+      "comment": "Core 诊断文字，键来自 TransferJournal.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsupported transfer journal version"
+          }
+        }
+      }
+    },
+    "不支持的插件方法：%@": {
+      "comment": "Core 诊断文字，键来自 JSPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsupported plugin method: %@"
+          }
+        }
+      }
+    },
     "不放大": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No Upscale"
+          }
+        }
+      }
+    },
+    "不是文件 URL：%@": {
+      "comment": "Core 诊断文字，键来自 FileSystemProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not a file URL: %@"
           }
         }
       }
@@ -2033,6 +2705,30 @@
         }
       }
     },
+    "写入传输记录失败": {
+      "comment": "Core 诊断文字，键来自 TransferJournal.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't write transfer journal"
+          }
+        }
+      }
+    },
+    "写入传输记录失败：%@": {
+      "comment": "Core 诊断文字，键来自 TransferJournal.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't write transfer journal: %@"
+          }
+        }
+      }
+    },
     "分类": {
       "localizations": {
         "en": {
@@ -2161,6 +2857,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "This Playlist Is Empty"
+          }
+        }
+      }
+    },
+    "创建传输记录失败：%@": {
+      "comment": "Core 诊断文字，键来自 TransferJournal.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't create transfer journal: %@"
           }
         }
       }
@@ -2477,6 +3185,18 @@
         }
       }
     },
+    "历史上限必须为正数": {
+      "comment": "Core 诊断文字，键来自 SQLiteLibraryStore.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History limit must be positive"
+          }
+        }
+      }
+    },
     "历史保留本数": {
       "localizations": {
         "en": {
@@ -2667,6 +3387,30 @@
         }
       }
     },
+    "参数模板中的引号没有闭合": {
+      "comment": "Core 诊断文字，键来自 ExternalCommand.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unclosed quote in the arguments template"
+          }
+        }
+      }
+    },
+    "参数模板末尾缺少转义字符": {
+      "comment": "Core 诊断文字，键来自 ExternalCommand.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arguments template ends with a dangling escape character"
+          }
+        }
+      }
+    },
     "双击滑块复位单项": {
       "localizations": {
         "en": {
@@ -2837,6 +3581,18 @@
         }
       }
     },
+    "同步传输记录失败：%@": {
+      "comment": "Core 诊断文字，键来自 TransferJournal.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't sync transfer journal: %@"
+          }
+        }
+      }
+    },
     "名称": {
       "localizations": {
         "en": {
@@ -2967,6 +3723,18 @@
         }
       }
     },
+    "命令 %@ 缺少非空 title": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command %@ is missing a non-empty title"
+          }
+        }
+      }
+    },
     "命令 %lld": {
       "localizations": {
         "en": {
@@ -2987,6 +3755,18 @@
         }
       }
     },
+    "命令 id 重复：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate command id: %@"
+          }
+        }
+      }
+    },
     "命令不能为空": {
       "localizations": {
         "en": {
@@ -3003,6 +3783,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Command is currently unavailable: %@"
+          }
+        }
+      }
+    },
+    "命令缺少非空 id": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command is missing a non-empty id"
           }
         }
       }
@@ -3255,6 +4047,18 @@
         }
       }
     },
+    "复制时读到文件末尾": {
+      "comment": "Core 诊断文字，键来自 FileOperationService.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reached end of file while copying"
+          }
+        }
+      }
+    },
     "复制路径": {
       "comment": "MVCommands 的命令标题或菜单标题，键来自 CoreCommands.swift",
       "extractionState": "manual",
@@ -3357,6 +4161,16 @@
         }
       }
     },
+    "套用布局方案": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply Layout Preset"
+          }
+        }
+      }
+    },
     "套用显示配置": {
       "localizations": {
         "en": {
@@ -3413,6 +4227,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fonts"
+          }
+        }
+      }
+    },
+    "字体字号必须在 8…32 之间，现在是 %lf": {
+      "comment": "Core 诊断文字，键来自 Appearance.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Font size must be between 8 and 32, but is %lf"
           }
         }
       }
@@ -4229,6 +5055,30 @@
         }
       }
     },
+    "归档数据不完整": {
+      "comment": "Core 诊断文字，键来自 ArchiveIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incomplete archive data"
+          }
+        }
+      }
+    },
+    "归档数据超出文件范围": {
+      "comment": "Core 诊断文字，键来自 ArchiveIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive data extends past the end of the file"
+          }
+        }
+      }
+    },
     "当前书的全部页面（可见区域优先）": {
       "localizations": {
         "en": {
@@ -4285,6 +5135,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Covers of books in the current folder"
+          }
+        }
+      }
+    },
+    "当前系统不支持强制停止，脚本会在下一次调用 mv 时停下": {
+      "comment": "Core 诊断文字，键来自 ScriptRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This system doesn't support force-stopping; the script will stop at its next mv call"
           }
         }
       }
@@ -4541,6 +5403,30 @@
         }
       }
     },
+    "找不到 %@ 所在的卷": {
+      "comment": "Core 诊断文字，键来自 FileSystemProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't find the volume containing %@"
+          }
+        }
+      }
+    },
+    "找不到 zip 中央目录结尾": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't find the zip end of central directory"
+          }
+        }
+      }
+    },
     "找不到%@": {
       "localizations": {
         "en": {
@@ -4587,6 +5473,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Layout scheme “%@” not found"
+          }
+        }
+      }
+    },
+    "找不到插件：%@": {
+      "comment": "Core 诊断文字，键来自 PluginRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin not found: %@"
+          }
+        }
+      }
+    },
+    "找不到脚本：%@": {
+      "comment": "Core 诊断文字，键来自 ScriptRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script not found: %@"
           }
         }
       }
@@ -4913,6 +5823,114 @@
         }
       }
     },
+    "插件 %@ 未写出输出文件：%@": {
+      "comment": "Core 诊断文字，键来自 PluginFilterRunner.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin %1$@ didn't write the output file: %2$@"
+          }
+        }
+      }
+    },
+    "插件 %@ 缺少权限：%@": {
+      "comment": "Core 诊断文字，键来自 PluginRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin %1$@ lacks permission: %2$@"
+          }
+        }
+      }
+    },
+    "插件 source.list 返回格式无效": {
+      "comment": "Core 诊断文字，键来自 PluginSourceProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin source.list returned an invalid format"
+          }
+        }
+      }
+    },
+    "插件 source.read 返回格式无效": {
+      "comment": "Core 诊断文字，键来自 PluginSourceProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin source.read returned an invalid format"
+          }
+        }
+      }
+    },
+    "插件 source.read 返回的 base64 无效": {
+      "comment": "Core 诊断文字，键来自 PluginSourceProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin source.read returned invalid base64"
+          }
+        }
+      }
+    },
+    "插件上下文不可用": {
+      "comment": "Core 诊断文字，键来自 JSPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin context unavailable"
+          }
+        }
+      }
+    },
+    "插件事件排队已满，已丢弃一次事件": {
+      "comment": "Core 诊断文字，键来自 PluginHost.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin event queue is full; one event was dropped"
+          }
+        }
+      }
+    },
+    "插件宿主 API 不可用": {
+      "comment": "Core 诊断文字，键来自 JSPluginConnection.swift、ProcessPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin host API unavailable"
+          }
+        }
+      }
+    },
+    "插件文件夹名不合规（只能包含小写字母、数字和连字符，且不能以连字符开头）：%@": {
+      "comment": "Core 诊断文字，键来自 PluginLibrary.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid plugin folder name (only lowercase letters, digits and hyphens, not starting with a hyphen): %@"
+          }
+        }
+      }
+    },
     "插件未启用": {
       "localizations": {
         "en": {
@@ -4923,12 +5941,84 @@
         }
       }
     },
+    "插件未启用：%@": {
+      "comment": "Core 诊断文字，键来自 PluginRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin not enabled: %@"
+          }
+        }
+      }
+    },
     "插件滤镜": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Plugin Filters"
+          }
+        }
+      }
+    },
+    "插件请求已取消": {
+      "comment": "Core 诊断文字，键来自 PluginRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin request cancelled"
+          }
+        }
+      }
+    },
+    "插件请求超时：%@": {
+      "comment": "Core 诊断文字，键来自 PluginRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin request timed out: %@"
+          }
+        }
+      }
+    },
+    "插件返回错误": {
+      "comment": "Core 诊断文字，键来自 ProcessPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin returned an error"
+          }
+        }
+      }
+    },
+    "插件进程已退出（代码 %d）": {
+      "comment": "Core 诊断文字，键来自 PluginRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin process exited (code %d)"
+          }
+        }
+      }
+    },
+    "插件需要重新确认权限：%@": {
+      "comment": "Core 诊断文字，键来自 PluginRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plugin permissions need to be approved again: %@"
           }
         }
       }
@@ -5215,6 +6305,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "File"
+          }
+        }
+      }
+    },
+    "文件在打开后被修改": {
+      "comment": "Core 诊断文字，键来自 FileSystemProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File was modified after it was opened"
           }
         }
       }
@@ -5509,12 +6611,156 @@
         }
       }
     },
+    "无效的 DEFLATE 数据": {
+      "comment": "Core 诊断文字，键来自 ArchiveInflate.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid DEFLATE data"
+          }
+        }
+      }
+    },
+    "无效的 URL：%@": {
+      "comment": "Core 诊断文字，键来自 JSPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid URL: %@"
+          }
+        }
+      }
+    },
+    "无效的 ZIP64 定位记录": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid ZIP64 end locator"
+          }
+        }
+      }
+    },
+    "无效的 ZIP64 结尾记录": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid ZIP64 end record"
+          }
+        }
+      }
+    },
+    "无效的 gzip 头部": {
+      "comment": "Core 诊断文字，键来自 GzipDecoder.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid gzip header"
+          }
+        }
+      }
+    },
+    "无效的 pax mtime": {
+      "comment": "Core 诊断文字，键来自 TarIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid pax mtime"
+          }
+        }
+      }
+    },
+    "无效的 pax size": {
+      "comment": "Core 诊断文字，键来自 TarIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid pax size"
+          }
+        }
+      }
+    },
+    "无效的 pax 记录长度": {
+      "comment": "Core 诊断文字，键来自 TarIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid pax record length"
+          }
+        }
+      }
+    },
+    "无效的 pax 键值": {
+      "comment": "Core 诊断文字，键来自 TarIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid pax key-value"
+          }
+        }
+      }
+    },
+    "无效的 tar 头部或校验和": {
+      "comment": "Core 诊断文字，键来自 TarIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid tar header or checksum"
+          }
+        }
+      }
+    },
+    "无效的 zip 中央目录条目": {
+      "comment": "Core 诊断文字，键来自 ZipIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid zip central directory entry"
+          }
+        }
+      }
+    },
     "无效的位置标记": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Invalid location token"
+          }
+        }
+      }
+    },
+    "无效的归档路径": {
+      "comment": "Core 诊断文字，键来自 ArchiveIndex.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid archive path"
           }
         }
       }
@@ -5549,6 +6795,18 @@
         }
       }
     },
+    "无法创建 JavaScript 环境": {
+      "comment": "Core 诊断文字，键来自 JSPluginConnection.swift、ScriptRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't create a JavaScript environment"
+          }
+        }
+      }
+    },
     "无法创建回收目录：%@": {
       "localizations": {
         "en": {
@@ -5559,12 +6817,36 @@
         }
       }
     },
+    "无法初始化 DEFLATE 解码器": {
+      "comment": "Core 诊断文字，键来自 ArchiveInflate.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't initialize the DEFLATE decoder"
+          }
+        }
+      }
+    },
     "无法启动 MacView": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "MacView Couldn’t Start"
+          }
+        }
+      }
+    },
+    "无法启动插件程序 %@：%@": {
+      "comment": "Core 诊断文字，键来自 ProcessPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't launch plugin program %1$@: %2$@"
           }
         }
       }
@@ -5619,12 +6901,36 @@
         }
       }
     },
+    "无法确定废纸篓的位置": {
+      "comment": "Core 诊断文字，键来自 FileSystemProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't determine the Trash location"
+          }
+        }
+      }
+    },
     "无法解析位置标记": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Failed to parse location token"
+          }
+        }
+      }
+    },
+    "无法解析插件消息：%@": {
+      "comment": "Core 诊断文字，键来自 ProcessPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't parse plugin message: %@"
           }
         }
       }
@@ -5659,12 +6965,48 @@
         }
       }
     },
+    "无法读取 JS 插件入口：%@": {
+      "comment": "Core 诊断文字，键来自 JSPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't read JS plugin entry: %@"
+          }
+        }
+      }
+    },
     "无法读取原文件": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Unable to Read Original File"
+          }
+        }
+      }
+    },
+    "无法读取脚本文件": {
+      "comment": "Core 诊断文字，键来自 ScriptLibrary.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't read the script file"
+          }
+        }
+      }
+    },
+    "无法运行 %@：%@": {
+      "comment": "Core 诊断文字，键来自 ProcessRunner.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't run %1$@: %2$@"
           }
         }
       }
@@ -5919,6 +7261,18 @@
         }
       }
     },
+    "替换传输记录失败：%@": {
+      "comment": "Core 诊断文字，键来自 TransferJournal.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't replace transfer journal: %@"
+          }
+        }
+      }
+    },
     "替换时自动加引号，不要自己加。用登录 Shell 执行，能找到 Homebrew 装的工具。": {
       "localizations": {
         "en": {
@@ -6049,6 +7403,18 @@
         }
       }
     },
+    "未知事件：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift、ScriptLibrary.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown event: %@"
+          }
+        }
+      }
+    },
     "未知命令": {
       "localizations": {
         "en": {
@@ -6065,6 +7431,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unknown command: %@"
+          }
+        }
+      }
+    },
+    "未知宿主方法：%@": {
+      "comment": "Core 诊断文字，键来自 JSBridge.swift、ProcessPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown host method: %@"
+          }
+        }
+      }
+    },
+    "未知权限：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown permission: %@"
           }
         }
       }
@@ -6131,12 +7521,132 @@
         }
       }
     },
+    "条目数据超出归档范围": {
+      "comment": "Core 诊断文字，键来自 ArchiveProvider.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entry data extends past the end of the archive"
+          }
+        }
+      }
+    },
     "来源": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Source"
+          }
+        }
+      }
+    },
+    "来源 %@ 的 fields 必须是数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fields of source %@ must be an array"
+          }
+        }
+      }
+    },
+    "来源 %@ 缺少非空 name": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source %@ is missing a non-empty name"
+          }
+        }
+      }
+    },
+    "来源 id 重复：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate source id: %@"
+          }
+        }
+      }
+    },
+    "来源声明缺少非空 id": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source is missing a non-empty id"
+          }
+        }
+      }
+    },
+    "来源字段 %@ 的 required 必须是布尔值": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "required of source field %@ must be a boolean"
+          }
+        }
+      }
+    },
+    "来源字段 %@ 的 type 无效": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid type for source field %@"
+          }
+        }
+      }
+    },
+    "来源字段 %@ 缺少非空 label": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source field %@ is missing a non-empty label"
+          }
+        }
+      }
+    },
+    "来源字段 key 重复：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate source field key: %@"
+          }
+        }
+      }
+    },
+    "来源字段缺少非空 key": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source field is missing a non-empty key"
           }
         }
       }
@@ -6435,6 +7945,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Loading…"
+          }
+        }
+      }
+    },
+    "此文件名由内置脚本命令保留": {
+      "comment": "Core 诊断文字，键来自 ScriptLibrary.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file name is reserved for a built-in script command"
           }
         }
       }
@@ -6841,12 +8363,48 @@
         }
       }
     },
+    "清单不可用": {
+      "comment": "Core 诊断文字，键来自 PluginSettings.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manifest unavailable"
+          }
+        }
+      }
+    },
+    "清单无效": {
+      "comment": "Core 诊断文字，键来自 PluginHost.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid manifest"
+          }
+        }
+      }
+    },
     "清单错误": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Manifest Error"
+          }
+        }
+      }
+    },
+    "清单顶层必须是 JSON 对象": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The manifest's top level must be a JSON object"
           }
         }
       }
@@ -6983,6 +8541,162 @@
         }
       }
     },
+    "滤镜 %@ 的 parameters 必须是数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "parameters of filter %@ must be an array"
+          }
+        }
+      }
+    },
+    "滤镜 %@ 缺少非空 name": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter %@ is missing a non-empty name"
+          }
+        }
+      }
+    },
+    "滤镜 id 重复：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate filter id: %@"
+          }
+        }
+      }
+    },
+    "滤镜参数 %@ 的 max 必须是数字": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "max of filter parameter %@ must be a number"
+          }
+        }
+      }
+    },
+    "滤镜参数 %@ 的 min 必须是数字": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "min of filter parameter %@ must be a number"
+          }
+        }
+      }
+    },
+    "滤镜参数 %@ 的 options 元素必须是字符串": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "options items of filter parameter %@ must be strings"
+          }
+        }
+      }
+    },
+    "滤镜参数 %@ 的 options 必须是字符串数组": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "options of filter parameter %@ must be an array of strings"
+          }
+        }
+      }
+    },
+    "滤镜参数 %@ 的 step 必须是正数": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "step of filter parameter %@ must be positive"
+          }
+        }
+      }
+    },
+    "滤镜参数 %@ 的 type 无效": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid type for filter parameter %@"
+          }
+        }
+      }
+    },
+    "滤镜参数 %@ 缺少非空 label": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter parameter %@ is missing a non-empty label"
+          }
+        }
+      }
+    },
+    "滤镜参数 key 重复：%@": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate filter parameter key: %@"
+          }
+        }
+      }
+    },
+    "滤镜参数缺少非空 key": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter parameter is missing a non-empty key"
+          }
+        }
+      }
+    },
+    "滤镜声明缺少非空 id": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter is missing a non-empty id"
+          }
+        }
+      }
+    },
     "瀑布": {
       "localizations": {
         "en": {
@@ -7101,6 +8815,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pair"
+          }
+        }
+      }
+    },
+    "环境变量名或值无效": {
+      "comment": "Core 诊断文字，键来自 ProcessRunner.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid environment variable name or value"
           }
         }
       }
@@ -7397,6 +9123,18 @@
         }
       }
     },
+    "窗口不透明度必须在 0.3…1 之间，现在是 %lf": {
+      "comment": "Core 诊断文字，键来自 Appearance.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Window opacity must be between 0.3 and 1, but is %lf"
+          }
+        }
+      }
+    },
     "窗口已关闭": {
       "localizations": {
         "en": {
@@ -7435,6 +9173,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Line %1$lld, column %2$lld: %3$@"
+          }
+        }
+      }
+    },
+    "第 %lld 行：%@": {
+      "comment": "Core 诊断文字，键来自 JSPluginConnection.swift、ScriptRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Line %1$lld: %2$@"
           }
         }
       }
@@ -7915,6 +9665,66 @@
         }
       }
     },
+    "缺少必填字段 name": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing required field name"
+          }
+        }
+      }
+    },
+    "缺少必填字段 runtime": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing required field runtime"
+          }
+        }
+      }
+    },
+    "缺少必填字段 runtime.process.command": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing required field runtime.process.command"
+          }
+        }
+      }
+    },
+    "缺少必填字段 version": {
+      "comment": "Core 诊断文字，键来自 PluginManifest.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing required field version"
+          }
+        }
+      }
+    },
+    "缺少或无法读取 manifest.json": {
+      "comment": "Core 诊断文字，键来自 PluginLibrary.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "manifest.json is missing or unreadable"
+          }
+        }
+      }
+    },
     "网格": {
       "localizations": {
         "en": {
@@ -8035,6 +9845,42 @@
           "stringUnit": {
             "state": "translated",
             "value": "Script storage unavailable"
+          }
+        }
+      }
+    },
+    "脚本宿主不可用": {
+      "comment": "Core 诊断文字，键来自 ScriptRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script host unavailable"
+          }
+        }
+      }
+    },
+    "脚本已停止": {
+      "comment": "Core 诊断文字，键来自 ScriptRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script stopped"
+          }
+        }
+      }
+    },
+    "脚本排队已满，已丢弃一次运行": {
+      "comment": "Core 诊断文字，键来自 ScriptRuntime.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script queue is full; one run was dropped"
           }
         }
       }
@@ -8231,6 +10077,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Videos cannot be rated or tagged. Only JPEG, TIFF, and HEIC are supported."
+          }
+        }
+      }
+    },
+    "解压大小不一致": {
+      "comment": "Core 诊断文字，键来自 ArchiveInflate.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decompressed size mismatch"
+          }
+        }
+      }
+    },
+    "解压大小超出条目声明": {
+      "comment": "Core 诊断文字，键来自 ArchiveInflate.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decompressed size exceeds the entry's declared size"
           }
         }
       }
@@ -8459,6 +10329,18 @@
         }
       }
     },
+    "读取元数据时读到文件末尾": {
+      "comment": "Core 诊断文字，键来自 FileOperationService.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reached end of file while reading metadata"
+          }
+        }
+      }
+    },
     "读取超时": {
       "localizations": {
         "en": {
@@ -8555,6 +10437,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "System"
+          }
+        }
+      }
+    },
+    "路径或参数包含空字符": {
+      "comment": "Core 诊断文字，键来自 ProcessRunner.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Path or arguments contain a null character"
           }
         }
       }
@@ -9361,6 +11255,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open at least one viewer window to customize the toolbar."
+          }
+        }
+      }
+    },
+    "非 HTTP 响应": {
+      "comment": "Core 诊断文字，键来自 JSPluginConnection.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not an HTTP response"
+          }
+        }
+      }
+    },
+    "非 HTTP 响应：%@": {
+      "comment": "Core 诊断文字，键来自 HTTPByteSource.swift",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not an HTTP response: %@"
           }
         }
       }

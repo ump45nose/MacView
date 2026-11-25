@@ -147,7 +147,7 @@ public enum JSBridge {
         case invalidMethod(String)
         var errorDescription: String? {
             switch self {
-            case .invalidMethod(let name): "未知宿主方法：\(name)"
+            case .invalidMethod(let name): String(localized: "未知宿主方法：\(name)", bundle: .main)
             }
         }
     }
@@ -339,6 +339,6 @@ public enum JSBridge {
         guard let exception = context.exception else { return nil }
         let lineValue = exception.forProperty("line")
         let line = (lineValue?.isNumber == true && lineValue!.toInt32() > 0) ? Int(lineValue!.toInt32()) : nil
-        return ScriptProblem(line: line, message: exception.toString() ?? "JavaScript 运行错误")
+        return ScriptProblem(line: line, message: exception.toString() ?? String(localized: "JavaScript 运行错误", bundle: .main))
     }
 }

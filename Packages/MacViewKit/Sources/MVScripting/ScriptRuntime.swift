@@ -82,7 +82,7 @@ public final class ScriptRuntime: Sendable {
 
     public func run(_ id: String, arguments: [String: JSONValue]?, context: ScriptCallContext) {
         guard let info = library.scripts().first(where: { $0.id == id }) else {
-            log.append(source: id, level: .error, text: "找不到脚本：\(id)"); return
+            log.append(source: id, level: .error, text: String(localized: "找不到脚本：\(id)", bundle: .main)); return
         }
         enqueue(info: info, trigger: .command, arguments: arguments, payload: nil, context: context)
     }
@@ -109,7 +109,7 @@ public final class ScriptRuntime: Sendable {
             Self.publishStates(&state)
             return schedule(&state)
         }
-        if dropped { log.append(source: info.name, level: .warning, text: "脚本排队已满，已丢弃一次运行") }
+        if dropped { log.append(source: info.name, level: .warning, text: String(localized: "脚本排队已满，已丢弃一次运行", bundle: .main)) }
         launch(start)
     }
     private func schedule(_ state: inout State) -> [Job] {
@@ -169,7 +169,7 @@ public final class ScriptRuntime: Sendable {
     private func finish(_ job: Job, problem: ScriptProblem?) {
         let stopped = job.control.isStopped
         let event: ScriptRunEvent
-        if stopped { event = .stopped(job.run); log.append(source: job.name, level: .info, text: "脚本已停止") }
+        if stopped { event = .stopped(job.run); log.append(source: job.name, level: .info, text: String(localized: "脚本已停止", bundle: .main)) }
         else if let problem { event = .failed(job.run, problem); log.append(source: job.name, level: .error, text: Self.describe(problem)) }
         else { event = .finished(job.run) }
         let jobs = state.withLock { state -> [Job] in
@@ -181,7 +181,7 @@ public final class ScriptRuntime: Sendable {
         launch(jobs)
     }
     private static func describe(_ problem: ScriptProblem) -> String {
-        if let line = problem.line { return "第 \(line) 行：\(problem.message)" }
+        if let line = problem.line { return String(localized: "第 \(line) 行：\(problem.message)", bundle: .main) }
         return problem.message
     }
 
@@ -194,7 +194,7 @@ public final class ScriptRuntime: Sendable {
         do { source = try library.source(of: job.run.scriptID) }
         catch { finish(job, problem: ScriptProblem(line: nil, message: error.localizedDescription)); return }
         guard let host = state.withLock({ $0.host }) else {
-            finish(job, problem: ScriptProblem(line: nil, message: "脚本宿主不可用")); return
+            finish(job, problem: ScriptProblem(line: nil, message: String(localized: "脚本宿主不可用", bundle: .main))); return
         }
         guard let context = JSBridge.makeContext(
             call: { method, args in
@@ -206,7 +206,7 @@ public final class ScriptRuntime: Sendable {
                 log.append(source: job.name, level: level, text: text)
             }
         ) else {
-            finish(job, problem: ScriptProblem(line: nil, message: "无法创建 JavaScript 环境")); return
+            finish(job, problem: ScriptProblem(line: nil, message: String(localized: "无法创建 JavaScript 环境", bundle: .main))); return
         }
 
         if let mv = context.objectForKeyedSubscript("mv") {
@@ -221,7 +221,7 @@ public final class ScriptRuntime: Sendable {
             }
         } else {
             let shouldWarn = Self.warnedUnsupported.withLock { warned in if warned { return false }; warned = true; return true }
-            if shouldWarn { log.append(source: job.name, level: .warning, text: "当前系统不支持强制停止，脚本会在下一次调用 mv 时停下") }
+            if shouldWarn { log.append(source: job.name, level: .warning, text: String(localized: "当前系统不支持强制停止，脚本会在下一次调用 mv 时停下", bundle: .main)) }
             if !job.control.isStopped {
                 context.evaluateScript(source, withSourceURL: library.directory.appendingPathComponent("\(job.run.scriptID).js"))
             }

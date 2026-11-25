@@ -40,7 +40,7 @@ public final class ProcessRunner: Sendable {
 private struct ProcessRunnerError: LocalizedError, Sendable {
     var executable: String
     var message: String
-    var errorDescription: String? { "无法运行 \(executable)：\(message)" }
+    var errorDescription: String? { String(localized: "无法运行 \(executable)：\(message)", bundle: .main) }
 }
 
 private final class ProcessOperation: Sendable {
@@ -73,10 +73,10 @@ private final class ProcessOperation: Sendable {
     func run() throws -> ProcessResult {
         if state.withLock({ $0.cancelled }) { throw CancellationError() }
         guard !([executable] + arguments + [directory].compactMap { $0 }).contains(where: { $0.utf8.contains(0) }) else {
-            throw ProcessRunnerError(executable: executable, message: "路径或参数包含空字符")
+            throw ProcessRunnerError(executable: executable, message: String(localized: "路径或参数包含空字符", bundle: .main))
         }
         guard environment.allSatisfy({ !$0.key.isEmpty && !$0.key.contains("=") && !$0.key.utf8.contains(0) && !$0.value.utf8.contains(0) }) else {
-            throw ProcessRunnerError(executable: executable, message: "环境变量名或值无效")
+            throw ProcessRunnerError(executable: executable, message: String(localized: "环境变量名或值无效", bundle: .main))
         }
         var outputPipe: [Int32] = [-1, -1], errorPipe: [Int32] = [-1, -1]
         guard pipe(&outputPipe) == 0 else { throw failure(errno) }

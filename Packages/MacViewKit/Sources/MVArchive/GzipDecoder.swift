@@ -9,12 +9,12 @@ struct GzipHeader {
 
     static func read(_ source: any ByteSource, priority: IOPriority) async throws -> GzipHeader {
         let location = source.identity.location
-        guard source.identity.size >= 18 else { throw IOError.corrupted(location, "gzip 文件不完整") }
+        guard source.identity.size >= 18 else { throw IOError.corrupted(location, String(localized: "gzip 文件不完整", bundle: .main)) }
         var reader = GzipHeaderReader(source: source, priority: priority)
         let fixed = try await reader.bytes(10)
         // 扩展名是 .gz、文件头却是 RAR 或 7z 时，报实际格式，不当成 gzip 损坏。
         if let format = Self.disguisedFormat(fixed) { throw IOError.unsupportedFormat(location, format) }
-        guard fixed[0] == 0x1F, fixed[1] == 0x8B, fixed[2] == 8, fixed[3] & 0xE0 == 0 else { throw IOError.corrupted(location, "无效的 gzip 头部") }
+        guard fixed[0] == 0x1F, fixed[1] == 0x8B, fixed[2] == 8, fixed[3] & 0xE0 == 0 else { throw IOError.corrupted(location, String(localized: "无效的 gzip 头部", bundle: .main)) }
         let flags = fixed[3]
         if flags & 4 != 0 {
             let count = try await reader.bytes(2).archiveInteger(UInt16.self, at: 0)
@@ -30,10 +30,10 @@ struct GzipHeader {
         if flags & 2 != 0 {
             let expected = UInt16(truncatingIfNeeded: ~reader.crc)
             let actual = try await reader.bytes(2).archiveInteger(UInt16.self, at: 0)
-            guard actual == expected else { throw IOError.corrupted(location, "gzip 头部 CRC16 不一致") }
+            guard actual == expected else { throw IOError.corrupted(location, String(localized: "gzip 头部 CRC16 不一致", bundle: .main)) }
         }
         let mtime = fixed.archiveInteger(UInt32.self, at: 4)
-        guard reader.position <= source.identity.size - 8 else { throw IOError.corrupted(location, "gzip 头部越界") }
+        guard reader.position <= source.identity.size - 8 else { throw IOError.corrupted(location, String(localized: "gzip 头部越界", bundle: .main)) }
         return GzipHeader(payloadOffset: reader.position, name: name, modificationNanos: mtime == 0 ? nil : Int64(mtime) * 1_000_000_000)
     }
 
@@ -62,7 +62,7 @@ enum GzipDecoder {
             size += Int64(chunk.count)
         }
         guard UInt32(truncatingIfNeeded: size) == trailer.archiveInteger(UInt32.self, at: 4) else {
-            throw IOError.corrupted(source.identity.location, "gzip ISIZE 不一致")
+            throw IOError.corrupted(source.identity.location, String(localized: "gzip ISIZE 不一致", bundle: .main))
         }
         try await output.synchronize()
         return size
@@ -83,7 +83,7 @@ private struct GzipHeaderReader {
     }
 
     mutating func bytes(_ count: Int) async throws -> Data {
-        guard Int64(count) <= source.identity.size - position else { throw IOError.corrupted(source.identity.location, "gzip 头部不完整") }
+        guard Int64(count) <= source.identity.size - position else { throw IOError.corrupted(source.identity.location, String(localized: "gzip 头部不完整", bundle: .main)) }
         if position + Int64(count) > start + Int64(buffer.count) {
             start = position
             buffer = try await archiveRead(source, position..<min(position + Int64(max(count, 4096)), source.identity.size), priority: priority)

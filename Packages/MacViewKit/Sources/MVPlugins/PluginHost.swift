@@ -162,7 +162,7 @@ public final class PluginHost: Sendable {
                 return true
             }
             if dropped {
-                log.append(source: info.manifest?.name ?? info.id, level: .warning, text: "插件事件排队已满，已丢弃一次事件")
+                log.append(source: info.manifest?.name ?? info.id, level: .warning, text: String(localized: "插件事件排队已满，已丢弃一次事件", bundle: .main))
             }
             if shouldStart {
                 Task { [weak self] in
@@ -245,7 +245,7 @@ public final class PluginHost: Sendable {
     ) async throws -> JSONValue {
         let info = try requireEnabledPlugin(plugin)
         guard let manifest = info.manifest else {
-            throw PluginError.invalid(info.problem ?? PluginProblem(file: "manifest.json", message: "清单无效"))
+            throw PluginError.invalid(info.problem ?? PluginProblem(file: "manifest.json", message: String(localized: "清单无效", bundle: .main)))
         }
         let connection = try getOrCreateConnection(for: info, manifest: manifest)
         let context = callContext ?? ScriptCallContext(caller: "plugin:\(plugin)", callerName: manifest.name, session: nil, selection: [])
@@ -298,7 +298,7 @@ public final class PluginHost: Sendable {
             throw PluginError.invalid(problem)
         }
         guard let manifest = info.manifest else {
-            throw PluginError.invalid(PluginProblem(file: "manifest.json", message: "清单无效"))
+            throw PluginError.invalid(PluginProblem(file: "manifest.json", message: String(localized: "清单无效", bundle: .main)))
         }
         guard let pluginState = settings.value().plugins[id], pluginState.enabled else {
             throw PluginError.disabled(id)

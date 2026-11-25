@@ -358,7 +358,7 @@ public final class SQLiteLibraryStore: LibraryStore {
     }
 
     private static func invalidLimit() -> NSError {
-        NSError(domain: "MacView.LibraryStore", code: 1, userInfo: [NSLocalizedDescriptionKey: "历史上限必须为正数"])
+        NSError(domain: "MacView.LibraryStore", code: 1, userInfo: [NSLocalizedDescriptionKey: String(localized: "历史上限必须为正数", bundle: .main)])
     }
 
     private static func index(_ index: Int, count: Int) -> Int { min(max(0, index), count) }

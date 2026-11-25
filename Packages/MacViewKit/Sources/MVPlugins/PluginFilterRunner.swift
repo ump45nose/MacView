@@ -34,7 +34,7 @@ public final class PluginFilterRunner: PluginFilterExecuting, Sendable {
                 timeout: host.configuration.filterTimeout
             )
             guard FileManager.default.fileExists(atPath: output.path) else {
-                throw PluginError.runtimeError("插件 \(request.plugin) 未写出输出文件：\(output.lastPathComponent)")
+                throw PluginError.runtimeError(String(localized: "插件 \(request.plugin) 未写出输出文件：\(output.lastPathComponent)", bundle: .main))
             }
         }
     }

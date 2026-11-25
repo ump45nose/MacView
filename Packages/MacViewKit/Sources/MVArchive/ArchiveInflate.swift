@@ -36,7 +36,7 @@ enum ArchiveInflate {
                 ended = step.ended
                 produced += Int64(step.data.count)
                 if let expectedSize, produced > expectedSize {
-                    throw IOError.corrupted(source.identity.location, "解压大小超出条目声明")
+                    throw IOError.corrupted(source.identity.location, String(localized: "解压大小超出条目声明", bundle: .main))
                 }
                 if !step.data.isEmpty {
                     crc = ArchiveCRC.update(crc, with: step.data)
@@ -46,13 +46,13 @@ enum ArchiveInflate {
                 if ended || !step.progressed { break }
             } while inputOffset < input.count || decoder.filledOutput || final
             position = upper
-            if final, !ended { throw IOError.corrupted(source.identity.location, "DEFLATE 数据不完整") }
+            if final, !ended { throw IOError.corrupted(source.identity.location, String(localized: "DEFLATE 数据不完整", bundle: .main)) }
             if ended, inputOffset != input.count || upper != range.upperBound {
-                throw IOError.corrupted(source.identity.location, "DEFLATE 尾部有多余数据")
+                throw IOError.corrupted(source.identity.location, String(localized: "DEFLATE 尾部有多余数据", bundle: .main))
             }
         }
-        if let expectedSize, produced != expectedSize { throw IOError.corrupted(source.identity.location, "解压大小不一致") }
-        if let checksum, ~crc != checksum { throw IOError.corrupted(source.identity.location, "CRC32 不一致") }
+        if let expectedSize, produced != expectedSize { throw IOError.corrupted(source.identity.location, String(localized: "解压大小不一致", bundle: .main)) }
+        if let checksum, ~crc != checksum { throw IOError.corrupted(source.identity.location, String(localized: "CRC32 不一致", bundle: .main)) }
     }
 }
 
@@ -69,7 +69,7 @@ private final class InflateStream {
         stream = compression_stream(dst_ptr: output, dst_size: capacity, src_ptr: output, src_size: 0, state: nil)
         guard compression_stream_init(&stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB) != COMPRESSION_STATUS_ERROR else {
             output.deallocate()
-            throw IOError.underlying("无法初始化 DEFLATE 解码器")
+            throw IOError.underlying(String(localized: "无法初始化 DEFLATE 解码器", bundle: .main))
         }
     }
 
@@ -88,7 +88,7 @@ private final class InflateStream {
             let previous = stream.src_size
             let flags = final ? Int32(COMPRESSION_STREAM_FINALIZE.rawValue) : 0
             let status = compression_stream_process(&stream, flags)
-            guard status != COMPRESSION_STATUS_ERROR else { throw IOError.corrupted(location, "无效的 DEFLATE 数据") }
+            guard status != COMPRESSION_STATUS_ERROR else { throw IOError.corrupted(location, String(localized: "无效的 DEFLATE 数据", bundle: .main)) }
             offset += previous - stream.src_size
             let count = capacity - stream.dst_size
             filledOutput = stream.dst_size == 0

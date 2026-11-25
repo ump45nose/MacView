@@ -47,21 +47,21 @@ public enum PluginError: Error, LocalizedError, Sendable, Equatable {
     public var errorDescription: String? {
         switch self {
         case .notFound(let id):
-            return "找不到插件：\(id)"
+            return String(localized: "找不到插件：\(id)", bundle: .main)
         case .disabled(let id):
-            return "插件未启用：\(id)"
+            return String(localized: "插件未启用：\(id)", bundle: .main)
         case .needsConsent(let id):
-            return "插件需要重新确认权限：\(id)"
+            return String(localized: "插件需要重新确认权限：\(id)", bundle: .main)
         case .invalid(let problem):
             return problem.errorDescription ?? problem.message
         case let .missingPermission(plugin, permission):
-            return "插件 \(plugin) 缺少权限：\(permission.rawValue)"
+            return String(localized: "插件 \(plugin) 缺少权限：\(permission.rawValue)", bundle: .main)
         case .timeout(let method):
-            return "插件请求超时：\(method)"
+            return String(localized: "插件请求超时：\(method)", bundle: .main)
         case .cancelled:
-            return "插件请求已取消"
+            return String(localized: "插件请求已取消", bundle: .main)
         case .processExited(let code):
-            return "插件进程已退出（代码 \(code)）"
+            return String(localized: "插件进程已退出（代码 \(code)）", bundle: .main)
         case let .rpcError(_, message):
             return message
         case .runtimeError(let message):

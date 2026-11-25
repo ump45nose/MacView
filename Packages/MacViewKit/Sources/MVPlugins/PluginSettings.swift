@@ -76,7 +76,7 @@ public enum PluginStatus: Sendable, Hashable {
             return .invalid(problem)
         }
         guard let manifest = info.manifest else {
-            return .invalid(PluginProblem(file: "manifest.json", message: "清单不可用"))
+            return .invalid(PluginProblem(file: "manifest.json", message: String(localized: "清单不可用", bundle: .main)))
         }
         guard let state, state.enabled else {
             return .disabled

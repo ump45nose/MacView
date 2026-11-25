@@ -584,7 +584,7 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
         guard !trimmed.isEmpty else { return }
         guard let value = try? JSONDecoder().decode(JSONValue.self, from: Data(trimmed.utf8)),
               case let .object(msg) = value else {
-            log.append(source: manifest.name, level: .warning, text: "无法解析插件消息：\(trimmed)")
+            log.append(source: manifest.name, level: .warning, text: String(localized: "无法解析插件消息：\(trimmed)", bundle: .main))
             return
         }
 
@@ -606,7 +606,7 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
             let code: Int
             if case let .number(c)? = errObj["code"] { code = Int(c) } else { code = -32000 }
             let message: String
-            if case let .string(m)? = errObj["message"] { message = m } else { message = "插件返回错误" }
+            if case let .string(m)? = errObj["message"] { message = m } else { message = String(localized: "插件返回错误", bundle: .main) }
             pending.resume(.failure(PluginError.rpcError(code: code, message: message)))
         } else {
             pending.resume(.success(msg["result"] ?? .null))
@@ -632,7 +632,7 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
             writeMessage(.object([
                 "jsonrpc": .string("2.0"),
                 "id": id,
-                "error": .object(["code": .number(-32601), "message": .string("未知宿主方法：\(method)")]),
+                "error": .object(["code": .number(-32601), "message": .string(String(localized: "未知宿主方法：\(method)", bundle: .main))]),
             ]))
             return
         }
@@ -645,7 +645,7 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
                 self.writeMessage(.object([
                     "jsonrpc": .string("2.0"),
                     "id": id,
-                    "error": .object(["code": .number(-32000), "message": .string("插件宿主 API 不可用")]),
+                    "error": .object(["code": .number(-32000), "message": .string(String(localized: "插件宿主 API 不可用", bundle: .main))]),
                 ]))
                 return
             }
@@ -688,6 +688,6 @@ final class ProcessPluginConnection: PluginConnection, @unchecked Sendable {
     }
 
     private func posixFailure(_ code: Int32, executable: String) -> PluginError {
-        PluginError.runtimeError("无法启动插件程序 \(executable)：\(String(cString: strerror(code)))")
+        PluginError.runtimeError(String(localized: "无法启动插件程序 \(executable)：\(String(cString: strerror(code)))", bundle: .main))
     }
 }

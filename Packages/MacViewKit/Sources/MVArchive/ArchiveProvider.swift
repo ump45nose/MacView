@@ -163,16 +163,16 @@ public final class ArchiveProvider: ContainerProvider {
             guard header.archiveInteger(UInt32.self, at: 0) == 0x0403_4B50,
                   header.archiveInteger(UInt16.self, at: 8) == record.method,
                   header.archiveInteger(UInt16.self, at: 6) & 1 == 0 else {
-                throw IOError.corrupted(location, "zip 本地头与中央目录不一致")
+                throw IOError.corrupted(location, String(localized: "zip 本地头与中央目录不一致", bundle: .main))
             }
             offset += 30 + Int64(header.archiveInteger(UInt16.self, at: 26)) + Int64(header.archiveInteger(UInt16.self, at: 28))
         }
         guard offset >= 0, record.compressedSize <= outer.identity.size - offset else {
-            throw IOError.corrupted(location, "条目数据超出归档范围")
+            throw IOError.corrupted(location, String(localized: "条目数据超出归档范围", bundle: .main))
         }
         let identity = record.entry(in: archive).identity
         if record.method == 0 {
-            guard record.size == record.compressedSize else { throw IOError.corrupted(location, "stored 大小不一致") }
+            guard record.size == record.compressedSize else { throw IOError.corrupted(location, String(localized: "stored 大小不一致", bundle: .main)) }
             return RangeByteSource(identity: identity, outer: outer, offset: offset)
         }
         let source = DeflateByteSource(identity: identity, outer: outer, range: offset..<offset + record.compressedSize)

@@ -225,7 +225,7 @@ public final class PluginSourceProvider: ContainerProvider, Sendable {
         }
 
         guard case let .object(dict) = result, case let .array(rawEntries)? = dict["entries"] else {
-            throw IOError.underlying("插件 source.list 返回格式无效")
+            throw IOError.underlying(String(localized: "插件 source.list 返回格式无效", bundle: .main))
         }
 
         var items: [CachedItem] = []
@@ -356,10 +356,10 @@ private final class PluginRPCByteSource: ByteSource, Sendable {
         }
 
         guard case let .object(dict) = result, case let .string(base64)? = dict["data"] else {
-            throw IOError.underlying("插件 source.read 返回格式无效")
+            throw IOError.underlying(String(localized: "插件 source.read 返回格式无效", bundle: .main))
         }
         guard let data = Data(base64Encoded: base64) else {
-            throw IOError.underlying("插件 source.read 返回的 base64 无效")
+            throw IOError.underlying(String(localized: "插件 source.read 返回的 base64 无效", bundle: .main))
         }
         return data
     }

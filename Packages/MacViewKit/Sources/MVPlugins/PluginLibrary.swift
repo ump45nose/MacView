@@ -173,13 +173,13 @@ public final class PluginLibrary: Sendable {
                 file: "manifest.json",
                 line: 1,
                 column: 1,
-                message: "插件文件夹名不合规（只能包含小写字母、数字和连字符，且不能以连字符开头）：\(id)"
+                message: String(localized: "插件文件夹名不合规（只能包含小写字母、数字和连字符，且不能以连字符开头）：\(id)", bundle: .main)
             )
             return (PluginInfo(id: id, directory: directory, manifest: nil, problem: problem), signature)
         }
         let manifestURL = directory.appendingPathComponent("manifest.json")
         guard let data = try? Data(contentsOf: manifestURL) else {
-            let problem = PluginProblem(file: "manifest.json", line: 1, column: 1, message: "缺少或无法读取 manifest.json")
+            let problem = PluginProblem(file: "manifest.json", line: 1, column: 1, message: String(localized: "缺少或无法读取 manifest.json", bundle: .main))
             return (PluginInfo(id: id, directory: directory, manifest: nil, problem: problem), signature)
         }
         switch PluginManifest.parse(data: data, file: "manifest.json") {
