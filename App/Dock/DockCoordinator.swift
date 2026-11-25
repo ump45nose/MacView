@@ -260,6 +260,11 @@ final class DockCoordinator {
         return layout
     }
 
+    /// 窗口要写进会话的停靠区：保存布局，含当前不可用插件面板的位置（退出时插件先停，显示布局里已没有它们）。
+    func persistedLayout(of dock: WindowDock) -> DockLayout {
+        Self.docked(savedLayout(of: dock))
+    }
+
     /// 去掉浮动面板，即窗口自己的停靠区。
     static func docked(_ layout: DockLayout) -> DockLayout {
         var layout = layout

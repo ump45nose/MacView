@@ -470,14 +470,21 @@ extension PluginSelfTest {
             await settle(50)
         }
 
-        // 输入笔记并立即翻页（不等 500 ms）
-        let noteText = "第一页的持久笔记-C2.11"
-        _ = await evalAsyncJS(notesPanel, """
-            const el = document.getElementById('note-input');
-            el.value = '\(noteText)';
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            return 'typed';
-            """)
+        // 真实键盘事件逐字输入笔记（经窗口送进网页，走 WebKit 编辑与撤销登记），然后立即翻页（不等 500 ms）
+        let noteText = "C2.11 typed note"
+        if let webView = notesPanel.webView { activeWindow.makeFirstResponder(webView) }
+        _ = await evalAsyncJS(notesPanel, "document.getElementById('note-input')?.focus(); return 'focused';")
+        await typeText(noteText, in: activeWindow)
+        let typedValue = await evalAsyncJS(notesPanel, "return document.getElementById('note-input')?.value || '';") ?? ""
+        let undoInTextHistory = await waitUntil(timeoutMs: 1500) {
+            (activeWindow as? ReaderWindow)?.isEditingText == true
+                && activeWindow.undoManager === activeController.textUndoManager
+                && activeController.textUndoManager.canUndo
+        }
+        log.check(
+            typedValue == noteText && undoInTextHistory,
+            "C2.11 真实键入笔记不崩溃，网页面板的编辑撤销记在窗口文本撤销历史(value=\(typedValue),undo=\(undoInTextHistory))"
+        )
         // 截图展示 page-notes 面板（含已输入的笔记与当前页信息）
         await settle(150)
         log.snapshot(activeWindow, "panel-page-notes-\(langTag)-\(appearanceTag)")
@@ -519,6 +526,26 @@ extension PluginSelfTest {
         log.check(
             dockedRight && notesInitialOK && page0MetaOK && page1Clean && savedToStorage && nextBtnWorked && reopenOK,
             "C2.11 page-notes 右区显示、输入即翻页保存且新页不串页、下一页按钮与重启恢复均通过(right=\(dockedRight),meta=\(page0MetaOK),clean=\(page1Clean),saved=\(savedToStorage),next=\(nextBtnWorked),reopen=\(reopenOK))"
+        )
+
+        // C2.11b 退出时插件先停、面板从显示布局消失：写进会话的停靠区仍保留它的位置，重新注册后回到原位
+        let pluginTypes = DockPanels.plugins
+        let placementBefore = activeController.dock.dockLayout.placement(of: notesPanelID)
+        DockPanels.setPluginTypes([])
+        let goneWhenStopped = activeController.dock.dockLayout.placement(of: notesPanelID) == nil
+        // 保存布局还留着前面移除的插件面板位置，序号可能与显示布局不同，按停靠边核对。
+        func edge(_ placement: PanelPlacement?) -> DockEdge? {
+            if case let .docked(edge, _) = placement { edge } else { nil }
+        }
+        let keptInSession = edge(placementBefore) != nil
+            && app.sessionSnapshot().windows.flatMap(\.tabs).contains { edge($0.dock?.placement(of: notesPanelID)) == edge(placementBefore) }
+        DockPanels.setPluginTypes(pluginTypes)
+        let backInPlace = await waitUntil(timeoutMs: 1500) {
+            activeController.dock.dockLayout.placement(of: notesPanelID) == placementBefore
+        }
+        log.check(
+            placementBefore != nil && goneWhenStopped && keptInSession && backInPlace,
+            "C2.11b 插件停止后会话仍记录页面笔记的停靠位置，重新注册后原位显示(before=\(String(describing: placementBefore)),gone=\(goneWhenStopped),session=\(keptInSession),back=\(backInPlace))"
         )
 
         // MARK: C2.7 页面死循环期间主区照常翻页、3 秒判为无响应并提示、点「重新载入」1 秒内恢复

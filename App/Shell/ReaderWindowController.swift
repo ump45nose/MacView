@@ -9,6 +9,7 @@ import MVReading
 import MVServices
 import MVSettings
 import Observation
+import WebKit
 import os
 
 /// 阅读窗口：没有被响应链处理的按键交给 InputRouter。
@@ -23,6 +24,13 @@ final class ReaderWindow: NSWindow {
 
     override var undoManager: UndoManager? {
         (delegate as? ReaderWindowController)?.windowWillReturnUndoManager(self) ?? super.undoManager
+    }
+
+    /// 焦点在文字输入处（文本框、网页面板）：撤销走焦点自己的撤销管理器（网页面板沿响应链取到窗口的文本撤销管理器），不碰文件操作的撤销历史。
+    var isEditingText: Bool {
+        guard let view = firstResponder as? NSView else { return false }
+        if view is NSText || view is NSTextField { return true }
+        return sequence(first: view, next: \.superview).contains { $0 is WKWebView }
     }
 
     override func sendEvent(_ event: NSEvent) {
@@ -75,8 +83,8 @@ final class ReaderWindow: NSWindow {
     @objc func redo(_ sender: Any?) { stepUndo(isUndo: false) }
 
     private func stepUndo(isUndo: Bool) {
-        if let textView = firstResponder as? NSTextView {
-            if isUndo { textView.undoManager?.undo() } else { textView.undoManager?.redo() }
+        if isEditingText {
+            if isUndo { firstResponder?.undoManager?.undo() } else { firstResponder?.undoManager?.redo() }
             return
         }
         guard let fileOps else { return }
@@ -94,14 +102,14 @@ final class ReaderWindow: NSWindow {
             return super.validateMenuItem(menuItem)
         }
         let isUndo = menuItem.action == #selector(undo(_:))
-        let textView = firstResponder as? NSTextView
-        let manager = textView != nil ? textView?.undoManager : fileOps?.undoManager
+        let editing = isEditingText
+        let manager = editing ? firstResponder?.undoManager : fileOps?.undoManager
         let canStep = (isUndo ? manager?.canUndo : manager?.canRedo) ?? false
         let name = (isUndo ? manager?.undoActionName : manager?.redoActionName) ?? ""
         menuItem.title = canStep && !name.isEmpty
             ? (isUndo ? String(localized: "撤销\(name)") : String(localized: "重做\(name)"))
             : (isUndo ? String(localized: "撤销") : String(localized: "重做"))
-        return textView != nil ? canStep : (!(fileOps?.isBusy ?? true) && canStep)
+        return editing ? canStep : (!(fileOps?.isBusy ?? true) && canStep)
     }
 }
 
@@ -695,7 +703,8 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
                 session.go(.index(index))
                 return
             }
-        } else if page == nil, location == session.book?.location {
+        } else if page == nil, location == session.book?.location, session.loadError == nil {
+            // 已经打开且没有出错；上次打开失败的同一本书照常重开（重试）。
             return
         }
         restoringBook = restoring
@@ -907,10 +916,7 @@ final class ReaderWindowController: NSWindowController, NSWindowDelegate, NSTool
     // MARK: 窗口
 
     func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? {
-        if window.firstResponder is NSText || window.firstResponder is NSTextField {
-            return textUndoManager
-        }
-        return fileOps.undoManager
+        (window as? ReaderWindow)?.isEditingText == true ? textUndoManager : fileOps.undoManager
     }
 
     func windowDidBecomeMain(_ notification: Notification) {

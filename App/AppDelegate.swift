@@ -445,7 +445,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sessionStore?.schedule { [weak self] in self?.sessionSnapshot() }
     }
 
-    private func sessionSnapshot() -> SessionSnapshot {
+    func sessionSnapshot() -> SessionSnapshot {
         // orderedWindows 从前到后；没选中的标签不在里面，按标签组找回来。
         var seen = Set<ObjectIdentifier>()
         var groups: [[NSWindow]] = []
@@ -472,7 +472,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 tabs: tabs.map { controller in
                     SessionSnapshot.Tab(
                         book: controller.session.book?.location,
-                        dock: controller.dock.dockLayout,
+                        dock: dock?.persistedLayout(of: controller.dock) ?? controller.dock.dockLayout,
                         waterfallExtent: controller.viewer.continuous.waterfallExtent
                     )
                 }

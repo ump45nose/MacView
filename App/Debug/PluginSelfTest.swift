@@ -515,9 +515,10 @@ final class PluginSelfTest {
         controller.reopenBook()
         let reopenedAfterEnable = await waitUntil(timeoutMs: 5000) {
             controller.bookshelfPanel?.hasLoadError == false &&
-            (controller.bookshelfPanel?.entries.map(\.name).contains("book-alpha") == true)
+            (controller.bookshelfPanel?.entries.map(\.name).contains("book-alpha") == true) &&
+            controller.session.loadError == nil
         }
-        log.check(webdavReenabled && reopenedAfterEnable, "C2.8 重新启用插件后重试成功打开来源")
+        log.check(webdavReenabled && reopenedAfterEnable, "C2.8 重新启用插件后在错误页重试成功打开来源，主区旧错误清除")
     }
 
     /// C2.6 冷重启子进程：复用隔离目录，读取持久化书签与历史并从书签重新打开远端书。
@@ -993,6 +994,22 @@ final class PluginSelfTest {
             }
         }
         try? await Task.sleep(for: .milliseconds(50))
+    }
+
+    /// 逐字发送带文字的真实键盘事件，与手动键入同一路径（窗口 → 第一响应者 → 文字输入）。
+    func typeText(_ text: String, in window: NSWindow) async {
+        for character in text {
+            let units = Array(String(character).utf16)
+            for down in [true, false] {
+                guard let cgEvent = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: down) else { continue }
+                cgEvent.flags = []
+                cgEvent.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                guard let event = NSEvent(cgEvent: cgEvent) else { continue }
+                if NSApp.keyWindow != nil { NSApp.sendEvent(event) } else { window.sendEvent(event) }
+            }
+            try? await Task.sleep(for: .milliseconds(15))
+        }
+        try? await Task.sleep(for: .milliseconds(80))
     }
 
     func settle(_ ms: Int) async {

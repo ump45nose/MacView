@@ -231,6 +231,10 @@ final class PluginCoordinator {
                     }
                 } else if hasBooks {
                     target.showBookshelf(directory: location)
+                    // 来源上次打开失败、主区还显示它的错误（如在错误页点「重试」）：重新载入主区，清掉旧错误。
+                    if target.session.book?.location == location, target.session.loadError != nil {
+                        target.openBook(location)
+                    }
                 } else {
                     target.openBook(location)
                 }
