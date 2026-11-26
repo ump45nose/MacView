@@ -45,6 +45,7 @@ final class OperationDeadline: Sendable {
 /// 一次文件操作的请求组；其他调用仍可显式指定自己的组。
 public enum FileIORequestContext {
     @TaskLocal public static var group: IORequestGroup?
+    @TaskLocal public static var priority: IOPriority?
 }
 
 /// 一个文件的字节，按范围读取。

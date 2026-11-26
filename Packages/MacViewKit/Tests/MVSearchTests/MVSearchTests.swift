@@ -83,6 +83,7 @@ import UniformTypeIdentifiers
         private let listHook = Mutex<(@Sendable (Location) async -> Void)?>(nil)
         private let readHook = Mutex<(@Sendable (Location) async -> Void)?>(nil)
         private let healthStreamOverride = Mutex<AsyncStream<[VolumeHealth]>?>(nil)
+        let splitListings = Mutex(false)
 
         init(base: any SourceRegistry) {
             self.base = base
@@ -183,7 +184,9 @@ import UniformTypeIdentifiers
                         if let hook { await hook(container) }
                         if let error { throw error }
                         for try await batch in base.children(of: container, priority: priority) {
-                            continuation.yield(batch)
+                            if owner.splitListings.withLock({ $0 }) {
+                                for entry in batch { continuation.yield([entry]) }
+                            } else { continuation.yield(batch) }
                         }
                         continuation.finish()
                     } catch {
@@ -299,7 +302,7 @@ import UniformTypeIdentifiers
         #expect(finished.failures == 0)
 
         let firstCounters = counting.snapshot()
-        #expect(firstCounters.listPriorities.allSatisfy { $0 == .background })
+        #expect(firstCounters.listPriorities.allSatisfy { $0 == .near })
         #expect(firstCounters.readPriorities.allSatisfy { $0 == .background })
 
         // 第二步完成后评分与标签可筛
@@ -444,7 +447,8 @@ import UniformTypeIdentifiers
         #expect(!sawFinished)
         #expect(lastListed >= 21)
         let indexedCount = try await catalog.indexedCount(under: rootLocation)
-        #expect(indexedCount >= 21)
+        // 枚举进度可先于当前目录的缓存写入；已提交的根目录仍须保留。
+        #expect(indexedCount >= 20)
         #expect(indexedCount < 40)
     }
 
@@ -610,12 +614,56 @@ import UniformTypeIdentifiers
         #expect(try await catalog.indexedCount(under: rootLocation) >= 2)
     }
 
+    @Test("子目录读取超时立即结束索引")
+    func childDirectoryTimeoutStopsIndexing() async throws {
+        let workspace = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let rootDir = workspace.appending(path: "build/mvsearch-child-timeout-" + UUID().uuidString)
+        let cacheDir = workspace.appending(path: "build/mvsearch-child-timeout-cache-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: rootDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: rootDir); try? FileManager.default.removeItem(at: cacheDir) }
+        let child = rootDir.appending(path: "child", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: child, withIntermediateDirectories: false)
+        let scheduler = IOScheduler(configuration: IOConfiguration(helperExecutable: nil))
+        defer { scheduler.shutdown() }
+        let sources = CountingSourceRegistry(base: FileSourceRegistry(scheduler: scheduler))
+        let root = try await sources.location(for: rootDir)
+        let childLocation = try await sources.location(for: child)
+        sources.setListError(IOError.timeout, for: childLocation)
+        let index = try CacheIndex(databaseURL: cacheDir.appending(path: "index.sqlite"))
+        let indexer = FolderIndexer(sources: sources, directories: DirectoryCache(index: index), metadata: MetadataIndex(index: index))
+        var caught: (any Error)?
+        do { for try await _ in indexer.index(root) {} } catch { caught = error }
+        #expect(caught as? IOError == .timeout)
+    }
+
+    @Test("目录枚举每批更新第一阶段计数")
+    func listingReportsEachBatch() async throws {
+        let workspace = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let directory = workspace.appending(path: "build/mvsearch-batches-" + UUID().uuidString)
+        let rootDir = directory.appending(path: "root")
+        try FileManager.default.createDirectory(at: rootDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try Data([1]).write(to: rootDir.appending(path: "one.txt"))
+        try Data([2]).write(to: rootDir.appending(path: "two.txt"))
+        let scheduler = IOScheduler(configuration: IOConfiguration(helperExecutable: nil))
+        defer { scheduler.shutdown() }
+        let sources = CountingSourceRegistry(base: FileSourceRegistry(scheduler: scheduler))
+        sources.splitListings.withLock { $0 = true }
+        let root = try await sources.location(for: rootDir)
+        let index = try CacheIndex(databaseURL: directory.appending(path: "index.sqlite"))
+        let indexer = FolderIndexer(sources: sources, directories: DirectoryCache(index: index), metadata: MetadataIndex(index: index))
+        var counts: [Int] = []
+        for try await progress in indexer.index(root) where progress.phase == .listing { counts.append(progress.listed) }
+        #expect(counts == [1, 2])
+    }
+
     // MARK: - C1.16
 
     @Test("C1.16 NFS 300 个小 JPEG 两步实测计时并彻底清理")
     func c116NfsThreeHundredSmallJpegsTiming() async throws {
-        let nfsBase = FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: "MacViewBench/fileops-a", directoryHint: .isDirectory)
+        let nfsBase = ProcessInfo.processInfo.environment["MV_TEST_NFS_ROOT"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: "MacViewBench/fileops-a", directoryHint: .isDirectory)
         let fm = FileManager.default
         guard fm.fileExists(atPath: nfsBase.path), fm.isWritableFile(atPath: nfsBase.path) else {
             // CI 或未挂载 NFS 测试目录时跳过

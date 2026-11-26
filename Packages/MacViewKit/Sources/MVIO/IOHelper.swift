@@ -52,7 +52,8 @@ public enum IOHelper {
                     }
                 case let .list(path):
                     do throws(FileOperationError) {
-                        try FileOperations.list(path) { batch in
+                        // 网络卷每批尽早返回，避免大目录一批迟迟不完成而被判为没有进展。
+                        try FileOperations.list(path, bufferBytes: 16 << 10) { batch in
                             guard !cancelled.withLock({ $0.contains(id) }) else { return false }
                             reply(id, .batch(batch))
                             return true

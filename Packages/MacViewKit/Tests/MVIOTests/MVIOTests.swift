@@ -381,6 +381,22 @@ import Testing
     #expect(try await call { backend.stat(url.path, completion: $0) }.size == 300)
 }
 
+@Test func helperListingMakesProgressBeforeAWholeLargeDirectory() async throws {
+    let directory = Fixtures.root.appending(path: "local/generated/tree/10000")
+    let backend = HelperBackend(executable: helperExecutable)
+    defer { backend.abandon() }
+    let counts = Mutex<[Int]>([])
+    try await call { completion in
+        backend.list(directory.path, batch: { batch in
+            counts.withLock { $0.append(batch.count) }
+            return true
+        }, completion: completion)
+    }
+    let batches = counts.withLock { $0 }
+    #expect(batches.reduce(0, +) == 10_000)
+    #expect((batches.first ?? 10_000) < 512, "首批应足够小，让慢卷及时报告进展")
+}
+
 @Test func networkVolumesUseTheHelper() {
     let scheduler = IOScheduler(configuration: IOConfiguration(helperExecutable: helperExecutable))
     #expect(scheduler.backend(for: Volume(mountPoint: "/Volumes/Mock", fileSystem: "nfs", root: .local, isLocal: false)) is HelperBackend)

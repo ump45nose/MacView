@@ -146,7 +146,7 @@ enum FileOperations {
     }
 
     /// 用 getattrlistbulk 分批列出目录的直接子项（不含 `.` 和 `..`）。`batch` 返回 false 时停止。
-    static func list(_ path: String, batch: ([FileAttributes]) -> Bool) throws(FileOperationError) {
+    static func list(_ path: String, bufferBytes: Int = 256 << 10, batch: ([FileAttributes]) -> Bool) throws(FileOperationError) {
         let fd = open(path, O_RDONLY | O_DIRECTORY)
         guard fd >= 0 else { throw .system(call: "open", code: errno) }
         defer { close(fd) }
@@ -155,7 +155,7 @@ enum FileOperations {
         request.commonattr = attrgroup_t(ATTR_CMN_RETURNED_ATTRS) | attrgroup_t(ATTR_CMN_ERROR) | attrgroup_t(ATTR_CMN_NAME)
             | attrgroup_t(ATTR_CMN_OBJTYPE) | attrgroup_t(ATTR_CMN_CRTIME) | attrgroup_t(ATTR_CMN_MODTIME)
         request.fileattr = attrgroup_t(ATTR_FILE_DATALENGTH)
-        let buffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 256 << 10, alignment: 16)
+        let buffer = UnsafeMutableRawBufferPointer.allocate(byteCount: bufferBytes, alignment: 16)
         defer { buffer.deallocate() }
         while true {
             let count = getattrlistbulk(fd, &request, buffer.baseAddress, buffer.count, 0)

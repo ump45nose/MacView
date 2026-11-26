@@ -148,7 +148,10 @@ actor ContentWork {
             else {
                 let provider = try sources.provider(for: requested.location)
                 let location = requested.location
-                source = try await lifetime.value { try await provider.open(location) }
+                let group = self.group
+                source = try await lifetime.value {
+                    try await FileIORequestContext.$group.withValue(group) { try await provider.open(location) }
+                }
                 self.source = source
             }
             let identity = source.identity

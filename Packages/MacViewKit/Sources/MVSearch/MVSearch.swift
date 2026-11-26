@@ -111,18 +111,20 @@ public final class FolderIndexer: Sendable {
             let current = queue[head]
             head += 1
             let isRoot = (head == 1)
+            let listedBeforeDirectory = listed
 
             do {
                 let provider = try sources.provider(for: current)
-                var rawEntries: [Entry] = []
-                for try await batch in provider.children(of: current, priority: .background) {
+                var filtered: [Entry] = []
+                for try await batch in provider.children(of: current, priority: .near) {
                     try Task.checkCancellation()
                     try checkVolume()
-                    rawEntries.append(contentsOf: batch)
+                    let accepted = batch.filter { !Self.shouldSkip($0) }
+                    filtered.append(contentsOf: accepted)
+                    listed += accepted.count
+                    continuation.yield(IndexProgress(phase: .listing, listed: listed, probed: 0, toProbe: 0, failures: failures))
                 }
-                let filtered = rawEntries.filter { !Self.shouldSkip($0) }
                 _ = try await directories.update(current, listing: DirectoryListing(entries: filtered))
-                listed += filtered.count
                 for entry in filtered {
                     switch entry.kind {
                     case .directory:
@@ -133,12 +135,15 @@ public final class FolderIndexer: Sendable {
                         break
                     }
                 }
-                continuation.yield(IndexProgress(phase: .listing, listed: listed, probed: 0, toProbe: 0, failures: failures))
+                if filtered.isEmpty {
+                    continuation.yield(IndexProgress(phase: .listing, listed: listed, probed: 0, toProbe: 0, failures: failures))
+                }
             } catch {
                 if Self.isCancellation(error) { throw error }
                 if Self.isVolumeError(error) { throw error }
                 try checkVolume()
                 if isRoot { throw error }
+                listed = listedBeforeDirectory
                 failures += 1
                 continuation.yield(IndexProgress(phase: .listing, listed: listed, probed: 0, toProbe: 0, failures: failures))
             }
@@ -266,7 +271,7 @@ public final class FolderIndexer: Sendable {
 
     private func probeImage(_ entry: Entry, volumeError: VolumeErrorBox) async throws -> ImageMetadata {
         let provider = try sources.provider(for: entry.location)
-        let byteSource = try await provider.open(entry.location)
+        let byteSource = try await FileIORequestContext.$priority.withValue(.background) { try await provider.open(entry.location) }
         let totalSize = max(0, byteSource.identity.size)
         let maxBytes = min(totalSize, Int64(MediaProbe.headerLimit))
         var targetLength = min(maxBytes, Int64(MediaProbe.initialHeaderLength))
@@ -317,7 +322,7 @@ public final class FolderIndexer: Sendable {
     private static func isVolumeError(_ error: any Error) -> Bool {
         guard let io = error as? IOError else { return false }
         switch io {
-        case .volumeDegraded, .volumeUnavailable:
+        case .timeout, .volumeDegraded, .volumeUnavailable:
             return true
         default:
             return false

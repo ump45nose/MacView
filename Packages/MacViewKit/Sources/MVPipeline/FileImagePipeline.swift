@@ -391,7 +391,9 @@ public final class FileImagePipeline: ImagePipeline {
         case .local: false
         }
         if streamViaByteSource {
-            let source = try await lifetime.value { try await provider.open(identity.location) }
+            let source = try await lifetime.value {
+                try await FileIORequestContext.$priority.withValue(priority) { try await provider.open(identity.location) }
+            }
             let bridge = try lifetime.whileRunning {
                 ByteSourceAsset(source: ManagedBytes(source: source, lifetime: lifetime), priority: priority)
             }
@@ -403,7 +405,9 @@ public final class FileImagePipeline: ImagePipeline {
                 return result
             } onCancel: { bridge.invalidate() }
         }
-        let source = try await lifetime.value { try await provider.open(identity.location) }
+        let source = try await lifetime.value {
+            try await FileIORequestContext.$priority.withValue(priority) { try await provider.open(identity.location) }
+        }
         let lease = try await lifetime.value { try await provider.fileLease(for: identity.location) }
         defer { withExtendedLifetime(lease) {} }
         try lifetime.checkRunning()

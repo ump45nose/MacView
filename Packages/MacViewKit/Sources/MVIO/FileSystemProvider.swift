@@ -53,7 +53,7 @@ public final class FileSystemProvider: ContainerProvider {
     public func entry(at location: Location) async throws -> Entry {
         let (volume, path) = try resolve(location)
         let backend = scheduler.backend(for: volume)
-        let attributes: FileAttributes = try await scheduler.perform(on: volume, .metadata, priority: .visible, group: FileIORequestContext.group) { finish, _ in
+        let attributes: FileAttributes = try await scheduler.perform(on: volume, .metadata, priority: FileIORequestContext.priority ?? .visible, group: FileIORequestContext.group) { finish, _ in
             backend.stat(path) { result in finish(result.mapError { Self.ioError($0, at: location, volume: volume) }) }
         }
         var entry = Self.entry(in: location.parent ?? location, attributes)

@@ -125,7 +125,8 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - stuck 或超时次数超过阈值时，卷标为 degraded：新请求立即失败，只保留定期的健康探测，探测成功即恢复。
   - 卷状态以流的形式提供给界面显示；具体调度器和注册表另提供当前快照，调试接口据此读取当下的在途计数，不依赖流的发布时机。
   - 网络卷上的读失败时，重新打开文件再试一次：断开较久（实测 60 秒）后恢复时，故障中的那次读会返回错误。
-- 枚举优先用 `getattrlistbulk` 分批返回，书和书架因此能渐进显示。
+- 枚举优先用 `getattrlistbulk` 分批返回，书和书架因此能渐进显示。网络卷辅助进程使用 16 KiB 缓冲区缩小单批，避免大目录在高并发预读时长期收不到任何进展；本机进程内枚举仍使用 256 KiB。
+- 用户启动的目录索引第一阶段以 near 优先级枚举，第二阶段文件头探测保持 background。管线打开预读的图片时继承并可提升原请求组优先级，视频与索引探测打开文件时继承其请求优先级；不得把所有文件属性查询都当成 visible，否则全书预读会让索引枚举长期排队。
 - 路径与 URL 的互转不能访问文件系统：用 `URL(filePath:directoryHint:)`，不用不带 `isDirectory` 的 `URL(fileURLWithPath:)`，后者会在调用线程上 stat 该路径，网络卷卡住时调用方跟着卡住（S1-T1 实测）。
 - 进程隔离（G0 决定）：
   - 网络卷（statfs 不带 `MNT_LOCAL`）上的阻塞调用都在辅助进程中执行，本机卷仍在进程内，对外接口不变。
@@ -470,7 +471,7 @@ public protocol SourceRegistry: Sendable {
 }
 extension Location.Root { public var mountURL: URL? { get } }   // “连接”按钮交给 NSWorkspace 打开的 smb:// 或 nfs:// URL
 public struct IOConfiguration: Sendable { public var local, network: Channels; public var smallReadLimit: Int; public var deadline: Duration; public var degradeAfterTimeouts: Int; public var probeInterval: Duration; public var helperExecutable: URL?; public init(helperExecutable: URL?) }   // Channels：metadata、bulk 并发与 chunk
-public enum FileIORequestContext { @TaskLocal public static var group: IORequestGroup? } // 一次文件操作的请求组
+public enum FileIORequestContext { @TaskLocal public static var group: IORequestGroup?; @TaskLocal public static var priority: IOPriority? } // 请求组与打开来源时的优先级；未指定时按可见请求处理
 public final class IOScheduler: Sendable {
     public init(configuration: IOConfiguration)
     public func cancel(_ group: IORequestGroup)                       // 排队中的出队，之后的新请求立即失败
