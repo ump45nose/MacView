@@ -12,6 +12,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  privacy:
+    name: 隐私检查（通用规则）
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出完整历史
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: 检查推送区间
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ]; then
+            args=(--all-history)
+          elif [[ "$AFTER" =~ ^0+$ ]]; then
+            exit 0
+          elif [[ "$BEFORE" =~ ^0+$ ]]; then
+            if [ "$GITHUB_REF" = refs/heads/main ]; then
+              args=(--all-history)
+            else
+              args=(--range "origin/main..$AFTER")
+            fi
+          else
+            args=(--range "$BEFORE..$AFTER")
+          fi
+          scripts/privacy-check "${args[@]}" --generic-only --no-ocr
+
   build-and-test:
     name: 构建与测试
     # App 和 SwiftPM 包最低要求 macOS 27；macos-15 无法运行测试。
@@ -24,6 +54,28 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+          fetch-depth: 0
+
+      - name: 隐私检查（含截图文字识别）
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ]; then
+            args=(--all-history)
+          elif [[ "$AFTER" =~ ^0+$ ]]; then
+            exit 0
+          elif [[ "$BEFORE" =~ ^0+$ ]]; then
+            if [ "$GITHUB_REF" = refs/heads/main ]; then
+              args=(--all-history)
+            else
+              args=(--range "origin/main..$AFTER")
+            fi
+          else
+            args=(--range "$BEFORE..$AFTER")
+          fi
+          scripts/privacy-check "${args[@]}" --generic-only
 
       - name: 确认工具链
         run: |

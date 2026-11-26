@@ -1,0 +1,10 @@
+# 规则名<TAB>文件路径通配<TAB>精确匹配片段<TAB>理由
+# 通用占位卷名与主机名由 privacy-check 内置；本表只放个别文本误判与经核对的 OCR 失败例外。
+# ocr-failed 的第二、三项为精确路径和 Git blob 哈希，不接受路径通配。
+ocr-failed	Fixtures/image/orientation/1.jpg	4e4a05c3c145e08cc7395611b7c12334c924f449	经人工核对的无文字合成夹具
+ocr-failed	Fixtures/image/size/1x1.png	77f0a1fcbcbb4e97bcbed1ef3f5fe8a920ab406a	经人工核对的无文字合成夹具
+ocr-failed	Fixtures/image/size/64x64.png	9ed174d3e62f6770a8ace4703f5eb58735bdb4ea	经人工核对的无文字合成夹具
+ocr-failed	Fixtures/tree/hidden/._001.jpg	367160dcdf5e42eb798d405343863cf4d02e7036	经人工核对的 AppleDouble 非图片夹具
+volume	Packages/MacViewKit/Sources/MVIO/Volumes.swift	/Volumes/Picture-1	重名挂载的合成示例
+volume	App/Resources/Localizable.xcstrings	/Volumes/Mock can be opened.	英文提示中的占位路径与句尾
+volume	scripts/privacy-allowlist.txt	/Volumes/Picture-1	上述精确例外的字面值

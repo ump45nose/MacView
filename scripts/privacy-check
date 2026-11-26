@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+"""扫描 Git 待提交内容、提交区间或全部历史。只输出打码后的命中。"""
+import argparse
+import fnmatch
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import tempfile
+
+SCRIPTS = Path(__file__).resolve().parent
+DEFAULT_PATTERNS = Path.home() / ".config/macview/privacy-patterns.txt"
+OCTET = r"(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)"
+PRIVATE_IP = re.compile(rf"(?<![\d.])(?:10\.{OCTET}|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.{OCTET}\.{OCTET}(?!\d|\.\d)")
+VOLUME = re.compile(r"/Volumes/([^/\\\r\n\"'\x60<>()（）\[\]{}：，。；、:;]+?(?=[/\"'\x60])|[^/\\\s\"'\x60<>()（）\[\]{}：，。；、:;]+)")
+NETWORK = re.compile(r"\b(?:smb|nfs)://((?:[^/\\\s\"'\x60<>()（）\[\]{}：，。；、?#@]+@)?(?:\[[^\]\s]+\]|[^/\\\s\"'\x60<>()（）\[\]{}：，。；、?#]+))", re.I)
+VOLUMES = {"Mock", "Photos", "Preboot", "Update", "VM", "xarts", "iSCPreboot", "Hardware", "Data"}
+HOSTS = {"nas.example", "localhost", "127.0.0.1", "server", "other", "mock.local"}
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
+
+
+class ScanError(Exception):
+    pass
+
+
+def git(*args):
+    result = subprocess.run(["git", *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode:
+        # Git 的错误消息可能含路径或提交原文。
+        raise ScanError(f"Git 操作失败：{args[0]}")
+    return result.stdout
+
+
+def load_patterns(path):
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        raise ScanError("精确词表不存在或不可读；可用 --generic-only 明确只跑通用规则")
+    patterns = []
+    for number, line in enumerate(lines, 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        try:
+            patterns.append(re.compile(line))
+        except re.error:
+            raise ScanError(f"精确词表第 {number} 行不是有效的正则表达式")
+    if not patterns:
+        raise ScanError("精确词表为空；可用 --generic-only 明确只跑通用规则")
+    return patterns
+
+
+def load_allowlist():
+    entries = []
+    try:
+        lines = (SCRIPTS / "privacy-allowlist.txt").read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        raise ScanError("允许清单不可读")
+    for number, line in enumerate(lines, 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 4 or not all(parts):
+            raise ScanError(f"允许清单第 {number} 行格式错误")
+        entries.append(parts)
+    return entries
+
+
+def masked(text):
+    if len(text) <= 2:
+        return "*" * len(text)
+    return text[0] + "…" + text[-1]
+
+
+def safe_text(text):
+    # 不让路径或自定义提交信息中的控制字符伪造日志行。
+    return json.dumps(text, ensure_ascii=False)[1:-1]
+
+
+class Scanner:
+    def __init__(self, patterns, allowlist, known_images, ocr):
+        self.patterns = patterns
+        self.allowlist = allowlist
+        self.known_images = known_images
+        self.ocr = ocr
+        self.hits = 0
+        self.errors = 0
+        self.images = {}
+        self.occurrences = []
+        self.text_cache = {}
+
+    def matches(self, text, path):
+        def allowed(rule, fragment):
+            return any(rule == name and fragment == value and fnmatch.fnmatchcase(path, glob)
+                       for name, glob, value, _ in self.allowlist)
+
+        for rule, expression in (("private-ip", PRIVATE_IP), ("volume", VOLUME), ("network-host", NETWORK)):
+            for match in expression.finditer(text):
+                if rule == "volume" and match[1] in VOLUMES:
+                    continue
+                if rule == "network-host":
+                    authority = match[1].rsplit("@", 1)[-1]
+                    host = (authority.split("]", 1)[0][1:] if authority.startswith("[") else authority.split(":", 1)[0]).lower()
+                    if host in HOSTS:
+                        continue
+                if not allowed(rule, match[0]):
+                    yield match.start(), match.end(), rule
+        for pattern in self.patterns:
+            for match in pattern.finditer(text):
+                if match.start() != match.end():
+                    yield match.start(), match.end(), "exact"
+
+    def path_label(self, path):
+        # 多条规则或词表命中互相重叠时合并区间，不能借一条规则露出另一条的原文。
+        spans = sorted((start, end) for start, end, _ in self.matches(path, path))
+        merged = []
+        for start, end in spans:
+            if merged and start <= merged[-1][1]:
+                merged[-1] = merged[-1][0], max(end, merged[-1][1])
+            else:
+                merged.append((start, end))
+        result = path
+        for start, end in reversed(merged):
+            result = result[:start] + masked(result[start:end]) + result[end:]
+        return safe_text(result)
+
+    def report(self, commit, path, rule, number, fragment):
+        self.hits += 1
+        print(f"{commit} {self.path_label(path)}:{number} {rule} {safe_text(masked(fragment))}")
+
+    def scan_text(self, commit, path, text):
+        for number, line in enumerate(text.splitlines(), 1):
+            for start, end, rule in self.matches(line, path):
+                self.report(commit, path, rule, number, line[start:end])
+
+    def scan_blob(self, commit, path, oid, mode):
+        self.scan_text(commit, path, path)
+        if mode == "160000":  # 子模块只有提交指针。
+            return
+        if Path(path).suffix.lower() in IMAGE_SUFFIXES:
+            if path in self.known_images:
+                self.report(commit, path, "known-image", 1, path)
+            if self.ocr:
+                self.images.setdefault(oid, Path(path).suffix.lower())
+                self.occurrences.append((commit, path, oid))
+            return
+        if oid not in self.text_cache:
+            raw = git("cat-file", "blob", oid)
+            # 只分析文本；图片另由 OCR 检查，不把二进制解释为文本。
+            try:
+                self.text_cache[oid] = raw.decode("utf-8") if b"\0" not in raw else None
+            except UnicodeError:
+                self.text_cache[oid] = None
+        if self.text_cache[oid] is not None:
+            self.scan_text(commit, path, self.text_cache[oid])
+
+    def scan_changes(self, commit, raw):
+        fields = raw.split(b"\0")
+        seen = set()
+        for index in range(0, len(fields) - 1, 2):
+            header = fields[index].decode("ascii").split()
+            if len(header) != 5:
+                raise ScanError("Git 差异记录格式错误")
+            mode, oid = header[1], header[3]
+            path = os.fsdecode(fields[index + 1])
+            key = (path, oid, mode)
+            if key not in seen:
+                seen.add(key)
+                self.scan_blob(commit, path, oid, mode)
+
+    def scan_commit(self, commit):
+        fields = git("show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce%x00%B", commit).decode("utf-8", errors="replace").split("\0", 4)
+        for label, value in zip(("<author-name>", "<author-email>", "<committer-name>", "<committer-email>", "<message>"), fields):
+            self.scan_text(commit, label, value)
+        self.scan_changes(commit, git("diff-tree", "--root", "-m", "-r", "--no-commit-id", "--raw", "-z", "--no-renames", "--no-abbrev", "--diff-filter=AMCT", commit))
+
+    def scan_images(self):
+        if not self.images:
+            return
+        print(f"正在识别 {len(self.images)} 张截图", flush=True)
+        root = Path(os.fsdecode(git("rev-parse", "--show-toplevel")).rstrip("\n"))
+        build = root / "build"
+        build.mkdir(exist_ok=True)
+        results = {}
+        with tempfile.TemporaryDirectory(prefix="privacy-ocr-", dir=build) as temp:
+            directory = Path(temp)
+            binary = directory / "ocr-text"
+            files = []
+            for oid, suffix in self.images.items():
+                file = directory / (oid + suffix)
+                file.write_bytes(git("cat-file", "blob", oid))
+                files.append(file)
+            try:
+                compile_result = subprocess.run(
+                    ["swiftc", "-module-cache-path", str(directory / "module-cache"), str(SCRIPTS / "ocr-text.swift"), "-o", str(binary)],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180,
+                )
+                if compile_result.returncode:
+                    raise ScanError("OCR 工具编译失败")
+                # 单进程批量识别，避免 Vision 在每张图上重复冷启动。
+                process = subprocess.run([str(binary), "--batch-json", *map(str, files)],
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         timeout=180 + 10 * len(files))
+                if process.returncode:
+                    raise ScanError("OCR 工具执行失败")
+                rows = process.stdout.splitlines()
+                if len(rows) != len(files):
+                    raise ScanError("OCR 输出数量错误")
+                for oid, row in zip(self.images, rows):
+                    text = json.loads(row)
+                    if isinstance(text, list) and all(isinstance(line, str) for line in text) and any(line.strip() for line in text):
+                        results[oid] = "\n".join(text)
+            except (OSError, ValueError, subprocess.TimeoutExpired, ScanError):
+                # 不打印 OCR 工具的原始 stderr/stdout。
+                results.clear()
+        for commit, path, oid in self.occurrences:
+            if oid in results:
+                self.scan_text(commit, path, results[oid])
+            elif not any(rule == "ocr-failed" and path == exact_path and oid == blob
+                         for rule, exact_path, blob, _ in self.allowlist):
+                # 此规则只能豁免经人工核对的特定图片的识别失败，不能豁免文字或已知图片命中。
+                self.errors += 1
+                print(f"{commit} {self.path_label(path)}:1 OCR 识别失败")
+
+
+def resolve_commit(ref):
+    if not ref:
+        raise ScanError("区间端点不存在")
+    result = subprocess.run(["git", "rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode:
+        raise ScanError("区间端点不存在或不指向提交")
+    return result.stdout.decode("ascii").strip()
+
+
+def commits_for_range(value):
+    if ".." in value:
+        if value.count("..") != 1 or "..." in value:
+            raise ScanError("区间格式应为 A..B")
+        left, right = map(resolve_commit, value.split(".."))
+        return git("rev-list", "--reverse", left + ".." + right).decode("ascii").splitlines()
+    # 新建引用：只查尚未进入 origin 任何远程跟踪引用的提交；没有跟踪引用时就是全部祖先。
+    tip = resolve_commit(value)
+    return git("rev-list", "--reverse", tip, "--not", "--remotes=origin").decode("ascii").splitlines()
+
+
+class SafeParser(argparse.ArgumentParser):
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        self.exit(2, "隐私检查参数错误\n")
+
+
+def parse_args():
+    parser = SafeParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--staged", action="store_true")
+    mode.add_argument("--range", metavar="A..B", help="提交区间；单端点 B 用于新建引用（排除 origin 已有提交）")
+    mode.add_argument("--all-history", action="store_true")
+    patterns = parser.add_mutually_exclusive_group()
+    patterns.add_argument("--patterns", type=Path, default=DEFAULT_PATTERNS)
+    patterns.add_argument("--generic-only", action="store_true")
+    parser.add_argument("--no-ocr", action="store_true")
+    parser.add_argument("--known-images", type=Path)
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    patterns = [] if args.generic_only else load_patterns(args.patterns)
+    known = set()
+    if args.known_images:
+        try:
+            known = {line.strip() for line in args.known_images.read_text(encoding="utf-8").splitlines()
+                     if line.strip() and not line.lstrip().startswith("#")}
+        except (OSError, UnicodeError):
+            raise ScanError("已知图片清单不可读")
+    scanner = Scanner(patterns, load_allowlist(), known, not args.no_ocr)
+    if args.staged:
+        scanner.scan_changes("暂存区", git("diff", "--cached", "--raw", "-z", "--no-renames", "--no-abbrev", "--diff-filter=AMCT"))
+    else:
+        commits = git("rev-list", "--all", "--reverse").decode("ascii").splitlines() if args.all_history else commits_for_range(args.range)
+        for commit in commits:
+            scanner.scan_commit(commit)
+    scanner.scan_images()
+    print(f"隐私检查：{scanner.hits} 条命中，{scanner.errors} 条识别失败")
+    return 2 if scanner.errors else 1 if scanner.hits else 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (ScanError, OSError, ValueError, UnicodeError) as exc:
+        print(f"隐私检查环境错误：{exc if isinstance(exc, ScanError) else '无法完成扫描'}", file=sys.stderr)
+        sys.exit(2)

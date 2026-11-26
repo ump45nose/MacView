@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+privacy="$(cd -- "$(dirname -- "$0")/.." && pwd -P)/privacy-check"
+root=$(git config --get macview.historyRoot || true)
+while read -r local_ref local_oid remote_ref remote_oid; do
+  # 本地全 0 的更新是删除引用，不携带提交。
+  if [[ "$local_oid" =~ ^0+$ ]]; then
+    continue
+  fi
+  if [[ ! "$root" =~ ^[0-9a-f]{40,64}$ ]]; then
+    echo "未配置唯一的 macview.historyRoot；请运行 scripts/install-hooks.sh" >&2
+    exit 2
+  fi
+  tip=$(git rev-parse --verify --end-of-options "$local_oid^{commit}" 2>/dev/null) || { echo "待推引用不指向有效提交" >&2; exit 2; }
+  actual_root=$(git rev-list --max-parents=0 "$tip" 2>/dev/null) || { echo "无法确认待推历史根" >&2; exit 2; }
+  if [ "$actual_root" != "$root" ]; then
+    echo "这是改写前的旧历史，拒绝推送" >&2
+    exit 1
+  fi
+  if [[ "$remote_oid" =~ ^0+$ ]]; then
+    # 查询远端是否真的为空，避免重建仓库后过期的 origin 跟踪引用漏扫。
+    remote_refs=$(git ls-remote --refs "${2:-$1}" 2>/dev/null) || { echo "无法确认远端引用，拒绝未检查的推送" >&2; exit 2; }
+    if [ -z "$remote_refs" ]; then
+      "$privacy" --all-history
+    else
+      "$privacy" --range "$tip"
+    fi
+  else
+    "$privacy" --range "$remote_oid..$tip"
+  fi
+done
