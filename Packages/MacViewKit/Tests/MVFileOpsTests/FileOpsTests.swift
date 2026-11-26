@@ -5,6 +5,53 @@ import Synchronization
 import Testing
 @testable import MVFileOps
 
+@Test func retryDeleteWaitsForTimedOutMoveAndReconcilesItsResult() async throws {
+    let f = try await Fixture(network: true)
+    let source = f.root.appending("late.jpg")
+    try await f.fs.createFile(at: source)
+    let (release, releaseOld) = AsyncStream<Void>.makeStream()
+    let (finished, oldFinished) = AsyncStream<Void>.makeStream()
+    let (waiting, enteredWait) = AsyncStream<Void>.makeStream()
+    let calls = Mutex(0)
+    let target = Mutex<Location?>(nil)
+    let service = try FileOperationService(
+        fileSystem: f.fs, journalURL: f.directory.appending(path: "retry-transfers.json"),
+        renameFile: { from, to, exclusive in
+            let number = calls.withLock { value in value += 1; return value }
+            if number == 1 {
+                target.withLock { $0 = to }
+                Task.detached {
+                    for await _ in release { break }
+                    try? await f.fs.rename(from, to: to, exclusive: exclusive)
+                    oldFinished.yield(); oldFinished.finish()
+                }
+                throw IOError.timeout
+            }
+            try await f.fs.rename(from, to: to, exclusive: exclusive)
+        },
+        prepareRetry: { _ in
+            enteredWait.yield(); enteredWait.finish()
+            for await _ in finished { break }
+        },
+        isNetwork: { _ in true }, volumeRoot: { _ in f.root }, networkRoots: { [f.root] },
+        trash: { _ in throw IOError.unsupported(source) }
+    )
+    let first = await service.perform(.delete([source]))
+    #expect(first.changes.isEmpty && (first.failures.first?.error as? IOError) == .timeout)
+    let retry = try #require(first.retry)
+    let next = Task { await service.perform(retry) }
+    for await _ in waiting { break }
+    #expect(calls.withLock { $0 } == 1 && f.exists("late.jpg"))
+    releaseOld.yield(); releaseOld.finish()
+    let result = await next.value
+    #expect(result.failures.isEmpty && result.changes == [.removed(source)])
+    #expect(calls.withLock { $0 } == 1 && !f.exists("late.jpg"))
+    let moved = try #require(target.withLock { $0 })
+    #expect((try await f.fs.itemWithoutFollowingLinks(at: moved)).type == .regular)
+    let undo = await service.perform(try #require(result.inverse))
+    #expect(undo.failures.isEmpty && f.exists("late.jpg"))
+}
+
 @Test func fileOperationsAndTheirInverses() async throws {
     let fixture = try await Fixture()
     let fs = fixture.fs
@@ -71,6 +118,23 @@ import Testing
     let inverse = await f.service.perform(try #require(sequence.inverse))
     #expect(inverse.failures.isEmpty && !f.exists("new") && f.exists("dest/a.jpg"))
     #expect((await f.service.perform(try #require(inverse.inverse))).failures.isEmpty && f.exists("new/a.jpg"))
+}
+
+@Test func transferProgressCountsSkippedAndFailedItemsAsFinished() async throws {
+    let f = try await Fixture()
+    let target = f.root.appending("dest")
+    try await f.fs.makeDirectory(at: target)
+    let skipped = f.root.appending("exists.jpg"), moved = f.root.appending("move.jpg"), missing = f.root.appending("missing.jpg")
+    try await f.fs.createFile(at: skipped)
+    try await f.fs.createFile(at: moved)
+    try await f.fs.createFile(at: target.appending("exists.jpg"))
+    let updates = Mutex<[FileProgress]>([])
+    let result = await f.service.perform(.transfer([skipped, moved, missing], into: target, mode: .move, conflict: .skip)) {
+        update in updates.withLock { $0.append(update) }
+    }
+    #expect(result.changes.count == 1 && result.skipped == [skipped] && result.failures.map(\.location) == [missing])
+    let last = try #require(updates.withLock { $0.last })
+    #expect(last.completedItems == 3 && last.totalItems == 3)
 }
 
 @Test func networkRecycleAndSubscriptions() async throws {
@@ -312,7 +376,9 @@ private final class Fixture: Sendable {
     ]
     try JSONEncoder().encode(TransferJournal(version: 1, transfers: records)).write(to: f.directory.appending(path: "transfers.json"))
     let report = await f.service.resumeInterruptedTransfers()
-    #expect(report == ResumeReport(completed: 3, pending: 1, failed: 1))
+    #expect(report == ResumeReport(completed: 3, pending: 1, failed: 1, pendingItems: [
+        ResumePending(source: unavailable, target: dest.appending("x.jpg"), phase: .source, reason: .volumeUnavailable(unavailable.root))
+    ]))
     #expect(!f.exists("a.jpg") && !f.exists("b.jpg") && !f.exists("c.jpg"))
     #expect(f.exists("dest/a.jpg") && f.exists("dest/b.jpg") && f.exists("dest/c.jpg") && !f.exists("dest/\(aTemporary.name)"))
     let journal = try JSONDecoder().decode(TransferJournal.self, from: Data(contentsOf: f.directory.appending(path: "transfers.json")))

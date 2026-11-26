@@ -125,8 +125,10 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 卡住的辅助进程被弃用时发 SIGKILL 并关闭 socket，下一个请求起新的辅助进程。
   - 辅助进程按路径缓存最多 32 个只读描述符，免得网络卷上每读一块都重新打开。读写同一个辅助进程；执行改名（源路径及覆盖目标路径）、删除、移入废纸篓前，先释放该路径及其下所有路径的缓存描述符，操作期间不让并发读取重新缓存。否则 NFS 会把仍打开的文件改名为 `.nfs.*` 保留，目录删不掉（S3 阶段 2b / S3-T3）。
 - 文件写入与移动（S3-T2）：创建、写入、完成、改名、建目录、删除和本机废纸篓经调度器及现有期限；网络卷由辅助进程执行。排他改名在 NFS 返回 ENOTSUP/EINVAL 时回退普通改名，存在检查与改名之间的竞态。
+- 同一进程中网络删除因超时、卷降级或不可用而重试时，先等该卷超时调用结束及已弃用辅助进程实际退出，再探测卷；等待可取消。每次 `perform` 使用新请求组，探测成功后才执行新一轮。若旧的回收改名超时，服务在内存保留它的目标：重试核对源和该目标，源已消失且目标存在时按已完成登记变更和撤销；源存在且目标不存在时重新删除；其他组合不覆盖数据。该对账状态只在本进程内保存。
 - 跨卷移动先原子写入本机传输记录，记录源、目标、临时位置和冲突策略；临时名为 `.<原名>.<完整传输 ID（32 位十六进制）>.macview-part`，排他创建遇到重名时先删除记录再报错，删除记录失败也报错。复制逐文件读回 SHA-256，排他发布后删除源；复制操作也使用带 ID 的临时名，但不写移动记录。创建后的失败和取消会清理临时项，清理失败时保留移动记录供恢复。
-- 组合根启动时恢复中断的移动：临时项存在时删除后重做；没有临时项且目标、源均存在时，逐项比较类型、大小和 SHA-256，匹配才删除源；不匹配或无法读取则保留源，按记录中的冲突策略重做。临时项和源均不存在、目标存在时，删除记录并计入 completed；三者均不存在时，删除记录并计入 failed。该功能尚未发布，不保留旧式临时项迁移逻辑。
+- 组合根启动时恢复中断的移动：临时项存在时删除后重做；没有临时项且目标、源均存在时，逐项比较类型、大小和 SHA-256，匹配才删除源；不匹配或其他读取错误时保留源并按记录中的冲突策略重做，卷不可用、降级、超时和取消则等待。临时项和源均不存在、目标存在时，删除记录并计入 completed；三者均不存在时，删除记录并计入 failed。该功能尚未发布，不保留旧式临时项迁移逻辑。
+- 恢复遇到卷不可用、降级、超时或取消时保留记录，逐项报告源、目标、所处阶段和原因；界面列出等待原因。恢复不会因卷重新挂载自动再跑，由下次启动重新触发，与普通文件操作共用串行门。
 - 文件操作用不跟随链接的类型查询；未知扩展名的普通文件可操作，链接同卷改名、移动和删除操作链接本身，复制和跨卷移动拒绝链接。校验读回每次重新打开描述符并设置 F_NOCACHE，读完关闭；创建、写入和完成文件时检查 F_NOCACHE 的设置结果，失败则关闭描述符并返回错误。临时文件创建成功后设置失败时，文件操作层尝试删除空文件，删除失败保留移动记录。只保留文件修改时间，不保留目录自身修改时间。
 - 传输记录没有发布阶段，完整 ID 撞名视为不会发生。若排他创建报 EEXIST 后、删除记录前崩溃，或删除记录失败，恢复可能把同名项当作临时项删除；第 4 轮设计答复接受这一残余风险。正式目标不判断归属，源仍存在时只在内容一致后删除源。
 - 健康探测在挂载点下查找一个随机的、不存在的名字，得到 ENOENT 即恢复。新名字不在缓存里，查找必须问服务器。不用 stat 挂载点或 statfs：服务器不可达时，前者由属性缓存回答，后者约 10 秒后返回缓存的值，都报成功，卷会在 healthy 与 degraded 之间反复切换（S1-T1 实测）。
@@ -256,7 +258,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 
 资料库的 `history`、`bookmark`、`playlist`、`playlist_item` 四张表分别存打开时间、树层级与序号、列表摘要、列表顺序及 `Entry` 快照。位置按 `sortedKeys` 编码，并保存带索引的 `prefix_key`。开库沿用 `state.sqlite` 的 SQLITE_BUSY 重试。历史默认保留 1000 本，`historyLimit` 缺失时补默认且不报缺字段，非正值拒绝；缩小立即裁剪。
 
-书记忆与历史独立：清历史不丢页码与阅读设置。文件移动时按前缀迁移资料库及书记忆（含虚拟书的 `lastPage`）；撞到已有目标时保留目标，历史取较晚时间。资料库迁移为单事务，删除文件不删除条目。组合根按“目录缓存 → 冲刷相关会话 → 书记忆与资料库迁移 → 会话 → 广播”处理，广播接收时已能读到新位置。
+书记忆与历史独立：清历史不丢页码与阅读设置。文件移动时按前缀迁移资料库及书记忆（含虚拟书的 `lastPage`）；撞到已有目标时保留目标，历史取较晚时间。资料库迁移为单事务，删除文件不删除条目。组合根按“目录缓存 → 冲刷相关会话 → 书记忆与资料库迁移 → 会话 → 广播”处理；迁移成功时，广播接收者已能读到新位置。资料库迁移失败仍广播，见 §4。
 
 虚拟书位置使用 `playlist` 插件根，以列表顺序加载，不受书内排序或递归影响；不切相邻书，不请求书架与相邻书预取。`items(id)` 与 `playlistRemoved(id)` 才重载对应会话，`relocated` 只供面板刷新，快照回写无通知。可用性按容器合并检查，未挂载网络根只读挂载表；不可用项保留序号并交付 1:1.414 占位元数据，其他容器独立完成。
 
@@ -456,6 +458,7 @@ public protocol SourceRegistry: Sendable {
 }
 extension Location.Root { public var mountURL: URL? { get } }   // “连接”按钮交给 NSWorkspace 打开的 smb:// 或 nfs:// URL
 public struct IOConfiguration: Sendable { public var local, network: Channels; public var smallReadLimit: Int; public var deadline: Duration; public var degradeAfterTimeouts: Int; public var probeInterval: Duration; public var helperExecutable: URL?; public init(helperExecutable: URL?) }   // Channels：metadata、bulk 并发与 chunk
+public enum FileIORequestContext { @TaskLocal public static var group: IORequestGroup? } // 一次文件操作的请求组
 public final class IOScheduler: Sendable {
     public init(configuration: IOConfiguration)
     public func cancel(_ group: IORequestGroup)                       // 排队中的出队，之后的新请求立即失败
@@ -467,6 +470,7 @@ public final class IOScheduler: Sendable {
 public enum FileSystemItemType: Sendable, Equatable { case regular, directory, symbolicLink, other }
 public final class FileSystemProvider: ContainerProvider {
     public init(scheduler: IOScheduler)
+    public func prepareRetry(at location: Location) async throws // 等旧超时调用及已弃用辅助进程退出，再探测卷；可取消
     public func itemWithoutFollowingLinks(at location: Location) async throws -> (entry: Entry, type: FileSystemItemType) // lstat，返回链接自身
     public func readUncached(_ location: Location, range: Range<Int64>, priority: IOPriority) async throws -> Data // 每次新开、F_NOCACHE、读后关闭
     public func createFile(at location: Location) async throws
@@ -524,10 +528,11 @@ public indirect enum FileOperation: Sendable, Hashable {
 }   // setMetadata：原子写同目录临时文件、无缓存读回 SHA-256 校验、覆盖 rename（释放目标描述符）；inverse 为各文件原值组成的 .sequence
 public enum FileOpsError: Error, Sendable, Equatable { case readOnly, invalidName(String), recycleUnavailable(String), verificationFailed, intoItself, metadataUnsupported(String) }
 public struct FileFailure: Sendable { public var location: Location; public var error: any Error }
-public struct FileProgress: Sendable, Hashable { public var completedItems, totalItems: Int; public var completedBytes, totalBytes: Int64 }
+public struct FileProgress: Sendable, Hashable { public var completedItems, totalItems: Int; public var completedBytes, totalBytes: Int64 } // 成功、跳过和失败均算已处理；跳过/失败的估算字节从总量扣除，取消未处理项不算完成
 public struct FileOperationResult: Sendable { public var changes: [FileChange]; public var inverse: FileOperation?; public var skipped: [Location]; public var failures: [FileFailure]; public var retry: FileOperation? }   // retry 只含失败项，不含 skip；sequence 遇失败即停，重试从该步未完成的项接续后续步骤；跨卷已发布目标只核对并删源
 public struct RecycleBin: Sendable, Hashable { public var location: Location; public var batchCount: Int }
-public struct ResumeReport: Sendable, Hashable { public var completed, pending, failed: Int }
+public struct ResumePending: Sendable, Hashable { public var source, target: Location; public var phase: Phase; public var reason: Reason } // 阶段：临时项、目标、源、恢复；原因：卷不可用、降级、超时、取消
+public struct ResumeReport: Sendable, Hashable { public var completed, pending, failed: Int; public var pendingItems: [ResumePending] }
 public final class FileOperationService: Sendable {
     public init(fileSystem: FileSystemProvider, journalURL: URL) throws
     public func perform(_ operation: FileOperation, progress: (@Sendable (FileProgress) -> Void)? = nil) async -> FileOperationResult
@@ -536,6 +541,8 @@ public final class FileOperationService: Sendable {
     public func recycleBins() async -> [RecycleBin]
     public func setStepDelay(_ delay: Duration?)   // App 自检用的逐项／分块延迟，nil 恢复正常速度
 }
+
+`perform` 的返回结果是本批操作的终态：成功项由 `changes` 表示，跳过项在 `skipped`，失败项在 `failures` 和可用的 `retry` 中；部分成功、全部跳过和取消都不以源文件消失或字节计数判断结束。App 根据该结果登记撤销、显示完成/跳过或失败；文件变更的异步传播仍以 `appliedFileChanges()` 为准。
 
 // MVArchive
 public final class ArchiveProvider: ContainerProvider {

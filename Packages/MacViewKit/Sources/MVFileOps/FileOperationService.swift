@@ -32,6 +32,9 @@ public final class FileOperationService: Sendable {
     private let createTemporary: @Sendable (Location) async throws -> Void
     private let removeTemporary: @Sendable (Location) async throws -> Void
     private let renameFile: @Sendable (Location, Location, Bool) async throws -> Void
+    private let prepareRetry: @Sendable (Location) async throws -> Void
+    private let pendingRecycle = Mutex<[Location: Location]>([:])
+    private let pendingRetry = Mutex<Set<Location>>([])
     private let observers = Mutex<[UUID: AsyncStream<[FileChange]>.Continuation]>([:])
     private let stepDelay = Mutex<Duration?>(nil)
 
@@ -42,13 +45,14 @@ public final class FileOperationService: Sendable {
     public convenience init(fileSystem: FileSystemProvider, journalURL: URL) throws {
         try self.init(fileSystem: fileSystem, journalURL: journalURL, isNetwork: { try fileSystem.isNetworkVolume($0) }, volumeRoot: { try fileSystem.volumeRoot(of: $0) }, networkRoots: { fileSystem.mountedNetworkRoots() }, trash: { try await fileSystem.moveToTrash($0) })
     }
-    init(fileSystem: FileSystemProvider, journalURL: URL, forceCrossVolume: Bool = false, corruptCopy: Bool = false, transferID: @escaping @Sendable () -> UUID = { UUID() }, createTemporary: (@Sendable (Location) async throws -> Void)? = nil, removeTemporary: (@Sendable (Location) async throws -> Void)? = nil, renameFile: (@Sendable (Location, Location, Bool) async throws -> Void)? = nil, isNetwork: @escaping @Sendable (Location) throws -> Bool, volumeRoot: @escaping @Sendable (Location) throws -> Location, networkRoots: @escaping @Sendable () -> [Location], trash: @escaping @Sendable (Location) async throws -> Location) throws {
+    init(fileSystem: FileSystemProvider, journalURL: URL, forceCrossVolume: Bool = false, corruptCopy: Bool = false, transferID: @escaping @Sendable () -> UUID = { UUID() }, createTemporary: (@Sendable (Location) async throws -> Void)? = nil, removeTemporary: (@Sendable (Location) async throws -> Void)? = nil, renameFile: (@Sendable (Location, Location, Bool) async throws -> Void)? = nil, prepareRetry: (@Sendable (Location) async throws -> Void)? = nil, isNetwork: @escaping @Sendable (Location) throws -> Bool, volumeRoot: @escaping @Sendable (Location) throws -> Location, networkRoots: @escaping @Sendable () -> [Location], trash: @escaping @Sendable (Location) async throws -> Location) throws {
         self.fileSystem = fileSystem; self.journalURL = journalURL; self.isNetwork = isNetwork
         self.forceCrossVolume = forceCrossVolume; self.corruptCopy = corruptCopy
         self.transferID = transferID
         self.createTemporary = createTemporary ?? { try await fileSystem.createFile(at: $0) }
         self.removeTemporary = removeTemporary ?? { try await fileSystem.remove($0) }
         self.renameFile = renameFile ?? { try await fileSystem.rename($0, to: $1, exclusive: $2) }
+        self.prepareRetry = prepareRetry ?? { try await fileSystem.prepareRetry(at: $0) }
         self.volumeRoot = volumeRoot; self.networkRoots = networkRoots; self.trash = trash
     }
     public func changes() -> AsyncStream<[FileChange]> {
@@ -60,7 +64,9 @@ public final class FileOperationService: Sendable {
     }
     public func perform(_ operation: FileOperation, progress: (@Sendable (FileProgress) -> Void)? = nil) async -> FileOperationResult {
         await gate.acquire()
-        let result = Task.isCancelled ? FileOperationResult() : await execute(operation, progress: progress)
+        let result = await FileIORequestContext.$group.withValue(IORequestGroup()) {
+            Task.isCancelled ? FileOperationResult() : await execute(operation, progress: progress)
+        }
         if !result.changes.isEmpty { observers.withLock { $0.values.forEach { $0.yield(result.changes) } } }
         await gate.release()
         return result
@@ -120,7 +126,40 @@ public final class FileOperationService: Sendable {
             result.retry = retries.isEmpty ? nil : (retries.count == 1 ? retries[0] : .sequence(retries))
             return result
         case let .delete(locations):
-            var result = await batch(locations, progress: progress) { entry, type, context in
+            var prior = Outcome()
+            var remaining: [Location] = []
+            for location in locations {
+                guard pendingRetry.withLock({ $0.contains(location) }) else { remaining.append(location); continue }
+                do {
+                    try await prepareRetry(location)
+                    if let target = pendingRecycle.withLock({ $0[location] }) {
+                        let sourceExists = try await exists(location) != nil
+                        let targetExists = try await exists(target) != nil
+                        if !sourceExists && targetExists {
+                            prior.changes.append(.removed(location))
+                            prior.inverses.append(.relocate([Relocation(source: target, target: location)]))
+                            pendingRecycle.withLock { $0[location] = nil }
+                            pendingRetry.withLock { _ = $0.remove(location) }
+                            continue
+                        }
+                        guard sourceExists && !targetExists else {
+                            throw sourceExists ? IOError.alreadyExists(target) : IOError.notFound(location)
+                        }
+                        pendingRecycle.withLock { $0[location] = nil }
+                    }
+                    pendingRetry.withLock { _ = $0.remove(location) }
+                    remaining.append(location)
+                } catch {
+                    prior.failures.append(FileFailure(location: location, error: error))
+                }
+            }
+            let processed = prior.changes.count + prior.failures.count
+            let partial = await batch(remaining, progress: { state in
+                var state = state
+                state.totalItems = locations.count
+                state.completedItems += processed
+                progress?(state)
+            }) { entry, type, context in
                 let target: Location
                 if try self.isNetwork(entry.location) {
                     let root = try self.volumeRoot(entry.location)
@@ -128,16 +167,37 @@ public final class FileOperationService: Sendable {
                     if let existing = context.bins[root] { batch = existing }
                     else {
                         do { batch = try await self.createRecycleBatch(root); context.bins[root] = batch }
+                        catch let error as IOError {
+                            switch error {
+                            case .timeout, .cancelled, .volumeUnavailable, .volumeDegraded: throw error
+                            default: throw FileOpsError.recycleUnavailable(String(describing: error))
+                            }
+                        }
                         catch { throw FileOpsError.recycleUnavailable(String(describing: error)) }
                     }
                     var number = 1
                     while true {
                         let candidate = batch.appending(Self.numberedName(entry.name, number: number, directory: type == .directory))
-                        do { try await self.fileSystem.rename(entry.location, to: candidate, exclusive: true); target = candidate; break }
-                        catch IOError.alreadyExists { number += 1 }
+                        self.pendingRecycle.withLock { $0[entry.location] = candidate }
+                        do {
+                            try await self.renameFile(entry.location, candidate, true)
+                            self.pendingRecycle.withLock { $0[entry.location] = nil }
+                            target = candidate; break
+                        } catch IOError.alreadyExists {
+                            self.pendingRecycle.withLock { $0[entry.location] = nil }
+                            number += 1
+                        } catch {
+                            if !Self.isRetryableIO(error) { self.pendingRecycle.withLock { $0[entry.location] = nil } }
+                            throw error
+                        }
                     }
                 } else { target = try await self.trash(entry.location) }
                 return (.removed(entry.location), .relocate([Relocation(source: target, target: entry.location)]))
+            }
+            prior.merge(partial)
+            var result = prior.result
+            for failure in result.failures where Self.isRetryableIO(failure.error) {
+                pendingRetry.withLock { _ = $0.insert(failure.location) }
             }
             if !result.failures.isEmpty { result.retry = .delete(result.failures.map(\.location)) }
             return result
@@ -260,14 +320,23 @@ public final class FileOperationService: Sendable {
             currentBytes = 0
             callback?(state)
         }
-        func discard() {
+        func discard(_ bytes: Int64) {
             state.completedBytes -= currentBytes
+            state.totalBytes -= bytes
+            state.completedItems += 1
             currentBytes = 0
             callback?(state)
         }
     }
     private struct Skipped: Error {}
     private struct TemporaryCollision: Error { let error: IOError }
+    private static func isRetryableIO(_ error: any Error) -> Bool {
+        guard let error = error as? IOError else { return error is CancellationError }
+        switch error {
+        case .timeout, .cancelled, .volumeUnavailable, .volumeDegraded: return true
+        default: return false
+        }
+    }
     private func batch(_ locations: [Location], measureTree: Bool = true, progress: (@Sendable (FileProgress) -> Void)?, body: (Entry, FileSystemItemType, BatchContext) async throws -> (FileChange, FileOperation?)) async -> FileOperationResult {
         var outcome = Outcome()
         var entries: [(Location, Result<(Entry, FileSystemItemType, Int64), any Error>)] = []
@@ -289,6 +358,8 @@ public final class FileOperationService: Sendable {
         progress?(context.state)
         for (location, result) in entries {
             if Task.isCancelled { break }
+            let measuredSize: Int64
+            if case let .success((_, _, size)) = result { measuredSize = size } else { measuredSize = 0 }
             do {
                 let (entry, type, size) = try result.get()
                 let (change, inverse) = try await body(entry, type, context)
@@ -296,9 +367,9 @@ public final class FileOperationService: Sendable {
                 if let inverse { outcome.inverses.append(inverse) } else { outcome.irreversible = true }
                 context.complete(size)
                 if let delay = stepDelay.withLock({ $0 }) { try? await Task.sleep(for: delay) }
-            } catch is Skipped { context.discard(); outcome.skipped.append(location) }
-            catch let collision as TemporaryCollision { context.discard(); outcome.failures.append(FileFailure(location: location, error: collision.error)) }
-            catch { context.discard(); outcome.failures.append(FileFailure(location: location, error: error)) }
+            } catch is Skipped { context.discard(measuredSize); outcome.skipped.append(location) }
+            catch let collision as TemporaryCollision { context.discard(measuredSize); outcome.failures.append(FileFailure(location: location, error: collision.error)) }
+            catch { context.discard(measuredSize); outcome.failures.append(FileFailure(location: location, error: error)) }
         }
         return outcome.result
     }
@@ -567,14 +638,22 @@ public final class FileOperationService: Sendable {
         do { records = try JournalStore.load(journalURL).transfers }
         catch { report.failed += 1; return (report, changes) }
         for record in records {
-            if Task.isCancelled { report.pending += 1; continue }
+            var phase = ResumePending.Phase.temporary
+            func deferRecord(_ reason: ResumePending.Reason) {
+                report.pending += 1
+                report.pendingItems.append(ResumePending(source: record.source, target: record.target, phase: phase, reason: reason))
+            }
+            if Task.isCancelled { deferRecord(.cancelled); continue }
             do {
                 try Self.validateLocation(record.source)
                 try Self.validateLocation(record.target)
                 try Self.validateLocation(record.temporary)
                 let temporary = try await exists(record.temporary)
+                phase = .target
                 let target = try await exists(record.target)
+                phase = .source
                 let source = try await exists(record.source)
+                phase = .recovery
                 if temporary != nil {
                     try await removeTree(record.temporary, temporaryRoot: true)
                 }
@@ -582,6 +661,9 @@ public final class FileOperationService: Sendable {
                     let matches: Bool
                     do { try await verifyRecoverySource(source, in: target); matches = true }
                     catch IOError.cancelled { throw IOError.cancelled }
+                    catch IOError.timeout { throw IOError.timeout }
+                    catch let IOError.volumeUnavailable(root) { throw IOError.volumeUnavailable(root) }
+                    catch let IOError.volumeDegraded(root) { throw IOError.volumeDegraded(root) }
                     catch { matches = false }
                     if matches {
                         try await removeTree(record.source)
@@ -606,10 +688,10 @@ public final class FileOperationService: Sendable {
                     try JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } }
                     report.failed += 1
                 }
-            } catch IOError.volumeUnavailable { report.pending += 1 }
-            catch IOError.volumeDegraded { report.pending += 1 }
-            catch IOError.timeout { report.pending += 1 }
-            catch IOError.cancelled { report.pending += 1 }
+            } catch let IOError.volumeUnavailable(root) { deferRecord(.volumeUnavailable(root)) }
+            catch let IOError.volumeDegraded(root) { deferRecord(.volumeDegraded(root)) }
+            catch IOError.timeout { deferRecord(.timeout) }
+            catch IOError.cancelled { deferRecord(.cancelled) }
             catch { report.failed += 1 }
         }
         return (report, changes)

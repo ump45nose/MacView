@@ -16,7 +16,7 @@ import MVSettings
 @MainActor
 final class FileOpsSelfTest {
     static let launchKey = "MVFileOpsSelfTest"
-    private static let networkModes: Set = ["net-kill", "net-verify"]
+    private static let networkModes: Set = ["net-kill", "net-verify", "net-skip", "net-recovery-kill", "net-recovery-verify", "net-pending"]
     static var mode: String { UserDefaults.standard.string(forKey: launchKey)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "" }
     static var isRequested: Bool { !mode.isEmpty && !["0", "no", "false"].contains(mode) }
     private static var recoveryRootURL: URL?, recoverySourceURL: URL?, recoveryTargetURL: URL?
@@ -71,6 +71,11 @@ final class FileOpsSelfTest {
             switch Self.mode {
             case "net-kill": try await runNetworkKill(controller: controller, window: window, services: services, fileOps: fileOps)
             case "net-verify": try await runNetworkVerify(controller: controller, window: window, services: services, fileOps: fileOps)
+            case "net-skip": try await runNetworkSkip(controller: controller, window: window, services: services, fileOps: fileOps)
+            case "net-recovery-kill": try await runNetworkRecoveryKill(controller: controller, services: services, fileOps: fileOps)
+            case "net-recovery-verify": try await runNetworkRecoveryVerify(controller: controller)
+            case "net-pending": await runNetworkPending(controller: controller, services: services)
+            case "focus": try await runFocusChecks(controller: controller, window: window, services: services, fileOps: fileOps)
             default: try await runChecks(controller: controller, window: window, services: services, fileOps: fileOps)
             }
         }
@@ -83,7 +88,7 @@ final class FileOpsSelfTest {
 
     private func runChecks(controller: ReaderWindowController, window: NSWindow, services: CoreServices, fileOps: FileOperationController) async throws {
         let msg = controller.content.statusBar.message ?? ""
-        log.check(msg == "上次中断的 1 次移动已完成", "C2.5 启动恢复后状态栏显示完成提示：\(msg)")
+        log.check(msg == String(localized: "上次中断的 \(1) 次移动已完成"), "C2.5 启动恢复后状态栏显示完成提示：\(msg)")
         if let src = Self.recoverySourceURL, let dst = Self.recoveryTargetURL {
             log.check(!exists(src) && exists(dst), "C2.5 启动恢复完成了未完成的移动并清理源文件")
         }
@@ -101,13 +106,13 @@ final class FileOpsSelfTest {
         log.check(moveRes?.changes.count == 1 && moveRes?.failures.isEmpty == true, "C2.1 移动 001.png 成功")
         log.check(!exists(book001) && exists(target001), "C2.1 移动后文件在目标目录")
         let undoTitle = editMenu(action: #selector(ReaderWindow.undo(_:))).title
-        log.check(undoTitle.contains("撤销") && undoTitle.contains("移动“001.png”"), "C2.1 撤销菜单标题写明操作和对象：\(undoTitle)")
+        log.check(undoTitle.contains(String(localized: "撤销")) && undoTitle.contains("移动“001.png”"), "C2.1 撤销菜单标题写明操作和对象：\(undoTitle)")
         for round in 1...2 {
             await sendKey(kVK_ANSI_Z, [.command])
             await until("第 \(round) 轮 ⌘Z 完成") { !fileOps.isBusy && self.exists(book001) }
             log.check(exists(book001) && !exists(target001), "C2.1 第 \(round) 轮 ⌘Z 后文件系统回到操作前")
             let redoTitle = editMenu(action: #selector(ReaderWindow.redo(_:))).title
-            log.check(redoTitle.contains("重做") && redoTitle.contains("移动“001.png”"), "C2.1 第 \(round) 轮 ⌘Z 后重做菜单标题写明操作和对象：\(redoTitle)")
+            log.check(redoTitle.contains(String(localized: "重做")) && redoTitle.contains("移动“001.png”"), "C2.1 第 \(round) 轮 ⌘Z 后重做菜单标题写明操作和对象：\(redoTitle)")
             await sendKey(kVK_ANSI_Z, [.command, .shift])
             await until("第 \(round) 轮 ⇧⌘Z 完成") { !fileOps.isBusy && self.exists(target001) }
             log.check(!exists(book001) && exists(target001), "C2.1 第 \(round) 轮 ⇧⌘Z 后文件系统回到操作后")
@@ -163,7 +168,8 @@ final class FileOpsSelfTest {
         log.check(failRes?.changes.count == 1 && failRes?.failures.count == 1, "C2.4 部分失败返回 1 项完成、1 项失败")
         guard let banner = controller.content.fileOperationBanner, let retryButton = banner.retryButton else { return log.check(false, "C2.4 失败后未显示错误条或重试按钮") }
         let bannerText = collectText(in: banner)
-        log.check(bannerText.contains("missing.png") && bannerText.contains("2 项中 1 项没有完成"), "C2.4 错误条列出失败文件名与原因：\(bannerText)")
+        let expectedBanner = String(localized: "\("移动到“dst”")：\(2) 项中 \(1) 项没有完成")
+        log.check(bannerText.contains("missing.png") && bannerText.contains(expectedBanner), "C2.4 错误条列出失败文件名与原因：\(bannerText)")
         log.snapshot(window, "fileops-banner")
         try writePNG(to: missingURL, hue: 0.6)
         await click(retryButton, in: window)
@@ -215,6 +221,8 @@ final class FileOpsSelfTest {
         fileOps.handleResult(injected, operation: .delete([tempLoc]), title: "删除“temp-permanent.png”", origin: FileOrigin(window: controller))
         await settle()
         guard let sheet1 = window.attachedSheet as? PermanentDeleteSheet else { return log.check(false, "C2.4c 遇到 recycleUnavailable 未弹出永久删除确认表单") }
+        await until("永久删除取消表单获得焦点") { sheet1.isVisible && NSApp.keyWindow === sheet1 }
+        guard sheet1.isVisible && NSApp.keyWindow === sheet1 else { return }
         log.snapshot(sheet1, "fileops-permanent-delete")
         await click(sheet1.cancelButton, in: sheet1)
         await until("取消表单收起") { window.attachedSheet == nil }
@@ -222,10 +230,51 @@ final class FileOpsSelfTest {
         fileOps.handleResult(injected, operation: .delete([tempLoc]), title: "删除“temp-permanent.png”", origin: FileOrigin(window: controller))
         await settle()
         guard let sheet2 = window.attachedSheet as? PermanentDeleteSheet else { return log.check(false, "C2.4c 第二次未弹出永久删除确认表单") }
+        await until("永久删除确认表单获得焦点") { sheet2.isVisible && NSApp.keyWindow === sheet2 }
+        guard sheet2.isVisible && NSApp.keyWindow === sheet2 else { return }
         await click(sheet2.confirmButton, in: sheet2)
         await until("确认永久删除完成") { window.attachedSheet == nil && !fileOps.isBusy && !self.exists(tempFileURL) }
         log.check(!exists(tempFileURL) && fileOps.undoManager.undoActionName == previousUndoName, "C2.4c 确认后临时文件被永久删除且不进入撤销历史")
         try await runCommandChecks(controller: controller, window: window, services: services, fileOps: fileOps, bookDir: bookDir, targetDir: targetDir, targetLoc: targetLoc)
+    }
+
+    /// 单独复验首次永久删除表单及分类新目录的焦点与真实事件路径。
+    private func runFocusChecks(controller: ReaderWindowController, window: NSWindow, services: CoreServices, fileOps: FileOperationController) async throws {
+        let (book, target) = try makePair("focus", "book", "target")
+        let image = book.appending(path: "001.png"), disposable = book.appending(path: "disposable.png")
+        try writePNG(to: image, hue: 0.2); try writePNG(to: disposable, hue: 0.5)
+        let location = try await services.sources.location(for: disposable)
+        let failure = FileOperationResult(failures: [FileFailure(location: location, error: FileOpsError.recycleUnavailable(String(localized: "没有写入权限")))])
+        fileOps.handleResult(failure, operation: .delete([location]), title: "删除测试文件", origin: FileOrigin(window: controller))
+        await until("首次永久删除表单获得焦点") { window.attachedSheet is PermanentDeleteSheet && NSApp.keyWindow === window.attachedSheet }
+        guard let cancelSheet = window.attachedSheet as? PermanentDeleteSheet, NSApp.keyWindow === cancelSheet else { return }
+        log.snapshot(cancelSheet, "focus-permanent-cancel")
+        await click(cancelSheet.cancelButton, in: cancelSheet)
+        await until("取消首次永久删除表单") { window.attachedSheet == nil }
+        log.check(window.attachedSheet == nil && exists(disposable), "首次永久删除表单在前台接收取消事件，源文件保留")
+        fileOps.handleResult(failure, operation: .delete([location]), title: "删除测试文件", origin: FileOrigin(window: controller))
+        await until("再次永久删除表单获得焦点") { window.attachedSheet is PermanentDeleteSheet && NSApp.keyWindow === window.attachedSheet }
+        guard let confirmSheet = window.attachedSheet as? PermanentDeleteSheet, NSApp.keyWindow === confirmSheet else { return }
+        await click(confirmSheet.confirmButton, in: confirmSheet)
+        await until("确认永久删除表单") { window.attachedSheet == nil && !fileOps.isBusy && !self.exists(disposable) }
+        log.check(window.attachedSheet == nil && !exists(disposable), "再次表单接收确认事件并删除测试文件")
+
+        guard let list = (controller.dock.panels[DockPanels.pageList] as? PageListPanel)?.collection else { return log.check(false, "找不到页面列表") }
+        await openBook(book, pages: 1, controller: controller, listView: list)
+        window.makeFirstResponder(controller.viewer); await sendKey(kVK_ANSI_3, [.command, .option])
+        await until("分类面板打开") { controller.classifyPanel != nil }
+        guard let panel = controller.classifyPanel else { return log.check(false, "分类面板未打开") }
+        await panel.addTargetURLs([target], listsSubfolders: true)
+        await until("分类目标显示") { panel.visibleRows.first?.location.name == target.lastPathComponent }
+        panel.selectRow(at: panel.visibleRows.first?.location)
+        await click(panel.panelView.newTargetButton, in: window)
+        await until("分类输入框获得焦点") { panel.editingLocation != nil && window.firstResponder is NSTextView }
+        guard panel.editingLocation != nil, window.firstResponder is NSTextView else { return }
+        panel.panelView.listView.setInputText("新目录"); await sendKey(kVK_Return)
+        let moved = target.appending(path: "新目录/001.png")
+        await until("分类目标刷新") { !fileOps.isBusy && self.exists(moved) && panel.editingLocation == nil && panel.selectedLocation?.name == "新目录" && panel.visibleRows.contains(where: { $0.name == "新目录" }) }
+        log.check(exists(moved) && !exists(image) && panel.selectedLocation?.name == "新目录", "分类输入框接收回车，新目录和移动结果已在面板显示")
+        log.snapshot(window, "focus-classify")
     }
 
     private func runCommandChecks(controller: ReaderWindowController, window: NSWindow, services: CoreServices, fileOps: FileOperationController, bookDir: URL, targetDir: URL, targetLoc: Location) async throws {
@@ -248,7 +297,8 @@ final class FileOpsSelfTest {
         renameSheet.setInputText("001.png")
         await click(renameSheet.confirmButton, in: renameSheet)
         await until("重名错误显示") { !renameSheet.errorRow.isHidden }
-        log.check(renameSheet.errorLabel.stringValue == "这个文件夹里已有“001.png”。" && !renameSheet.confirmButton.isEnabled, "C2.6 重名显示表单内红字错误且按钮禁用：\(renameSheet.errorLabel.stringValue)")
+        let existingName = "001.png"
+        log.check(renameSheet.errorLabel.stringValue == String(localized: "这个文件夹里已有“\(existingName)”。") && !renameSheet.confirmButton.isEnabled, "C2.6 重名显示表单内红字错误且按钮禁用：\(renameSheet.errorLabel.stringValue)")
         log.check((try? Data(contentsOf: book001)) == bytes001 && (try? Data(contentsOf: book002)) == bytes002 && controller.content.fileOperationBanner == nil, "C2.6 重名时两个文件不变且不弹顶部错误条")
         log.snapshot(renameSheet, "fileops-rename-conflict")
         renameSheet.setInputText("099.png")
@@ -280,8 +330,8 @@ final class FileOpsSelfTest {
         // C2.8：压缩包书里删除、重命名、移动到、复制到灰掉，文件不变。
         let ctx = listView.contextMenu(forItemAt: 0)
         func itemEnabled(_ menu: NSMenu?, _ title: String) -> Bool? { menu?.items.first { $0.title == title }?.isEnabled }
-        log.check(itemEnabled(ctx, "删除") == false && itemEnabled(ctx, "重命名…") == false && itemEnabled(ctx, "移动到") == false && itemEnabled(ctx, "复制到") == false, "C2.8 压缩包右键菜单中删除、重命名、移动到、复制到灰掉")
-        log.check(itemEnabled(ctx, "复制") == true && itemEnabled(ctx, "复制路径") == true && itemEnabled(ctx, "在 Finder 中显示") == true && itemEnabled(ctx, "用指定应用打开") == true, "C2.8 压缩包右键菜单中复制、复制路径、在 Finder 中显示、用指定应用打开可用")
+        log.check(itemEnabled(ctx, String(localized: "删除")) == false && itemEnabled(ctx, String(localized: "重命名…")) == false && itemEnabled(ctx, String(localized: "移动到")) == false && itemEnabled(ctx, String(localized: "复制到")) == false, "C2.8 压缩包右键菜单中删除、重命名、移动到、复制到灰掉")
+        log.check(itemEnabled(ctx, String(localized: "复制")) == true && itemEnabled(ctx, String(localized: "复制路径")) == true && itemEnabled(ctx, String(localized: "在 Finder 中显示")) == true && itemEnabled(ctx, String(localized: "用指定应用打开")) == true, "C2.8 压缩包右键菜单中复制、复制路径、在 Finder 中显示、用指定应用打开可用")
         await sendKey(kVK_Delete, [.command]); await settle()
         log.check((try? Data(contentsOf: zipURL)) == zipBytes && controller.session.book?.pages.count == 3, "C2.8 压缩包内按 ⌘⌫ 不修改文件")
 
@@ -343,7 +393,7 @@ final class FileOpsSelfTest {
         // C2.10c：表格多选右键规则，以及重命名表单打开后改变列表选中项，提交时仍改原来那一项。
         pageList.setStyle(.table); await settle()
         listView.selectRows(IndexSet([0, 2]))
-        log.check(itemEnabled(listView.contextMenu(forItemAt: 2), "重命名…") == false && itemEnabled(listView.contextMenu(forItemAt: 1), "重命名…") == true, "C2.10c 右键已选中项取全部多选（重命名灰掉），右键未选中项只取该项（重命名可用）")
+        log.check(itemEnabled(listView.contextMenu(forItemAt: 2), String(localized: "重命名…")) == false && itemEnabled(listView.contextMenu(forItemAt: 1), String(localized: "重命名…")) == true, "C2.10c 右键已选中项取全部多选（重命名灰掉），右键未选中项只取该项（重命名可用）")
         listView.selectRows(IndexSet(integer: 0)); window.makeFirstResponder(listView); await settle()
         fileOps.presentRename(origin: controller.fileOrigin()); await settle()
         guard let snapSheet = window.attachedSheet as? RenameSheet else { return log.check(false, "C2.10c 未弹出重命名表单") }
@@ -465,8 +515,11 @@ final class FileOpsSelfTest {
         fileOps.setClassifyMode(.move, announceIn: controller); panel.selectRow(at: panel.visibleRows.first?.location); await settle()
         await click(panel.panelView.newTargetButton, in: window)
         await until("出现新建目标输入框") { panel.editingLocation != nil && window.firstResponder is NSTextView }
+        guard panel.editingLocation != nil, window.firstResponder is NSTextView else { return }
         listView.setInputText("C-夜景"); await sendKey(kVK_Return)
-        await until("新建“C-夜景”并移入 003.png 完成") { !fileOps.isBusy && self.exists(nightP3) && panel.editingLocation == nil }
+        await until("新建“C-夜景”并移入 003.png 完成") {
+            !fileOps.isBusy && self.exists(nightP3) && panel.editingLocation == nil && panel.visibleRows.map(\.name) == ["精选", "A-风景", "B-人像", "C-夜景"] && panel.selectedLocation?.name == "C-夜景"
+        }
         log.check(!exists(p3) && exists(nightP3) && panel.visibleRows.map(\.name) == ["精选", "A-风景", "B-人像", "C-夜景"] && panel.selectedLocation?.name == "C-夜景", "C2.12 新建目标并移入创建“C-夜景”子文件夹、移入 003.png 并选中新子文件夹：\(panel.visibleRows.map(\.name))")
         log.snapshot(window, "classify-panel")
 
@@ -530,7 +583,7 @@ final class FileOpsSelfTest {
         window.makeFirstResponder(controller.viewer); await settle()
         await sendKey(kVK_ANSI_1)
         let archiveMsg = controller.content.statusBar.message ?? ""
-        log.check(archiveMsg == "压缩包内的项不能移动" && (try? Data(contentsOf: zipURL)) == zipBytes && !panel2.panelView.newTargetButton.isEnabled, "C2.15a 压缩包书里按数字键提示“压缩包内的项不能移动”且文件不变：\(archiveMsg)")
+        log.check(archiveMsg == String(localized: "压缩包内的项不能移动") && (try? Data(contentsOf: zipURL)) == zipBytes && !panel2.panelView.newTargetButton.isEnabled, "C2.15a 压缩包书里按数字键提示“压缩包内的项不能移动”且文件不变：\(archiveMsg)")
         log.snapshot(window, "classify-panel-archive")
 
         // C2.15b：面板浮动时，按数字键作用于它绑定的窗口的当前页；名称输入框拿到焦点后，回车仍放入输入框出现时的那一页。
@@ -590,7 +643,7 @@ final class FileOpsSelfTest {
         guard let settings = app.openSettings(), let settingsWin = settings.window else { return log.check(false, "C2.16 无法打开设置窗口") }
         await settings.state.model.loadAll()
         settings.state.page = .files; await settle()
-        log.check(SettingsPage.allCases.last == .files && settings.state.page.title == String(localized: "文件"), "C2.16 设置窗口包含“文件”页且排在最后")
+        log.check(SettingsPage.allCases == [.browse, .display, .cache, .rules, .files, .shortcuts, .pointer, .menus, .appearance, .extensions] && settings.state.page.title == String(localized: "文件"), "C2.16 设置窗口包含当前顺序的十页及“文件”页")
         log.snapshot(settingsWin, "settings-files-appendNumber")
         let settingsFile = app.supportDirectory.appending(path: "settings.json")
         global(settings.state.model, \.fileOperations.nameConflict).wrappedValue = .skip
@@ -645,7 +698,8 @@ final class FileOpsSelfTest {
         await click(recycleSheet.emptyButton, in: recycleSheet)
         await until("C2.17 弹出清空回收目录二次确认表单") { window.attachedSheet is PermanentDeleteSheet }
         guard let confirmRecycle = window.attachedSheet as? PermanentDeleteSheet else { return log.check(false, "C2.17 未弹出二次确认表单") }
-        log.check(confirmRecycle.headingLabel.stringValue == "永久删除“Photos”回收目录里的内容？" && confirmRecycle.detailLabel.stringValue == "共 2 次删除。清空后不能撤销。", "C2.17 二次确认显示卷名与删除批次总数：\(confirmRecycle.headingLabel.stringValue) / \(confirmRecycle.detailLabel.stringValue)")
+        let volumeName = "Photos", totalBatches = 2
+        log.check(confirmRecycle.headingLabel.stringValue == String(localized: "永久删除“\(volumeName)”回收目录里的内容？") && confirmRecycle.detailLabel.stringValue == String(localized: "共 \(totalBatches) 次删除。清空后不能撤销。"), "C2.17 二次确认显示卷名与删除批次总数：\(confirmRecycle.headingLabel.stringValue) / \(confirmRecycle.detailLabel.stringValue)")
         log.snapshot(confirmRecycle, "fileops-recycle-confirm")
         await click(confirmRecycle.confirmButton, in: confirmRecycle)
         await until("C2.17 确认后清空 Photos 回收目录") { window.attachedSheet == nil && !fileOps.isBusy && !self.exists(trashA) }
@@ -694,9 +748,58 @@ final class FileOpsSelfTest {
 
     /// 网络卷上的测试项都以这个前缀命名，`.macview-trash` 由 S2 自己建、自己清空；本机测试项放在 support 目录里。
     private static let netPrefix = "macview-selftest-"
-    private var netA: URL { fm.homeDirectoryForCurrentUser.appending(path: "MacViewBench/fileops-a", directoryHint: .isDirectory) }
+    private var netA: URL {
+        if let path = UserDefaults.standard.string(forKey: "MVFileOpsNetworkRoot"), !path.isEmpty {
+            return URL(filePath: path, directoryHint: .isDirectory)
+        }
+        return fm.homeDirectoryForCurrentUser.appending(path: "MacViewBench/fileops-a", directoryHint: .isDirectory)
+    }
     private var netLocal: URL { app.supportDirectory.appending(path: "selftest-local", directoryHint: .isDirectory) }
     private func netItems() -> [String] { ((try? fm.contentsOfDirectory(atPath: netA.path)) ?? []).filter { $0.hasPrefix(Self.netPrefix) || $0.hasPrefix("._\(Self.netPrefix)") || $0.hasSuffix(".macview-trash") } }
+
+    /// S6 单独运行；以控制器收到的 perform 结果结束，保留逐项失败供排查。
+    private func runNetworkSkip(controller: ReaderWindowController, window: NSWindow, services: CoreServices, fileOps: FileOperationController) async throws {
+        guard let listView = (controller.dock.panels[DockPanels.pageList] as? PageListPanel)?.collection else { return log.check(false, "找不到页面列表") }
+        var fs = statfs()
+        let ready = statfs(netA.path, &fs) == 0 && (fs.f_flags & UInt32(MNT_LOCAL)) == 0 && netItems().isEmpty
+        log.check(ready, "独立网络卷已挂载且无旧测试项：\(netItems())"); guard ready else { return }
+        try? await services.settings.updateGlobal {
+            $0.prefetch.currentBookPages = false; $0.prefetch.viewerDecodeFrames = 0; $0.prefetch.viewerReadAheadPages = 0
+            $0.prefetch.neighborBooks = 0; $0.prefetch.shelfCovers = false; $0.fileOperations.nameConflict = .skip
+        }
+        await fileOps.reloadSettings()
+        await sendKey(kVK_ANSI_3, [.command, .option]); await until("打开分类面板") { controller.classifyPanel != nil }
+        controller.dock.perform { $0.togglingStyle(.right) }
+        let book = netA.appending(path: "\(Self.netPrefix)s6", directoryHint: .isDirectory)
+        let target = netLocal.appending(path: "s6-target", directoryHint: .isDirectory)
+        try fm.createDirectory(at: book, withIntermediateDirectories: true); try fm.createDirectory(at: target, withIntermediateDirectories: true)
+        try Data("existing".utf8).write(to: target.appending(path: "001.png"))
+        var expected: [String: (hash: String, date: Date?)] = [:]
+        for index in 1...20 {
+            let name = String(format: "%03d.png", index), url = book.appending(path: name)
+            try writePNG(to: url, hue: CGFloat(index) / 22)
+            try fm.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_700_000_000 + Double(index))], ofItemAtPath: url.path)
+            if index > 1 { expected[name] = (try sha256(of: url), modificationDate(url)) }
+        }
+        await fileOps.setClassifyTargets([ClassifyTarget(location: try await services.sources.location(for: target), listsSubfolders: false)])
+        controller.classifyPanel?.refreshState()
+        await openBook(book, pages: 20, controller: controller, listView: listView)
+        listView.selectRows(IndexSet(integersIn: 0..<20)); window.makeFirstResponder(listView); await settle()
+        let completed = fileOps.debugCompletedOperations
+        await sendKey(kVK_ANSI_1)
+        while fileOps.debugCompletedOperations == completed { try await Task.sleep(for: .milliseconds(25)) }
+        guard let result = fileOps.debugLastResult else { return log.check(false, "分类操作没有返回结果") }
+        let failures = result.failures.map { "\($0.location.name): \($0.error)" }
+        print("S6 perform changes=\(result.changes.count) skipped=\(result.skipped.map(\.name)) failures=\(failures)")
+        let arrived = expected.allSatisfy { name, value in (try? sha256(of: target.appending(path: name))) == value.hash && modificationDate(target.appending(path: name)) == value.date }
+        let sources = ((try? fm.contentsOfDirectory(atPath: book.path)) ?? []).filter { !$0.hasPrefix(".") }
+        let message = controller.content.statusBar.message ?? ""
+        log.check(result.changes.count == 19 && result.skipped.map(\.name) == ["001.png"] && result.failures.isEmpty,
+                  "S6 perform 结果：完成 \(result.changes.count)，跳过 \(result.skipped.map(\.name))，失败 \(failures)")
+        log.check(arrived && sources == ["001.png"] && (try? Data(contentsOf: target.appending(path: "001.png"))) == Data("existing".utf8),
+                  "S6 19 项哈希与时间一致、源剩 \(sources)、旧目标不变")
+        log.check(message == "已移动 19 项到“s6-target”，跳过 1 项（目标里已有同名项）", "S6 状态栏：\(message)")
+    }
 
     private func runNetworkKill(controller: ReaderWindowController, window: NSWindow, services: CoreServices, fileOps: FileOperationController) async throws {
         guard let pageList = controller.dock.panels[DockPanels.pageList] as? PageListPanel, let listView = pageList.collection,
@@ -769,32 +872,86 @@ final class FileOpsSelfTest {
             }
             if skip { expected["001.png"] = nil }
             await openBook(s6Book, pages: 20, controller: controller, listView: listView)
-            listView.selectRows(IndexSet(integersIn: 0..<20)); window.makeFirstResponder(listView); await settle(); await sendKey(kVK_ANSI_1)
-            await until("C2.19 S6 移动完成") { !fileOps.isBusy && self.exists(s6Target.appending(path: "020.png")) }
+            listView.selectRows(IndexSet(integersIn: 0..<20)); window.makeFirstResponder(listView); await settle()
+            let completed = fileOps.debugCompletedOperations
+            await sendKey(kVK_ANSI_1)
+            while fileOps.debugCompletedOperations == completed { try await Task.sleep(for: .milliseconds(25)) }
+            guard let result = fileOps.debugLastResult else { return log.check(false, "C2.19 S6 未返回结果") }
             let arrived = expected.allSatisfy { name, value in (try? sha256(of: s6Target.appending(path: name))) == value.hash && modificationDate(s6Target.appending(path: name)) == value.date }
             let sources = ((try? fm.contentsOfDirectory(atPath: s6Book.path)) ?? []).filter { !$0.hasPrefix(".") }, message = controller.content.statusBar.message ?? ""
             let expectedMessage = skip ? "已移动 19 项到“s6-target”，跳过 1 项（目标里已有同名项）" : "已移动 20 项到“s6-target”"
-            log.check(arrived && sources == (skip ? ["001.png"] : []) && (try? Data(contentsOf: s6Target.appending(path: "001.png"))) == Data("existing".utf8) && message == expectedMessage,
-                      "C2.19 S6 \(skip ? "跳过" : "加序号")：到达的项哈希与修改时间一致，源剩 \(sources)，目标原有的 001.png 不变，状态栏：\(message)")
+            let valid = result.changes.count == (skip ? 19 : 20) && result.skipped.count == (skip ? 1 : 0) && result.failures.isEmpty && arrived && sources == (skip ? ["001.png"] : []) && (try? Data(contentsOf: s6Target.appending(path: "001.png"))) == Data("existing".utf8) && message == expectedMessage
+            log.check(valid, "C2.19 S6 \(skip ? "跳过" : "加序号")：perform 完成 \(result.changes.count)、跳过 \(result.skipped.map(\.name))、失败 \(result.failures.map { "\($0.location.name): \($0.error)" })；源剩 \(sources)，状态栏：\(message)")
+            guard valid else { return }
             if !skip { try await services.settings.updateGlobal { $0.fileOperations.nameConflict = .skip }; await until("C2.19 重名处理改为跳过") { fileOps.fileSettings.nameConflict == .skip } }
         }
 
-        // C2.20（S7）：网络卷 A → 本机移动 1 GB 文件，复制过程中 kill -9；由 net-verify 检查恢复结果。
+        try await runNetworkRecoveryKill(controller: controller, services: services, fileOps: fileOps)
+    }
+
+    private struct RecoveryJournal: Decodable {
+        struct Record: Decodable { let id: UUID, source: Location, target: Location, temporary: Location }
+        let version: Int, transfers: [Record]
+    }
+
+    // C2.20（S7）：先核实记录和实际复制字节，前置不成立绝不强杀。
+    private func runNetworkRecoveryKill(controller: ReaderWindowController, services: CoreServices, fileOps: FileOperationController) async throws {
         let s7Book = netA.appending(path: "\(Self.netPrefix)s7", directoryHint: .isDirectory), s7Target = netLocal.appending(path: "s7-target", directoryHint: .isDirectory), s7Source = s7Book.appending(path: "large-1gb.bin")
         try fm.createDirectory(at: s7Book, withIntermediateDirectories: true); try fm.createDirectory(at: s7Target, withIntermediateDirectories: true)
         guard fm.createFile(atPath: s7Source.path, contents: nil) else { throw CocoaError(.fileWriteUnknown) }
         try writePattern(to: s7Source, totalBytes: 1_000_000_000, seed: 91)
         try sha256(of: s7Source).write(to: netLocal.appending(path: "s7-hash.txt"), atomically: true, encoding: .utf8)
         let sourceLocation = try await services.sources.location(for: s7Source), sourceEntry = try await services.sources.provider(for: sourceLocation).entry(at: sourceLocation)
+        let targetLocation = try await services.sources.location(for: s7Target.appending(path: "large-1gb.bin"))
         let move = FileOperation.transfer([sourceLocation], into: try await services.sources.location(for: s7Target), mode: .move, conflict: .appendNumber)
         Task { _ = await fileOps.perform(move, title: "移动“large-1gb.bin”", origin: FileOrigin(window: controller, items: [sourceEntry])) }
-        await until("C2.20 跨卷移动已记录并复制了一部分") {
-            guard self.exists(self.app.supportDirectory.appending(path: "transfers.json")), controller.content.statusBar.isShowingProgress,
-                  let part = (try? self.fm.contentsOfDirectory(atPath: s7Target.path))?.first(where: { $0.hasSuffix(".macview-part") }) else { return false }
-            return ((try? self.fm.attributesOfItem(atPath: s7Target.appending(path: part).path)[.size] as? Int) ?? 0) > 32 << 20
+        func validatedPart() -> (String, Int)? {
+            guard let data = try? Data(contentsOf: app.supportDirectory.appending(path: "transfers.json")),
+                  let journal = try? JSONDecoder().decode(RecoveryJournal.self, from: data), journal.version == 1,
+                  let record = journal.transfers.first(where: { $0.source == sourceLocation && $0.target == targetLocation }),
+                  record.temporary.parent == targetLocation.parent,
+                  record.temporary.name.hasSuffix(".macview-part"),
+                  let size = (try? fm.attributesOfItem(atPath: s7Target.appending(path: record.temporary.name).path)[.size]) as? Int,
+                  size > 32 << 20 else { return nil }
+            return (record.temporary.name, size)
         }
-        log.check(controller.content.statusBar.isShowingProgress, "C2.20 S7 1 GB 跨卷移动进行中、状态栏显示进度，对本进程 pid=\(getpid())（前台=\(NSApp.isActive)）执行 kill -9")
+        await until("C2.20 跨卷移动已记录并复制了一部分") {
+            controller.content.statusBar.isShowingProgress && validatedPart() != nil
+        }
+        guard controller.content.statusBar.isShowingProgress, let (part, size) = validatedPart() else {
+            log.check(false, "C2.20 强杀前置不成立：记录、匹配临时项或 32 MiB 复制量未确认；停止强杀链")
+            fileOps.cancelCurrentOperation(); return
+        }
+        log.check(true, "C2.20 已读到匹配的持久记录及临时项 \(part)，实际大小 \(size) B；对 pid=\(getpid()) 执行 kill -9")
         fflush(stdout); kill(getpid(), SIGKILL)
+    }
+
+    private func runNetworkRecoveryVerify(controller: ReaderWindowController) async throws {
+        let target = netLocal.appending(path: "s7-target", directoryHint: .isDirectory)
+        let moved = target.appending(path: "large-1gb.bin")
+        let source = netA.appending(path: "\(Self.netPrefix)s7/large-1gb.bin")
+        let expected = (try? String(contentsOf: netLocal.appending(path: "s7-hash.txt"), encoding: .utf8)) ?? ""
+        let hash = (try? sha256(of: moved)) ?? ""
+        let names = ((try? fm.contentsOfDirectory(atPath: target.path)) ?? []).filter { !$0.hasPrefix("._") }
+        let data = try? Data(contentsOf: app.supportDirectory.appending(path: "transfers.json"))
+        let journal = data.flatMap { try? JSONDecoder().decode(RecoveryJournal.self, from: $0) }
+        let message = controller.content.statusBar.message ?? ""
+        log.check(message == "上次中断的 1 次移动已完成", "C2.20 恢复提示：\(message)")
+        log.check(names == ["large-1gb.bin"] && !exists(source) && journal?.transfers.isEmpty == true && !hash.isEmpty && hash == expected,
+                  "C2.20 SHA-256 一致、源删除、临时项及记录清空：目标 \(names)，记录 \(journal?.transfers.count.description ?? "不可读")")
+    }
+
+    private func runNetworkPending(controller: ReaderWindowController, services: CoreServices) async {
+        guard let report = await services.interruptedTransfersReport(), let item = report.pendingItems.first,
+              let banner = controller.content.fileOperationBanner else {
+            return log.check(false, "恢复等待时缺少逐项原因或界面提示")
+        }
+        let text = collectText(in: banner)
+        let unavailable: Bool = if case .volumeUnavailable = item.reason { true } else { false }
+        log.check(report.pending == 1 && item.phase == .source && unavailable && text.contains(item.source.name)
+                  && text.contains(String(localized: "检查源文件")) && text.contains(String(localized: "所在的卷不可用")),
+                  "恢复等待保留源文件和具体阶段、卷不可用原因：\(text)")
+        if let window = controller.window { log.snapshot(window, "fileops-recovery-pending") }
     }
 
     private func openBook(_ url: URL, pages: Int, controller: ReaderWindowController, listView: CollectionView) async {

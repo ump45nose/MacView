@@ -1,6 +1,66 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "%lld 次移动等待恢复，下次启动时继续": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld moves are waiting to resume on the next launch"
+          }
+        }
+      }
+    },
+    "上次中断的移动等待恢复，下次启动时继续": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrupted moves are waiting to resume on the next launch"
+          }
+        }
+      }
+    },
+    "检查临时文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking temporary file"
+          }
+        }
+      }
+    },
+    "检查目标文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking destination file"
+          }
+        }
+      }
+    },
+    "检查源文件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking source file"
+          }
+        }
+      }
+    },
+    "恢复移动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resuming move"
+          }
+        }
+      }
+    },
     " · 最近用": {
       "localizations": {
         "en": {
@@ -11207,6 +11267,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skip"
+          }
+        }
+      }
+    },
+    "跳过 %lld 项（目标里已有同名项）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skipped %lld (already exists in destination)"
           }
         }
       }

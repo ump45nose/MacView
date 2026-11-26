@@ -60,5 +60,22 @@ public struct ResumeReport: Sendable, Hashable {
     public var completed: Int
     public var pending: Int
     public var failed: Int
-    public init(completed: Int = 0, pending: Int = 0, failed: Int = 0) { self.completed = completed; self.pending = pending; self.failed = failed }
+    public var pendingItems: [ResumePending]
+    public init(completed: Int = 0, pending: Int = 0, failed: Int = 0, pendingItems: [ResumePending] = []) {
+        self.completed = completed; self.pending = pending; self.failed = failed; self.pendingItems = pendingItems
+    }
+}
+
+public struct ResumePending: Sendable, Hashable {
+    public enum Phase: Sendable, Hashable { case temporary, target, source, recovery }
+    public enum Reason: Sendable, Hashable {
+        case volumeUnavailable(Location.Root), volumeDegraded(Location.Root), timeout, cancelled
+    }
+    public var source: Location
+    public var target: Location
+    public var phase: Phase
+    public var reason: Reason
+    public init(source: Location, target: Location, phase: Phase, reason: Reason) {
+        self.source = source; self.target = target; self.phase = phase; self.reason = reason
+    }
 }

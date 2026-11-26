@@ -37,6 +37,10 @@ final class FileOperationController {
     private weak var app: AppDelegate?, progressController: ReaderWindowController?
     private var queue: [QueueItem] = [], isExecuting = false, activeLocations: Set<Location> = []
     private var currentTask: Task<FileOperationResult, Never>?, latestProgress = FileProgress(), showingProgress = false
+    #if DEBUG
+    private(set) var debugLastResult: FileOperationResult?
+    private(set) var debugCompletedOperations = 0
+    #endif
     private var refreshProgressDisplay: (() -> Void)?
     private var settingsTask: Task<Void, Never>?, changesTask: Task<Void, Never>?
     private var pasteboardLeases: [FileLease] = [], openWithLeases: [FileLease] = []
@@ -124,6 +128,9 @@ final class FileOperationController {
         }
         currentTask = task
         let result = await task.value
+        #if DEBUG
+        debugLastResult = result; debugCompletedOperations += 1
+        #endif
         delayTask?.cancel(); currentTask = nil; refreshProgressDisplay = nil
         if showingProgress { progressController?.content.statusBar.hideProgress(); showingProgress = false }
         progressController = nil; activeLocations.subtract(item.locations)
@@ -190,10 +197,29 @@ final class FileOperationController {
               let controller = targetController(for: FileOrigin()) else { return }
         var messages: [String] = []
         if report.completed > 0 { messages.append(String(localized: "上次中断的 \(report.completed) 次移动已完成")) }
-        if report.pending > 0 { messages.append(String(localized: "\(report.pending) 次等目标卷连接后，下次启动时继续")) }
+        if report.pending > 0 { messages.append(String(localized: "\(report.pending) 次移动等待恢复，下次启动时继续")) }
         if !messages.isEmpty { controller.content.statusBar.showMessage(messages.joined(separator: "；")) }
-        if report.failed > 0 {
-            controller.content.setFileOperationBanner(FileOperationBanner(title: String(localized: "上次中断的移动有 \(report.failed) 项没有完成"), failures: [], onRetry: nil) { [weak controller] in
+        if report.pending > 0 || report.failed > 0 {
+            let pending = report.pendingItems.map { item -> FileFailure in
+                let phase: String = switch item.phase {
+                case .temporary: String(localized: "检查临时文件")
+                case .target: String(localized: "检查目标文件")
+                case .source: String(localized: "检查源文件")
+                case .recovery: String(localized: "恢复移动")
+                }
+                let reason: String
+                switch item.reason {
+                case let .volumeUnavailable(root): reason = "\(root.displayName)：\(ErrorText.describe(IOError.volumeUnavailable(root)))"
+                case let .volumeDegraded(root): reason = "\(root.displayName)：\(ErrorText.describe(IOError.volumeDegraded(root)))"
+                case .timeout: reason = ErrorText.describe(IOError.timeout)
+                case .cancelled: reason = ErrorText.describe(IOError.cancelled)
+                }
+                return FileFailure(location: item.source, error: IOError.underlying("\(phase)：\(reason)"))
+            }
+            let title = report.failed > 0
+                ? String(localized: "上次中断的移动有 \(report.failed) 项没有完成")
+                : String(localized: "上次中断的移动等待恢复，下次启动时继续")
+            controller.content.setFileOperationBanner(FileOperationBanner(title: title, failures: pending, onRetry: nil) { [weak controller] in
                 controller?.content.setFileOperationBanner(nil)
             })
         }
@@ -229,12 +255,15 @@ final class FileOperationController {
         default: nil
         }
         if let (sources, folder, mode) = transferOp {
+            if result.changes.isEmpty, !result.skipped.isEmpty {
+                return String(localized: "跳过 \(result.skipped.count) 项（目标里已有同名项）")
+            }
             let verb = mode == .move ? String(localized: "已移动") : String(localized: "已复制")
             let label = folder.parent.flatMap { p in fileSettings.classifyTargets.contains { $0.location == p } ? "\(p.name) / \(folder.name)" : nil } ?? folder.name
             let movedCount = sources.count - result.skipped.count - result.failures.count
             return movedCount == 1 && sources.count == 1 && result.skipped.isEmpty
                 ? "\(verb) \(sources[0].name) → \(label)"
-                : String(localized: "\(verb) \(max(1, movedCount)) 项到“\(label)”") + skip
+                : String(localized: "\(verb) \(movedCount) 项到“\(label)”") + skip
         }
         return String(localized: "已\(title)") + skip
     }

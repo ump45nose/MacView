@@ -180,6 +180,29 @@ public final class IOScheduler: Sendable {
         }
     }
 
+    /// 手动重试前等旧调用和已弃用的辅助进程退出，再用未缓存的名字探测卷。
+    func prepareRetry(at location: Location) async throws {
+        let volume = try volume(for: location)
+        guard !volume.isLocal else { return }
+        for await _ in volumeHealth() {
+            try Task.checkCancellation()
+            let condition = state.withLock { state -> (unavailable: Bool, ready: Bool) in
+                guard let record = state.volumes[volume.mountPoint] else { return (false, true) }
+                return (record.unavailable, record.degradedReason == nil && record.stuck == 0)
+            }
+            if condition.unavailable { throw IOError.volumeUnavailable(volume.root) }
+            if condition.ready { break }
+        }
+        try Task.checkCancellation()
+        let backend = backend(for: volume)
+        try await backend.waitForAbandoned()
+        let _: Void = try await perform(on: volume, .metadata, priority: .visible, group: nil) { finish, _ in
+            backend.probe(volume.mountPoint) { result in
+                finish(result.mapError { FileSystemProvider.ioError($0, at: location, volume: volume) })
+            }
+        }
+    }
+
     /// 退出前调用：杀掉辅助进程，不等卡住的调用。
     public func shutdown() {
         helper?.abandon()

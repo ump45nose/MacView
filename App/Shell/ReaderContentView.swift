@@ -143,7 +143,7 @@ final class ReaderContentView: NSView {
         fileOperationBanner?.removeFromSuperview()
         fileOperationBanner = banner
         if let banner {
-            banners.addArrangedSubview(banner)
+            banners.insertArrangedSubview(banner, at: 0)
         }
     }
 

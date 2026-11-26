@@ -15,6 +15,10 @@ public final class FileSystemProvider: ContainerProvider {
         self.scheduler = scheduler
     }
 
+    public func prepareRetry(at location: Location) async throws {
+        try await scheduler.prepareRetry(at: location)
+    }
+
     public func canHandle(_ location: Location) -> Bool {
         guard location.layers.count == 1 else { return false }
         if case .plugin = location.root { return false }
@@ -27,7 +31,7 @@ public final class FileSystemProvider: ContainerProvider {
                 do throws(IOError) {
                     let (volume, path) = try resolve(container)
                     let backend = scheduler.backend(for: volume)
-                    let _: Void = try await scheduler.perform(on: volume, .metadata, priority: priority, group: nil) { finish, touch in
+                    let _: Void = try await scheduler.perform(on: volume, .metadata, priority: priority, group: FileIORequestContext.group) { finish, touch in
                         backend.list(path, batch: { batch in
                             touch()
                             let entries = batch.map { Self.entry(in: container, $0) }
@@ -49,7 +53,7 @@ public final class FileSystemProvider: ContainerProvider {
     public func entry(at location: Location) async throws -> Entry {
         let (volume, path) = try resolve(location)
         let backend = scheduler.backend(for: volume)
-        let attributes: FileAttributes = try await scheduler.perform(on: volume, .metadata, priority: .visible, group: nil) { finish, _ in
+        let attributes: FileAttributes = try await scheduler.perform(on: volume, .metadata, priority: .visible, group: FileIORequestContext.group) { finish, _ in
             backend.stat(path) { result in finish(result.mapError { Self.ioError($0, at: location, volume: volume) }) }
         }
         var entry = Self.entry(in: location.parent ?? location, attributes)
@@ -62,7 +66,7 @@ public final class FileSystemProvider: ContainerProvider {
     public func itemWithoutFollowingLinks(at location: Location) async throws -> (entry: Entry, type: FileSystemItemType) {
         let (volume, path) = try resolve(location)
         let backend = scheduler.backend(for: volume)
-        let attributes: FileAttributes = try await scheduler.perform(on: volume, .metadata, priority: .visible, group: nil) { finish, _ in
+        let attributes: FileAttributes = try await scheduler.perform(on: volume, .metadata, priority: .visible, group: FileIORequestContext.group) { finish, _ in
             backend.lstat(path) { result in finish(result.mapError { Self.ioError($0, at: location, volume: volume) }) }
         }
         var entry = Self.entry(in: location.parent ?? location, attributes)
@@ -83,7 +87,7 @@ public final class FileSystemProvider: ContainerProvider {
         let (volume, path) = try resolve(location)
         let request = ReadRequest(path: path, offset: range.lowerBound, length: Int(range.count), expectedSize: nil, expectedModificationNanos: nil, noCache: true, retryByReopening: false, freshDescriptor: true)
         let backend = scheduler.backend(for: volume)
-        return try await scheduler.perform(on: volume, .bulk, priority: priority, group: nil) { finish, _ in
+        return try await scheduler.perform(on: volume, .bulk, priority: priority, group: FileIORequestContext.group) { finish, _ in
             backend.read(request) { result in finish(result.mapError { Self.ioError($0, at: location, volume: volume) }) }
         }
     }
@@ -158,7 +162,7 @@ public final class FileSystemProvider: ContainerProvider {
         let (resolvedVolume, _) = try resolve(location)
         let volume = executionVolume ?? resolvedVolume
         let backend = scheduler.backend(for: volume)
-        return try await scheduler.perform(on: volume, channel, priority: priority, group: nil) { finish, _ in
+        return try await scheduler.perform(on: volume, channel, priority: priority, group: FileIORequestContext.group) { finish, _ in
             backend.execute(request) { result in
                 finish(result.mapError { error in
                     if case .system(_, EEXIST) = error { return .alreadyExists(conflict ?? location) }
@@ -221,6 +225,7 @@ final class FileByteSource: ByteSource {
     }
 
     func read(_ range: Range<Int64>, priority: IOPriority, group: IORequestGroup?) async throws -> Data {
+        let group = group ?? FileIORequestContext.group
         let lower = max(0, range.lowerBound)
         let upper = min(range.upperBound, identity.size)
         guard lower < upper else { return Data() }

@@ -19,6 +19,11 @@ protocol FileBackend: Sendable {
     )
     /// 放弃卡住的执行者：之后的请求换新的执行者，还没返回的请求以 `helperLost` 结束。
     func abandon()
+    func waitForAbandoned() async throws
+}
+
+extension FileBackend {
+    func waitForAbandoned() async throws {}
 }
 
 /// 进程内执行。并发由调度器的槽位限制，所以队列的线程数有上界。
@@ -67,7 +72,11 @@ final class DirectBackend: FileBackend {
 /// 在辅助进程中执行。辅助进程按需启动；被弃用后杀掉，等它自行消失，下一个请求启动新的。
 final class HelperBackend: FileBackend {
     private let executable: URL
-    private let connection = Mutex<HelperConnection?>(nil)
+    private struct Connections {
+        var active: HelperConnection?
+        var abandoned: [HelperConnection] = []
+    }
+    private let connections = Mutex(Connections())
 
     init(executable: URL) {
         self.executable = executable
@@ -157,7 +166,26 @@ final class HelperBackend: FileBackend {
     }
 
     func abandon() {
-        connection.withLock { $0.take() }?.terminate()
+        let previous = connections.withLock { state -> HelperConnection? in
+            guard let previous = state.active.take() else { return nil }
+            state.abandoned.append(previous)
+            return previous
+        }
+        previous?.terminate()
+    }
+
+    func waitForAbandoned() async throws {
+        let old = connections.withLock { state in
+            if let active = state.active, !active.isAlive {
+                state.abandoned.append(active)
+                state.active = nil
+            }
+            return state.abandoned
+        }
+        for connection in old { try await connection.waitForExit() }
+        connections.withLock { state in
+            state.abandoned.removeAll { item in old.contains { $0 === item } }
+        }
     }
 
     /// handler 返回 true 表示这个请求结束。
@@ -165,10 +193,11 @@ final class HelperBackend: FileBackend {
     private func send(_ request: HelperRequest, handler: @escaping @Sendable (HelperResponse) -> Bool) -> (HelperConnection, UInt64)? {
         let current: HelperConnection
         do {
-            current = try connection.withLock { connection in
-                if let existing = connection, existing.isAlive { return existing }
+            current = try connections.withLock { state in
+                if let existing = state.active, existing.isAlive { return existing }
+                if let previous = state.active.take() { state.abandoned.append(previous) }
                 let started = try HelperConnection(executable: executable)
-                connection = started
+                state.active = started
                 return started
             }
         } catch {
@@ -186,6 +215,8 @@ final class HelperConnection: Sendable {
         var nextID: UInt64 = 1
         var handlers: [UInt64: @Sendable (HelperResponse) -> Bool] = [:]
         var alive = true
+        var exited = false
+        var exitObservers: [UUID: AsyncStream<Void>.Continuation] = [:]
     }
 
     let pid: pid_t
@@ -229,11 +260,34 @@ final class HelperConnection: Sendable {
         thread.name = "MVIO helper \(pid)"
         thread.start()
         // 回收子进程。卡住的辅助进程要等网络恢复才会消失，这个线程就一直等着。
-        let child = pid
-        Thread.detachNewThread {
+        Thread.detachNewThread { [self] in
             var status: Int32 = 0
-            while waitpid(child, &status, 0) < 0, errno == EINTR {}
+            while waitpid(self.pid, &status, 0) < 0, errno == EINTR {}
+            let observers = state.withLock { state in
+                state.exited = true
+                let observers = Array(state.exitObservers.values)
+                state.exitObservers.removeAll()
+                return observers
+            }
+            observers.forEach { $0.yield(); $0.finish() }
         }
+    }
+
+    func waitForExit() async throws {
+        let stream = AsyncStream<Void> { continuation in
+            let id = UUID()
+            continuation.onTermination = { [weak self] _ in
+                self?.state.withLock { _ = $0.exitObservers.removeValue(forKey: id) }
+            }
+            let exited = state.withLock { state in
+                if state.exited { return true }
+                state.exitObservers[id] = continuation
+                return false
+            }
+            if exited { continuation.yield(); continuation.finish() }
+        }
+        for await _ in stream { break }
+        try Task.checkCancellation()
     }
 
     var isAlive: Bool {
