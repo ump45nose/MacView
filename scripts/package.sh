@@ -115,11 +115,27 @@ digest=$(/usr/bin/shasum -a 256 "$scratch/package.zip" | awk '{print $1}')
 printf '%s  %s\n' "$digest" "$filename" > "$scratch/package.sha256"
 # 独占创建，避免覆盖用户以前的包。源文件先完整构建和验证才发布。
 python3 - "$scratch/package.zip" "$zip" "$scratch/package.sha256" "$checksum" <<'PY'
+import os
 import shutil
 import sys
-for source, target in zip(sys.argv[1::2], sys.argv[2::2]):
-    with open(source, "rb") as reader, open(target, "xb") as writer:
-        shutil.copyfileobj(reader, writer)
+created = {}
+try:
+    for source, target in zip(sys.argv[1::2], sys.argv[2::2]):
+        with open(source, "rb") as reader, open(target, "xb") as writer:
+            stat = os.fstat(writer.fileno())
+            created[target] = (stat.st_dev, stat.st_ino)
+            shutil.copyfileobj(reader, writer)
+except BaseException:
+    for target, identity in created.items():
+        try:
+            stat = os.lstat(target)
+            if (stat.st_dev, stat.st_ino) == identity:
+                os.unlink(target)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            print("清理未完成的打包产物失败", file=sys.stderr)
+    raise
 PY
 echo "打包完成：$zip"
 echo "校验和：$checksum"
