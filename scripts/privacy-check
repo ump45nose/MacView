@@ -16,7 +16,16 @@ OCTET = r"(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)"
 PRIVATE_IP = re.compile(rf"(?<![\d.])(?:10\.{OCTET}|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.{OCTET}\.{OCTET}(?!\d|\.\d)")
 VOLUME = re.compile(r"/Volumes/([^/\\\r\n\"'\x60<>()（）\[\]{}：，。；、:;]+?(?=[/\"'\x60])|[^/\\\s\"'\x60<>()（）\[\]{}：，。；、:;]+)")
 NETWORK = re.compile(r"\b(?:smb|nfs)://((?:[^/\\\s\"'\x60<>()（）\[\]{}：，。；、?#@]+@)?(?:\[[^\]\s]+\]|[^/\\\s\"'\x60<>()（）\[\]{}：，。；、?#]+))", re.I)
-VOLUMES = {"Mock", "Photos", "Preboot", "Update", "VM", "xarts", "iSCPreboot", "Hardware", "Data"}
+# 通用卷名、系统卷和测试占位只按完整名称匹配；真实名称由仓库外的精确词表检查。
+VOLUMES = {
+    "Picture", "PictureX", "Picture-1", "Data", "Media", "Music", "Book", "Code", "Learn", "Cache", "BackUp",
+    "Preboot", "Update", "VM", "xarts", "iSCPreboot", "Hardware",
+    "Mock", "xxx", "x", "P", "Photos", "Private", "Notes",
+    # 正则及插值在卷名匹配中产生的占位片段。
+    ".*", ".+", ".*?", ".+?", "$",
+    # 卷名正则可能把随后的说明文字一并捕获，只匹配确认过的完整片段。
+    "Picture 上的 JPEG 目录",
+}
 HOSTS = {"nas.example", "localhost", "127.0.0.1", "server", "other", "mock.local"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
 
