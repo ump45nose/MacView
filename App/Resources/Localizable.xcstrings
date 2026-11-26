@@ -8721,6 +8721,16 @@
         }
       }
     },
+    "永久删除“%@”？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanently delete “%@”?"
+          }
+        }
+      }
+    },
     "永久删除这 %lld 项？": {
       "localizations": {
         "en": {

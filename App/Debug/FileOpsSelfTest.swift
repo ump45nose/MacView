@@ -232,6 +232,40 @@ final class FileOpsSelfTest {
         await click(sheet2.confirmButton, in: sheet2)
         await waitForSheetDismissed(on: window, description: "确认永久删除完成") { !fileOps.isBusy && !self.exists(tempFileURL) }
         log.check(!exists(tempFileURL) && fileOps.undoManager.undoActionName == previousUndoName, "C2.4c 确认后临时文件被永久删除且不进入撤销历史")
+
+        // C2.4d（G3-R2-01）：在第一个永久删除确认出现前提交两个不同文件的删除，先后各弹对应表单且互不影响。
+        let firstQueuedURL = root24c.appending(path: "queued-first.png")
+        let secondQueuedURL = root24c.appending(path: "queued-second.png")
+        try writePNG(to: firstQueuedURL, hue: 0.25)
+        try writePNG(to: secondQueuedURL, hue: 0.75)
+        let firstQueuedLoc = try await services.sources.location(for: firstQueuedURL)
+        let secondQueuedLoc = try await services.sources.location(for: secondQueuedURL)
+        let undoBeforeQueued = fileOps.undoManager.undoActionName
+        let injectedFirst = FileOperationResult(failures: [FileFailure(location: firstQueuedLoc, error: FileOpsError.recycleUnavailable(String(localized: "没有写入权限")))])
+        let injectedSecond = FileOperationResult(failures: [FileFailure(location: secondQueuedLoc, error: FileOpsError.recycleUnavailable(String(localized: "没有写入权限")))])
+        fileOps.handleResult(injectedFirst, operation: .delete([firstQueuedLoc]), title: "删除“queued-first.png”", origin: FileOrigin(window: controller))
+        fileOps.handleResult(injectedSecond, operation: .delete([secondQueuedLoc]), title: "删除“queued-second.png”", origin: FileOrigin(window: controller))
+        guard let queuedSheet1 = await waitForSheet(PermanentDeleteSheet.self, on: window, description: "C2.4d 第一个连续永久删除表单获得焦点") else { return }
+        let queuedSheet1Text = collectText(in: queuedSheet1.contentView ?? NSView())
+        log.check(
+            queuedSheet1.headingLabel.stringValue.contains("queued-first.png") && !queuedSheet1Text.contains("queued-second.png"),
+            "C2.4d 第一个永久删除确认表单指向文件 1：\(queuedSheet1.headingLabel.stringValue)"
+        )
+        log.snapshot(queuedSheet1, "fileops-permanent-delete-queued-1")
+        await click(queuedSheet1.cancelButton, in: queuedSheet1)
+        guard let queuedSheet2 = await waitForSheet(PermanentDeleteSheet.self, on: window, excluding: queuedSheet1, description: "C2.4d 第二个连续永久删除表单获得焦点") else { return }
+        let queuedSheet2Text = collectText(in: queuedSheet2.contentView ?? NSView())
+        log.check(
+            exists(firstQueuedURL) && queuedSheet2.headingLabel.stringValue.contains("queued-second.png") && !queuedSheet2Text.contains("queued-first.png"),
+            "C2.4d 取消第一个表单后文件 1 仍在，第二个表单指向文件 2：\(queuedSheet2.headingLabel.stringValue)"
+        )
+        log.snapshot(queuedSheet2, "fileops-permanent-delete-queued-2")
+        await click(queuedSheet2.confirmButton, in: queuedSheet2)
+        await waitForSheetDismissed(on: window, description: "C2.4d 第二个连续永久删除确认完成") { !fileOps.isBusy && !self.exists(secondQueuedURL) }
+        log.check(
+            exists(firstQueuedURL) && !exists(secondQueuedURL) && fileOps.undoManager.undoActionName == undoBeforeQueued,
+            "C2.4d 确认第二个表单后只永久删除文件 2，文件 1 保留且不进入撤销历史"
+        )
         try await runCommandChecks(controller: controller, window: window, services: services, fileOps: fileOps, bookDir: bookDir, targetDir: targetDir, targetLoc: targetLoc)
     }
 
@@ -1105,13 +1139,13 @@ final class FileOpsSelfTest {
         }
         try? await Task.sleep(for: .milliseconds(50))
     }
-    private func waitForSheet<T: NSWindow>(_ type: T.Type, on window: NSWindow, description: String) async -> T? {
+    private func waitForSheet<T: NSWindow>(_ type: T.Type, on window: NSWindow, excluding: NSWindow? = nil, description: String) async -> T? {
         let requiresKey = TestPresentation.activationAllowed
         await until(description) {
-            guard let sheet = window.attachedSheet as? T, sheet.isVisible else { return false }
+            guard let sheet = window.attachedSheet as? T, sheet !== excluding, sheet.isVisible else { return false }
             return !requiresKey || NSApp.keyWindow === sheet
         }
-        guard let sheet = window.attachedSheet as? T, sheet.isVisible,
+        guard let sheet = window.attachedSheet as? T, sheet !== excluding, sheet.isVisible,
               !requiresKey || NSApp.keyWindow === sheet else { return nil }
         return sheet
     }

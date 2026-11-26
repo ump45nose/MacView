@@ -98,9 +98,14 @@ final class PermanentDeleteSheet: NSWindow {
     let confirmButton = FlatButton(font: Theme.font(.overlays, size: 12), fill: Theme.danger, foreground: Theme.onDanger, radius: 7, height: 26, padding: 11)
     private var onDecision: ((Bool) -> Void)?
 
-    convenience init(count: Int, volumeName: String, reason: String, onDecision: @escaping (Bool) -> Void) {
+    convenience init(count: Int, itemName: String? = nil, volumeName: String, reason: String, onDecision: @escaping (Bool) -> Void) {
+        let heading: String = if count == 1, let itemName, !itemName.isEmpty {
+            String(localized: "永久删除“\(itemName)”？")
+        } else {
+            String(localized: "永久删除这 \(count) 项？")
+        }
         self.init(
-            heading: String(localized: "永久删除这 \(count) 项？"),
+            heading: heading,
             detail: String(localized: "“\(volumeName)”上建不了回收目录：\(reason)\n永久删除后不能撤销，也不能从回收目录找回。"),
             onDecision: onDecision
         )
@@ -113,6 +118,8 @@ final class PermanentDeleteSheet: NSWindow {
         let icon = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) ?? NSImage())
         icon.symbolConfiguration = .init(pointSize: 18, weight: .regular); icon.contentTintColor = Theme.danger
         headingLabel.stringValue = heading; headingLabel.font = Theme.font(.overlays, size: 13, weight: .semibold); headingLabel.textColor = Theme.text
+        headingLabel.lineBreakMode = .byTruncatingMiddle
+        headingLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         let headerRow = NSStackView(views: [icon, headingLabel]); headerRow.spacing = 10
         detailLabel.stringValue = detail; detailLabel.font = Theme.font(.overlays, size: 12); detailLabel.textColor = Theme.text2
         cancelButton.setText(String(localized: "取消")); cancelButton.keyEquivalent = "\u{1b}"

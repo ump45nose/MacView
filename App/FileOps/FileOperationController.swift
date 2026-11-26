@@ -154,10 +154,12 @@ final class FileOperationController {
             } else { otherFailures.append(failure) }
         }
         if !recycleLocations.isEmpty, let window = controller.window {
-            let sheet = PermanentDeleteSheet(count: recycleLocations.count, volumeName: recycleLocations[0].root.displayName, reason: recycleReason ?? String(localized: "没有写入权限")) { [weak self] confirmed in
+            let locations = recycleLocations
+            let itemName = locations.count == 1 ? locations[0].name : nil
+            let sheet = PermanentDeleteSheet(count: locations.count, itemName: itemName, volumeName: locations[0].root.displayName, reason: recycleReason ?? String(localized: "没有写入权限")) { [weak self] confirmed in
                 guard confirmed, let self else { return }
-                let deleteTitle = recycleLocations.count == 1 ? String(localized: "永久删除“\(recycleLocations[0].name)”") : String(localized: "永久删除 \(recycleLocations.count) 项")
-                Task { @MainActor in _ = await self.perform(.deletePermanently(recycleLocations), title: deleteTitle, origin: origin) }
+                let deleteTitle = locations.count == 1 ? String(localized: "永久删除“\(locations[0].name)”") : String(localized: "永久删除 \(locations.count) 项")
+                Task { @MainActor in _ = await self.perform(.deletePermanently(locations), title: deleteTitle, origin: origin) }
             }
             window.beginSheet(sheet)
         }
