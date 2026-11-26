@@ -78,6 +78,26 @@ def safe_text(text):
     return json.dumps(text, ensure_ascii=False)[1:-1]
 
 
+def decode_text(raw):
+    try:
+        if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+            return raw.decode("utf-16")
+        if b"\0" not in raw:
+            return raw.decode("utf-8")
+        # 无 BOM 的 UTF-16 文本常在 ASCII 字符的高位集中出现 NUL；
+        # 仅在分布明确、解码后仍为正常文本时尝试，避免将一般二进制当作文本。
+        if len(raw) % 2 == 0:
+            even = raw[::2].count(b"\0")
+            odd = raw[1::2].count(b"\0")
+            if max(even, odd) >= 2 and max(even, odd) > 2 * min(even, odd):
+                text = raw.decode("utf-16-le" if odd > even else "utf-16-be")
+                if all(char.isprintable() or char.isspace() for char in text):
+                    return text
+    except UnicodeError:
+        pass
+    return None
+
+
 class Scanner:
     def __init__(self, patterns, allowlist, known_images, ocr):
         self.patterns = patterns
@@ -148,10 +168,7 @@ class Scanner:
         if oid not in self.text_cache:
             raw = git("cat-file", "blob", oid)
             # 只分析文本；图片另由 OCR 检查，不把二进制解释为文本。
-            try:
-                self.text_cache[oid] = raw.decode("utf-8") if b"\0" not in raw else None
-            except UnicodeError:
-                self.text_cache[oid] = None
+            self.text_cache[oid] = decode_text(raw)
         if self.text_cache[oid] is not None:
             self.scan_text(commit, path, self.text_cache[oid])
 
@@ -209,11 +226,17 @@ class Scanner:
                     raise ScanError("OCR 输出数量错误")
                 for oid, row in zip(self.images, rows):
                     text = json.loads(row)
-                    if isinstance(text, list) and all(isinstance(line, str) for line in text) and any(line.strip() for line in text):
+                    if not isinstance(text, list) or not all(isinstance(line, str) for line in text):
+                        raise ScanError("OCR 输出格式错误")
+                    if any(line.strip() for line in text):
                         results[oid] = "\n".join(text)
-            except (OSError, ValueError, subprocess.TimeoutExpired, ScanError):
+            except subprocess.TimeoutExpired:
+                raise ScanError("OCR 工具编译或执行超时") from None
+            except OSError:
+                raise ScanError("无法启动 OCR 工具") from None
+            except ValueError:
                 # 不打印 OCR 工具的原始 stderr/stdout。
-                results.clear()
+                raise ScanError("OCR 输出解析失败") from None
         for commit, path, oid in self.occurrences:
             if oid in results:
                 self.scan_text(commit, path, results[oid])
