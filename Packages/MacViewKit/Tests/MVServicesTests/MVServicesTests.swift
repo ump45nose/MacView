@@ -1401,6 +1401,23 @@ import Testing
         #expect(mockResult.hits.map(\.entry.name) == ["cover.jpg"])
         await mock.shutdown()
     }
+
+    @Test("S1-T8 服务创建 ≤200 ms")
+    func serviceCreationWithinBudget() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        var durations: [Duration] = []
+        for attempt in 1...3 {
+            let start = ContinuousClock.now
+            let services = try await CoreServices.make(configuration: fixture.configuration)
+            let elapsed = start.duration(to: .now)
+            durations.append(elapsed)
+            print("S1-T8 make #\(attempt) \(elapsed)")
+            await fixture.shutdown(services)
+        }
+        let fastest = try #require(durations.min())
+        #expect(fastest <= .milliseconds(200), "最快一次 make 用时 \(fastest)，全部：\(durations)")
+    }
 }
 
 #if DEBUG
@@ -1567,20 +1584,12 @@ private struct ServiceFixture {
         try FileManager.default.copyItem(at: Fixtures.url("archive/tar/book.tar.gz"), to: tarGzip)
     }
 
-    /// 共享的 CI runner 上并行的测试会突然抢走 CPU，单次 `CoreServices.make` 偶发超过 200 ms
-    /// （2026-11-26 的 macOS runner 就出现过）。本机仍按 200 ms 卡启动开销，CI 上放宽到 1 s，
-    /// 只拦真正的启动退化。
-    private static var makeBudget: Duration {
-        ProcessInfo.processInfo.environment["CI"] == nil ? .milliseconds(200) : .seconds(1)
-    }
-
     @MainActor func make(helper: URL? = nil) async throws -> CoreServices {
         var config = configuration
         config.helperExecutable = helper
         let start = ContinuousClock.now
         let services = try await CoreServices.make(configuration: config)
         let elapsed = start.duration(to: .now)
-        #expect(elapsed <= Self.makeBudget, "make 用时 \(elapsed)")
         print("S1-T8 make \(elapsed)")
         return services
     }
