@@ -1,0 +1,2603 @@
+{
+  "date": "2026-11-26",
+  "commit": "9e17daecd7eb88522041b00d8e7489a2c38a57f6",
+  "cdhash": "1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b",
+  "verdict": "G3 未通过",
+  "build": {
+    "configuration": "Debug",
+    "source": "干净共享克隆，排除主工作树未跟踪资源",
+    "xcodegen_exit": 0,
+    "xcodebuild_exit": 0,
+    "compile_warning_count": 0,
+    "codesign_verify_exit": 0,
+    "command": "xcodebuild -quiet -project .g3-retest-20261126/source/MacView.xcodeproj -scheme MacView -configuration Debug -destination platform=macOS,arch=arm64 -derivedDataPath .g3-retest-20261126/DerivedData build"
+  },
+  "matrix": [
+    {
+      "name": "FileOps-zh-Hans-light",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-zh-Hans-light.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-zh-Hans-light.err",
+        "--args",
+        "-MVFileOpsSelfTest",
+        "YES",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-zh-Hans-light/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-zh-Hans-light/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-zh-Hans-light/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/FileOps-zh-Hans-light",
+        "-AppleLanguages",
+        "(zh-Hans)",
+        "-MVAppearance",
+        "light"
+      ],
+      "pid": 43264,
+      "app_exit": 0,
+      "open_exit": 0,
+      "seconds": 22.57385375,
+      "pass": 88,
+      "fail": 0,
+      "skip": 0,
+      "summary": [
+        "INFO 前台采样 175/175",
+        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+      ],
+      "failures": [],
+      "localization_and_order_assertions": [
+        "PASS C2.6 初始选中扩展名前主体且未改动时按钮不可用",
+        "PASS C2.6 重名显示表单内红字错误且按钮禁用：这个文件夹里已有“001.png”。",
+        "PASS C2.6 重名时两个文件不变且不弹顶部错误条",
+        "PASS C2.6 改动名字后红字消失且按钮可用",
+        "PASS C2.6 改成新名字成功且列表按排序更新：[\"001.png\", \"003.png\", \"099.png\"]",
+        "PASS C2.6 ⌘Z 恢复原名与列表顺序",
+        "PASS C2.12 开启列出子文件夹的目标展开并按顺序编号 1、2、3",
+        "PASS C2.12 按 2 把 001.png 移入“A-风景”且对应行闪烁 Clay",
+        "PASS C2.12 按 3 把 002.png 移入“B-人像”",
+        "PASS C2.12 复制模式下按 2 复制 003.png 到“A-风景”且源文件保留",
+        "PASS C2.12 新建目标并移入创建“C-夜景”子文件夹、移入 003.png 并选中新子文件夹：[\"精选\", \"A-风景\", \"B-人像\", \"C-夜景\"]",
+        "PASS C2.12 连续 4 次 ⌘Z 撤销全部后文件系统与面板子文件夹列表完全回到初始状态",
+        "PASS C2.12 连续 4 次 ⇧⌘Z 重做全部后文件与新建子文件夹全部恢复",
+        "PASS C2.16 设置窗口包含当前顺序的十页及“文件”页",
+        "PASS C2.16 切换重名处理为“跳过”后 settings.json 与重新打开的设置窗口显示一致"
+      ]
+    },
+    {
+      "name": "FileOps-zh-Hans-dark",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-zh-Hans-dark.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-zh-Hans-dark.err",
+        "--args",
+        "-MVFileOpsSelfTest",
+        "YES",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-zh-Hans-dark/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-zh-Hans-dark/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-zh-Hans-dark/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/FileOps-zh-Hans-dark",
+        "-AppleLanguages",
+        "(zh-Hans)",
+        "-MVAppearance",
+        "dark"
+      ],
+      "pid": 43343,
+      "app_exit": 0,
+      "open_exit": 0,
+      "seconds": 22.436923458000003,
+      "pass": 88,
+      "fail": 0,
+      "skip": 0,
+      "summary": [
+        "INFO 前台采样 174/174",
+        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+      ],
+      "failures": [],
+      "localization_and_order_assertions": [
+        "PASS C2.6 初始选中扩展名前主体且未改动时按钮不可用",
+        "PASS C2.6 重名显示表单内红字错误且按钮禁用：这个文件夹里已有“001.png”。",
+        "PASS C2.6 重名时两个文件不变且不弹顶部错误条",
+        "PASS C2.6 改动名字后红字消失且按钮可用",
+        "PASS C2.6 改成新名字成功且列表按排序更新：[\"001.png\", \"003.png\", \"099.png\"]",
+        "PASS C2.6 ⌘Z 恢复原名与列表顺序",
+        "PASS C2.12 开启列出子文件夹的目标展开并按顺序编号 1、2、3",
+        "PASS C2.12 按 2 把 001.png 移入“A-风景”且对应行闪烁 Clay",
+        "PASS C2.12 按 3 把 002.png 移入“B-人像”",
+        "PASS C2.12 复制模式下按 2 复制 003.png 到“A-风景”且源文件保留",
+        "PASS C2.12 新建目标并移入创建“C-夜景”子文件夹、移入 003.png 并选中新子文件夹：[\"精选\", \"A-风景\", \"B-人像\", \"C-夜景\"]",
+        "PASS C2.12 连续 4 次 ⌘Z 撤销全部后文件系统与面板子文件夹列表完全回到初始状态",
+        "PASS C2.12 连续 4 次 ⇧⌘Z 重做全部后文件与新建子文件夹全部恢复",
+        "PASS C2.16 设置窗口包含当前顺序的十页及“文件”页",
+        "PASS C2.16 切换重名处理为“跳过”后 settings.json 与重新打开的设置窗口显示一致"
+      ]
+    },
+    {
+      "name": "FileOps-en-light",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-en-light.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-en-light.err",
+        "--args",
+        "-MVFileOpsSelfTest",
+        "YES",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-en-light/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-en-light/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-en-light/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/FileOps-en-light",
+        "-AppleLanguages",
+        "(en)",
+        "-MVAppearance",
+        "light"
+      ],
+      "pid": 43718,
+      "app_exit": 0,
+      "open_exit": 0,
+      "seconds": 22.134126917000003,
+      "pass": 88,
+      "fail": 0,
+      "skip": 0,
+      "summary": [
+        "INFO 前台采样 171/171",
+        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+      ],
+      "failures": [],
+      "localization_and_order_assertions": [
+        "PASS C2.6 初始选中扩展名前主体且未改动时按钮不可用",
+        "PASS C2.6 重名显示表单内红字错误且按钮禁用：“001.png” already exists in this folder.",
+        "PASS C2.6 重名时两个文件不变且不弹顶部错误条",
+        "PASS C2.6 改动名字后红字消失且按钮可用",
+        "PASS C2.6 改成新名字成功且列表按排序更新：[\"001.png\", \"003.png\", \"099.png\"]",
+        "PASS C2.6 ⌘Z 恢复原名与列表顺序",
+        "PASS C2.12 开启列出子文件夹的目标展开并按顺序编号 1、2、3",
+        "PASS C2.12 按 2 把 001.png 移入“A-风景”且对应行闪烁 Clay",
+        "PASS C2.12 按 3 把 002.png 移入“B-人像”",
+        "PASS C2.12 复制模式下按 2 复制 003.png 到“A-风景”且源文件保留",
+        "PASS C2.12 新建目标并移入创建“C-夜景”子文件夹、移入 003.png 并选中新子文件夹：[\"精选\", \"A-风景\", \"B-人像\", \"C-夜景\"]",
+        "PASS C2.12 连续 4 次 ⌘Z 撤销全部后文件系统与面板子文件夹列表完全回到初始状态",
+        "PASS C2.12 连续 4 次 ⇧⌘Z 重做全部后文件与新建子文件夹全部恢复",
+        "PASS C2.16 设置窗口包含当前顺序的十页及“文件”页",
+        "PASS C2.16 切换重名处理为“跳过”后 settings.json 与重新打开的设置窗口显示一致"
+      ]
+    },
+    {
+      "name": "FileOps-en-dark",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-en-dark.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-en-dark.err",
+        "--args",
+        "-MVFileOpsSelfTest",
+        "YES",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-en-dark/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-en-dark/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/FileOps-en-dark/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/FileOps-en-dark",
+        "-AppleLanguages",
+        "(en)",
+        "-MVAppearance",
+        "dark"
+      ],
+      "pid": 43846,
+      "app_exit": 3,
+      "open_exit": 0,
+      "seconds": 19.55107274999999,
+      "pass": 30,
+      "fail": 3,
+      "skip": 0,
+      "summary": [
+        "INFO 前台采样 178/178",
+        "SELFTEST FAILED 3 commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+      ],
+      "failures": [
+        "FAIL 等待超时：取消表单收起",
+        "FAIL 等待超时：确认永久删除完成",
+        "FAIL C2.6 未弹出重命名表单"
+      ],
+      "localization_and_order_assertions": []
+    },
+    {
+      "name": "Search-zh-Hans-light",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/Search-zh-Hans-light.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/Search-zh-Hans-light.err",
+        "--args",
+        "-MVSearchSelfTest",
+        "YES",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-zh-Hans-light/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-zh-Hans-light/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-zh-Hans-light/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/Search-zh-Hans-light",
+        "-AppleLanguages",
+        "(zh-Hans)",
+        "-MVAppearance",
+        "light"
+      ],
+      "pid": 43904,
+      "app_exit": 0,
+      "open_exit": 0,
+      "seconds": 10.212965832999998,
+      "pass": 30,
+      "fail": 0,
+      "skip": 0,
+      "summary": [
+        "INFO 前台采样 90/90",
+        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+      ],
+      "failures": [],
+      "localization_and_order_assertions": [
+        "PASS C2.6 ⌥T 输入“精选”回车写入成功，信息面板与文件头同步显示：[\"精选\"]",
+        "PASS C2.6 再次按 ⌥T，标签建议列表出现已有标签“精选”",
+        "PASS C2.6 多选 20 张按 ⌥3 批量写入 3 星：20/20",
+        "PASS C2.6 ⌘Z 一次撤回整批 20 张评分回到 0 星：20/20"
+      ]
+    },
+    {
+      "name": "Search-zh-Hans-dark",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/Search-zh-Hans-dark.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/Search-zh-Hans-dark.err",
+        "--args",
+        "-MVSearchSelfTest",
+        "YES",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-zh-Hans-dark/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-zh-Hans-dark/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-zh-Hans-dark/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/Search-zh-Hans-dark",
+        "-AppleLanguages",
+        "(zh-Hans)",
+        "-MVAppearance",
+        "dark"
+      ],
+      "pid": 43922,
+      "app_exit": 0,
+      "open_exit": 0,
+      "seconds": 10.201840625000003,
+      "pass": 30,
+      "fail": 0,
+      "skip": 0,
+      "summary": [
+        "INFO 前台采样 93/93",
+        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+      ],
+      "failures": [],
+      "localization_and_order_assertions": [
+        "PASS C2.6 ⌥T 输入“精选”回车写入成功，信息面板与文件头同步显示：[\"精选\"]",
+        "PASS C2.6 再次按 ⌥T，标签建议列表出现已有标签“精选”",
+        "PASS C2.6 多选 20 张按 ⌥3 批量写入 3 星：20/20",
+        "PASS C2.6 ⌘Z 一次撤回整批 20 张评分回到 0 星：20/20"
+      ]
+    },
+    {
+      "name": "Search-en-light",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/Search-en-light.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/Search-en-light.err",
+        "--args",
+        "-MVSearchSelfTest",
+        "YES",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-en-light/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-en-light/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-en-light/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/Search-en-light",
+        "-AppleLanguages",
+        "(en)",
+        "-MVAppearance",
+        "light"
+      ],
+      "pid": 43947,
+      "app_exit": 0,
+      "open_exit": 0,
+      "seconds": 10.255316249999993,
+      "pass": 30,
+      "fail": 0,
+      "skip": 0,
+      "summary": [
+        "INFO 前台采样 93/93",
+        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+      ],
+      "failures": [],
+      "localization_and_order_assertions": [
+        "PASS C2.6 ⌥T 输入“精选”回车写入成功，信息面板与文件头同步显示：[\"精选\"]",
+        "PASS C2.6 再次按 ⌥T，标签建议列表出现已有标签“精选”",
+        "PASS C2.6 多选 20 张按 ⌥3 批量写入 3 星：20/20",
+        "PASS C2.6 ⌘Z 一次撤回整批 20 张评分回到 0 星：20/20"
+      ]
+    },
+    {
+      "name": "Search-en-dark",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/Search-en-dark.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/Search-en-dark.err",
+        "--args",
+        "-MVSearchSelfTest",
+        "YES",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-en-dark/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-en-dark/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix/Search-en-dark/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/Search-en-dark",
+        "-AppleLanguages",
+        "(en)",
+        "-MVAppearance",
+        "dark"
+      ],
+      "pid": 43996,
+      "app_exit": 0,
+      "open_exit": 0,
+      "seconds": 10.340781290999999,
+      "pass": 30,
+      "fail": 0,
+      "skip": 0,
+      "summary": [
+        "INFO 前台采样 92/92",
+        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+      ],
+      "failures": [],
+      "localization_and_order_assertions": [
+        "PASS C2.6 ⌥T 输入“精选”回车写入成功，信息面板与文件头同步显示：[\"精选\"]",
+        "PASS C2.6 再次按 ⌥T，标签建议列表出现已有标签“精选”",
+        "PASS C2.6 多选 20 张按 ⌥3 批量写入 3 星：20/20",
+        "PASS C2.6 ⌘Z 一次撤回整批 20 张评分回到 0 星：20/20"
+      ]
+    }
+  ],
+  "matrix_repeat_environment": {
+    "name": "FileOps-en-dark-repeat",
+    "command": [
+      "open",
+      "-n",
+      "-W",
+      "-a",
+      "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+      "--stdout",
+      "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-en-dark-repeat.log",
+      "--stderr",
+      "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/FileOps-en-dark-repeat.err",
+      "--args",
+      "-MVFileOpsSelfTest",
+      "YES",
+      "-MVSelfTestActivate",
+      "YES",
+      "-MVSupportDirectory",
+      "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix-repeat/FileOps-en-dark/support",
+      "-MVCacheDirectory",
+      "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix-repeat/FileOps-en-dark/cache",
+      "-MVLayoutFile",
+      "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix-repeat/FileOps-en-dark/layout.json",
+      "-MVSelfTestOutput",
+      "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/FileOps-en-dark-repeat",
+      "-AppleLanguages",
+      "(en)",
+      "-MVAppearance",
+      "dark"
+    ],
+    "pid": 48921,
+    "app_exit": 1,
+    "open_exit": 0,
+    "seconds": 12.158846,
+    "output": "PASS C2.5 启动恢复后状态栏显示完成提示：Completed 1 interrupted move(s) from last session\nPASS C2.5 启动恢复完成了未完成的移动并清理源文件\nPASS C2.1 移动 001.png 成功\nPASS C2.1 移动后文件在目标目录\nPASS C2.1 撤销菜单标题写明操作和对象：Undo 移动“001.png”\nPASS C2.1 第 1 轮 ⌘Z 后文件系统回到操作前\nPASS C2.1 第 1 轮 ⌘Z 后重做菜单标题写明操作和对象：Redo 移动“001.png”\nPASS C2.1 第 1 轮 ⇧⌘Z 后文件系统回到操作后\nPASS C2.1 第 2 轮 ⌘Z 后文件系统回到操作前\nPASS C2.1 第 2 轮 ⌘Z 后重做菜单标题写明操作和对象：Redo 移动“001.png”\nPASS C2.1 第 2 轮 ⇧⌘Z 后文件系统回到操作后\nPASS C2.2 焦点在文本框时返回文本 UndoManager\nPASS C2.2 文本框输入后可撤销文本且不与文件操作共用 UndoManager\nPASS C2.2 文本框中按 ⌘Z 只撤销文本，文件操作未撤销\nPASS C2.3 超过 1 秒的操作在状态栏显示进度：移动 6 项 3 / 6 items\nPASS C2.3 取消后状态栏收起进度\nPASS C2.3 取消后已完成 4 项保留，未完成留在源目录\nPASS C2.3 取消后没有残留临时项\nPASS C2.3 取消后已完成的项可撤销回到原位\nPASS C2.4 部分失败返回 1 项完成、1 项失败\nPASS C2.4 错误条列出失败文件名与原因：移动到“dst”: 1 of 2 items failed missing.png Can’t find “/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix-repeat/FileOps-en-dark/support/selftest-tmp/fileops-38063C31-2158-4822-A117-836DDC19D41C/c24/src/missing.png”\nPASS C2.4 点击“重试”只重做失败项并收起错误条\nPASS C2.4 点击关闭后错误条消失\nPASS C2.4b 撤销时原位置已被占用，报错且不覆盖已有文件\nPASS C2.4b 腾出位置后点错误条“重试”恢复原文件\nPASS C2.4b 连续提交同一项只执行一次，状态栏提示“这一项正在处理”：This item is already being processed\nPASS C2.4b 队列里有操作时撤销和重做不可用\nPASS C2.4b 队列忙时按 ⌘Z 状态栏提示“文件操作完成后才能撤销”：Wait for file operations to finish before undoing\nFAIL 等待超时：永久删除取消表单获得焦点\nINFO 前台采样 44/109\nSELFTEST FAILED 1 commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n",
+    "pass": 28,
+    "fail": 1
+  },
+  "retry": {
+    "results": {
+      "a": {
+        "passed": true,
+        "error_observed_seconds": 12.258010292,
+        "old_helpers": [
+          {
+            "pid": "49189",
+            "blocked_operation": true,
+            "sample": "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/a-helper-49189.txt"
+          }
+        ],
+        "no_state_reads_during_fault": true,
+        "active_before_fault": true,
+        "hash": "c135e672a898b7b90fd075945ffd1ba368e0e6cd2ce5e7375369bdd8f7fb81ae"
+      },
+      "b": {
+        "passed": true,
+        "error_observed_seconds": 12.321602833000004,
+        "old_helpers": [],
+        "no_state_reads_during_fault": true,
+        "active_before_fault": true,
+        "hash": "c135e672a898b7b90fd075945ffd1ba368e0e6cd2ce5e7375369bdd8f7fb81ae"
+      }
+    },
+    "commands": [
+      {
+        "name": "a-delete",
+        "command": [
+          "peekaboo",
+          "press",
+          "cmd+delete",
+          "--pid",
+          "49079",
+          "--foreground",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 1.5758464170000002,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-0",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 1.0362472079999998,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-1",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7280221670000002,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-2",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.9084653750000005,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-3",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7082387920000004,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-4",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.9077179590000002,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-5",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.70236125,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-6",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.8789517079999998,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-7",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7131573749999998,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-8",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.8507401669999997,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-9",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.6630839579999996,
+        "stderr": ""
+      },
+      {
+        "name": "a-error-tree-10",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.8864261659999997,
+        "stderr": ""
+      },
+      {
+        "name": "a-error",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--no-elements",
+          "--path",
+          "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/a-error.png",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7877102919999999,
+        "stderr": ""
+      },
+      {
+        "name": "a-retry-once",
+        "command": [
+          "peekaboo",
+          "click",
+          "--at",
+          "1370.0,173.0",
+          "--global",
+          "--pid",
+          "49079",
+          "--foreground",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 1.609361625,
+        "stderr": ""
+      },
+      {
+        "name": "a-source-during-wait",
+        "command": [
+          "ssh",
+          "-o",
+          "BatchMode=yes",
+          "nas",
+          "test -f /export/Photos/macview-fileops-test/a/g3-retest-20261126/retry/01.jpg"
+        ],
+        "exit": 0,
+        "seconds": 0.05268937499999993,
+        "stderr": ""
+      },
+      {
+        "name": "a-waiting",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--no-elements",
+          "--path",
+          "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/a-waiting.png",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.755092874999999,
+        "stderr": ""
+      },
+      {
+        "name": "a-trash",
+        "command": [
+          "ssh",
+          "-o",
+          "BatchMode=yes",
+          "nas",
+          "find /export/Photos/macview-fileops-test/a/g3-retest-20261126/.macview-trash -type f -name 01.jpg -exec sha256sum {} \\;"
+        ],
+        "exit": 0,
+        "seconds": 0.04723091700000026,
+        "stderr": ""
+      },
+      {
+        "name": "a-success",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--no-elements",
+          "--path",
+          "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/a-success.png",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.8063490420000008,
+        "stderr": ""
+      },
+      {
+        "name": "a-undo",
+        "command": [
+          "peekaboo",
+          "press",
+          "cmd+z",
+          "--pid",
+          "49079",
+          "--foreground",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 1.5032829999999997,
+        "stderr": ""
+      },
+      {
+        "name": "a-restored-hash",
+        "command": [
+          "ssh",
+          "-o",
+          "BatchMode=yes",
+          "nas",
+          "sha256sum /export/Photos/macview-fileops-test/a/g3-retest-20261126/retry/01.jpg"
+        ],
+        "exit": 0,
+        "seconds": 0.04675441699999894,
+        "stderr": ""
+      },
+      {
+        "name": "a-undo-result",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--no-elements",
+          "--path",
+          "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/a-undo-result.png",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.8068611669999974,
+        "stderr": ""
+      },
+      {
+        "name": "b-delete",
+        "command": [
+          "peekaboo",
+          "press",
+          "cmd+delete",
+          "--pid",
+          "49079",
+          "--foreground",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 1.5062919589999986,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-0",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.9941259170000016,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-1",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7080131250000008,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-2",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.8982165000000002,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-3",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7219351249999981,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-4",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.8763632499999972,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-5",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7124255830000017,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-6",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.9184916660000013,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-7",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7219537499999973,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-8",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.8757533750000022,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-9",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7693865419999995,
+        "stderr": ""
+      },
+      {
+        "name": "b-error-tree-10",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--tree",
+          "--no-screenshot",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.9279039589999982,
+        "stderr": ""
+      },
+      {
+        "name": "b-error",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--no-elements",
+          "--path",
+          "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/b-error.png",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7866357920000056,
+        "stderr": ""
+      },
+      {
+        "name": "b-retry-once",
+        "command": [
+          "peekaboo",
+          "click",
+          "--at",
+          "1370.0,173.0",
+          "--global",
+          "--pid",
+          "49079",
+          "--foreground",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 1.680984959,
+        "stderr": ""
+      },
+      {
+        "name": "b-trash",
+        "command": [
+          "ssh",
+          "-o",
+          "BatchMode=yes",
+          "nas",
+          "find /export/Photos/macview-fileops-test/a/g3-retest-20261126/.macview-trash -type f -name 01.jpg -exec sha256sum {} \\;"
+        ],
+        "exit": 0,
+        "seconds": 0.05849550000000647,
+        "stderr": ""
+      },
+      {
+        "name": "b-success",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--no-elements",
+          "--path",
+          "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/b-success.png",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.8155659590000042,
+        "stderr": ""
+      },
+      {
+        "name": "b-undo",
+        "command": [
+          "peekaboo",
+          "press",
+          "cmd+z",
+          "--pid",
+          "49079",
+          "--foreground",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 1.565947584,
+        "stderr": ""
+      },
+      {
+        "name": "b-restored-hash",
+        "command": [
+          "ssh",
+          "-o",
+          "BatchMode=yes",
+          "nas",
+          "sha256sum /export/Photos/macview-fileops-test/a/g3-retest-20261126/retry/01.jpg"
+        ],
+        "exit": 0,
+        "seconds": 0.07111029200000019,
+        "stderr": ""
+      },
+      {
+        "name": "b-undo-result",
+        "command": [
+          "peekaboo",
+          "see",
+          "--pid",
+          "49079",
+          "--no-elements",
+          "--path",
+          "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/b-undo-result.png",
+          "--json"
+        ],
+        "exit": 0,
+        "seconds": 0.7629249169999994,
+        "stderr": ""
+      }
+    ]
+  },
+  "retry_old_helper_stack": [
+    {
+      "pid": "49189",
+      "stack": [
+        "861 FileReader.withInvalidatedCache<A>(for:operation:)  (in MacView.debug.dylib) + 1092  [0x10486a5ec]  FileOperations.swift:286",
+        "861 static FileOperations.execute(_:configureNoCache:)  (in MacView.debug.dylib) + 4524  [0x104864d24]  FileOperations.swift:99",
+        "861 mkdir  (in libsystem_kernel.dylib) + 8  [0x189fad780]",
+        "mkdir  (in libsystem_kernel.dylib)        861"
+      ]
+    }
+  ],
+  "cross_volume": [
+    {
+      "policy": "append",
+      "passed": true,
+      "source_remaining": [],
+      "files": [
+        {
+          "name": "001 (2).jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000001.0
+        },
+        {
+          "name": "002.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000002.0
+        },
+        {
+          "name": "003.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000003.0
+        },
+        {
+          "name": "004.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000004.0
+        },
+        {
+          "name": "005.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000005.0
+        },
+        {
+          "name": "006.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000006.0
+        },
+        {
+          "name": "007.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000007.0
+        },
+        {
+          "name": "008.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000008.0
+        },
+        {
+          "name": "009.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000009.0
+        },
+        {
+          "name": "010.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000010.0
+        },
+        {
+          "name": "011.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000011.0
+        },
+        {
+          "name": "012.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000012.0
+        },
+        {
+          "name": "013.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000013.0
+        },
+        {
+          "name": "014.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000014.0
+        },
+        {
+          "name": "015.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000015.0
+        },
+        {
+          "name": "016.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000016.0
+        },
+        {
+          "name": "017.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000017.0
+        },
+        {
+          "name": "018.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000018.0
+        },
+        {
+          "name": "019.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000019.0
+        },
+        {
+          "name": "020.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000020.0
+        }
+      ],
+      "existing_unchanged": true,
+      "texts": [
+        "面板选项",
+        "列表",
+        "详情表格",
+        "网格",
+        "瀑布流",
+        "名称",
+        "上一级目录",
+        "带向下V形的放大镜",
+        "列表",
+        "详情表格",
+        "网格",
+        "瀑布流",
+        "跟随书",
+        "面板选项",
+        "移动",
+        "复制",
+        "添加目标…",
+        "+ 新建目标并移入",
+        "上一本书",
+        "下一本书",
+        "单页",
+        "双页",
+        "瀑布",
+        "竖条",
+        "横条",
+        "显示",
+        "切换全屏幕",
+        "关闭标签页",
+        "新建标签页",
+        "关闭按钮",
+        "全屏幕按钮",
+        "最小化按钮",
+        "搜索文件名…",
+        "书架上竖直摆放的图书",
+        "正方形网格，三乘三",
+        "收件箱",
+        "左侧停靠区",
+        "右侧停靠区",
+        "分类",
+        "组",
+        "组",
+        "组",
+        "组",
+        "显示或隐藏左侧停靠区",
+        "效果开关",
+        "显示或隐藏右侧停靠区",
+        "ui-append",
+        "菜单栏",
+        "ui-append",
+        "分离组",
+        "书架",
+        "滚动区",
+        "表格",
+        "表格行",
+        "单元格",
+        "recovery",
+        "文件夹",
+        "表格行",
+        "单元格",
+        "retry",
+        "文件夹",
+        "表格行",
+        "单元格",
+        "skip",
+        "文件夹",
+        "表格行",
+        "单元格",
+        "ui-append",
+        "文件夹",
+        "表格行",
+        "单元格",
+        "ui-skip",
+        "文件夹",
+        "栏",
+        "export › Photos › macview-fileops-test › a › g3-retest-20261126",
+        "5 本",
+        "评分：不限",
+        "标签：全部",
+        "类型：全部",
+        "分离组",
+        "这里没有图片或视频",
+        "ui-append",
+        "分离组",
+        "页面列表",
+        "滚动区",
+        "表格",
+        "栏",
+        "这本书没有页",
+        "ui-append",
+        "0 页 · 0 KB",
+        "分类",
+        "滚动区",
+        "按 1–0 把当前页移动到对应目标",
+        "已移动 20 项到“target”",
+        "工具栏",
+        "书名",
+        "书名",
+        "标签页栏",
+        "Apple",
+        "MacView",
+        "文件",
+        "编辑",
+        "显示",
+        "图像",
+        "翻页",
+        "书",
+        "脚本",
+        "调试",
+        "窗口"
+      ],
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/cross-append.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/cross-append.err",
+        "--args",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/cross-final-append/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/cross-final-append/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/cross-final-append/layout.json",
+        "-MVDebugSocket",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/r.sock",
+        "-MVSelfTestActivate",
+        "YES",
+        "-AppleLanguages",
+        "(zh-Hans)",
+        "-MVAppearance",
+        "light"
+      ],
+      "commands": [
+        {
+          "name": "classification-tree-0",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-1",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-2",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-3",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-4",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-5",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-6",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-7",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-8",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-9",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-10",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-11",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-12",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-13",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-14",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-15",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-16",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-17",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-18",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-19",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "tree",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "select",
+          "command": [
+            "peekaboo",
+            "click",
+            "--at",
+            "1359.0,248.5",
+            "--global",
+            "--pid",
+            "48538",
+            "--foreground",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "select-all",
+          "command": [
+            "peekaboo",
+            "press",
+            "cmd+a",
+            "--pid",
+            "48538",
+            "--foreground",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classify",
+          "command": [
+            "peekaboo",
+            "press",
+            "1",
+            "--pid",
+            "48538",
+            "--foreground",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "source",
+          "command": [
+            "ssh",
+            "nas",
+            "find /export/Photos/macview-fileops-test/a/g3-retest-20261126/ui-append -maxdepth 1 -type f -printf \"%f\\n\""
+          ],
+          "exit": 0
+        },
+        {
+          "name": "screenshot",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--no-elements",
+            "--path",
+            "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/cross-append.png",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "result-tree",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48538",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        }
+      ],
+      "app_exit": 0,
+      "open_exit": 0
+    },
+    {
+      "policy": "skip",
+      "passed": true,
+      "source_remaining": [
+        "001.jpg"
+      ],
+      "files": [
+        {
+          "name": "002.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000002.0
+        },
+        {
+          "name": "003.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000003.0
+        },
+        {
+          "name": "004.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000004.0
+        },
+        {
+          "name": "005.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000005.0
+        },
+        {
+          "name": "006.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000006.0
+        },
+        {
+          "name": "007.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000007.0
+        },
+        {
+          "name": "008.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000008.0
+        },
+        {
+          "name": "009.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000009.0
+        },
+        {
+          "name": "010.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000010.0
+        },
+        {
+          "name": "011.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000011.0
+        },
+        {
+          "name": "012.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000012.0
+        },
+        {
+          "name": "013.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000013.0
+        },
+        {
+          "name": "014.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000014.0
+        },
+        {
+          "name": "015.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000015.0
+        },
+        {
+          "name": "016.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000016.0
+        },
+        {
+          "name": "017.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000017.0
+        },
+        {
+          "name": "018.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000018.0
+        },
+        {
+          "name": "019.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000019.0
+        },
+        {
+          "name": "020.jpg",
+          "sha256": "f1fe5d342ccf2efa1a7dee066d36c76c6ea0b29710ce96e04de056b5af421869",
+          "bytes": 1048576,
+          "mtime": 1700000020.0
+        }
+      ],
+      "existing_unchanged": true,
+      "texts": [
+        "面板选项",
+        "列表",
+        "详情表格",
+        "网格",
+        "瀑布流",
+        "名称",
+        "上一级目录",
+        "带向下V形的放大镜",
+        "列表",
+        "详情表格",
+        "网格",
+        "瀑布流",
+        "跟随书",
+        "面板选项",
+        "移动",
+        "复制",
+        "添加目标…",
+        "+ 新建目标并移入",
+        "上一本书",
+        "下一本书",
+        "单页",
+        "双页",
+        "瀑布",
+        "竖条",
+        "横条",
+        "显示",
+        "切换全屏幕",
+        "关闭标签页",
+        "新建标签页",
+        "关闭按钮",
+        "全屏幕按钮",
+        "最小化按钮",
+        "搜索文件名…",
+        "书架上竖直摆放的图书",
+        "正方形网格，三乘三",
+        "收件箱",
+        "左侧停靠区",
+        "右侧停靠区",
+        "分类",
+        "组",
+        "组",
+        "组",
+        "组",
+        "显示或隐藏左侧停靠区",
+        "效果开关",
+        "显示或隐藏右侧停靠区",
+        "ui-skip",
+        "菜单栏",
+        "ui-skip",
+        "分离组",
+        "书架",
+        "滚动区",
+        "表格",
+        "表格行",
+        "单元格",
+        "recovery",
+        "文件夹",
+        "表格行",
+        "单元格",
+        "retry",
+        "文件夹",
+        "表格行",
+        "单元格",
+        "skip",
+        "文件夹",
+        "表格行",
+        "单元格",
+        "ui-append",
+        "文件夹",
+        "表格行",
+        "单元格",
+        "ui-skip",
+        "文件夹",
+        "栏",
+        "export › Photos › macview-fileops-test › a › g3-retest-20261126",
+        "5 本",
+        "评分：不限",
+        "标签：全部",
+        "类型：全部",
+        "分离组",
+        "分离组",
+        "页面列表",
+        "滚动区",
+        "表格",
+        "表格行",
+        "单元格",
+        "001.jpg",
+        "300×450 · 1 MB",
+        "栏",
+        "ui-skip",
+        "1 页 · 1 MB",
+        "分类",
+        "滚动区",
+        "按 1–0 把当前页移动到对应目标",
+        "第 1 页 / 共 1 页",
+        "300 × 450",
+        "已移动 19 项到“target”，跳过 1 项（目标里已有同名项）",
+        "工具栏",
+        "书名",
+        "书名",
+        "标签页栏",
+        "Apple",
+        "MacView",
+        "文件",
+        "编辑",
+        "显示",
+        "图像",
+        "翻页",
+        "书",
+        "脚本",
+        "调试",
+        "窗口"
+      ],
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/cross-skip.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/cross-skip.err",
+        "--args",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/cross-final-skip/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/cross-final-skip/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/cross-final-skip/layout.json",
+        "-MVDebugSocket",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/r.sock",
+        "-MVSelfTestActivate",
+        "YES",
+        "-AppleLanguages",
+        "(zh-Hans)",
+        "-MVAppearance",
+        "light"
+      ],
+      "commands": [
+        {
+          "name": "classification-tree-0",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-1",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-2",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-3",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-4",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-5",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-6",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-7",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-8",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-9",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-10",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-11",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-12",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-13",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-14",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-15",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-16",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-17",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-18",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classification-tree-19",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "tree",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "select",
+          "command": [
+            "peekaboo",
+            "click",
+            "--at",
+            "1359.0,249.5",
+            "--global",
+            "--pid",
+            "48720",
+            "--foreground",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "select-all",
+          "command": [
+            "peekaboo",
+            "press",
+            "cmd+a",
+            "--pid",
+            "48720",
+            "--foreground",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "classify",
+          "command": [
+            "peekaboo",
+            "press",
+            "1",
+            "--pid",
+            "48720",
+            "--foreground",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "source",
+          "command": [
+            "ssh",
+            "nas",
+            "find /export/Photos/macview-fileops-test/a/g3-retest-20261126/ui-skip -maxdepth 1 -type f -printf \"%f\\n\""
+          ],
+          "exit": 0
+        },
+        {
+          "name": "screenshot",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--no-elements",
+            "--path",
+            "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/cross-skip.png",
+            "--json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "result-tree",
+          "command": [
+            "peekaboo",
+            "see",
+            "--pid",
+            "48720",
+            "--tree",
+            "--no-screenshot",
+            "--json"
+          ],
+          "exit": 0
+        }
+      ],
+      "app_exit": 0,
+      "open_exit": 0
+    }
+  ],
+  "recovery": {
+    "recovery-kill": {
+      "name": "recovery-kill",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/recovery-kill.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/recovery-kill.err",
+        "--args",
+        "-MVFileOpsSelfTest",
+        "net-recovery-kill",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/recovery/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/recovery/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/recovery/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/recovery-kill",
+        "-MVFileOpsNetworkRoot",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/nfs-direct/recovery",
+        "-AppleLanguages",
+        "(zh-Hans)",
+        "-MVAppearance",
+        "light"
+      ],
+      "pid": 45481,
+      "app_exit": -9,
+      "open_exit": 0,
+      "seconds": 65.129184458,
+      "output": "PASS C2.20 已读到匹配的持久记录及临时项 .large-1gb.bin.f7e4936a75964989a22aaeac0436c9bf.macview-part，实际大小 545259520 B；对 pid=45481 执行 kill -9\n"
+    },
+    "recovery-pending": {
+      "name": "recovery-pending",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/recovery-pending.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/recovery-pending.err",
+        "--args",
+        "-MVFileOpsSelfTest",
+        "net-pending",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/recovery/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/recovery/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/recovery/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/recovery-pending",
+        "-MVFileOpsNetworkRoot",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/nfs-direct/recovery",
+        "-AppleLanguages",
+        "(zh-Hans)",
+        "-MVAppearance",
+        "light"
+      ],
+      "pid": 45762,
+      "app_exit": 0,
+      "open_exit": 0,
+      "seconds": 1.011858958,
+      "output": "PASS 恢复等待保留源文件和具体阶段、卷不可用原因：上次中断的移动等待恢复，下次启动时继续 large-1gb.bin 检查源文件：export/Photos/macview-fileops-test/a/g3-retest-20261126：所在的卷不可用\nSELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n"
+    },
+    "recovery-verify": {
+      "name": "recovery-verify",
+      "command": [
+        "open",
+        "-n",
+        "-W",
+        "-a",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/DerivedData/Build/Products/Debug/MacView.app",
+        "--stdout",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/recovery-verify.log",
+        "--stderr",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/logs/recovery-verify.err",
+        "--args",
+        "-MVFileOpsSelfTest",
+        "net-recovery-verify",
+        "-MVSelfTestActivate",
+        "YES",
+        "-MVSupportDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/recovery/support",
+        "-MVCacheDirectory",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/recovery/cache",
+        "-MVLayoutFile",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/recovery/layout.json",
+        "-MVSelfTestOutput",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/outputs/recovery-verify",
+        "-MVFileOpsNetworkRoot",
+        "/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/nfs-direct/recovery",
+        "-AppleLanguages",
+        "(zh-Hans)",
+        "-MVAppearance",
+        "light"
+      ],
+      "pid": 45857,
+      "app_exit": 0,
+      "open_exit": 0,
+      "seconds": 36.619074375,
+      "output": "PASS C2.20 恢复提示：上次中断的 1 次移动已完成\nPASS C2.20 SHA-256 一致、源删除、临时项及记录清空：目标 [\"large-1gb.bin\"]，记录 0\nINFO 前台采样 1/1\nSELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n"
+    },
+    "final_bytes": 1000000000,
+    "final_sha256": "7bfb3e87c8fa608a76ccf4ceeb5309f5a97e138dd526763a8369e09bf2fc21dc",
+    "independent_hash_check_exit": 0,
+    "final_journal": {
+      "version": 1,
+      "transfers": []
+    }
+  },
+  "ci_diagnosis": {
+    "run": 45761417516,
+    "attempt": 1,
+    "historical_result": "failure",
+    "latest_attempt": 2,
+    "latest_result": "success",
+    "commit": "9e17daecd7eb88522041b00d8e7489a2c38a57f6",
+    "diagnostic_agent": "codex gpt-6.1-sol xhigh",
+    "probe_exit": 0,
+    "command": [
+      "swift",
+      "test",
+      "--package-path",
+      "<工作区>/ci/package",
+      "--scratch-path",
+      "<工作区>/ci/build",
+      "--cache-path",
+      "<工作区>/ci/cache",
+      "--config-path",
+      "<工作区>/ci/config",
+      "--security-path",
+      "<工作区>/ci/security",
+      "--disable-dependency-cache",
+      "--disable-sandbox",
+      "-j",
+      "4",
+      "--filter",
+      "libraryRelocationDuringLoadDoesNotRollback"
+    ],
+    "environment": {
+      "TMPDIR": "<工作区>/ci/tmp",
+      "CLANG_MODULE_CACHE_PATH": "<工作区>/ci/clang-cache",
+      "SWIFTPM_MODULECACHE_OVERRIDE": "<工作区>/ci/module-cache"
+    },
+    "probe_name": "CI 因果探针：原测试／初始通知消费屏障／迟到通知",
+    "probe_cases": [
+      {
+        "mode": "original",
+        "loads": 1,
+        "pages_correct": true,
+        "current_page": 1
+      },
+      {
+        "mode": "drained",
+        "loads": 1,
+        "pages_correct": true,
+        "current_page": 1
+      },
+      {
+        "mode": "delayed",
+        "loads": 2,
+        "pages_correct": true,
+        "current_page": 1
+      }
+    ],
+    "probe_log": [
+      "[CI] subscription received .items; held=true, activeBooks=0",
+      "[CI] PausedLibraryLoader.load number=1",
+      "[CI] RELEASE initial .items after migration applied",
+      "[CI] subscribeLibrary .items/.playlistRemoved -> session.reloadBook()",
+      "[CI] ReaderSession.reloadBook -> loader.load",
+      "[CI] PausedLibraryLoader.load number=2",
+      "[CI] END mode=delayed loads=2 pagesOK=true current=1",
+      "Test with 3 test cases passed after 0.529 seconds."
+    ],
+    "verdict": "新增未通过：初始 items 通知迟到导致产品多余重载；测试缺少通知消费屏障使其偶发暴露。迁移自身没有触发重载。",
+    "limits": "只运行一次原时序，未自然复现 CI；第二次加载由临时副本中的可控通知门闩确定性复现。保留真实服务、SQLite、加载器与文件迁移，只加调用点日志，未采集运行时堆栈。主树未改，探针已清理。"
+  },
+  "invalid_or_environment_runs": [
+    {
+      "run": "初次 NFS 基线",
+      "exit": 1,
+      "reason": "未提权挂载被拒；随后提权成功。初始 callback 挂载下基线读写曾挂起，重建本轮 nocallback 挂载后才执行有效复验，不归因产品。"
+    },
+    {
+      "run": "旧 net-kill 连跑模式",
+      "app_exit": 2,
+      "output": "PASS 网络卷 fileops-a 已挂载且没有上次留下的测试项：[]\nFAIL C2.18 S2 删除的页进入 .macview-trash/<批次>/001.png：[]\nPASS C2.18 S2 书架和页面列表看不到回收目录\nPASS C2.18 S2 ⌘Z 后文件回到原处\nFAIL C2.18 S2 清空回收目录列出网络卷 A（1 次删除）：[\"/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/nfs-direct/:10\", \"/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/fault/:10\"]\nINFO 前台采样 11/11\nSELFTEST FAILED 2 commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n",
+      "reason": "S2 把传入的子目录当卷根，且遇到本轮已有回收批次，前置不符；未到 S6/S7。跨卷后来在正常窗口用 20 x 1 MiB 夹具重验，恢复用独立模式重验。"
+    },
+    {
+      "run": "删除自动化前置探索",
+      "exit": 1,
+      "reason": "固定 6 秒等错误、点击查看器导致翻页、state 读取元数据引入额外网络请求等前置误差，均不用于裁定。最终轮校准当前页、前台状态并在故障期间停用 state。"
+    },
+    {
+      "run": "原生 verify 观察器试用",
+      "exit": 2,
+      "reason": "12s 观察器参数超过工具自身 10s 上限；未用于裁定，未改产品期限。"
+    },
+    {
+      "run": "外部中断后",
+      "reason": "旧代理已退出、旧故障挂载残留；只卸载本轮残留挂载，重建代理后两条删除路径再次通过。"
+    }
+  ],
+  "cleanup": {
+    "debug_processes_absent": true,
+    "proxy_exit": 0,
+    "fault_unmounted_by_proxy": true,
+    "direct_unmount_exit": 0,
+    "nas_owned_directory": "macview-fileops-test/a/g3-retest-20261126",
+    "nas_remove_exit": 0,
+    "nas_directory_absent": true,
+    "existing_smb_mounts_unchanged": true,
+    "protected_mounts_untouched": true,
+    "installed_release_untouched": true,
+    "real_support_directory_untouched": true,
+    "owned_finder_window_absent": true,
+    "local_temporary_sources_builds_scripts_logs_and_fixtures_removed": true
+  },
+  "screenshots": {
+    "retry-inflight-error.png": "899ac68dff5d99dbd8c23f39c616285488472567252feebb53f9c7c36dd5eeab",
+    "retry-inflight-wait.png": "06741e5064a0101d3404b7b61e5766cd521e0e22d9538733928295fd37413c53",
+    "retry-inflight-success.png": "af59c2ac3bedf770ae5b895bcac36152e06b30ddc4e728106caf6f5e1dc92f1b",
+    "retry-inflight-undo.png": "90207a222c28b5be562528c6d415efc401119829ceb620f2c441584241f4541c",
+    "retry-forward-success.png": "84b22fc94904d092325d0c27367664a1f71ed7fcfd6884ca6567d2600c0dfa8e",
+    "cross-append.png": "ab15b069a11a7cd65d2a767b57ec39ca8047c4752eb099c0e4305831e4112865",
+    "cross-skip.png": "a4c15786b9066b7a2046f8c18d9cd409a462b82ad0c88e09bd7a42811518967f",
+    "recovery-target.png": "0d4fad138f986a835a825c2b4b8c341b876de899d2096a57d1c0911596215a37",
+    "fileops-en-dark-permanent.png": "ce4bb5fd3663125a317c97a48b2e7475e9a3332673e2b6f4248ab37afafbe81c",
+    "search-en-dark.png": "3af51343b190060390df29aaa95c74ecaacd0108d88aa34f22f68852b40a2948"
+  }
+}
