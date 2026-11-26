@@ -782,6 +782,22 @@ final class ScriptSelfTest {
             "C2.16 程序不存在时状态栏显示失败原因（\(failStatus)）"
         )
 
+        // C2.16b：书打开后目标文件被移走（网络卷断开、外部删除），即使命令本身对缺失文件返回 0，也要报错并写日志
+        if let goneIndex = controller.session.book?.pages.firstIndex(where: { $0.entry.name == "p03.png" }),
+           let gonePage = controller.session.book?.pages[goneIndex] {
+            try FileManager.default.removeItem(at: specialDir.appending(path: "p03.png"))
+            scriptLog.clear()
+            let goneRes = await extensions.runExternal(sipsCmd, target: ScriptTarget(window: controller, locations: [gonePage.id]))
+            let goneStatus = controller.content.statusBar.message ?? ""
+            let goneLogged = scriptLog.entries().contains { $0.source == "查看宽度" && $0.level == .error }
+            log.check(
+                { if case .failed = goneRes { return true }; return false }() && goneStatus.hasPrefix("查看宽度 失败") && goneLogged,
+                "C2.16b 目标文件已不可达时外部命令报错并写日志（\(goneStatus)）"
+            )
+        } else {
+            log.check(false, "C2.16b 未找到 p03.png")
+        }
+
         // C2.17：external-commands.json 写坏时 fileProblems 出现错误提示，原外部命令仍可运行
         let echoCmd = ExternalCommand(
             id: "echo-alive",

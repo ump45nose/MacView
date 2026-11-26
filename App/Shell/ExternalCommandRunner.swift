@@ -30,6 +30,11 @@ final class ExternalCommandRunner {
 
         let leases: [FileLease]
         do {
+            // 先经数据源确认目标仍可达：网络卷断开或文件被移走时，有些命令（如 sips）对缺失文件仍返回 0，不能指望命令自己报错。
+            for location in target.locations {
+                try Task.checkCancellation()
+                _ = try await services.sources.provider(for: location).entry(at: location)
+            }
             leases = try await FileOperationController.resolveLeases(for: target.locations, in: services)
         } catch is CancellationError {
             return .failed(String(localized: "已取消"))
