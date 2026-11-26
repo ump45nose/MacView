@@ -57,10 +57,25 @@ def load_environment(path=ENVIRONMENT_FILE, environ=None):
     return result
 
 
+def sample_relative_path(smb_root, sample_directory):
+    """SMB 和 NFS 使用同一配置样本的相对路径；无效配置不回退到卷根。"""
+    if not smb_root or not sample_directory:
+        return None
+    root, sample = Path(smb_root), Path(sample_directory)
+    if not root.is_absolute() or not sample.is_absolute() or ".." in root.parts or ".." in sample.parts:
+        return None
+    try:
+        return sample.relative_to(root)
+    except ValueError:
+        return None
+
+
 def network_configuration_problem(config):
     missing = [key for key in ENVIRONMENT_VARIABLES if config[key] is None]
     if missing:
         return "未配置：" + "、".join(missing)
+    if sample_relative_path(config["smbRoot"], config["sampleDirectory"]) is None:
+        return "配置无效：sampleDirectory 必须是 smbRoot 内的绝对路径"
     return None
 
 
@@ -1873,25 +1888,23 @@ def find_samples(root):
     album = archive = None
     started = time.monotonic()
     seen = 0
-    # 样本目录在 SMB 挂载下时，NFS 优先使用同一相对位置；否则仍从网络卷根目录查找。
-    preferred = root / SAMPLE_DIRECTORY.relative_to(SMB_ROOT) if SAMPLE_DIRECTORY.is_relative_to(SMB_ROOT) else root
-    bases = [preferred, root] if preferred != root else [root]
-    for base in bases:
-        if not base.is_dir():
-            continue
-        for dirpath, dirnames, filenames in os.walk(base):
-            seen += 1
-            if seen > 400 or time.monotonic() - started > 20:
-                return album, archive
-            dirnames[:] = [name for name in dirnames if not name.startswith(".")][:40]
-            images = [name for name in filenames if name.lower().endswith((".jpg", ".jpeg"))]
-            archives = [name for name in filenames if name.lower().endswith(".gz")]
-            if album is None and len(images) >= 8:
-                album = dirpath
-            if archive is None and archives:
-                archive = str(Path(dirpath) / archives[0])
-            if album and archive:
-                return album, archive
+    relative = sample_relative_path(SMB_ROOT, SAMPLE_DIRECTORY)
+    if relative is None:
+        return album, archive
+    base = root / relative
+    for dirpath, dirnames, filenames in os.walk(base):
+        seen += 1
+        if seen > 400 or time.monotonic() - started > 20:
+            return album, archive
+        dirnames[:] = [name for name in dirnames if not name.startswith(".")][:40]
+        images = [name for name in filenames if name.lower().endswith((".jpg", ".jpeg"))]
+        archives = [name for name in filenames if name.lower().endswith(".gz")]
+        if album is None and len(images) >= 8:
+            album = dirpath
+        if archive is None and archives:
+            archive = str(Path(dirpath) / archives[0])
+        if album and archive:
+            return album, archive
     return album, archive
 
 
@@ -3037,8 +3050,7 @@ def gate_g2(accepted, out=Path("docs/reports/bench"), recordings=RECORDINGS):
 
 def run_scene(scene, out, commit, base_env):
     if scene in NAS_SCENES and (problem := network_configuration_problem(ENVIRONMENT)):
-        print(f"{scene}: {problem}，跳过", flush=True)
-        write_report(out, scene, commit, {}, {"unavailable": True, "reason": problem}, "unverified")
+        print(f"{scene}: {problem}，跳过（保留已有报告）", flush=True)
         return
     runner = {
         "first-image": scene_first_image,
