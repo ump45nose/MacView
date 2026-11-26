@@ -23,6 +23,7 @@ final class FileOpsSelfTest {
     private let app: AppDelegate, log = SelfTestLog(), fm = FileManager.default
     private let temporary = TestPresentation.scratchDirectory("fileops")
     private var targetWindow: NSWindow?
+    private var nextEventNumber = 1000
 
     static func prepareStartupRecoveryIfNeeded(supportDirectory: URL) async {
         guard isRequested, !networkModes.contains(mode), recoveryRootURL == nil else { return }
@@ -177,7 +178,8 @@ final class FileOpsSelfTest {
         log.check(controller.content.fileOperationBanner == nil && exists(dst24.appending(path: "ok.png")) && exists(dst24.appending(path: "missing.png")), "C2.4 点击“重试”只重做失败项并收起错误条")
         _ = await fileOps.perform(.transfer([src24Loc.appending("ghost.png")], into: dst24Loc, mode: .move, conflict: .appendNumber), title: "移动到“dst”", origin: FileOrigin(window: controller))
         guard let secondBanner = controller.content.fileOperationBanner else { return log.check(false, "C2.4 第二次失败未显示错误条") }
-        await click(secondBanner.closeButton, in: window); await settle()
+        await click(secondBanner.closeButton, in: window)
+        await until("错误条关闭") { controller.content.fileOperationBanner == nil }
         log.check(controller.content.fileOperationBanner == nil, "C2.4 点击关闭后错误条消失")
 
         let (src24b, dst24b) = try makePair("c24b", "src", "dst")
@@ -219,21 +221,16 @@ final class FileOpsSelfTest {
         let previousUndoName = fileOps.undoManager.undoActionName
         let injected = FileOperationResult(failures: [FileFailure(location: tempLoc, error: FileOpsError.recycleUnavailable(String(localized: "没有写入权限")))])
         fileOps.handleResult(injected, operation: .delete([tempLoc]), title: "删除“temp-permanent.png”", origin: FileOrigin(window: controller))
-        await settle()
-        guard let sheet1 = window.attachedSheet as? PermanentDeleteSheet else { return log.check(false, "C2.4c 遇到 recycleUnavailable 未弹出永久删除确认表单") }
-        await until("永久删除取消表单获得焦点") { sheet1.isVisible && NSApp.keyWindow === sheet1 }
-        guard sheet1.isVisible && NSApp.keyWindow === sheet1 else { return }
+        guard let sheet1 = await waitForSheet(PermanentDeleteSheet.self, on: window, description: "永久删除取消表单获得焦点") else { return }
         log.snapshot(sheet1, "fileops-permanent-delete")
         await click(sheet1.cancelButton, in: sheet1)
-        await until("取消表单收起") { window.attachedSheet == nil }
+        await waitForSheetDismissed(on: window, description: "取消表单收起")
         log.check(exists(tempFileURL), "C2.4c 取消永久删除时文件保持原状")
+        guard window.attachedSheet == nil else { return }
         fileOps.handleResult(injected, operation: .delete([tempLoc]), title: "删除“temp-permanent.png”", origin: FileOrigin(window: controller))
-        await settle()
-        guard let sheet2 = window.attachedSheet as? PermanentDeleteSheet else { return log.check(false, "C2.4c 第二次未弹出永久删除确认表单") }
-        await until("永久删除确认表单获得焦点") { sheet2.isVisible && NSApp.keyWindow === sheet2 }
-        guard sheet2.isVisible && NSApp.keyWindow === sheet2 else { return }
+        guard let sheet2 = await waitForSheet(PermanentDeleteSheet.self, on: window, description: "永久删除确认表单获得焦点") else { return }
         await click(sheet2.confirmButton, in: sheet2)
-        await until("确认永久删除完成") { window.attachedSheet == nil && !fileOps.isBusy && !self.exists(tempFileURL) }
+        await waitForSheetDismissed(on: window, description: "确认永久删除完成") { !fileOps.isBusy && !self.exists(tempFileURL) }
         log.check(!exists(tempFileURL) && fileOps.undoManager.undoActionName == previousUndoName, "C2.4c 确认后临时文件被永久删除且不进入撤销历史")
         try await runCommandChecks(controller: controller, window: window, services: services, fileOps: fileOps, bookDir: bookDir, targetDir: targetDir, targetLoc: targetLoc)
     }
@@ -246,17 +243,16 @@ final class FileOpsSelfTest {
         let location = try await services.sources.location(for: disposable)
         let failure = FileOperationResult(failures: [FileFailure(location: location, error: FileOpsError.recycleUnavailable(String(localized: "没有写入权限")))])
         fileOps.handleResult(failure, operation: .delete([location]), title: "删除测试文件", origin: FileOrigin(window: controller))
-        await until("首次永久删除表单获得焦点") { window.attachedSheet is PermanentDeleteSheet && NSApp.keyWindow === window.attachedSheet }
-        guard let cancelSheet = window.attachedSheet as? PermanentDeleteSheet, NSApp.keyWindow === cancelSheet else { return }
+        guard let cancelSheet = await waitForSheet(PermanentDeleteSheet.self, on: window, description: "首次永久删除表单获得焦点") else { return }
         log.snapshot(cancelSheet, "focus-permanent-cancel")
         await click(cancelSheet.cancelButton, in: cancelSheet)
-        await until("取消首次永久删除表单") { window.attachedSheet == nil }
+        await waitForSheetDismissed(on: window, description: "取消首次永久删除表单")
         log.check(window.attachedSheet == nil && exists(disposable), "首次永久删除表单在前台接收取消事件，源文件保留")
+        guard window.attachedSheet == nil else { return }
         fileOps.handleResult(failure, operation: .delete([location]), title: "删除测试文件", origin: FileOrigin(window: controller))
-        await until("再次永久删除表单获得焦点") { window.attachedSheet is PermanentDeleteSheet && NSApp.keyWindow === window.attachedSheet }
-        guard let confirmSheet = window.attachedSheet as? PermanentDeleteSheet, NSApp.keyWindow === confirmSheet else { return }
+        guard let confirmSheet = await waitForSheet(PermanentDeleteSheet.self, on: window, description: "再次永久删除表单获得焦点") else { return }
         await click(confirmSheet.confirmButton, in: confirmSheet)
-        await until("确认永久删除表单") { window.attachedSheet == nil && !fileOps.isBusy && !self.exists(disposable) }
+        await waitForSheetDismissed(on: window, description: "确认永久删除表单") { !fileOps.isBusy && !self.exists(disposable) }
         log.check(window.attachedSheet == nil && !exists(disposable), "再次表单接收确认事件并删除测试文件")
 
         guard let list = (controller.dock.panels[DockPanels.pageList] as? PageListPanel)?.collection else { return log.check(false, "找不到页面列表") }
@@ -290,8 +286,8 @@ final class FileOpsSelfTest {
 
         // C2.6：重命名冲突报错且不改文件，改新名成功并按排序更新，⌘Z 恢复原名。
         listView.selectRows(IndexSet(integer: 1)); window.makeFirstResponder(listView); await settle()
-        fileOps.presentRename(origin: controller.fileOrigin()); await settle()
-        guard let renameSheet = window.attachedSheet as? RenameSheet else { return log.check(false, "C2.6 未弹出重命名表单") }
+        fileOps.presentRename(origin: controller.fileOrigin())
+        guard let renameSheet = await waitForSheet(RenameSheet.self, on: window, description: "C2.6 重命名表单获得焦点") else { return }
         log.check(renameSheet.textField.currentEditor()?.selectedRange == NSRange(location: 0, length: 3) && !renameSheet.confirmButton.isEnabled, "C2.6 初始选中扩展名前主体且未改动时按钮不可用")
         log.snapshot(renameSheet, "fileops-rename-normal")
         renameSheet.setInputText("001.png")
@@ -304,7 +300,7 @@ final class FileOpsSelfTest {
         renameSheet.setInputText("099.png")
         log.check(renameSheet.errorRow.isHidden && renameSheet.confirmButton.isEnabled, "C2.6 改动名字后红字消失且按钮可用")
         await click(renameSheet.confirmButton, in: renameSheet)
-        await until("重命名 099.png 完成") { window.attachedSheet == nil && !fileOps.isBusy && self.exists(book099) && listView.items.map(\.name) == ["001.png", "003.png", "099.png"] }
+        await waitForSheetDismissed(on: window, description: "重命名 099.png 完成") { !fileOps.isBusy && self.exists(book099) && listView.items.map(\.name) == ["001.png", "003.png", "099.png"] }
         log.check(!exists(book002) && exists(book099) && listView.items.map(\.name) == ["001.png", "003.png", "099.png"], "C2.6 改成新名字成功且列表按排序更新：\(listView.items.map(\.name))")
         window.makeFirstResponder(controller.viewer); await sendKey(kVK_ANSI_Z, [.command])
         await until("⌘Z 恢复 002.png") { !fileOps.isBusy && self.exists(book002) && listView.items.map(\.name) == ["001.png", "002.png", "003.png"] }
@@ -395,12 +391,12 @@ final class FileOpsSelfTest {
         listView.selectRows(IndexSet([0, 2]))
         log.check(itemEnabled(listView.contextMenu(forItemAt: 2), String(localized: "重命名…")) == false && itemEnabled(listView.contextMenu(forItemAt: 1), String(localized: "重命名…")) == true, "C2.10c 右键已选中项取全部多选（重命名灰掉），右键未选中项只取该项（重命名可用）")
         listView.selectRows(IndexSet(integer: 0)); window.makeFirstResponder(listView); await settle()
-        fileOps.presentRename(origin: controller.fileOrigin()); await settle()
-        guard let snapSheet = window.attachedSheet as? RenameSheet else { return log.check(false, "C2.10c 未弹出重命名表单") }
+        fileOps.presentRename(origin: controller.fileOrigin())
+        guard let snapSheet = await waitForSheet(RenameSheet.self, on: window, description: "C2.10c 重命名表单获得焦点") else { return }
         listView.selectRows(IndexSet(integer: 1)); await settle()
         snapSheet.setInputText("001-snap.png")
         await click(snapSheet.confirmButton, in: snapSheet)
-        await until("快照重命名完成") { window.attachedSheet == nil && !fileOps.isBusy && self.exists(bookBDir.appending(path: "001-snap.png")) }
+        await waitForSheetDismissed(on: window, description: "快照重命名完成") { !fileOps.isBusy && self.exists(bookBDir.appending(path: "001-snap.png")) }
         log.check(exists(bookBDir.appending(path: "001-snap.png")) && exists(bookBDir.appending(path: "002.png")) && !exists(bookBDir.appending(path: "001.png")), "C2.10c 重命名表单打开后改变页面列表选中项，提交时仍修改原快照项 001.png")
 
         try await runClassifyChecks(controller: controller, window: window, services: services, fileOps: fileOps, zipURL: zipURL, zipBytes: zipBytes)
@@ -686,8 +682,7 @@ final class FileOpsSelfTest {
 
         let undoBeforeRecycle = fileOps.undoManager.undoActionName
         controller.run(.recycleEmpty)
-        await until("C2.17 弹出清空回收目录选卷表单") { window.attachedSheet is EmptyRecycleBinsSheet }
-        guard let recycleSheet = window.attachedSheet as? EmptyRecycleBinsSheet else { return log.check(false, "C2.17 未弹出清空回收目录表单") }
+        guard let recycleSheet = await waitForSheet(EmptyRecycleBinsSheet.self, on: window, description: "C2.17 弹出清空回收目录选卷表单") else { return }
         log.check(recycleSheet.items.map { "\($0.volumeName):\($0.batchCount)" } == ["Photos:2", "Archive:1"] && recycleSheet.items.allSatisfy(\.isSelected) && recycleSheet.emptyButton.isEnabled, "C2.17 列表显示的卷与删除批次数一致（Photos:2、Archive:1）且默认全选")
         log.snapshot(recycleSheet, "fileops-recycle-list")
         await click(recycleSheet.rowButtons[0], in: recycleSheet)
@@ -696,13 +691,12 @@ final class FileOpsSelfTest {
         await click(recycleSheet.rowButtons[0], in: recycleSheet)
         log.check(recycleSheet.items.map(\.isSelected) == [true, false] && recycleSheet.emptyButton.isEnabled, "C2.17 勾选 Photos 后“清空…”可用")
         await click(recycleSheet.emptyButton, in: recycleSheet)
-        await until("C2.17 弹出清空回收目录二次确认表单") { window.attachedSheet is PermanentDeleteSheet }
-        guard let confirmRecycle = window.attachedSheet as? PermanentDeleteSheet else { return log.check(false, "C2.17 未弹出二次确认表单") }
+        guard let confirmRecycle = await waitForSheet(PermanentDeleteSheet.self, on: window, description: "C2.17 弹出清空回收目录二次确认表单") else { return }
         let volumeName = "Photos", totalBatches = 2
         log.check(confirmRecycle.headingLabel.stringValue == String(localized: "永久删除“\(volumeName)”回收目录里的内容？") && confirmRecycle.detailLabel.stringValue == String(localized: "共 \(totalBatches) 次删除。清空后不能撤销。"), "C2.17 二次确认显示卷名与删除批次总数：\(confirmRecycle.headingLabel.stringValue) / \(confirmRecycle.detailLabel.stringValue)")
         log.snapshot(confirmRecycle, "fileops-recycle-confirm")
         await click(confirmRecycle.confirmButton, in: confirmRecycle)
-        await until("C2.17 确认后清空 Photos 回收目录") { window.attachedSheet == nil && !fileOps.isBusy && !self.exists(trashA) }
+        await waitForSheetDismissed(on: window, description: "C2.17 确认后清空 Photos 回收目录") { !fileOps.isBusy && !self.exists(trashA) }
         log.check(!exists(trashA) && exists(trashB) && fileOps.undoManager.undoActionName == undoBeforeRecycle, "C2.17 确认后永久删除所选卷的回收目录、未选卷保留且不登记撤销")
     }
 
@@ -828,16 +822,14 @@ final class FileOpsSelfTest {
         await until("C2.18 ⌘Z 恢复 001.png") { !fileOps.isBusy && self.exists(s2Page) && listView.items.map(\.name) == ["001.png", "002.png"] }
         log.check(exists(s2Page) && listView.items.map(\.name) == ["001.png", "002.png"], "C2.18 S2 ⌘Z 后文件回到原处")
         controller.run(.recycleEmpty)
-        await until("C2.18 弹出清空回收目录表单") { window.attachedSheet is EmptyRecycleBinsSheet }
-        guard let recycleSheet = window.attachedSheet as? EmptyRecycleBinsSheet else { return log.check(false, "C2.18 未弹出清空回收目录表单") }
+        guard let recycleSheet = await waitForSheet(EmptyRecycleBinsSheet.self, on: window, description: "C2.18 弹出清空回收目录表单") else { return }
         let rows = recycleSheet.items.map { "\($0.mountPath):\($0.batchCount)" }, ours = recycleSheet.items.firstIndex { URL(fileURLWithPath: $0.mountPath).standardized.path == netA.standardized.path }
         log.check(ours.map { recycleSheet.items[$0].batchCount } == 1, "C2.18 S2 清空回收目录列出网络卷 A（1 次删除）：\(rows)"); guard let ours else { return }
         for index in recycleSheet.items.indices where index != ours { await click(recycleSheet.rowButtons[index], in: recycleSheet) }   // 只清空测试卷
         await click(recycleSheet.emptyButton, in: recycleSheet)
-        await until("C2.18 弹出清空二次确认") { window.attachedSheet is PermanentDeleteSheet }
-        guard let confirm = window.attachedSheet as? PermanentDeleteSheet else { return log.check(false, "C2.18 未弹出二次确认表单") }
+        guard let confirm = await waitForSheet(PermanentDeleteSheet.self, on: window, description: "C2.18 弹出清空二次确认") else { return }
         await click(confirm.confirmButton, in: confirm)
-        await until("C2.18 清空网络卷 A 的回收目录") { window.attachedSheet == nil && !fileOps.isBusy && !self.exists(trash) }
+        await waitForSheetDismissed(on: window, description: "C2.18 清空网络卷 A 的回收目录") { !fileOps.isBusy && !self.exists(trash) }
         log.check(!exists(trash), "C2.18 S2 确认后网络卷 A 的回收目录已清空")
 
         // C2.19（S5）：经分类面板在网络卷 A 内移动 500 MB 文件。
@@ -1113,15 +1105,54 @@ final class FileOpsSelfTest {
         }
         try? await Task.sleep(for: .milliseconds(50))
     }
-    private func click(_ button: NSButton, in window: NSWindow) async {
-        window.makeKeyAndOrderFront(nil)
-        window.contentView?.layoutSubtreeIfNeeded()
-        let point = button.convert(NSPoint(x: button.bounds.midX, y: button.bounds.midY), to: nil)
-        func event(_ type: NSEvent.EventType) -> NSEvent {
-            NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+    private func waitForSheet<T: NSWindow>(_ type: T.Type, on window: NSWindow, description: String) async -> T? {
+        let requiresKey = TestPresentation.activationAllowed
+        await until(description) {
+            guard let sheet = window.attachedSheet as? T, sheet.isVisible else { return false }
+            return !requiresKey || NSApp.keyWindow === sheet
         }
-        NSApp.postEvent(event(.leftMouseUp), atStart: false); NSApp.sendEvent(event(.leftMouseDown))
-        try? await Task.sleep(for: .milliseconds(80))
+        guard let sheet = window.attachedSheet as? T, sheet.isVisible,
+              !requiresKey || NSApp.keyWindow === sheet else { return nil }
+        return sheet
+    }
+
+    private func waitForSheetDismissed(on window: NSWindow, description: String, extra: () -> Bool = { true }) async {
+        let requiresKey = TestPresentation.activationAllowed
+        await until(description) {
+            window.attachedSheet == nil && (!requiresKey || NSApp.keyWindow === window) && extra()
+        }
+    }
+
+    /// 点击按真实顺序进入应用事件队列，由主循环经 `NSApp.sendEvent` 分发，保持 `NSApp.currentEvent` 与按钮跟踪状态一致。
+    private func click(_ button: NSButton, in window: NSWindow) async {
+        if !window.isKeyWindow, window.canBecomeKey { window.makeKeyAndOrderFront(nil) }
+        if TestPresentation.activationAllowed, window.canBecomeKey, !window.isKeyWindow {
+            await until("点击目标窗口成为 key") { window.isKeyWindow }
+        }
+        window.contentView?.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+        let point = button.convert(NSPoint(x: button.bounds.midX, y: button.bounds.midY), to: nil)
+        nextEventNumber += 1
+        let number = nextEventNumber
+        let timestamp = ProcessInfo.processInfo.systemUptime
+        func event(_ type: NSEvent.EventType, offset: TimeInterval) -> NSEvent {
+            NSEvent.mouseEvent(
+                with: type, location: point, modifierFlags: [], timestamp: timestamp + offset,
+                windowNumber: window.windowNumber, context: nil, eventNumber: number,
+                clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1
+            )!
+        }
+        var dispatched = false
+        let monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+            MainActor.assumeIsolated {
+                if event.window === window, event.eventNumber == number { dispatched = true }
+            }
+            return event
+        }
+        defer { if let monitor { NSEvent.removeMonitor(monitor) } }
+        NSApp.postEvent(event(.leftMouseDown, offset: 0), atStart: false)
+        NSApp.postEvent(event(.leftMouseUp, offset: 0.005), atStart: false)
+        await until("按钮点击事件分发") { dispatched }
     }
 }
 
