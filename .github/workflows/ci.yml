@@ -56,27 +56,8 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: 隐私检查（含截图文字识别）
-        env:
-          EVENT: ${{ github.event_name }}
-          BEFORE: ${{ github.event.before }}
-          AFTER: ${{ github.event.after }}
-        run: |
-          if [ "$EVENT" = workflow_dispatch ]; then
-            args=(--all-history)
-          elif [[ "$AFTER" =~ ^0+$ ]]; then
-            exit 0
-          elif [[ "$BEFORE" =~ ^0+$ ]]; then
-            if [ "$GITHUB_REF" = refs/heads/main ]; then
-              args=(--all-history)
-            else
-              args=(--range "origin/main..$AFTER")
-            fi
-          else
-            args=(--range "$BEFORE..$AFTER")
-          fi
-          scripts/privacy-check "${args[@]}" --generic-only
-
+      # 截图文字识别在 GitHub macOS runner 上无法使用（2026-11-26 实测 66/67 张识别失败），
+      # 只放在本机推送前钩子里；CI 的隐私检查由上面的 privacy 作业（通用规则）负责。
       - name: 确认工具链
         run: |
           sw_vers
