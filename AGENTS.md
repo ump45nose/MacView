@@ -53,7 +53,7 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 | `make project` | 用 XcodeGen 从 `project.yml` 生成 `MacView.xcodeproj`（不入库） |
 | `make build`、`make run` | 构建、运行 App；`build` 每次先重新生成工程 |
 | `make test` | 运行全部测试；`Fixtures/local/generated` 缺失时先生成，已存在时不重新生成 |
-| `make bench ARGS="…"` | 以 release 构建运行 mvbench，`ARGS` 原样传入，例如 `ARGS="env --path /Volumes/Picture"` |
+| `make bench ARGS="…"` | 以 release 构建运行 mvbench，`ARGS` 原样传入，例如 `ARGS="env --path /Volumes/Photos"` |
 
 - Swift 6 语言模式，完整并发检查，零警告。
 - 单元测试用 Swift Testing。
@@ -69,7 +69,7 @@ MacView 是对标 NeeView 的 macOS 原生图片浏览器（Swift 6 + AppKit）�
 
 ## NAS 与数据
 
-- NAS（nas.example）上的用户文件默认只读。写入只限于任务文档明确授权的测试目录，测完清理。
+- NAS 地址与可写测试目录见 `~/.config/macview/environment.json`（示例：`Fixtures/environment.example.json`）。用户文件默认只读。写入只限于任务文档明确授权的测试目录，测完清理。
 - 不修改 NAS 配置、系统网络配置和现有挂载。
 - 凭据不写入仓库、日志、报告或对话。
 - 不提交用户的图片；NAS 样本的本地副本放在 `Fixtures/local/`（不入库）。

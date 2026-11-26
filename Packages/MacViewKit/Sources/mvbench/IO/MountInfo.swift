@@ -5,7 +5,7 @@ import Foundation
 struct MountInfo: Sendable, Equatable {
     var mountPoint: String
     var fileSystem: String
-    /// 挂载来源，例如 `//user@nas.example/Picture`、`nas.example:/export`。
+    /// 挂载来源，例如 `//user@nas.example/Photos`、`nas.example:/export`。
     var source: String
 
     static func of(_ path: String) throws(SystemCallError) -> MountInfo {

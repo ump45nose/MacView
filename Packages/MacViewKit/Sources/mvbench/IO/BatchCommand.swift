@@ -7,7 +7,7 @@ struct BatchCommand: ParsableCommand {
         commandName: "batch",
         abstract: "在同一个进程里依次运行文件里的 io 子命令；smb2 的凭据只取一次。",
         discussion: """
-            命令文件每行一条，写成 JSON 字符串数组，例如 ["read", "--transport", "smb2", "--dir", "/Volumes/x"]。任一条失败即停止。
+            命令文件每行一条，写成 JSON 字符串数组，例如 ["read", "--transport", "smb2", "--dir", "/Volumes/Photos"]。任一条失败即停止。
             ["wait", 路径] 等到该文件出现再继续，用来先取得凭据、等网络空闲后再测量。
             """
     )

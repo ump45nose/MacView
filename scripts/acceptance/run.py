@@ -5,6 +5,7 @@
   python3 -I scripts/acceptance/run.py <场景…> [--out docs/reports/bench]
   python3 -I scripts/acceptance/run.py <场景…> --external-caffeinate
   python3 -I scripts/acceptance/run.py --check-verdicts
+  python3 -I scripts/acceptance/run.py nas-throughput --dry-run
   python3 -I scripts/acceptance/run.py --g2 build/DerivedData-profile/Build/Products/Debug/MacView.app
 
 --check-verdicts 不启动 App，只断言判定。滚动录制由 record-trackpad.sh 完成。
@@ -31,6 +32,39 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+ENVIRONMENT_FILE = Path.home() / ".config" / "macview" / "environment.json"
+ENVIRONMENT_VARIABLES = {
+    "nasHost": "MV_NAS_HOST", "nfsExport": "MV_NFS_EXPORT",
+    "smbRoot": "MV_SMB_ROOT", "sampleDirectory": "MV_SAMPLE_DIRECTORY",
+}
+
+
+def load_environment(path=ENVIRONMENT_FILE, environ=None):
+    """逐项读取本机配置并覆盖；缺失或空值表示未配置。"""
+    environ = os.environ if environ is None else environ
+    try:
+        config = json.loads(path.read_text())
+    except (OSError, ValueError):
+        config = {}
+    if not isinstance(config, dict):
+        config = {}
+    result = {}
+    for key, variable in ENVIRONMENT_VARIABLES.items():
+        value = environ.get(variable, config.get(key))
+        result[key] = value if isinstance(value, str) and value.strip() else None
+    roots = config.get("writableTestRoots")
+    result["writableTestRoots"] = roots if isinstance(roots, list) and all(isinstance(root, str) for root in roots) else []
+    return result
+
+
+def network_configuration_problem(config):
+    missing = [key for key in ENVIRONMENT_VARIABLES if config[key] is None]
+    if missing:
+        return "未配置：" + "、".join(missing)
+    return None
+
+
+ENVIRONMENT = load_environment()
 os.environ["TMPDIR"] = str(ROOT / "build" / "acceptance" / "tmp") + "/"
 Path(os.environ["TMPDIR"]).mkdir(parents=True, exist_ok=True)
 SAMPLE_LINK = ROOT / "Fixtures" / "local" / "sample-set"
@@ -41,12 +75,13 @@ HUGE_DIR = ROOT / "Fixtures" / "local" / "generated" / "image"
 DERIVED = ROOT / "build" / "DerivedData-profile"
 APP_BUNDLE = DERIVED / "Build" / "Products" / "Debug" / "MacView.app"
 APP_BINARY = APP_BUNDLE / "Contents" / "MacOS" / "MacView"
-NFS_HOST = "nas.example"
-# NAS 只开 NFS v4，导出没有 insecure，挂载要 resvport（root），由用户执行 sudo mount_nfs；脚本只复用已有挂载。
-NFS_EXPORT = "/export/Photos"
+NFS_HOST = ENVIRONMENT["nasHost"]
+# NFS 需要 resvport（root）时由用户执行 sudo mount_nfs；脚本只使用既有授权挂载目录。
+NFS_EXPORT = ENVIRONMENT["nfsExport"]
 NFS_MOUNT = Path.home() / "MacViewBench" / "nfs"
 NFS_FAULT = ROOT / "build" / "acceptance" / "nfs-fault-mount"
-SMB_ROOT = Path("/Volumes/Picture")
+SMB_ROOT = Path(ENVIRONMENT["smbRoot"]) if ENVIRONMENT["smbRoot"] else None
+SAMPLE_DIRECTORY = Path(ENVIRONMENT["sampleDirectory"]) if ENVIRONMENT["sampleDirectory"] else None
 FRAME_MS = 8.33
 SCROLL_FRAME_MS = 8.333  # canvas-hitches.py 将 120 Hz 的一个刷新间隔保留三位小数。
 MIN_SCROLL_FRAMES = 3000
@@ -87,7 +122,7 @@ IO_RE = re.compile(
 OTHER_IO_RE = re.compile(r"(?<![A-Za-z0-9_.])(?:open|openat|stat(?:64)?|lstat(?:64)?|fstat(?:64)?|statfs|fstatfs|getattrlist|getattrlistbulk|getdirentries|fsync|access)(?![A-Za-z0-9_])")
 C1_10_UNVERIFIED = {
     "verified": False,
-    "reason": "Picture 共享的 .gz 是改了扩展名的 RAR 或 7z，需求不做这些格式，不往 NAS 写样本",
+    "reason": "原验收样本中的 .gz 是改了扩展名的 RAR 或 7z，需求不做这些格式，不往 NAS 写样本",
 }
 
 BUDGETS = {
@@ -419,6 +454,13 @@ def clean_env():
 
 
 def check_verdicts():
+    sample_config = ROOT / "Fixtures" / "environment.example.json"
+    configured = load_environment(sample_config, {"MV_NAS_HOST": "localhost"})
+    if network_configuration_problem(configured) or configured["nasHost"] != "localhost" or configured["nfsExport"] != "/export/Photos":
+        raise SystemExit("check-verdicts 失败：本机配置逐项覆盖")
+    missing = load_environment(sample_config, dict.fromkeys(ENVIRONMENT_VARIABLES.values(), ""))
+    if not (network_configuration_problem(missing) or "").startswith("未配置"):
+        raise SystemExit("check-verdicts 失败：缺配置时未跳过网络场景")
     document = {"numbers": [1, -2.5, 1e-9], "mixed": [1, "[1,2]", None],
                 "nested": [[1, 2], [True, False]], "empty": []}
     formatted = format_report(document)
@@ -1399,8 +1441,9 @@ def mvbench_binary():
 
 def mvbench_env(paths):
     try:
+        host = ["--host", NFS_HOST] if NFS_HOST else []
         result = subprocess.run(
-            [str(mvbench_binary()), "env", "--host", NFS_HOST] + sum([["--path", path] for path in paths], []),
+            [str(mvbench_binary()), "env"] + host + sum([["--path", path] for path in paths], []),
             cwd=ROOT, check=True, capture_output=True, text=True,
         )
         return json.loads(result.stdout)
@@ -1830,7 +1873,9 @@ def find_samples(root):
     album = archive = None
     started = time.monotonic()
     seen = 0
-    bases = [root / "Set-A", root]
+    # 样本目录在 SMB 挂载下时，NFS 优先使用同一相对位置；否则仍从网络卷根目录查找。
+    preferred = root / SAMPLE_DIRECTORY.relative_to(SMB_ROOT) if SAMPLE_DIRECTORY.is_relative_to(SMB_ROOT) else root
+    bases = [preferred, root] if preferred != root else [root]
     for base in bases:
         if not base.is_dir():
             continue
@@ -1880,7 +1925,7 @@ def scene_nas_throughput():
             except (RuntimeError, OSError, json.JSONDecodeError) as exc:
                 measured["supplement"]["error"] = str(exc)
         else:
-            measured["supplement"]["error"] = "没有找到 /Volumes/Picture 上的 JPEG 目录"
+            measured["supplement"]["error"] = "没有找到 SMB 样本目录中的 JPEG 文件"
         return measured
     ratio, report = throughput(album)
     measured.update(album=album, thumbnailToRawRatio=ratio, samples=len(report.get("throughput") or []), throughput=report.get("throughput"))
@@ -2134,7 +2179,7 @@ def scene_cached_first_screen():
             if smb["ready"] is False:
                 measured.update(environment=True, reason="SMB 根冷填充退出后环境准入等待已耗尽")
         else:
-            supplement["error"] = "没有找到 /Volumes/Picture 上的 JPEG 目录"
+            supplement["error"] = "没有找到 SMB 样本目录中的 JPEG 文件"
         measured["supplement"] = supplement
         return first_screen_result(measured)
     remote = first_screen_samples(album, "cached-first-screen-nfs")
@@ -2310,7 +2355,7 @@ def scene_nas_fault():
             finally:
                 app.stop()
         else:
-            supplement["error"] = "没有找到 /Volumes/Picture 上的 JPEG 目录"
+            supplement["error"] = "没有找到 SMB 样本目录中的 JPEG 文件"
         return {"unavailable": True, "nfsError": error or "NFS 上没有找到 JPEG 目录", "supplement": supplement, "protocol": "nfs",
                 "admission": supplement.get("admission"), "environment": supplement.get("environment", False)}
     if mount_fstype(NFS_FAULT):
@@ -2991,6 +3036,10 @@ def gate_g2(accepted, out=Path("docs/reports/bench"), recordings=RECORDINGS):
 
 
 def run_scene(scene, out, commit, base_env):
+    if scene in NAS_SCENES and (problem := network_configuration_problem(ENVIRONMENT)):
+        print(f"{scene}: {problem}，跳过", flush=True)
+        write_report(out, scene, commit, {}, {"unavailable": True, "reason": problem}, "unverified")
+        return
     runner = {
         "first-image": scene_first_image,
         "preloaded-flip": scene_preloaded_flip,
@@ -3094,6 +3143,7 @@ def parse_args(argv):
     parser.add_argument("scenes", nargs="*", help="场景名；省略时跑全部场景")
     parser.add_argument("--out", default="docs/reports/bench")
     parser.add_argument("--check-verdicts", action="store_true")
+    parser.add_argument("--dry-run", action="store_true", help="只检查场景与环境配置是否齐全，不启动 App 或访问网络，不输出配置原文")
     parser.add_argument("--external-caffeinate", action="store_true",
                         help="沿用外部常亮；不创建 caffeinate，并传给嵌套录制脚本")
     parser.add_argument("--prepare-scroll", nargs=2, metavar=("SCENE", "SOCKET"))
@@ -3152,12 +3202,20 @@ def main(argv):
     # 保留显式请求的顺序；默认 NAS 在录制前，内存场景始终放在最后。
     scenes = ([scene for scene in requested if scene != "memory-30min"]
               + [scene for scene in requested if scene == "memory-30min"])
-    if os.environ.get("MV_ACCEPTANCE_EXTERNAL_CAFFEINATE") != "1":
+    problem = network_configuration_problem(ENVIRONMENT)
+    if args.dry_run:
+        for key in ENVIRONMENT_VARIABLES:
+            print(f"{key}: {'已配置' if ENVIRONMENT[key] else '未配置'}")
+        for scene in scenes:
+            print(f"{scene}: {problem + '，跳过' if scene in NAS_SCENES and problem else '可运行'}")
+        return 0
+    active = [scene for scene in scenes if scene not in NAS_SCENES or not problem]
+    if active and os.environ.get("MV_ACCEPTANCE_EXTERNAL_CAFFEINATE") != "1":
         subprocess.Popen(["caffeinate", "-d", "-w", str(os.getpid())])
-    if any(scene in FOREGROUND for scene in scenes):
+    if any(scene in FOREGROUND for scene in active):
         app_binary()  # 构建在环境准入之前完成，嵌套录制只复用已冻结的二进制。
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    base = sample_conditions()
+    base = sample_conditions() if active else {}
     for scene in scenes:
         run_scene(scene, args.out, commit, base)
     return 0

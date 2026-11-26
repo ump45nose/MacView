@@ -25,6 +25,15 @@ struct IOArgumentTests {
         #expect(posix.shapes == [ReadShape(concurrency: 1, chunk: 1 << 20), ReadShape(concurrency: 4, chunk: 1 << 20)])
     }
 
+    @Test func networkBenchCommandsAcceptConfigDefaults() throws {
+        let read = try #require(try IOCommand.parseAsRoot(["read", "--label", "t"]) as? ReadCommand)
+        let list = try #require(try IOCommand.parseAsRoot(["list", "--label", "t"]) as? ListCommand)
+        let probe = try #require(try IOCommand.parseAsRoot(["probe", "--label", "t"]) as? ProbeCommand)
+        #expect(read.directories.isEmpty)
+        #expect(list.directories.isEmpty)
+        #expect(probe.directories.isEmpty)
+    }
+
     @Test func batchRejectsNestedBatch() throws {
         let file = NSTemporaryDirectory() + "mvbench-batch-" + UUID().uuidString
         defer { try? FileManager.default.removeItem(atPath: file) }
@@ -35,39 +44,43 @@ struct IOArgumentTests {
 
     @Test(arguments: [
         ("/x/[Studio] 2022.06.10 No.5133 Someone[85P]", "No.5133"),
-        ("/x/[STUDIO]2022.06.21 VOL.5171 Someone", "No.5171"),
+        ("/x/[Studio]2022.06.21 VOL.5171 Someone", "No.5171"),
         ("/x/[Studio]2022.12.14 NO.5995 Someone[88+1P／584MB]", "No.5995"),
-        ("/Volumes/Picture/Samples/Set-A/5001-6000", "5001-6000"),
+        ("/Volumes/Photos/Samples/Set-A/5001-6000", "5001-6000"),
     ])
     func sampleNamesKeepOnlyAlbumNumbers(path: String, name: String) {
         #expect(SampleDirectory.anonymizedName(path) == name)
     }
 
     @Test func samplePathsKeepOnlyAlbumNumbers() {
-        #expect(SampleDirectory.anonymizedPath("/Volumes/Picture/Samples/Set-A/5001-6000/[Studio] 2022.06.10 No.5133 Someone[85P]")
-            == "/Volumes/Picture/Samples/Set-A/5001-6000/No.5133")
-        #expect(SampleDirectory.anonymizedPath("/Volumes/Picture/Samples/Set-A/5001-6000") == "/Volumes/Picture/Samples/Set-A/5001-6000")
+        #expect(SampleDirectory.anonymizedPath("/Volumes/Photos/[Other] No.14 Name/Archive VOL. 007/cover.jpg")
+            == "/Volumes/Photos/No.14/No.007/cover.jpg")
+        #expect(SampleDirectory.anonymizedPath("relative//plain-name/") == "relative//plain-name/")
+        #expect(SampleDirectory.anonymizedPath("/Volumes/Photos/Samples/Set-A/5001-6000/[Studio] 2022.06.10 No.5133 Someone[85P]")
+            == "/Volumes/Photos/Samples/Set-A/5001-6000/No.5133")
+        #expect(SampleDirectory.anonymizedPath("/Volumes/Photos/Samples/Set-A/5001-6000") == "/Volumes/Photos/Samples/Set-A/5001-6000")
     }
 }
 
 struct MountSourceTests {
     @Test func smbSourceSplitsUserServerAndShare() {
-        #expect(SMBShare.parse(source: "//yuwk@nas.example/Picture") == SMBShare(server: "nas.example", share: "Picture", user: "yuwk"))
+        #expect(SMBShare.parse(source: "//user@nas.example/Photos") == SMBShare(server: "nas.example", share: "Photos", user: "user"))
         #expect(SMBShare.parse(source: "//nas.example/My%20Share") == SMBShare(server: "nas.example", share: "My Share", user: nil))
-        #expect(SMBShare.parse(source: "//nas.local") == nil)
+        #expect(SMBShare.parse(source: "//nas.example") == nil)
         #expect(SMBShare.parse(source: "nas.example:/fs") == nil)
     }
 
     @Test func nfsSourceSplitsServerAndExport() {
         #expect(NFSExport.parse(source: "nas.example:/export") == NFSExport(server: "nas.example", path: "/export"))
-        #expect(NFSExport.parse(source: "//nas.example/Picture") == nil)
+        #expect(NFSExport.parse(source: "nas.example:/export/Photos") == NFSExport(server: "nas.example", path: "/export/Photos"))
+        #expect(NFSExport.parse(source: "//nas.example/Photos") == nil)
     }
 
     @Test func relativePathIsMeasuredFromMountPoint() throws {
-        let mount = MountInfo(mountPoint: "/Volumes/Picture", fileSystem: "smbfs", source: "//nas.example/Picture")
-        #expect(try mount.relativePath(of: "/Volumes/Picture/Samples/Set-A") == "YY/Set-A")
-        #expect(try mount.relativePath(of: "/Volumes/Picture") == "")
-        #expect(throws: ValidationFailure.self) { try mount.relativePath(of: "/Volumes/PictureX") }
+        let mount = MountInfo(mountPoint: "/Volumes/Photos", fileSystem: "smbfs", source: "//nas.example/Photos")
+        #expect(try mount.relativePath(of: "/Volumes/Photos/Samples/Set-A") == "Samples/Set-A")
+        #expect(try mount.relativePath(of: "/Volumes/Photos") == "")
+        #expect(throws: ValidationFailure.self) { try mount.relativePath(of: mount.mountPoint + "X") }
     }
 }
 

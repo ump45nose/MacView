@@ -12,8 +12,8 @@ struct ListCommand: ParsableCommand {
     @OptionGroup var report: ReportOptions
     @OptionGroup var access: TransportOptions
 
-    @Option(name: .customLong("dir"), help: "要列的目录（系统挂载下的路径），可重复。")
-    var directories: [String]
+    @Option(name: .customLong("dir"), help: "要列的目录（系统挂载下的路径），可重复；省略时使用本机环境配置。")
+    var directories: [String] = []
 
     @Option(parsing: .upToNextOption, help: "列法：bulk（getattrlistbulk）、readdir（readdir + lstat）；smb2 方式下固定为 smb2。")
     var method: [ListMethod] = [.bulk, .readdir]
@@ -25,6 +25,7 @@ struct ListCommand: ParsableCommand {
     var timeout: Double = 10
 
     func run() throws {
+        let directories = try LocalEnvironment.load().sampleDirectories(explicit: directories)
         let backend = try makeBackend(access, noCache: true)
         let methods = access.transport == .smb2 ? [ListMethod.smb2] : method
         var attempts: [String: [ListAttempt]] = [:]

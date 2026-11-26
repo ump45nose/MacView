@@ -32,7 +32,7 @@ test:
 	swift test --package-path $(PACKAGE) --disable-xctest $(SWIFT_STRINGS) $(TEST_ARGS)
 	python3 scripts/check-core-strings.py $(CORE_STRINGS) App/Resources/Localizable.xcstrings
 
-# 用法：make bench ARGS="env --path /Volumes/Picture"
+# 用法：make bench ARGS="env --path /Volumes/Photos"
 bench:
 	swift run -c release --package-path $(PACKAGE) mvbench $(ARGS)
 

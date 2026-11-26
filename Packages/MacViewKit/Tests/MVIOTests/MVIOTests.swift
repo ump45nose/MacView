@@ -14,9 +14,10 @@ import Testing
 // MARK: 挂载与位置
 
 @Test func networkRootsComeFromTheMountSource() {
-    #expect(VolumeTable.root(fileSystem: "smbfs", source: "//yuwk@nas.example/Picture") == .network(scheme: "smb", host: "nas.example", share: "Picture"))
-    #expect(VolumeTable.root(fileSystem: "smbfs", source: "//WORK;me@NAS.local/My%20Share") == .network(scheme: "smb", host: "nas.local", share: "My Share"))
+    #expect(VolumeTable.root(fileSystem: "smbfs", source: "//user@nas.example/Photos") == .network(scheme: "smb", host: "nas.example", share: "Photos"))
+    #expect(VolumeTable.root(fileSystem: "smbfs", source: "//WORK;me@NAS.example/My%20Share") == .network(scheme: "smb", host: "nas.example", share: "My Share"))
     #expect(VolumeTable.root(fileSystem: "nfs", source: "nas.example:/export") == .network(scheme: "nfs", host: "nas.example", share: "export"))
+    #expect(VolumeTable.root(fileSystem: "nfs", source: "nas.example:/export/Photos") == .network(scheme: "nfs", host: "nas.example", share: "export/Photos"))
     #expect(VolumeTable.root(fileSystem: "apfs", source: "/dev/disk3s1") == nil)
     let root = Location.Root.network(scheme: "nfs", host: "nas.example", share: "export")
     #expect(root.mountURL?.absoluteString == "nfs://nas.example/export")
@@ -24,10 +25,10 @@ import Testing
 }
 
 @Test func volumePathsRoundTrip() {
-    let network = Volume(mountPoint: "/Volumes/Picture", fileSystem: "smbfs", root: .network(scheme: "smb", host: "h", share: "Picture"), isLocal: false)
-    #expect(network.components(ofPath: "/Volumes/Picture/Samples/a.jpg") == ["YY", "a.jpg"])
-    #expect(network.path(of: ["YY", "a.jpg"]) == "/Volumes/Picture/Samples/a.jpg")
-    #expect(network.path(of: []) == "/Volumes/Picture")
+    let network = Volume(mountPoint: "/Volumes/Photos", fileSystem: "smbfs", root: .network(scheme: "smb", host: "h", share: "Photos"), isLocal: false)
+    #expect(network.components(ofPath: "/Volumes/Photos/Samples/a.jpg") == ["YY", "a.jpg"])
+    #expect(network.path(of: ["YY", "a.jpg"]) == "/Volumes/Photos/Samples/a.jpg")
+    #expect(network.path(of: []) == "/Volumes/Photos")
     let local = Volume(mountPoint: "/", fileSystem: "apfs", root: .local, isLocal: true)
     #expect(local.components(ofPath: "/Users/me/a.jpg") == ["Users", "me", "a.jpg"])
     #expect(local.path(of: ["Users", "me"]) == "/Users/me")
@@ -56,10 +57,10 @@ import Testing
 @Test func helperMessagesRoundTrip() throws {
     let attributes = FileAttributes(name: "页 1.jpg", type: .regular, size: 12_345, modificationNanos: 1_700_000_000_123_456_789, creationNanos: nil)
     let requests: [HelperRequest] = [
-        .stat(path: "/Volumes/Picture/页.jpg"),
+        .stat(path: "/Volumes/Photos/页.jpg"),
         .read(ReadRequest(path: "/a", offset: 4 << 20, length: 1 << 20, expectedSize: 9, expectedModificationNanos: nil, noCache: true, retryByReopening: false)),
         .list(path: "/b"),
-        .probe(mountPoint: "/Volumes/Picture"),
+        .probe(mountPoint: "/Volumes/Photos"),
         .cancel(id: 7),
     ]
     for request in requests {
@@ -332,7 +333,7 @@ import Testing
 
 @Test func networkVolumesUseTheHelper() {
     let scheduler = IOScheduler(configuration: IOConfiguration(helperExecutable: helperExecutable))
-    #expect(scheduler.backend(for: Volume(mountPoint: "/Volumes/P", fileSystem: "nfs", root: .local, isLocal: false)) is HelperBackend)
+    #expect(scheduler.backend(for: Volume(mountPoint: "/Volumes/Mock", fileSystem: "nfs", root: .local, isLocal: false)) is HelperBackend)
     #expect(scheduler.backend(for: Volume(mountPoint: "/", fileSystem: "apfs", root: .local, isLocal: true)) is DirectBackend)
 }
 

@@ -15,8 +15,8 @@ struct ProbeCommand: ParsableCommand {
     @OptionGroup var report: ReportOptions
     @OptionGroup var access: TransportOptions
 
-    @Option(name: .customLong("dir"), help: "样本目录（系统挂载下的路径），可重复。")
-    var directories: [String]
+    @Option(name: .customLong("dir"), help: "样本目录（系统挂载下的路径），可重复；省略时使用本机环境配置。")
+    var directories: [String] = []
 
     @Option(help: "每个目录最多取的文件数。")
     var limit: Int?
@@ -31,6 +31,7 @@ struct ProbeCommand: ParsableCommand {
     var useCache = false
 
     func run() throws {
+        let directories = try LocalEnvironment.load().sampleDirectories(explicit: directories)
         let backend = try makeBackend(access, noCache: !useCache)
         let samples = try directories.map { (path: $0, files: try backend.files(in: $0, limit: limit)) }
         let files = samples.flatMap(\.files)

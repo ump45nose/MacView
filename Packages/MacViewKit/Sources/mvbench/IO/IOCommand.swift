@@ -119,12 +119,12 @@ struct SampleDirectory: Codable, Sendable {
         bytes = files.reduce(0) { $0 + $1.size }
     }
 
-    /// 图集目录名含有模特姓名，结果里只记编号，例如 `[Studio] 2022.06.10 No.5133 …` → `No.5133`。
+    /// 含编号的目录名只保留编号，例如 `[Studio] 2022.06.10 No.5133 …` → `No.5133`。
     static func anonymizedName(_ path: String) -> String {
         albumNumber((path as NSString).lastPathComponent)
     }
 
-    /// 路径里的每一级图集目录都只记编号。
+    /// 每一级目录独立处理：只保留 No./NO./VOL. 后的数字，其余普通路径段原样保留。
     static func anonymizedPath(_ path: String) -> String {
         path.split(separator: "/", omittingEmptySubsequences: false).map { albumNumber(String($0)) }.joined(separator: "/")
     }

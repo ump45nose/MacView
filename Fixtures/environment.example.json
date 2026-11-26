@@ -1,0 +1,7 @@
+{
+  "nasHost": "nas.example",
+  "nfsExport": "/export/Photos",
+  "smbRoot": "/Volumes/Photos",
+  "sampleDirectory": "/Volumes/Photos/Samples/Set-A",
+  "writableTestRoots": []
+}
