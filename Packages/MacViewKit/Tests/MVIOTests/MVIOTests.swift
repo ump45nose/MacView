@@ -26,8 +26,8 @@ import Testing
 
 @Test func volumePathsRoundTrip() {
     let network = Volume(mountPoint: "/Volumes/Photos", fileSystem: "smbfs", root: .network(scheme: "smb", host: "h", share: "Photos"), isLocal: false)
-    #expect(network.components(ofPath: "/Volumes/Photos/Samples/a.jpg") == ["YY", "a.jpg"])
-    #expect(network.path(of: ["YY", "a.jpg"]) == "/Volumes/Photos/Samples/a.jpg")
+    #expect(network.components(ofPath: "/Volumes/Photos/Samples/a.jpg") == ["Samples", "a.jpg"])
+    #expect(network.path(of: ["Samples", "a.jpg"]) == "/Volumes/Photos/Samples/a.jpg")
     #expect(network.path(of: []) == "/Volumes/Photos")
     let local = Volume(mountPoint: "/", fileSystem: "apfs", root: .local, isLocal: true)
     #expect(local.components(ofPath: "/Users/me/a.jpg") == ["Users", "me", "a.jpg"])
