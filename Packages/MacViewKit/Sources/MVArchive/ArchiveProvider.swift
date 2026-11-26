@@ -202,8 +202,7 @@ public final class ArchiveProvider: ContainerProvider {
             }
             try archiveCheckCancellation()
             try await output.synchronize()
-            let name = source.identity.location.name as NSString
-            return try await extracts.install(temporary, key: key, size: source.identity.size, pathExtension: name.pathExtension)
+            return try await extracts.install(temporary, key: key, size: source.identity.size, fileName: source.identity.location.name)
         } catch {
             try? await ExtractIO.run { try FileManager.default.removeItem(at: temporary) }
             throw error

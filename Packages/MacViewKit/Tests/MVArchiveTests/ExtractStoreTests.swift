@@ -69,6 +69,32 @@ struct ExtractStoreStartupTests {
         // 旧目录的 30 字节不能计入新实例的 20 字节预算。
         #expect(store.acquire("first") != nil)
         #expect(store.acquire("second") != nil)
-        #expect(Set(try FileManager.default.contentsOfDirectory(at: extract, includingPropertiesForKeys: nil)) == Set([first, second]))
+        #expect(Set(try FileManager.default.contentsOfDirectory(at: extract, includingPropertiesForKeys: nil)) == Set([first, second].map { $0.deletingLastPathComponent() }))
+    }
+
+    @Test("同名归档条目保留原名并在淘汰时删除各自目录")
+    func originalNamesAndEviction() async throws {
+        let directory = Fixtures.root.deletingLastPathComponent().appending(path: "build/extract-names-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try ExtractStore(directory: directory.appending(path: "extract"), budget: 1)
+        let name = "图 像 #1 & [a].jpg"
+        func put(_ key: String, _ byte: UInt8) async throws -> ExtractLease {
+            let temporary = store.temporaryURL()
+            try Data([byte]).write(to: temporary)
+            return try await store.install(temporary, key: key, size: 1, fileName: name)
+        }
+        var first: ExtractLease? = try await put("archive-1", 1)
+        let second = try await put("archive-2", 2)
+        let firstURL = try #require(first?.url)
+        #expect(firstURL.lastPathComponent == name)
+        #expect(second.url.lastPathComponent == name)
+        #expect(firstURL != second.url)
+        #expect(try Data(contentsOf: firstURL) == Data([1]))
+        #expect(try Data(contentsOf: second.url) == Data([2]))
+        #expect(store.acquire("archive-2")?.url == second.url)
+        first = nil
+        await ExtractIO.drain()
+        #expect(!FileManager.default.fileExists(atPath: firstURL.deletingLastPathComponent().path))
+        #expect(FileManager.default.fileExists(atPath: second.url.path))
     }
 }

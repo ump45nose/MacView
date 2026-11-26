@@ -58,6 +58,24 @@ struct ArchiveFixtureTests {
         #expect(Int64(data.count) == (try await provider.entry(at: item)).identity.size)
     }
 
+    @Test("不同归档的同名条目以原名分别解出")
+    func sameNameFromDifferentArchives() async throws {
+        let environment = try ArchiveEnvironment()
+        defer { environment.clean() }
+        let stored = try await environment.registry.location(for: Fixtures.url("archive/zip/stored.zip"))
+        let deflate = try await environment.registry.location(for: Fixtures.url("archive/zip/deflate.zip"))
+        let firstItem = stored.appendingLayer(["001.jpg"])
+        let secondItem = deflate.appendingLayer(["chapter", "001.jpg"])
+        let first = try await environment.provider.fileLease(for: firstItem)
+        let second = try await environment.provider.fileLease(for: secondItem)
+        #expect(first.url.lastPathComponent == "001.jpg" && second.url.lastPathComponent == "001.jpg")
+        #expect(first.url != second.url)
+        for (item, lease) in [(firstItem, first), (secondItem, second)] {
+            let source = try await environment.provider.open(item)
+            #expect(try Data(contentsOf: lease.url) == (try await source.read(0..<source.identity.size, priority: .visible, group: nil)))
+        }
+    }
+
     @Test("stored 的端到端来源读取量不超过条目加 64 KB")
     func storedReadBudget() async throws {
         let backend = RecordingBackend()

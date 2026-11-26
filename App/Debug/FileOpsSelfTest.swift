@@ -1010,7 +1010,14 @@ final class FileOpsSelfTest {
             let origin = controller.fileOrigin(), extractedBefore = (try? fm.contentsOfDirectory(atPath: extractDir.path)) ?? []
             let revealed = origin.items.first.map { FileOperationController.outerFileLocation(of: $0.location) }, expected = try await services.sources.location(for: url == s9Zip ? s9Zip : s6Target.appending(path: "002.png"))
             await fileOps.revealInFinder(origin: origin); fileOps.openWithApplication(preview, origin: origin)
-            await until("C2.21 预览打开 \(url.lastPathComponent)") { !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Preview").isEmpty && (url != s9Zip || ((try? self.fm.contentsOfDirectory(atPath: extractDir.path)) ?? []).count > extractedBefore.count) }
+            await until("C2.21 预览打开 \(url.lastPathComponent)") {
+                let extractedAfter = (try? self.fm.contentsOfDirectory(atPath: extractDir.path)) ?? []
+                let newDirectories = Set(extractedAfter).subtracting(extractedBefore)
+                let originalNameExists = newDirectories.contains { name in
+                    self.fm.fileExists(atPath: extractDir.appending(path: name).appending(path: "002.png").path)
+                }
+                return !NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Preview").isEmpty && (url != s9Zip || originalNameExists)
+            }
             log.check(revealed == expected, "C2.21 S9 \(url == s9Zip ? "压缩包内的页定位到所在压缩包并解出后交给预览" : "普通页定位到 002.png 并交给预览")（Finder 选中与预览窗口由用户目视确认）")
         }
         if !previewWasRunning { NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Preview").forEach { $0.terminate() } }

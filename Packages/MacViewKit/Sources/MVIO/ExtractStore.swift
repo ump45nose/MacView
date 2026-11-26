@@ -59,13 +59,22 @@ public final class ExtractStore: Sendable {
     }
 
     /// `pathExtension` 给按扩展名认格式的读者用（AVFoundation）。
-    public func install(_ temporary: URL, key: String, size: Int64, pathExtension: String = "") async throws -> ExtractLease {
-        let destination = directory.appending(path: UUID().uuidString + "." + (pathExtension.isEmpty ? "extract" : pathExtension))
-        try await ExtractIO.run { try FileManager.default.moveItem(at: temporary, to: destination) }
+    public func install(_ temporary: URL, key: String, size: Int64, pathExtension: String = "", fileName: String? = nil) async throws -> ExtractLease {
+        let name = fileName ?? (UUID().uuidString + "." + (pathExtension.isEmpty ? "extract" : pathExtension))
+        guard !name.isEmpty, name != ".", name != "..", !name.contains("/") else {
+            throw CocoaError(.fileWriteInvalidFileName)
+        }
+        let itemDirectory = directory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let destination = itemDirectory.appending(path: name, directoryHint: .notDirectory)
+        try await ExtractIO.run {
+            try FileManager.default.createDirectory(at: itemDirectory, withIntermediateDirectories: false)
+            do { try FileManager.default.moveItem(at: temporary, to: destination) }
+            catch { try? FileManager.default.removeItem(at: itemDirectory); throw error }
+        }
         let result = state.withLock { state in
             // 同一条目的并发解出只留下一个文件，各调用方仍有自己的租约。
             if var item = state.items[key] {
-                ExtractIO.remove([destination])
+                ExtractIO.remove([itemDirectory])
                 state.clock &+= 1
                 item.access = state.clock
                 item.users += 1
@@ -95,7 +104,7 @@ public final class ExtractStore: Sendable {
             guard let key = state.items.filter({ $0.value.users == 0 }).min(by: { $0.value.access < $1.value.access })?.key,
                   let item = state.items.removeValue(forKey: key) else { return }
             // 仅清理本实例生成的缓存文件。删除失败在下次启动清空时再次处理。
-            ExtractIO.remove([item.url])
+            ExtractIO.remove([item.url.deletingLastPathComponent()])
             state.cost -= item.size
         }
     }
