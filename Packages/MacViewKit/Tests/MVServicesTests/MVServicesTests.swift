@@ -1567,13 +1567,20 @@ private struct ServiceFixture {
         try FileManager.default.copyItem(at: Fixtures.url("archive/tar/book.tar.gz"), to: tarGzip)
     }
 
+    /// 共享的 CI runner 上并行的测试会突然抢走 CPU，单次 `CoreServices.make` 偶发超过 200 ms
+    /// （2026-11-26 的 macOS runner 就出现过）。本机仍按 200 ms 卡启动开销，CI 上放宽到 1 s，
+    /// 只拦真正的启动退化。
+    private static var makeBudget: Duration {
+        ProcessInfo.processInfo.environment["CI"] == nil ? .milliseconds(200) : .seconds(1)
+    }
+
     @MainActor func make(helper: URL? = nil) async throws -> CoreServices {
         var config = configuration
         config.helperExecutable = helper
         let start = ContinuousClock.now
         let services = try await CoreServices.make(configuration: config)
         let elapsed = start.duration(to: .now)
-        #expect(elapsed <= .milliseconds(200), "make 用时 \(elapsed)")
+        #expect(elapsed <= Self.makeBudget, "make 用时 \(elapsed)")
         print("S1-T8 make \(elapsed)")
         return services
     }
