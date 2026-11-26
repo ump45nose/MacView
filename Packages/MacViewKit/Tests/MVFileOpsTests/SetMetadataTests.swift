@@ -79,7 +79,8 @@ struct SetMetadataTests {
 
     @Test("C1.10 NFS 测试目录约 20 MB JPEG 先缓存描述符再写评分，无临时文件与 .nfs.*")
     func nfsLargeJPEGWriteWithoutSillyRename() async throws {
-        let nfsBase = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("MacViewBench/fileops-a", isDirectory: true)
+        let nfsBase = ProcessInfo.processInfo.environment["MV_TEST_NFS_ROOT"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("MacViewBench/fileops-a", isDirectory: true)
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: nfsBase.path, isDirectory: &isDir),
               isDir.boolValue,

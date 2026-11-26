@@ -119,7 +119,8 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
 - 优先级：visible > near > book > adjacent > background。请求带 `IORequestGroup`，预取计划变更时可以整批取消或重排。
 - 取消：排队中的请求直接移除；执行中的读取按 4 MB 分块，在块与块之间检查取消。
 - 超时与卷健康：
-  - 每次调用都有期限，默认 9 秒，不短于 5 秒。硬挂载在故障期间一直阻塞、不报错，所以期限是唯一的超时来源。
+  - 调用的无进展期限默认 7.5 秒，不短于 5 秒。硬挂载在故障期间一直阻塞、不报错，所以期限是唯一的超时来源。一次用户文件操作（包括评分和标签）从请求开始共用同一请求组及期限，排队也计时；一个卷超时后，该组在该卷后续请求立即返回同一个 `.timeout`。目标是在受控网络故障下，操作开始至 App 收到错误不超过 8.5 秒，给显示留出余量。
+  - 分批枚举每收到一批、文件操作中分块读写每完成至少 1 MiB 时刷新操作组的无进展计时；单次调用仍受无进展期限约束。因而健康的大文件连续传输可以超过总期限，故障不再让每个步骤各等一次。
   - 超时后向调用方抛出 `.timeout`。底层被卡住的调用仍占着槽位，计为 stuck。
   - stuck 或超时次数超过阈值时，卷标为 degraded：新请求立即失败，只保留定期的健康探测，探测成功即恢复。
   - 卷状态以流的形式提供给界面显示；具体调度器和注册表另提供当前快照，调试接口据此读取当下的在途计数，不依赖流的发布时机。
@@ -136,6 +137,7 @@ NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/
   - 辅助进程按路径缓存最多 32 个只读描述符，免得网络卷上每读一块都重新打开。读写同一个辅助进程；执行改名（源路径及覆盖目标路径）、删除、移入废纸篓前，先释放该路径及其下所有路径的缓存描述符，操作期间不让并发读取重新缓存。否则 NFS 会把仍打开的文件改名为 `.nfs.*` 保留，目录删不掉（S3 阶段 2b / S3-T3）。
 - 文件写入与移动（S3-T2）：创建、写入、完成、改名、建目录、删除和本机废纸篓经调度器及现有期限；网络卷由辅助进程执行。排他改名在 NFS 返回 ENOTSUP/EINVAL 时回退普通改名，存在检查与改名之间的竞态。
 - 同一进程中网络删除因超时、卷降级或不可用而重试时，先等该卷超时调用结束及已弃用辅助进程实际退出，再探测卷；等待可取消。每次 `perform` 使用新请求组，探测成功后才执行新一轮。若旧的回收改名超时，服务在内存保留它的目标：重试核对源和该目标，源已消失且目标存在时按已完成登记变更和撤销；源存在且目标不存在时重新删除；其他组合不覆盖数据。该对账状态只在本进程内保存。
+- 评分和标签写入的临时文件清理若遇超时等错误，在内存记住临时位置；重试时先等旧调用和弃用的辅助进程结束、探测卷，再清理旧临时文件。操作已超时的卷不为同步清理再发起新调用。
 - 跨卷移动先原子写入本机传输记录，记录源、目标、临时位置和冲突策略；临时名为 `.<原名>.<完整传输 ID（32 位十六进制）>.macview-part`，排他创建遇到重名时先删除记录再报错，删除记录失败也报错。复制逐文件读回 SHA-256，排他发布后删除源；复制操作也使用带 ID 的临时名，但不写移动记录。创建后的失败和取消会清理临时项，清理失败时保留移动记录供恢复。
 - 组合根启动时恢复中断的移动：临时项存在时删除后重做；没有临时项且目标、源均存在时，逐项比较类型、大小和 SHA-256，匹配才删除源；不匹配或其他读取错误时保留源并按记录中的冲突策略重做，卷不可用、降级、超时和取消则等待。临时项和源均不存在、目标存在时，删除记录并计入 completed；三者均不存在时，删除记录并计入 failed。该功能尚未发布，不保留旧式临时项迁移逻辑。
 - 恢复遇到卷不可用、降级、超时或取消时保留记录，逐项报告源、目标、所处阶段和原因；界面列出等待原因。恢复不会因卷重新挂载自动再跑，由下次启动重新触发，与普通文件操作共用串行门。
@@ -445,7 +447,7 @@ public enum NameOrder { public static func compare(_ lhs: String, _ rhs: String)
 
 // MVIO
 public enum IOPriority: Int, Sendable, Comparable { case visible, near, book, adjacent, background }   // 按声明顺序，visible 最高
-public struct IORequestGroup: Hashable, Sendable { public let id: UUID }
+public struct IORequestGroup: Hashable, Sendable { public let id: UUID; public init(id: UUID = UUID(), operation: Bool = false) } // operation 为 true 时启用操作级无进展期限
 public protocol ByteSource: Sendable {
     var identity: ContentIdentity { get }
     func read(_ range: Range<Int64>, priority: IOPriority, group: IORequestGroup?) async throws -> Data
@@ -506,7 +508,7 @@ public final class ExtractStore: Sendable {
     public init(directory: URL, budget: Int64 = 10 << 30) throws
     public func temporaryURL() -> URL
     public func acquire(_ key: String) -> ExtractLease?
-    public func install(_ temporary: URL, key: String, size: Int64, pathExtension: String = "") async throws -> ExtractLease
+    public func install(_ temporary: URL, key: String, size: Int64, pathExtension: String = "", fileName: String? = nil) async throws -> ExtractLease // UUID 子目录隔离同名文件；传入原名时供外部应用显示
 }   // 启动轮换目录并在后台回收旧内容；组合根建一份共享实例给 ArchiveProvider 与 PluginSourceProvider
 public final class ExtractLease: Sendable { public let url: URL; public let size: Int64 }
 
@@ -937,7 +939,7 @@ public struct IndexProgress: Sendable, Hashable {
 }
 public final class FolderIndexer: Sendable {
     public init(sources: any SourceRegistry, directories: DirectoryCache, metadata: MetadataIndex)
-    public func index(_ folder: Location) -> AsyncThrowingStream<IndexProgress, any Error>   // 两步索引（递归枚举 + 低优先级增量探测）；取消即停；同卷串行排队；卷降级时整步报错、已写入部分保留
+    public func index(_ folder: Location) -> AsyncThrowingStream<IndexProgress, any Error>   // 两步索引（递归枚举 + 低优先级增量探测）；枚举每批更新已发现计数，当前目录在枚举完成后写缓存；取消即停；同卷串行排队；超时或卷降级时整步报错、已写入部分保留
 }
 
 // MVScripting

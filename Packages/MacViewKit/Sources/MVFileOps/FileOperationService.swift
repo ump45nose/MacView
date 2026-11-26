@@ -35,6 +35,8 @@ public final class FileOperationService: Sendable {
     private let prepareRetry: @Sendable (Location) async throws -> Void
     private let pendingRecycle = Mutex<[Location: Location]>([:])
     private let pendingRetry = Mutex<Set<Location>>([])
+    private let pendingMetadataCleanup = Mutex<[Location: Location]>([:])
+    private let pendingMetadataRetry = Mutex<Set<Location>>([])
     private let observers = Mutex<[UUID: AsyncStream<[FileChange]>.Continuation]>([:])
     private let stepDelay = Mutex<Duration?>(nil)
 
@@ -63,8 +65,9 @@ public final class FileOperationService: Sendable {
         }
     }
     public func perform(_ operation: FileOperation, progress: (@Sendable (FileProgress) -> Void)? = nil) async -> FileOperationResult {
+        let group = IORequestGroup(operation: true)
         await gate.acquire()
-        let result = await FileIORequestContext.$group.withValue(IORequestGroup()) {
+        let result = await FileIORequestContext.$group.withValue(group) {
             Task.isCancelled ? FileOperationResult() : await execute(operation, progress: progress)
         }
         if !result.changes.isEmpty { observers.withLock { $0.values.forEach { $0.yield(result.changes) } } }
@@ -295,8 +298,34 @@ public final class FileOperationService: Sendable {
             if !result.failures.isEmpty { result.retry = .removeEmptyDirectory(location) }
             return result
         case let .setMetadata(locations, fields):
-            var result = await batch(locations, measureTree: false, progress: progress) { entry, type, context in
+            var prior = Outcome()
+            var remaining: [Location] = []
+            for location in locations {
+                guard pendingMetadataRetry.withLock({ $0.contains(location) }) else { remaining.append(location); continue }
+                do {
+                    try await prepareRetry(location)
+                    if let temporary = pendingMetadataCleanup.withLock({ $0[location] }) {
+                        do { try await removeTemporary(temporary) }
+                        catch IOError.notFound {}
+                        pendingMetadataCleanup.withLock { $0[location] = nil }
+                    }
+                    pendingMetadataRetry.withLock { _ = $0.remove(location) }
+                    remaining.append(location)
+                } catch { prior.failures.append(FileFailure(location: location, error: error)) }
+            }
+            let processed = prior.failures.count
+            let partial = await batch(remaining, measureTree: false, progress: { state in
+                var state = state
+                state.totalItems = locations.count
+                state.completedItems += processed
+                progress?(state)
+            }) { entry, type, context in
                 try await self.rewriteMetadata(entry: entry, type: type, fields: fields, progress: context.advance)
+            }
+            prior.merge(partial)
+            var result = prior.result
+            for failure in result.failures where Self.isRetryableIO(failure.error) {
+                pendingMetadataRetry.withLock { _ = $0.insert(failure.location) }
             }
             if !result.failures.isEmpty { result.retry = .setMetadata(result.failures.map(\.location), fields) }
             return result
@@ -454,7 +483,8 @@ public final class FileOperationService: Sendable {
         guard try await exists(record.temporary) == nil else { return nil }
         guard let target = try await exists(record.target) else { throw IOError.notFound(record.target) }
         try await verifyRecoverySource(entry, in: target)
-        try await Task.detached { try await self.removeTree(entry.location) }.value
+        let group = FileIORequestContext.group
+        try await Task.detached { try await FileIORequestContext.$group.withValue(group) { try await self.removeTree(entry.location) } }.value
         try JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } }
         return record.target
     }
@@ -534,7 +564,8 @@ public final class FileOperationService: Sendable {
             published = true
             if moving {
                 // 发布后完成删除，即使调用者取消也不留下目标存在但源未删除的无记录状态。
-                try await Task.detached { try await self.removeTree(entry.location) }.value
+                let group = FileIORequestContext.group
+                try await Task.detached { try await FileIORequestContext.$group.withValue(group) { try await self.removeTree(entry.location) } }.value
                 try JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } }
             }
             return destination
@@ -543,10 +574,13 @@ public final class FileOperationService: Sendable {
                 var cleaned = true
                 if temporaryMayExist {
                     let temporary = temp
+                    let group = FileIORequestContext.group
                     cleaned = await Task.detached {
-                        do { try await self.removeTree(temporary, temporaryRoot: true); return true }
-                        catch IOError.notFound { return true }
-                        catch { return false }
+                        await FileIORequestContext.$group.withValue(group) {
+                            do { try await self.removeTree(temporary, temporaryRoot: true); return true }
+                            catch IOError.notFound { return true }
+                            catch { return false }
+                        }
                     }.value
                 }
                 if moving && cleaned { try? JournalStore.update(journalURL) { $0.removeAll { $0.id == record.id } } }
@@ -807,10 +841,18 @@ public final class FileOperationService: Sendable {
         } catch {
             if !published && temporaryMayExist {
                 let temporary = temp
-                await Task.detached {
-                    do { try await self.removeTemporary(temporary) }
-                    catch {}
+                let group = FileIORequestContext.group
+                let cleaned = await Task.detached {
+                    await FileIORequestContext.$group.withValue(group) {
+                        do { try await self.removeTemporary(temporary); return true }
+                        catch IOError.notFound { return true }
+                        catch { return false }
+                    }
                 }.value
+                if !cleaned {
+                    pendingMetadataCleanup.withLock { $0[entry.location] = temporary }
+                    pendingMetadataRetry.withLock { _ = $0.insert(entry.location) }
+                }
             }
             throw error
         }

@@ -87,9 +87,11 @@ public final class FileSystemProvider: ContainerProvider {
         let (volume, path) = try resolve(location)
         let request = ReadRequest(path: path, offset: range.lowerBound, length: Int(range.count), expectedSize: nil, expectedModificationNanos: nil, noCache: true, retryByReopening: false, freshDescriptor: true)
         let backend = scheduler.backend(for: volume)
-        return try await scheduler.perform(on: volume, .bulk, priority: priority, group: FileIORequestContext.group) { finish, _ in
+        let data: Data = try await scheduler.perform(on: volume, .bulk, priority: priority, group: FileIORequestContext.group) { finish, _ in
             backend.read(request) { result in finish(result.mapError { Self.ioError($0, at: location, volume: volume) }) }
         }
+        if data.count >= 1 << 20 { scheduler.recordProgress(FileIORequestContext.group) }
+        return data
     }
 
     public func open(_ location: Location) async throws -> any ByteSource {
@@ -111,6 +113,7 @@ public final class FileSystemProvider: ContainerProvider {
     public func write(_ data: Data, at offset: Int64, to location: Location, priority: IOPriority) async throws {
         let (_, path) = try resolve(location)
         _ = try await execute(.write(path: path, offset: offset, data: data), at: location, channel: .bulk, priority: priority)
+        if data.count >= 1 << 20 { scheduler.recordProgress(FileIORequestContext.group) }
     }
 
     public func finishFile(at location: Location, modificationNanos: Int64?) async throws {
@@ -241,6 +244,7 @@ final class FileByteSource: ByteSource {
             let length = Int(min(Int64(size), upper - offset))
             let part = try await chunk(offset, length, .bulk, priority: priority, group: group)
             data.append(part)
+            if part.count >= 1 << 20 { scheduler.recordProgress(group) }
             guard part.count == length else { break }
             offset += Int64(length)
         }

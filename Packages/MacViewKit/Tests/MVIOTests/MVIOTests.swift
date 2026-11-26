@@ -145,8 +145,58 @@ import Testing
 
 // MARK: 调度
 
-@Test func defaultDeadlineIsNineSeconds() {
-    #expect(IOConfiguration(helperExecutable: nil).deadline == .seconds(9))
+@Test func defaultDeadlineIsSevenAndAHalfSeconds() {
+    #expect(IOConfiguration(helperExecutable: nil).deadline == .milliseconds(7500))
+}
+
+@Test func operationGroupTimesOutWhileQueuedAndDoesNotStartLater() async throws {
+    let scheduler = IOScheduler(configuration: .testing(metadata: 1, deadline: .milliseconds(150)))
+    let gate = Gate()
+    let blocker = Task { try? await hang(scheduler, gate: gate) }
+    await gate.waitForStarted(1)
+    let group = IORequestGroup(operation: true)
+    let starts = Recorder()
+    let queued = Task { try await run(scheduler, "queued", .visible, group: group, gate: gate, order: starts) }
+    await #expect(throws: IOError.timeout) { try await queued.value }
+    gate.openAll()
+    _ = await blocker.value
+    await #expect(throws: IOError.timeout) { try await run(scheduler, "later", .visible, group: group, gate: gate, order: starts) }
+    #expect(starts.values.isEmpty)
+    try await run(scheduler, "retry", .visible, group: IORequestGroup(operation: true), gate: gate, order: starts)
+    #expect(starts.values == ["retry"])
+}
+
+@Test func operationGroupAllowsContinuingProgressBeyondOneDeadline() async throws {
+    let scheduler = IOScheduler(configuration: .testing(metadata: 1, deadline: .milliseconds(250)))
+    let group = IORequestGroup(operation: true)
+    let start = ContinuousClock.now
+    for _ in 0..<4 {
+        try await Task.sleep(for: .milliseconds(100))
+        let _: Void = try await scheduler.perform(on: testVolume, .bulk, priority: .visible, group: group) { finish, _ in
+            finish(.success(()))
+        }
+        scheduler.recordProgress(group)
+    }
+    #expect(start.duration(to: .now) > .milliseconds(250))
+}
+
+@Test func operationTimeoutRejectsAlreadyQueuedSteps() async throws {
+    let scheduler = IOScheduler(configuration: .testing(metadata: 1, deadline: .seconds(2)))
+    let group = IORequestGroup(operation: true)
+    let gate = Gate()
+    let starts = Recorder()
+    let first = Task {
+        let _: Void = try await scheduler.perform(on: testVolume, .metadata, priority: .visible, group: group) { finish, _ in
+            gate.enter { finish(.failure(.timeout)) }
+        }
+    }
+    await gate.waitForStarted(1)
+    let queued = Task { try await run(scheduler, "queued", .visible, group: group, gate: gate, order: starts) }
+    try await waitUntil { scheduler.queuedCount == 1 }
+    gate.openAll()
+    await #expect(throws: IOError.timeout) { try await first.value }
+    await #expect(throws: IOError.timeout) { try await queued.value }
+    #expect(starts.values.isEmpty)
 }
 
 @Test func currentVolumeHealthReflectsRunningReads() async throws {

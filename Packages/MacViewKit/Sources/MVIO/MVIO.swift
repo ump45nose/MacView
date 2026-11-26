@@ -1,6 +1,7 @@
 // MVIO：I/O 调度、卷通道与健康状态、文件系统来源与来源注册。职责与契约见 docs/architecture.md §2、§4。
 import Foundation
 import MVFoundation
+import Synchronization
 
 /// I/O 请求的优先级，按声明顺序从高到低；比较时 `visible` 最大。
 public enum IOPriority: Int, Sendable, Comparable {
@@ -14,10 +15,31 @@ public enum IOPriority: Int, Sendable, Comparable {
 /// 一批可以整体取消或重排的请求，例如一次预取计划。
 public struct IORequestGroup: Hashable, Sendable {
     public let id: UUID
+    let operation: OperationDeadline?
 
-    public init(id: UUID = UUID()) {
+    public init(id: UUID = UUID(), operation: Bool = false) {
         self.id = id
+        self.operation = operation ? OperationDeadline() : nil
     }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    public func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
+/// 仅用于用户发起的操作；预取组仍可长期存在，不携带操作期限。
+final class OperationDeadline: Sendable {
+    private struct State {
+        var lastProgress = ProcessInfo.processInfo.systemUptime
+        var timedOutVolumes: Set<String> = []
+    }
+    private let state = Mutex(State())
+
+    func remaining(_ deadline: TimeInterval, now: TimeInterval) -> TimeInterval {
+        state.withLock { deadline - (now - $0.lastProgress) }
+    }
+    func timedOut(_ volume: String) -> Bool { state.withLock { $0.timedOutVolumes.contains(volume) } }
+    func fail(_ volume: String) { state.withLock { _ = $0.timedOutVolumes.insert(volume) } }
+    func progress() { state.withLock { $0.lastProgress = ProcessInfo.processInfo.systemUptime } }
 }
 
 /// 一次文件操作的请求组；其他调用仍可显式指定自己的组。

@@ -24,7 +24,7 @@ public struct IOConfiguration: Sendable {
     public var network = Channels(metadata: 4, bulk: 4, chunk: 4 << 20)
     /// 不超过这个长度的读取走元数据通道。
     public var smallReadLimit = 1 << 20
-    /// 每次调用的期限；硬挂载在故障期间一直阻塞、不报错，期限是唯一的超时来源。不短于 5 秒。
+    /// 单次调用及用户操作无进展的期限；硬挂载在故障期间一直阻塞、不报错。不短于 5 秒。
     public var deadline: Duration {
         get { storedDeadline }
         set { storedDeadline = max(newValue, .seconds(5)) }
@@ -37,7 +37,7 @@ public struct IOConfiguration: Sendable {
     /// 为 nil 时网络卷也在进程内执行，只用于测试。
     public var helperExecutable: URL?
 
-    private var storedDeadline: Duration = .seconds(9)
+    private var storedDeadline: Duration = .milliseconds(7500)
 
     public init(helperExecutable: URL?) {
         self.helperExecutable = helperExecutable
@@ -84,6 +84,7 @@ public final class IOScheduler: Sendable {
         var phase = Phase.queued
         /// 期限计时的代数；`touch` 时加一，旧的计时器到期后不再生效。
         var generation = 0
+        var lastProgress: TimeInterval?
         var start: @Sendable (_ id: UInt64) -> Void
         var fail: @Sendable (IOError) -> Void
     }
@@ -264,6 +265,8 @@ public final class IOScheduler: Sendable {
         return direct
     }
 
+    func recordProgress(_ group: IORequestGroup?) { group?.operation?.progress() }
+
     /// 卷当前是否可用；不可用时抛出对应的错误。也用来登记第一次见到的卷。
     func volume(for location: Location) throws(IOError) -> Volume {
         guard let volume = table.volume(for: location) else {
@@ -325,6 +328,11 @@ public final class IOScheduler: Sendable {
         let rejection = state.withLock { state -> IOError? in
             if state.cancelledBeforeEnqueue.remove(id) != nil { return .cancelled }
             if let group, state.cancelledGroups.contains(group) { return .cancelled }
+            if let operation = group?.operation,
+               operation.timedOut(volume.mountPoint) || operation.remaining(configuration.deadline.timeInterval, now: ProcessInfo.processInfo.systemUptime) <= 0 {
+                operation.fail(volume.mountPoint)
+                return .timeout
+            }
             if state.volumes[volume.mountPoint] == nil {
                 state.volumes[volume.mountPoint] = VolumeRecord(volume: volume)
                 Self.enqueueHealth(&state)
@@ -344,6 +352,7 @@ public final class IOScheduler: Sendable {
             fail(rejection)
             return
         }
+        if group?.operation != nil { armDeadline(id, generation: 0) }
         pump(volume.mountPoint, channel)
     }
 
@@ -360,6 +369,19 @@ public final class IOScheduler: Sendable {
             return job
         }
         job?.fail(.cancelled)
+    }
+
+    /// 一个操作在某卷超时后，该卷上已经排队的同组步骤也不能再启动。
+    private static func removeQueuedOperation(_ state: inout State, group: IORequestGroup?, volume: String) -> [Job] {
+        guard let group, group.operation != nil else { return [] }
+        let ids = state.jobs.compactMap { id, job in
+            job.phase == .queued && job.volume == volume && job.group == group ? id : nil
+        }
+        return ids.compactMap { id in
+            guard let job = state.jobs.removeValue(forKey: id) else { return nil }
+            state.volumes[volume]?.queues[job.channel]?.removeAll { $0 == id }
+            return job
+        }
     }
 
     /// 在空出的槽位上启动排队中优先级最高的请求。
@@ -384,6 +406,7 @@ public final class IOScheduler: Sendable {
                 state.volumes[mountPoint]?.queues[channel]?.remove(at: best)
                 state.volumes[mountPoint]?.running[channel, default: 0] += 1
                 state.jobs[id]?.phase = .running
+                state.jobs[id]?.lastProgress = ProcessInfo.processInfo.systemUptime
                 return (id, state.jobs[id]!)
             }
             guard let (id, job) = next else { return }
@@ -393,7 +416,15 @@ public final class IOScheduler: Sendable {
     }
 
     private func armDeadline(_ id: UInt64, generation: Int) {
-        timers.asyncAfter(deadline: .now() + configuration.deadline.timeInterval) { [weak self] in
+        let delay = state.withLock { state -> TimeInterval? in
+            guard let job = state.jobs[id], job.generation == generation else { return nil }
+            let now = ProcessInfo.processInfo.systemUptime
+            let operation = job.group?.operation?.remaining(configuration.deadline.timeInterval, now: now) ?? .infinity
+            let call = job.lastProgress.map { configuration.deadline.timeInterval - (now - $0) } ?? .infinity
+            return max(0, min(operation, call))
+        }
+        guard let delay, delay.isFinite else { return }
+        timers.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.expire(id, generation: generation)
         }
     }
@@ -402,14 +433,21 @@ public final class IOScheduler: Sendable {
         let generation = state.withLock { state -> Int? in
             guard state.jobs[id]?.phase == .running else { return nil }
             state.jobs[id]?.generation += 1
+            state.jobs[id]?.lastProgress = ProcessInfo.processInfo.systemUptime
+            state.jobs[id]?.group?.operation?.progress()
             return state.jobs[id]?.generation
         }
         if let generation { armDeadline(id, generation: generation) }
     }
 
     private func finish<T>(_ id: UInt64, result: Result<T, IOError>, resume: @Sendable (Result<T, IOError>) -> Void) {
-        let outcome = state.withLock { state -> (mountPoint: String, channel: Channel, deliver: Bool)? in
+        let outcome = state.withLock { state -> (mountPoint: String, channel: Channel, deliver: Bool, failed: [Job])? in
             guard let job = state.jobs.removeValue(forKey: id), job.phase != .queued else { return nil }
+            var failed: [Job] = []
+            if case .failure(.timeout) = result, let operation = job.group?.operation {
+                operation.fail(job.volume)
+                failed = Self.removeQueuedOperation(&state, group: job.group, volume: job.volume)
+            }
             state.volumes[job.volume]?.running[job.channel, default: 1] -= 1
             if job.phase == .timedOut {
                 state.volumes[job.volume]?.stuck -= 1
@@ -417,25 +455,38 @@ public final class IOScheduler: Sendable {
                 state.volumes[job.volume]?.consecutiveTimeouts = 0
             }
             Self.enqueueHealth(&state)
-            return (job.volume, job.channel, job.phase == .running)
+            return (job.volume, job.channel, job.phase == .running, failed)
         }
         guard let outcome else { return }
         publishPendingHealth()
         if outcome.deliver { resume(result) }
+        outcome.failed.forEach { $0.fail(.timeout) }
         pump(outcome.mountPoint, outcome.channel)
     }
 
     private func expire(_ id: UInt64, generation: Int) {
-        let expired = state.withLock { state -> (Job, degraded: Volume?, queued: [Job])? in
-            guard let job = state.jobs[id], job.phase == .running, job.generation == generation,
+        let expired = state.withLock { state -> (Job, degraded: Volume?, queued: [Job], groupQueued: [Job], retry: Bool)? in
+            guard let job = state.jobs[id], job.phase != .timedOut, job.generation == generation,
                   var volume = state.volumes[job.volume]
             else { return nil }
+            let now = ProcessInfo.processInfo.systemUptime
+            let groupRemaining = job.group?.operation?.remaining(configuration.deadline.timeInterval, now: now) ?? .infinity
+            let callRemaining = job.lastProgress.map { configuration.deadline.timeInterval - (now - $0) } ?? .infinity
+            if min(groupRemaining, callRemaining) > 0 { return (job, nil, [], [], true) }
+            job.group?.operation?.fail(job.volume)
+            if job.phase == .queued {
+                state.jobs[id] = nil
+                state.volumes[job.volume]?.queues[job.channel]?.removeAll { $0 == id }
+                let groupQueued = Self.removeQueuedOperation(&state, group: job.group, volume: job.volume)
+                return (job, nil, [], groupQueued, false)
+            }
             state.jobs[id]?.phase = .timedOut
+            let groupQueued = Self.removeQueuedOperation(&state, group: job.group, volume: job.volume)
             volume.stuck += 1
             volume.consecutiveTimeouts += 1
             var degraded: Volume?
             if volume.degradedReason == nil, volume.consecutiveTimeouts >= configuration.degradeAfterTimeouts {
-                volume.degradedReason = "连续 \(volume.consecutiveTimeouts) 次调用超过 \(Int(configuration.deadline.timeInterval)) 秒没有返回"
+                volume.degradedReason = "连续 \(volume.consecutiveTimeouts) 次调用超过 \(configuration.deadline.timeInterval) 秒没有返回"
                 degraded = volume.volume
             }
             state.volumes[job.volume] = volume
@@ -446,11 +497,13 @@ public final class IOScheduler: Sendable {
                 queued = ids.compactMap { state.jobs.removeValue(forKey: $0) }
             }
             Self.enqueueHealth(&state)
-            return (job, degraded, queued)
+            return (job, degraded, queued, groupQueued, false)
         }
-        guard let (job, degraded, queued) = expired else { return }
+        guard let (job, degraded, queued, groupQueued, retry) = expired else { return }
+        if retry { armDeadline(id, generation: generation); return }
         publishPendingHealth()
         job.fail(.timeout)
+        groupQueued.forEach { $0.fail(.timeout) }
         if let degraded {
             queued.forEach { $0.fail(.volumeDegraded(degraded.root)) }
             // 弃用后，卡住的调用以 helperLost 结束，释放槽位。
