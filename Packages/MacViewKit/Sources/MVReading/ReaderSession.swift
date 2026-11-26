@@ -49,6 +49,8 @@ public final class ReaderSession {
     @ObservationIgnored private var memory: BookMemory?
     @ObservationIgnored private var removedMetadata: [Location: ImageMetadata] = [:]
     @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var playlistRevision: UInt64?
+    @ObservationIgnored private var pendingPlaylistRevision: UInt64?
     @ObservationIgnored private var loadingFileChanges: [FileChange] = []
     @ObservationIgnored private var settingsTask: Task<Void, Never>?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
@@ -102,6 +104,8 @@ public final class ReaderSession {
         generation += 1
         let current = generation
         loadTask?.cancel()
+        playlistRevision = nil
+        pendingPlaylistRevision = nil
         loadingFileChanges.removeAll()
         saveTask?.cancel()
         refreshTask?.cancel()
@@ -387,6 +391,7 @@ public final class ReaderSession {
                 for try await event in stream {
                     guard !Task.isCancelled, let self, self.generation == current else { return }
                     switch event {
+                    case .playlistRevision: break
                     case let .appended(pages), let .sorted(pages):
                         for page in pages where pending.contains(page.id) { refreshed[page.id] = page }
                     case let .metadata(values):
@@ -552,6 +557,7 @@ public final class ReaderSession {
 
     private func apply(_ event: BookLoadEvent) {
         switch event {
+        case .playlistRevision: return
         case let .appended(pages): book?.pages.append(contentsOf: pages)
         case let .sorted(pages):
             // 缓存后的第二次排序也先按位置身份定位；身份消失再回退到原序号。
@@ -657,7 +663,7 @@ public final class ReaderSession {
                     }
                 }
             }))
-        case .appended: apply(event)
+        case .appended, .playlistRevision: apply(event)
         }
     }
 
@@ -713,6 +719,8 @@ public final class ReaderSession {
         guard let location = book?.location else { return }
         generation += 1
         loadTask?.cancel()
+        playlistRevision = nil
+        pendingPlaylistRevision = nil
         loadingFileChanges.removeAll()
         refreshTask?.cancel()
         refreshingPages.removeAll()
@@ -727,17 +735,38 @@ public final class ReaderSession {
         loadTask = loading(loader.load(location, settings: settings, startingAt: anchor), generation: generation)
     }
 
+    /// 只为尚未包含在当前快照中的列表变更重新加载。
+    public func playlistChanged(revision: UInt64) {
+        if let playlistRevision {
+            if revision > playlistRevision { reloadBook() }
+        } else if loadTask != nil {
+            pendingPlaylistRevision = max(pendingPlaylistRevision ?? 0, revision)
+        } else { reloadBook() }
+    }
+
     private func loading(_ stream: AsyncThrowingStream<BookLoadEvent, any Error>, generation current: Int) -> Task<Void, Never> {
         Task { [weak self] in
             defer {
                 if let self, current == self.generation {
                     self.loadTask = nil
                     self.loadingFileChanges.removeAll()
+                    if self.pendingPlaylistRevision != nil {
+                        self.pendingPlaylistRevision = nil
+                        self.reloadBook()
+                    }
                 }
             }
             do {
                 for try await event in stream {
                     guard !Task.isCancelled, let self, current == self.generation else { return }
+                    if case let .playlistRevision(revision) = event {
+                        self.playlistRevision = revision
+                        if let pending = self.pendingPlaylistRevision {
+                            self.pendingPlaylistRevision = nil
+                            if pending > revision { self.reloadBook(); return }
+                        }
+                        continue
+                    }
                     self.applyLoading(event)
                     if self.pendingBookOpened, let book = self.book, !book.pages.isEmpty {
                         self.pendingBookOpened = false
@@ -965,7 +994,7 @@ public final class ReaderSession {
             switch event {
             case let .appended(value): pages = value
             case let .sorted(value): pages = value
-            case .metadata, .availability: continue
+            case .metadata, .availability, .playlistRevision: continue
             }
             if let page = pages.first(where: { $0.id == location }) { return page.entry.identity }
         }

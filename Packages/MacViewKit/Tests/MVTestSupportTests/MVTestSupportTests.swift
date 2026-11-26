@@ -326,7 +326,7 @@ struct MockReadingTests {
             case let .metadata(values):
                 #expect(sorted != nil)
                 metadata.merge(values) { $1 }
-            case .availability: Issue.record("普通书不发可用性事件")
+            case .availability, .playlistRevision: Issue.record("普通书不发虚拟书事件")
             }
         }
         let names = try #require(sorted).map(\.entry.name)

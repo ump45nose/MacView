@@ -24,9 +24,14 @@ public actor MockLibraryStore: LibraryStore {
     private var order: [BookmarkID?: [BookmarkID]] = [nil: []]
     private var lists: [Playlist] = []
     private nonisolated let observers = Mutex<[UUID: AsyncStream<LibraryChange>.Continuation]>([:])
+    private var revision: UInt64 = 0
+    private nonisolated let playlistObservers = Mutex<[UUID: AsyncStream<PlaylistChange>.Continuation]>([:])
 
     public init(historyLimit: Int = 1000) { limit = max(1, historyLimit) }
-    deinit { observers.withLock { $0.values.forEach { $0.finish() } } }
+    deinit {
+        observers.withLock { $0.values.forEach { $0.finish() } }
+        playlistObservers.withLock { $0.values.forEach { $0.finish() } }
+    }
 
     public func history() -> [HistoryEntry] {
         opened.map { HistoryEntry(book: $0.key, openedAt: $0.value) }.sorted {
@@ -247,6 +252,26 @@ public actor MockLibraryStore: LibraryStore {
     private func clamped(_ index: Int, count: Int) -> Int { min(max(0, index), count) }
     private func emit(_ changes: LibraryChange...) {
         observers.withLock { observers in for change in changes { observers.values.forEach { $0.yield(change) } } }
+        for change in changes {
+            let id: UUID
+            switch change {
+            case let .items(value), let .playlistRemoved(value): id = value
+            default: continue
+            }
+            revision += 1
+            let event = PlaylistChange(id: id, revision: revision)
+            playlistObservers.withLock { $0.values.forEach { $0.yield(event) } }
+        }
+    }
+    public func playlistSnapshot(_ playlist: UUID) throws -> PlaylistSnapshot {
+        try PlaylistSnapshot(entries: items(of: playlist), revision: revision)
+    }
+    public nonisolated func playlistChanges() -> AsyncStream<PlaylistChange> {
+        let id = UUID()
+        let (stream, continuation) = AsyncStream<PlaylistChange>.makeStream()
+        continuation.onTermination = { [weak self] _ in self?.playlistObservers.withLock { _ = $0.removeValue(forKey: id) } }
+        playlistObservers.withLock { $0[id] = continuation }
+        return stream
     }
     public nonisolated func changes() -> AsyncStream<LibraryChange> {
         AsyncStream { continuation in
@@ -265,9 +290,11 @@ struct MockPlaylistBookLoader: BookLoader {
             let task = Task {
                 do {
                     guard let id = location.playlistID else { throw IOError.notFound(location) }
-                    let entries: [Entry]
-                    do { entries = try await store.items(of: id) }
+                    let snapshot: PlaylistSnapshot
+                    do { snapshot = try await store.playlistSnapshot(id) }
                     catch LibraryError.notFound { throw IOError.notFound(location) }
+                    let entries = snapshot.entries
+                    continuation.yield(.playlistRevision(snapshot.revision))
                     continuation.yield(.sorted(entries.map { Page(entry: $0) }))
                     var values: [Location: ImageMetadata] = [:]
                     var availability: [Location: Availability] = [:]

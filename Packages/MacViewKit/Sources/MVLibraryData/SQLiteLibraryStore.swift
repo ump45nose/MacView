@@ -7,6 +7,11 @@ public final class SQLiteLibraryStore: LibraryStore {
     let database: LibraryDatabase
     private let historyLimit: Mutex<Int>
     private let observers = Mutex<[UUID: AsyncStream<LibraryChange>.Continuation]>([:])
+    private struct PlaylistState {
+        var revision: UInt64 = 0
+        var observers: [UUID: AsyncStream<PlaylistChange>.Continuation] = [:]
+    }
+    private let playlistState = Mutex(PlaylistState())
 
     public init(databaseURL: URL, historyLimit: Int) throws {
         guard historyLimit > 0 else { throw Self.invalidLimit() }
@@ -15,7 +20,10 @@ public final class SQLiteLibraryStore: LibraryStore {
         try database.write { try Self.trimHistory($0, limit: historyLimit) }
     }
 
-    deinit { observers.withLock { $0.values.forEach { $0.finish() } } }
+    deinit {
+        observers.withLock { $0.values.forEach { $0.finish() } }
+        playlistState.withLock { $0.observers.values.forEach { $0.finish() } }
+    }
 
     /// 归档时从同一份快照统计；独立只读连接不执行开库迁移或历史裁剪。
     public static func summary(databaseURL: URL) throws -> LibrarySummary {
@@ -237,12 +245,30 @@ public final class SQLiteLibraryStore: LibraryStore {
     }
 
     public func items(of playlist: UUID) async throws -> [Entry] {
+        try readItems(playlist)
+    }
+
+    private func readItems(_ playlist: UUID) throws -> [Entry] {
         try database.read { database in
             try Self.requirePlaylist(playlist, database)
             let decoder = JSONDecoder()
             return try Data.fetchAll(database, sql: "SELECT entry FROM playlist_item WHERE playlist = ? ORDER BY position", arguments: [playlist.uuidString])
                 .map { try decoder.decode(Entry.self, from: $0) }
         }
+    }
+
+    public func playlistSnapshot(_ playlist: UUID) async throws -> PlaylistSnapshot {
+        try playlistState.withLock { state in
+            try PlaylistSnapshot(entries: readItems(playlist), revision: state.revision)
+        }
+    }
+
+    public func playlistChanges() -> AsyncStream<PlaylistChange> {
+        let id = UUID()
+        let (stream, continuation) = AsyncStream<PlaylistChange>.makeStream()
+        continuation.onTermination = { [weak self] _ in self?.playlistState.withLock { _ = $0.observers.removeValue(forKey: id) } }
+        playlistState.withLock { $0.observers[id] = continuation }
+        return stream
     }
 
     public func addItems(_ entries: [Entry], to playlist: UUID) async throws -> AddReport {
@@ -357,12 +383,24 @@ public final class SQLiteLibraryStore: LibraryStore {
         return stream
     }
 
-    private func write<T>(_ changes: [LibraryChange], _ body: (Database) throws -> T) throws -> T {
-        let result = try database.write(body)
-        observers.withLock { observers in
-            for change in changes { for observer in observers.values { observer.yield(change) } }
+    private func write<T: Sendable>(_ changes: [LibraryChange], _ body: (Database) throws -> T) throws -> T {
+        try playlistState.withLock { state in
+            let result = try database.write(body)
+            observers.withLock { observers in
+                for change in changes { for observer in observers.values { observer.yield(change) } }
+            }
+            for change in changes {
+                let id: UUID
+                switch change {
+                case let .items(value), let .playlistRemoved(value): id = value
+                default: continue
+                }
+                state.revision += 1
+                let event = PlaylistChange(id: id, revision: state.revision)
+                for observer in state.observers.values { observer.yield(event) }
+            }
+            return result
         }
-        return result
     }
 
     private static func name(_ name: String) throws -> String {

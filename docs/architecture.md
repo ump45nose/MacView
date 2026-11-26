@@ -838,10 +838,11 @@ extension CommandID {   // 每个默认命令一个常量，rawValue 见 Sources
 // MVReading
 public struct Page: Sendable, Identifiable, Hashable { public var entry: Entry; public var metadata: ImageMetadata?; public var id: Location { get }; public init(entry: Entry, metadata: ImageMetadata? = nil) }
 public struct Book: Sendable, Hashable { public var location: Location; public var pages: [Page]; public var isEnumerated: Bool; public init(location: Location, pages: [Page] = [], isEnumerated: Bool = false) }
-public enum BookLoadEvent: Sendable { case appended([Page]), sorted([Page]), metadata([Location: ImageMetadata]), availability([Location: Availability]) }
+public enum BookLoadEvent: Sendable { case appended([Page]), sorted([Page]), metadata([Location: ImageMetadata]), availability([Location: Availability]), playlistRevision(UInt64) }
 // 缓存未命中时按到达顺序 appended，枚举完成后发 sorted；缓存命中时先发缓存的 sorted，不发 appended，后台刷新有差异时再发 sorted。
 // metadata 先交付缓存，再从 startingAt 开始探测；流结束表示全部完成。ReaderSession 收到 sorted 时按页身份保持当前页。
 // availability 仅由虚拟书加载器发送：每个容器校验结束（含失败、超时）发一次，覆盖容器内全部列表项；占位元数据只用于排版，不代表来源可用。
+// playlistRevision 在列表快照 sorted 之前发送；序号与快照来自同一存储读取。
 public protocol BookLoader: Sendable { func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> }
 public final class FileBookLoader: BookLoader {
     public init(sources: any SourceRegistry, directories: DirectoryCache, metadata: MetadataIndex, pipeline: any ImagePipeline)
@@ -887,6 +888,7 @@ public enum PageMove: Sendable, Equatable { case nextFrame, previousFrame, nextP
     public private(set) var unavailablePages: Set<Location>
     public func setAvailability(_ results: [Location: Availability])   // 不可用立即占位；available 仅触发重新校验，不直接清除占位
     public func reloadBook()   // 当前页还在则保持身份，否则停在原序号，越界取最后一页
+    public func playlistChanged(revision: UInt64)   // 序号新于当前快照时重载；快照未到时暂存通知
     public func go(_ move: PageMove)
     public func applyFileChanges(_ changes: [FileChange])   // 组合根转发；递归新增页按平铺顺序插入
     public func openNeighborBook(_ direction: NavigationDirection, sort: SortSpec) async   // sort 是书架面板当前的排序，与书内页面的排序无关
@@ -909,6 +911,8 @@ public struct ReadingListing: Sendable { public static func isVisible(_ entry: E
 public enum ReadingOrder { public static func sorted(_ entries: [Entry], by sort: SortSpec) -> [Entry] }   // 书架和页面列表面板自己的排序用它
 
 // MVLibraryData：完整类型和方法签名以 Sources/MVLibraryData/LibraryTypes.swift 为准（见 §3.6 链接）。
+// LibraryStore.playlistSnapshot(_:) 原子返回条目和进程内递增序号；playlistChanges() 广播列表内容变更及删除的 ID 和序号。
+// 快照和通知序号在同一存储实例内比较；独立实例与重启之间不比较。
 // SQLiteLibraryStore(databaseURL:historyLimit:) 实现 LibraryStore；flush() 冲刷 WAL。
 // SQLiteLibraryStore.summary(databaseURL:) throws -> LibrarySummary 只读统计历史、书签条目（跳过文件夹）和播放列表。
 // AvailabilityChecker(sources:directories:store:).check(_:) 返回 AsyncStream<[Location: Availability]>。

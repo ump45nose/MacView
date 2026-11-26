@@ -173,6 +173,7 @@ extension LibraryDataTests.LibraryLoadingTests {
             case let .sorted(pages): sorted.append(pages)
             case let .metadata(values): dimensions.merge(values, uniquingKeysWith: { _, new in new })
             case let .availability(values): availability.append(values)
+            case .playlistRevision: break
             case .appended: Issue.record("播放列表只发 sorted")
             }
         }
@@ -238,6 +239,7 @@ extension LibraryDataTests.LibraryLoadingTests {
                 values.merge(batch, uniquingKeysWith: { _, new in new })
                 if batch[good.location] != nil { healthyArrived = ContinuousClock.now - start }
             case let .availability(batch): availability.append(batch)
+            case .playlistRevision: break
             case .appended: Issue.record("不得改变页序")
             }
         }

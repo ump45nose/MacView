@@ -52,6 +52,18 @@ public enum LibraryChange: Sendable, Hashable {
     case relocated
 }
 
+public struct PlaylistChange: Sendable {
+    public let id: UUID
+    public let revision: UInt64
+    public init(id: UUID, revision: UInt64) { self.id = id; self.revision = revision }
+}
+
+public struct PlaylistSnapshot: Sendable {
+    public let entries: [Entry]
+    public let revision: UInt64
+    public init(entries: [Entry], revision: UInt64) { self.entries = entries; self.revision = revision }
+}
+
 public enum LibraryError: Error, Sendable, Equatable {
     case notFound, invalidName, intoItself
 }
@@ -74,6 +86,8 @@ public protocol LibraryStore: Sendable {
     func deletePlaylist(_ id: UUID) async throws
     func movePlaylist(_ id: UUID, to index: Int) async throws
     func items(of playlist: UUID) async throws -> [Entry]
+    func playlistSnapshot(_ playlist: UUID) async throws -> PlaylistSnapshot
+    func playlistChanges() -> AsyncStream<PlaylistChange>
     func addItems(_ entries: [Entry], to playlist: UUID) async throws -> AddReport
     func moveItems(_ locations: [Location], in playlist: UUID, to index: Int) async throws
     func removeItems(_ locations: [Location], from playlist: UUID) async throws

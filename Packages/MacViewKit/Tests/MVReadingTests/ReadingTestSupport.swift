@@ -98,7 +98,7 @@ func loadedPages(_ loader: any BookLoader, book: Location, settings: ResolvedBoo
         case let .sorted(pages): result = pages
         case let .metadata(values):
             for index in result.indices { if let value = values[result[index].id] { result[index].metadata = value } }
-        case .availability: break
+        case .availability, .playlistRevision: break
         }
     }
     return result

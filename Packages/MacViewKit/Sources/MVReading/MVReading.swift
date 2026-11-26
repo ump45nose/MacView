@@ -32,6 +32,8 @@ public struct Book: Sendable, Hashable {
 /// 首访按到达顺序 appended，枚举完成后 sorted；缓存命中先 sorted，后台发现差异再 sorted。
 /// 命中的元数据立即交付，其余按阅读顺序分批 metadata；流结束表示全部完成。
 public enum BookLoadEvent: Sendable {
+    /// 虚拟书快照对应的资料库变更序号，先于快照页发送。
+    case playlistRevision(UInt64)
     case appended([Page])
     case sorted([Page])
     case metadata([Location: ImageMetadata])

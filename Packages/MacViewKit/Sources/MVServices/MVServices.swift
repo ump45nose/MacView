@@ -69,6 +69,10 @@ public struct CoreConfiguration: Sendable {
     private var settingsTask: Task<Void, Never>?
     private var fileChangesTask: Task<Void, Never>?
     private var libraryTask: Task<Void, Never>?
+    #if DEBUG
+    var libraryChangeWillHandle: (@MainActor (PlaylistChange) async -> Void)?
+    var libraryChangeDidHandle: (@MainActor (PlaylistChange) -> Void)?
+    #endif
     private var historyTasks: [UUID: Task<Void, Never>] = [:]
     private var recoveryTask: Task<ResumeReport, Never>?
     private var shutdownTask: Task<Void, Never>?
@@ -308,19 +312,20 @@ public struct CoreConfiguration: Sendable {
 
     private func subscribeLibrary() {
         guard let library else { return }
-        let changes = library.changes()
+        let changes = library.playlistChanges()
         libraryTask = Task { [weak self] in
             for await change in changes {
                 guard !Task.isCancelled, let self else { return }
-                let id: UUID
-                switch change {
-                case let .items(value), let .playlistRemoved(value): id = value
-                default: continue
-                }
+                #if DEBUG
+                await self.libraryChangeWillHandle?(change)
+                #endif
                 self.sessions.removeAll { $0.value == nil }
-                for session in self.sessions.compactMap(\.value) where session.book?.location.playlistID == id {
-                    session.reloadBook()
+                for session in self.sessions.compactMap(\.value) where session.book?.location.playlistID == change.id {
+                    session.playlistChanged(revision: change.revision)
                 }
+                #if DEBUG
+                self.libraryChangeDidHandle?(change)
+                #endif
             }
         }
     }

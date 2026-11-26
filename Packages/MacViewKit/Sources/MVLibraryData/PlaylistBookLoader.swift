@@ -33,9 +33,11 @@ public final class PlaylistBookLoader: BookLoader {
             let task = Task.detached { [self] in
                 do {
                     guard let id = location.playlistID else { throw IOError.notFound(location) }
-                    let snapshots: [Entry]
-                    do { snapshots = try await store.items(of: id) }
+                    let snapshot: PlaylistSnapshot
+                    do { snapshot = try await store.playlistSnapshot(id) }
                     catch LibraryError.notFound { throw IOError.notFound(location) }
+                    let snapshots = snapshot.entries
+                    continuation.yield(.playlistRevision(snapshot.revision))
                     continuation.yield(.sorted(snapshots.map { Page(entry: $0) }))
                     let groups = Self.groups(snapshots, startingAt: page)
                     let indices = Dictionary(uniqueKeysWithValues: snapshots.enumerated().map { ($0.element.location, $0.offset) })

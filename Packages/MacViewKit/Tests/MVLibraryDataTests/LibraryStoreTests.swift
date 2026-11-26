@@ -24,6 +24,25 @@ private func page(_ name: String, size: Int64 = 20) -> Entry {
 }
 
 extension LibraryDataTests.LibraryStoreTests {
+    @Test("列表快照序号与内容变更、删除通知一致")
+    func playlistSnapshotRevisions() async throws {
+        let fixture = LibraryFixture()
+        defer { try? fixture.clean() }
+        let store = try fixture.open()
+        var changes = store.playlistChanges().makeAsyncIterator()
+        let id = try await store.createPlaylist(named: "序号")
+        let before = try await store.playlistSnapshot(id)
+        _ = try await store.addItems([page("1.jpg")], to: id)
+        let added = try #require(await changes.next())
+        let after = try await store.playlistSnapshot(id)
+        #expect(added.id == id && added.revision > before.revision)
+        #expect(after.revision == added.revision && after.entries == [page("1.jpg")])
+        try await store.deletePlaylist(id)
+        let deleted = try #require(await changes.next())
+        #expect(deleted.id == id && deleted.revision > after.revision)
+        await #expect(throws: LibraryError.notFound) { _ = try await store.playlistSnapshot(id) }
+    }
+
     @Test("C1.8 只读统计快照中的历史、书签条目和播放列表")
     func archiveSummaryReadsSnapshotWithoutModifyingIt() async throws {
         let fixture = LibraryFixture()

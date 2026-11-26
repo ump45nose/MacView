@@ -786,7 +786,7 @@ import Testing
             switch event {
             case let .sorted(pages): sorted.append(pages)
             case let .metadata(values): metadata.merge(values, uniquingKeysWith: { _, new in new })
-            case .availability: break
+            case .availability, .playlistRevision: break
             case .appended: Issue.record("播放列表不得按来源追加")
             }
         }
@@ -1009,6 +1009,110 @@ import Testing
         var stale: RenderedImage?
         for try await image in services.pipeline.image(for: removed.identity, target: target, allowOriginal: false, priority: .visible) { stale = image }
         #expect(stale?.quality == .exact, "原身份仍能命中旧缓存，会话必须保持占位")
+        await fixture.shutdown(services)
+    }
+
+    @Test("列表初始通知三种调度下迁移不重复加载", arguments: [0, 1, 2])
+    func initialPlaylistNotificationScheduling(schedule: Int) async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let library = try #require(services.library)
+        let folder = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        var entries: [Entry] = []
+        for index in 1...3 { entries.append(try await services.sources.provider(for: folder).entry(at: folder.appending("\(index).jpg"))) }
+        var stale = entries
+        stale[1].identity.size += 1
+        let id = try await library.createPlaylist(named: "通知调度")
+        let gate = AsyncStream<Void>.makeStream()
+        var received = false, handled = false
+        services.libraryChangeWillHandle = { change in
+            guard change.id == id else { return }
+            received = true
+            if schedule == 2 { for await _ in gate.stream { break } }
+        }
+        services.libraryChangeDidHandle = { change in
+            if change.id == id { handled = true }
+        }
+        defer { gate.continuation.finish() }
+        _ = try await library.addItems(stale, to: id)
+        if schedule == 1 { try await waitUntil { handled } }
+        if schedule == 2 { try await waitUntil { received } }
+        let loader = PausedLibraryLoader(base: services.loader)
+        let session = services.makeSession(loader: loader)
+        let opening = Task { await session.open(.playlist(id), at: entries[1].location) }
+        defer { loader.release(); opening.cancel() }
+        try await waitUntil { loader.isPaused && session.book?.pages.count == 3 }
+        var applied = services.appliedFileChanges().makeAsyncIterator()
+        let moved = await services.fileOperations?.perform(.rename(entries[1].location, to: "during-load.jpg"))
+        #expect(moved?.failures.isEmpty == true)
+        _ = await applied.next()
+        gate.continuation.yield(())
+        gate.continuation.finish()
+        try await waitUntil { handled }
+        loader.release()
+        await opening.value
+        let expected = [entries[0].location, folder.appending("during-load.jpg"), entries[2].location]
+        #expect(session.book?.pages.map(\.id) == expected)
+        #expect(session.currentPage == 1)
+        #expect(try await library.items(of: id).map(\.location) == expected)
+        #expect(loader.loads == 1)
+        await fixture.shutdown(services)
+    }
+
+    @Test("打开后列表变更仍会重新加载")
+    func playlistChangeAfterLoadReloads() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let library = try #require(services.library)
+        let folder = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        let provider = try services.sources.provider(for: folder)
+        let first = try await provider.entry(at: folder.appending("1.jpg"))
+        let second = try await provider.entry(at: folder.appending("2.jpg"))
+        let id = try await library.createPlaylist(named: "后续变更")
+        _ = try await library.addItems([first], to: id)
+        let loader = CountedLibraryLoader(base: services.loader)
+        let session = services.makeSession(loader: loader)
+        await session.open(.playlist(id), at: first.location)
+        _ = try await library.addItems([second], to: id)
+        try await waitUntil { session.book?.pages.map(\.id) == [first.location, second.location] }
+        #expect(loader.count.withLock { $0 } == 2)
+        #expect(session.currentPage == 0)
+        try await library.deletePlaylist(id)
+        try await waitUntil { session.loadError != nil }
+        #expect(loader.count.withLock { $0 } == 3)
+        await fixture.shutdown(services)
+    }
+
+    @Test("快照序号到达前收到新变更仍会重新加载")
+    func playlistChangeBeforeSnapshotRevisionReloads() async throws {
+        let fixture = try ServiceFixture()
+        defer { fixture.clean() }
+        let services = try await fixture.make()
+        let library = try #require(services.library)
+        let folder = try await services.sources.location(for: fixture.root.appending(path: "pages"))
+        let provider = try services.sources.provider(for: folder)
+        let first = try await provider.entry(at: folder.appending("1.jpg"))
+        let second = try await provider.entry(at: folder.appending("2.jpg"))
+        let id = try await library.createPlaylist(named: "快照前变更")
+        var handled = false
+        services.libraryChangeDidHandle = { change in if change.id == id { handled = true } }
+        _ = try await library.addItems([first], to: id)
+        try await waitUntil { handled }
+        handled = false
+        let loader = PausedRevisionLoader(base: services.loader)
+        let session = services.makeSession(loader: loader)
+        let opening = Task { await session.open(.playlist(id), at: first.location) }
+        defer { loader.release(); opening.cancel() }
+        try await waitUntil { loader.isPaused }
+        _ = try await library.addItems([second], to: id)
+        try await waitUntil { handled }
+        loader.release()
+        await opening.value
+        try await waitUntil { session.book?.pages.map(\.id) == [first.location, second.location] }
+        #expect(loader.loads == 2)
+        #expect(session.currentPage == 0)
         await fixture.shutdown(services)
     }
 
@@ -1341,6 +1445,35 @@ private final class CountedLibraryLoader: BookLoader {
     func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> {
         count.withLock { $0 += 1 }
         return base.load(location, settings: settings, startingAt: page)
+    }
+}
+
+private final class PausedRevisionLoader: BookLoader {
+    let base: any BookLoader
+    private let state = Mutex((loads: 0, paused: false))
+    private let gate = AsyncStream<Void>.makeStream()
+    init(base: any BookLoader) { self.base = base }
+    var loads: Int { state.withLock { $0.loads } }
+    var isPaused: Bool { state.withLock { $0.paused } }
+    func release() { gate.continuation.yield(()); gate.continuation.finish() }
+    func load(_ location: Location, settings: ResolvedBookSettings, startingAt page: Location?) -> AsyncThrowingStream<BookLoadEvent, any Error> {
+        let number = state.withLock { $0.loads += 1; return $0.loads }
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await event in base.load(location, settings: settings, startingAt: page) {
+                        if number == 1, case .playlistRevision = event {
+                            state.withLock { $0.paused = true }
+                            for await _ in gate.stream { break }
+                        }
+                        try Task.checkCancellation()
+                        continuation.yield(event)
+                    }
+                    continuation.finish()
+                } catch { continuation.finish(throwing: error) }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 }
 
