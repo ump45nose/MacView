@@ -1,7 +1,7 @@
 {
   "gate": "G3",
   "scope": "MacPro 冻结版本自动化证据",
-  "commit": "d415d525259c98f1bc29b9dd0b3392e3cdb8212b",
+  "commit": "23538a3bc1d59015bdf29ac78811f1a38b3cafee",
   "date": "2026-11-26",
   "reference": {
     "$RUN": ".g3-work/execution",
@@ -11,7 +11,7 @@
     {
       "name": "Debug",
       "app": "$RUN/dd/Build/Products/Debug/MacView.app",
-      "sha": "d415d525259c98f1bc29b9dd0b3392e3cdb8212b",
+      "sha": "23538a3bc1d59015bdf29ac78811f1a38b3cafee",
       "cdhash": "5ba3c74c466472272081a78368210caa635acc7c",
       "binary_sha256": "bd45b03bf0c9f4ae6955e298932345d975d5caa8e5c3a477e596f04c197bfde7",
       "signature_strict_exit": 0,
@@ -20,7 +20,7 @@
     {
       "name": "Release",
       "app": "$RUN/dd/Build/Products/Release/MacView.app",
-      "sha": "d415d525259c98f1bc29b9dd0b3392e3cdb8212b",
+      "sha": "23538a3bc1d59015bdf29ac78811f1a38b3cafee",
       "cdhash": "9f2e3b8dd81369cd3e90331da790411fbddc5fb3",
       "binary_sha256": "00666c37a9ad223505bfe6481a934defec9ec1ffd5c747a4ed00f63bbe367bbe",
       "signature_strict_exit": 0,
@@ -441,9 +441,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 94,
@@ -620,9 +620,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST FAILED 1 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST FAILED 1 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST FAILED 1 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST FAILED 1 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 87,
@@ -789,9 +789,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 30,
@@ -902,7 +902,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 8,
@@ -1011,7 +1011,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 13,
@@ -1117,7 +1117,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 6,
@@ -1213,9 +1213,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 4,
@@ -1312,7 +1312,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 2,
@@ -1404,9 +1404,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 94,
@@ -1487,9 +1487,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST FAILED 13 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST FAILED 13 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST FAILED 13 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST FAILED 13 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 75,
@@ -1579,9 +1579,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 30,
@@ -1660,7 +1660,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 8,
@@ -1759,7 +1759,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 13,
@@ -1850,7 +1850,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 6,
@@ -1938,9 +1938,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 4,
@@ -2031,7 +2031,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 2,
@@ -2119,9 +2119,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 94,
@@ -2202,9 +2202,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST FAILED 1 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST FAILED 1 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST FAILED 1 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST FAILED 1 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 87,
@@ -2282,9 +2282,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 30,
@@ -2363,7 +2363,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 8,
@@ -2462,7 +2462,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 13,
@@ -2553,7 +2553,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 6,
@@ -2641,9 +2641,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 4,
@@ -2734,7 +2734,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 2,
@@ -2822,9 +2822,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 94,
@@ -2905,9 +2905,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST FAILED 8 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST FAILED 8 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST FAILED 8 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST FAILED 8 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 25,
@@ -2992,9 +2992,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 30,
@@ -3073,7 +3073,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 8,
@@ -3172,7 +3172,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 13,
@@ -3263,7 +3263,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 6,
@@ -3351,9 +3351,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 4,
@@ -3444,7 +3444,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 2,
@@ -3532,9 +3532,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST FAILED 12 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST FAILED 12 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST FAILED 12 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST FAILED 12 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 76,
@@ -3623,9 +3623,9 @@
         ]
       ],
       "stdout_summary": [
-        "SELFTEST FAILED 12 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c"
+        "SELFTEST FAILED 12 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c"
       ],
-      "summary": "SELFTEST FAILED 12 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST FAILED 12 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "stdout",
       "last_line": true,
       "pass_count": 76,
@@ -3717,7 +3717,7 @@
       ],
       "foreground_self_report": [],
       "stdout_summary": [],
-      "summary": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "summary": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "summary_source": "累积 doneFile",
       "last_line": true,
       "pass_count": 2,
@@ -3806,7 +3806,7 @@
   ],
   "runner": "实际 App 退出码由 kqueue EVFILT_PROC NOTE_EXITSTATUS 取得；独立 50ms 采样前台 PID，仅统计正确二进制；stdout 或数据迁移最后一跳的累计 doneFile 以 SELFTEST 结束，核对 SHA 与 CDHash。open 返回值单列。",
   "provenance": {
-    "method": "git clone --shared --no-checkout --quiet . $RUN/src；git -C $RUN/src checkout -q --detach d415d525259c98f1bc29b9dd0b3392e3cdb8212b",
+    "method": "git clone --shared --no-checkout --quiet . $RUN/src；git -C $RUN/src checkout -q --detach 23538a3bc1d59015bdf29ac78811f1a38b3cafee",
     "tracked_checkout_clean_after_tests_and_builds": true,
     "untracked_root_assets_in_clone": false,
     "local_apps_replaced": false,

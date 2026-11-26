@@ -1,6 +1,6 @@
 {
   "date": "2026-11-26",
-  "commit": "9e17daecd7eb88522041b00d8e7489a2c38a57f6",
+  "commit": "091de60fd6057daaa05a26a23e7de341dcd96c64",
   "cdhash": "1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b",
   "verdict": "G3 未通过",
   "build": {
@@ -52,7 +52,7 @@
       "skip": 0,
       "summary": [
         "INFO 前台采样 175/175",
-        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+        "SELFTEST OK commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
       ],
       "failures": [],
       "localization_and_order_assertions": [
@@ -112,7 +112,7 @@
       "skip": 0,
       "summary": [
         "INFO 前台采样 174/174",
-        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+        "SELFTEST OK commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
       ],
       "failures": [],
       "localization_and_order_assertions": [
@@ -172,7 +172,7 @@
       "skip": 0,
       "summary": [
         "INFO 前台采样 171/171",
-        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+        "SELFTEST OK commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
       ],
       "failures": [],
       "localization_and_order_assertions": [
@@ -232,7 +232,7 @@
       "skip": 0,
       "summary": [
         "INFO 前台采样 178/178",
-        "SELFTEST FAILED 3 commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+        "SELFTEST FAILED 3 commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
       ],
       "failures": [
         "FAIL 等待超时：取消表单收起",
@@ -280,7 +280,7 @@
       "skip": 0,
       "summary": [
         "INFO 前台采样 90/90",
-        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+        "SELFTEST OK commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
       ],
       "failures": [],
       "localization_and_order_assertions": [
@@ -329,7 +329,7 @@
       "skip": 0,
       "summary": [
         "INFO 前台采样 93/93",
-        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+        "SELFTEST OK commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
       ],
       "failures": [],
       "localization_and_order_assertions": [
@@ -378,7 +378,7 @@
       "skip": 0,
       "summary": [
         "INFO 前台采样 93/93",
-        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+        "SELFTEST OK commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
       ],
       "failures": [],
       "localization_and_order_assertions": [
@@ -427,7 +427,7 @@
       "skip": 0,
       "summary": [
         "INFO 前台采样 92/92",
-        "SELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
+        "SELFTEST OK commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b"
       ],
       "failures": [],
       "localization_and_order_assertions": [
@@ -472,7 +472,7 @@
     "app_exit": 1,
     "open_exit": 0,
     "seconds": 12.158846,
-    "output": "PASS C2.5 启动恢复后状态栏显示完成提示：Completed 1 interrupted move(s) from last session\nPASS C2.5 启动恢复完成了未完成的移动并清理源文件\nPASS C2.1 移动 001.png 成功\nPASS C2.1 移动后文件在目标目录\nPASS C2.1 撤销菜单标题写明操作和对象：Undo 移动“001.png”\nPASS C2.1 第 1 轮 ⌘Z 后文件系统回到操作前\nPASS C2.1 第 1 轮 ⌘Z 后重做菜单标题写明操作和对象：Redo 移动“001.png”\nPASS C2.1 第 1 轮 ⇧⌘Z 后文件系统回到操作后\nPASS C2.1 第 2 轮 ⌘Z 后文件系统回到操作前\nPASS C2.1 第 2 轮 ⌘Z 后重做菜单标题写明操作和对象：Redo 移动“001.png”\nPASS C2.1 第 2 轮 ⇧⌘Z 后文件系统回到操作后\nPASS C2.2 焦点在文本框时返回文本 UndoManager\nPASS C2.2 文本框输入后可撤销文本且不与文件操作共用 UndoManager\nPASS C2.2 文本框中按 ⌘Z 只撤销文本，文件操作未撤销\nPASS C2.3 超过 1 秒的操作在状态栏显示进度：移动 6 项 3 / 6 items\nPASS C2.3 取消后状态栏收起进度\nPASS C2.3 取消后已完成 4 项保留，未完成留在源目录\nPASS C2.3 取消后没有残留临时项\nPASS C2.3 取消后已完成的项可撤销回到原位\nPASS C2.4 部分失败返回 1 项完成、1 项失败\nPASS C2.4 错误条列出失败文件名与原因：移动到“dst”: 1 of 2 items failed missing.png Can’t find “/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix-repeat/FileOps-en-dark/support/selftest-tmp/fileops-38063C31-2158-4822-A117-836DDC19D41C/c24/src/missing.png”\nPASS C2.4 点击“重试”只重做失败项并收起错误条\nPASS C2.4 点击关闭后错误条消失\nPASS C2.4b 撤销时原位置已被占用，报错且不覆盖已有文件\nPASS C2.4b 腾出位置后点错误条“重试”恢复原文件\nPASS C2.4b 连续提交同一项只执行一次，状态栏提示“这一项正在处理”：This item is already being processed\nPASS C2.4b 队列里有操作时撤销和重做不可用\nPASS C2.4b 队列忙时按 ⌘Z 状态栏提示“文件操作完成后才能撤销”：Wait for file operations to finish before undoing\nFAIL 等待超时：永久删除取消表单获得焦点\nINFO 前台采样 44/109\nSELFTEST FAILED 1 commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n",
+    "output": "PASS C2.5 启动恢复后状态栏显示完成提示：Completed 1 interrupted move(s) from last session\nPASS C2.5 启动恢复完成了未完成的移动并清理源文件\nPASS C2.1 移动 001.png 成功\nPASS C2.1 移动后文件在目标目录\nPASS C2.1 撤销菜单标题写明操作和对象：Undo 移动“001.png”\nPASS C2.1 第 1 轮 ⌘Z 后文件系统回到操作前\nPASS C2.1 第 1 轮 ⌘Z 后重做菜单标题写明操作和对象：Redo 移动“001.png”\nPASS C2.1 第 1 轮 ⇧⌘Z 后文件系统回到操作后\nPASS C2.1 第 2 轮 ⌘Z 后文件系统回到操作前\nPASS C2.1 第 2 轮 ⌘Z 后重做菜单标题写明操作和对象：Redo 移动“001.png”\nPASS C2.1 第 2 轮 ⇧⌘Z 后文件系统回到操作后\nPASS C2.2 焦点在文本框时返回文本 UndoManager\nPASS C2.2 文本框输入后可撤销文本且不与文件操作共用 UndoManager\nPASS C2.2 文本框中按 ⌘Z 只撤销文本，文件操作未撤销\nPASS C2.3 超过 1 秒的操作在状态栏显示进度：移动 6 项 3 / 6 items\nPASS C2.3 取消后状态栏收起进度\nPASS C2.3 取消后已完成 4 项保留，未完成留在源目录\nPASS C2.3 取消后没有残留临时项\nPASS C2.3 取消后已完成的项可撤销回到原位\nPASS C2.4 部分失败返回 1 项完成、1 项失败\nPASS C2.4 错误条列出失败文件名与原因：移动到“dst”: 1 of 2 items failed missing.png Can’t find “/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/matrix-repeat/FileOps-en-dark/support/selftest-tmp/fileops-38063C31-2158-4822-A117-836DDC19D41C/c24/src/missing.png”\nPASS C2.4 点击“重试”只重做失败项并收起错误条\nPASS C2.4 点击关闭后错误条消失\nPASS C2.4b 撤销时原位置已被占用，报错且不覆盖已有文件\nPASS C2.4b 腾出位置后点错误条“重试”恢复原文件\nPASS C2.4b 连续提交同一项只执行一次，状态栏提示“这一项正在处理”：This item is already being processed\nPASS C2.4b 队列里有操作时撤销和重做不可用\nPASS C2.4b 队列忙时按 ⌘Z 状态栏提示“文件操作完成后才能撤销”：Wait for file operations to finish before undoing\nFAIL 等待超时：永久删除取消表单获得焦点\nINFO 前台采样 44/109\nSELFTEST FAILED 1 commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n",
     "pass": 28,
     "fail": 1
   },
@@ -2430,7 +2430,7 @@
       "app_exit": 0,
       "open_exit": 0,
       "seconds": 1.011858958,
-      "output": "PASS 恢复等待保留源文件和具体阶段、卷不可用原因：上次中断的移动等待恢复，下次启动时继续 large-1gb.bin 检查源文件：export/Photos/macview-fileops-test/a/g3-retest-20261126：所在的卷不可用\nSELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n"
+      "output": "PASS 恢复等待保留源文件和具体阶段、卷不可用原因：上次中断的移动等待恢复，下次启动时继续 large-1gb.bin 检查源文件：export/Photos/macview-fileops-test/a/g3-retest-20261126：所在的卷不可用\nSELFTEST OK commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n"
     },
     "recovery-verify": {
       "name": "recovery-verify",
@@ -2468,7 +2468,7 @@
       "app_exit": 0,
       "open_exit": 0,
       "seconds": 36.619074375,
-      "output": "PASS C2.20 恢复提示：上次中断的 1 次移动已完成\nPASS C2.20 SHA-256 一致、源删除、临时项及记录清空：目标 [\"large-1gb.bin\"]，记录 0\nINFO 前台采样 1/1\nSELFTEST OK commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n"
+      "output": "PASS C2.20 恢复提示：上次中断的 1 次移动已完成\nPASS C2.20 SHA-256 一致、源删除、临时项及记录清空：目标 [\"large-1gb.bin\"]，记录 0\nINFO 前台采样 1/1\nSELFTEST OK commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n"
     },
     "final_bytes": 1000000000,
     "final_sha256": "7bfb3e87c8fa608a76ccf4ceeb5309f5a97e138dd526763a8369e09bf2fc21dc",
@@ -2484,7 +2484,7 @@
     "historical_result": "failure",
     "latest_attempt": 2,
     "latest_result": "success",
-    "commit": "9e17daecd7eb88522041b00d8e7489a2c38a57f6",
+    "commit": "091de60fd6057daaa05a26a23e7de341dcd96c64",
     "diagnostic_agent": "codex gpt-6.1-sol xhigh",
     "probe_exit": 0,
     "command": [
@@ -2555,7 +2555,7 @@
     {
       "run": "旧 net-kill 连跑模式",
       "app_exit": 2,
-      "output": "PASS 网络卷 fileops-a 已挂载且没有上次留下的测试项：[]\nFAIL C2.18 S2 删除的页进入 .macview-trash/<批次>/001.png：[]\nPASS C2.18 S2 书架和页面列表看不到回收目录\nPASS C2.18 S2 ⌘Z 后文件回到原处\nFAIL C2.18 S2 清空回收目录列出网络卷 A（1 次删除）：[\"/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/nfs-direct/:10\", \"/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/fault/:10\"]\nINFO 前台采样 11/11\nSELFTEST FAILED 2 commit=9e17daecd7eb88522041b00d8e7489a2c38a57f6 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n",
+      "output": "PASS 网络卷 fileops-a 已挂载且没有上次留下的测试项：[]\nFAIL C2.18 S2 删除的页进入 .macview-trash/<批次>/001.png：[]\nPASS C2.18 S2 书架和页面列表看不到回收目录\nPASS C2.18 S2 ⌘Z 后文件回到原处\nFAIL C2.18 S2 清空回收目录列出网络卷 A（1 次删除）：[\"/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/nfs-direct/:10\", \"/Users/yuwk/Developer/Repos/Personal/MacView/.g3-retest-20261126/fault/:10\"]\nINFO 前台采样 11/11\nSELFTEST FAILED 2 commit=091de60fd6057daaa05a26a23e7de341dcd96c64 cdhash=1a60a8e0f7182c9b02dfb2b520e1f2b45a47520b\n",
       "reason": "S2 把传入的子目录当卷根，且遇到本轮已有回收批次，前置不符；未到 S6/S7。跨卷后来在正常窗口用 20 x 1 MiB 夹具重验，恢复用独立模式重验。"
     },
     {
@@ -2589,13 +2589,13 @@
     "local_temporary_sources_builds_scripts_logs_and_fixtures_removed": true
   },
   "screenshots": {
-    "retry-inflight-error.png": "899ac68dff5d99dbd8c23f39c616285488472567252feebb53f9c7c36dd5eeab",
-    "retry-inflight-wait.png": "06741e5064a0101d3404b7b61e5766cd521e0e22d9538733928295fd37413c53",
-    "retry-inflight-success.png": "af59c2ac3bedf770ae5b895bcac36152e06b30ddc4e728106caf6f5e1dc92f1b",
-    "retry-inflight-undo.png": "90207a222c28b5be562528c6d415efc401119829ceb620f2c441584241f4541c",
-    "retry-forward-success.png": "84b22fc94904d092325d0c27367664a1f71ed7fcfd6884ca6567d2600c0dfa8e",
-    "cross-append.png": "ab15b069a11a7cd65d2a767b57ec39ca8047c4752eb099c0e4305831e4112865",
-    "cross-skip.png": "a4c15786b9066b7a2046f8c18d9cd409a462b82ad0c88e09bd7a42811518967f",
+    "retry-inflight-error.png（截图已移除）": "899ac68dff5d99dbd8c23f39c616285488472567252feebb53f9c7c36dd5eeab",
+    "retry-inflight-wait.png（截图已移除）": "06741e5064a0101d3404b7b61e5766cd521e0e22d9538733928295fd37413c53",
+    "retry-inflight-success.png（截图已移除）": "af59c2ac3bedf770ae5b895bcac36152e06b30ddc4e728106caf6f5e1dc92f1b",
+    "retry-inflight-undo.png（截图已移除）": "90207a222c28b5be562528c6d415efc401119829ceb620f2c441584241f4541c",
+    "retry-forward-success.png（截图已移除）": "84b22fc94904d092325d0c27367664a1f71ed7fcfd6884ca6567d2600c0dfa8e",
+    "cross-append.png（截图已移除）": "ab15b069a11a7cd65d2a767b57ec39ca8047c4752eb099c0e4305831e4112865",
+    "cross-skip.png（截图已移除）": "a4c15786b9066b7a2046f8c18d9cd409a462b82ad0c88e09bd7a42811518967f",
     "recovery-target.png": "0d4fad138f986a835a825c2b4b8c341b876de899d2096a57d1c0911596215a37",
     "fileops-en-dark-permanent.png": "ce4bb5fd3663125a317c97a48b2e7475e9a3332673e2b6f4248ab37afafbe81c",
     "search-en-dark.png": "3af51343b190060390df29aaa95c74ecaacd0108d88aa34f22f68852b40a2948"

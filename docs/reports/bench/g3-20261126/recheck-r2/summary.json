@@ -11,7 +11,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 159/159",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "classify-panel-archive.png",
@@ -42,7 +42,7 @@
     "summary": [
       "FAIL 等待超时：C2.10c 重命名表单获得焦点",
       "INFO 前台采样 55/134",
-      "SELFTEST FAILED 1 commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST FAILED 1 commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "fileops-banner.png",
@@ -64,7 +64,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 159/159",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "classify-panel-archive.png",
@@ -94,7 +94,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 160/160",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "classify-panel-archive.png",
@@ -124,7 +124,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 159/159",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "classify-panel-archive.png",
@@ -154,7 +154,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 157/157",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "classify-panel-archive.png",
@@ -184,7 +184,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 158/158",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "classify-panel-archive.png",
@@ -214,7 +214,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 161/161",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "classify-panel-archive.png",
@@ -244,7 +244,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 93/93",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "info-panel-exif.png",
@@ -263,7 +263,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 92/92",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "info-panel-exif.png",
@@ -282,7 +282,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 93/93",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "info-panel-exif.png",
@@ -301,7 +301,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 90/90",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "info-panel-exif.png",
@@ -320,7 +320,7 @@
     "fail": 0,
     "summary": [
       "INFO 前台采样 158/158",
-      "SELFTEST OK commit=4cfd987a2efc482fa290d3fee398ebb38c59a226 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
+      "SELFTEST OK commit=caa4474346e565cad850601c733bb55e2bee6f96 cdhash=052373bea9c2da2daacf9aa7f79c65ec637eb603"
     ],
     "screens": [
       "classify-panel-archive.png",

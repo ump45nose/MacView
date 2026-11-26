@@ -1,10 +1,10 @@
 # G3 实机操作记录
 
-当前源码固定为 `d415d525259c98f1bc29b9dd0b3392e3cdb8212b`。MacPro 使用 macOS 27.2（26B123）、M1 Pro、32 GiB。常规 Debug 使用独立支持目录、缓存和窗口布局。系统保存/打开面板、Finder 及 Preview 走 macOS 实际服务；UI 操作用 Peekaboo 前台键鼠，结合窗口画面、辅助功能、NAS 原文件及持久化记录核对。由一个执行者串行操控，没有安装或替换应用。
+当前源码固定为 `23538a3bc1d59015bdf29ac78811f1a38b3cafee`。MacPro 使用 macOS 27.2（26B123）、M1 Pro、32 GiB。常规 Debug 使用独立支持目录、缓存和窗口布局。系统保存/打开面板、Finder 及 Preview 走 macOS 实际服务；UI 操作用 Peekaboo 前台键鼠，结合窗口画面、辅助功能、NAS 原文件及持久化记录核对。由一个执行者串行操控，没有安装或替换应用。
 
 ## 安装版及真实支持目录
 
-安装版源码标识为 `79a4bc3de77bb56e8449660de446b3008cf76144`。另起冻结源码的 Release 正常启动，两个 Release 均未传调试参数。操作前通过 `ditto` 私有备份真实支持目录，以路径、类型、权限、文件大小和 SHA-256 对比原件及副本；敏感路径仅保留哈希。目录本身不按文件字节大小比较。两条链分别退出后还原、核准同一份原始状态。最终复核详见 JSON 中的 `cleanup` 与 `restored_support_manifest`。
+安装版源码标识为 `fd7496ab155f9bdf5ac8a7190f2ef6aafab8e8dc`。另起冻结源码的 Release 正常启动，两个 Release 均未传调试参数。操作前通过 `ditto` 私有备份真实支持目录，以路径、类型、权限、文件大小和 SHA-256 对比原件及副本；敏感路径仅保留哈希。目录本身不按文件字节大小比较。两条链分别退出后还原、核准同一份原始状态。最终复核详见 JSON 中的 `cleanup` 与 `restored_support_manifest`。
 
 | 流程 | 原应用 PID → 导入后 → 反导后 | 实际观察 |
 |---|---|---|
@@ -31,7 +31,7 @@ AX 读到导出包含来源密码的提醒、确认框的“取消”和“导�
 
 可复核的合成屏幕包括未松手时切换标签的连续帧、网络页离线、NFS 元数据重启后四星、永久删除独立确认窗、文件设置英文与 3,000 项虚拟书。真实 NAS 文件名、图片、导出归档和凭据均不放进报告。
 
-[悬停连帧](live-screens/hover-before-release.png) · [离线占位](live-screens/nfs-offline-placeholder.png) · [重启后四星](live-screens/nfs-four-after-reopen.png) · [永久删除确认](live-screens/permanent-delete-en.png) · [网络删除超时](live-screens/nfs-delete-read-timeout.png) · [英文设置](live-screens/files-settings-en.png) · [3,000 项虚拟书](live-screens/virtual-3000.png)
+[悬停连帧](live-screens/hover-before-release.png) · 离线占位（截图已移除） · 重启后四星（截图已移除） · 永久删除确认（截图已移除） · 网络删除超时（截图已移除） · [英文设置](live-screens/files-settings-en.png) · [3,000 项虚拟书](live-screens/virtual-3000.png)
 
 收尾已核实受保护的三个路径仍未挂载，原 SMB 保持。七个独立 NFS 挂载均卸载成功，故障代理退出时自行卸载第八个；两个本轮 NAS 子目录及同名 AppleDouble 均不存在。真实支持目录 16 个项目与原始清单一致，安装版二进制 SHA-256 保持。
 

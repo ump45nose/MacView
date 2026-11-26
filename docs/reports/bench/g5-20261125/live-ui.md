@@ -1,6 +1,6 @@
 # G5 真实 App 走查
 
-2026-11-25，MacPro，macOS 27.2（26B123），Asia/Taipei。使用已安装的 Release（S5-F1 产品提交 `8533aaf`）和冻结 main `88793de` 构建的 Debug。下表的「部分」指仅列出的子动作已有实际证据。
+2026-11-25，MacPro，macOS 27.2（26B123），Asia/Taipei。使用已安装的 Release（S5-F1 产品提交 `49d2412`）和冻结 main `0acf93c` 构建的 Debug。下表的「部分」指仅列出的子动作已有实际证据。
 
 ## 真实环境与隔离
 

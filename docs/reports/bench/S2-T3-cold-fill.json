@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "purpose": "阶段3第十一次交回：共享作业加入与放弃互斥（9ab2b54）后，最终冻结App 20次本地冷填充，必须20/20。",
+  "purpose": "阶段3第十一次交回：共享作业加入与放弃互斥（54fcabd）后，最终冻结App 20次本地冷填充，必须20/20。",
   "spec": ".spec/stage-3.md 第十一次交回的答复（2026-11-06 22:40），W3.8",
-  "sourceCommit": "20e2004d05bfcfd38b98a034f45ea1d351289484",
+  "sourceCommit": "fde941647b9e1b5d21a30d731339dca4fcb94d43",
   "binarySHA256": "f10e55f53a5454c64347113f0bb9295b3e207534b01edfd7fda7b0d09e650cb8",
   "cdhash": "aef904e7cc2023ba4ea73b755af20092f64ada38",
   "frozenManifest": "outputs/stage3-frozen/manifest.json",

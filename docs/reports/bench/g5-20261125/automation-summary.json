@@ -3,7 +3,7 @@
   "日期": "2026-11-25",
   "本机": "MacPro，arm64，macOS 27.2 (26B123)，Xcode 27.2 (27B52)",
   "源码": {
-    "提交": "88793deaac161f121a47d95d8e388bdee7331d99",
+    "提交": "0acf93cbfc8673979a9b088a2b5671b4f3d72e04",
     "独立冻结源码git状态": "",
     "排除未跟踪Assets": true,
     "夹具": "复用既有本地生成夹具的工作区隔离副本；3000 项 CLI 测试使用本次合成目录。"
@@ -14,7 +14,7 @@
       "命令": "xcodebuild -quiet -project MacView.xcodeproj -scheme MacView -configuration Debug -destination platform=macOS,arch=arm64 -derivedDataPath $RUN/derived -disableAutomaticPackageResolution -skipPackageUpdates COMPILER_INDEX_STORE_ENABLE=NO build",
       "退出码": 0,
       "警告数": 0,
-      "MVSourceCommit": "88793deaac161f121a47d95d8e388bdee7331d99",
+      "MVSourceCommit": "0acf93cbfc8673979a9b088a2b5671b4f3d72e04",
       "CDHash": "fadd4904e81435b53e1d41599ad2a0ed98f50ad6",
       "严格签名验证退出码": 0
     },
@@ -23,7 +23,7 @@
       "命令": "xcodebuild -quiet -project MacView.xcodeproj -scheme MacView -configuration Release -destination platform=macOS,arch=arm64 -derivedDataPath $RUN/derived -disableAutomaticPackageResolution -skipPackageUpdates COMPILER_INDEX_STORE_ENABLE=NO build",
       "退出码": 0,
       "警告数": 0,
-      "MVSourceCommit": "88793deaac161f121a47d95d8e388bdee7331d99",
+      "MVSourceCommit": "0acf93cbfc8673979a9b088a2b5671b4f3d72e04",
       "CDHash": "16f0b75a99a5fe50b527dcc518ad992b1c8b1a8b",
       "严格签名验证退出码": 0
     }
@@ -115,7 +115,7 @@
         "elapsed_seconds": 2.85,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 19/19"
@@ -146,7 +146,7 @@
         "elapsed_seconds": 2.77,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 18/18"
@@ -177,7 +177,7 @@
         "elapsed_seconds": 2.81,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 18/18"
@@ -208,7 +208,7 @@
         "elapsed_seconds": 2.93,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 18/18"
@@ -239,7 +239,7 @@
         "elapsed_seconds": 4.05,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 30/30"
@@ -268,7 +268,7 @@
         "elapsed_seconds": 3.95,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 29/29"
@@ -297,7 +297,7 @@
         "elapsed_seconds": 3.99,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 29/29"
@@ -326,7 +326,7 @@
         "elapsed_seconds": 3.83,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 28/28"
@@ -355,7 +355,7 @@
         "elapsed_seconds": 14.62,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 133/133"
@@ -392,7 +392,7 @@
         "elapsed_seconds": 14.49,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 134/134"
@@ -429,7 +429,7 @@
         "elapsed_seconds": 14.66,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 134/134"
@@ -466,7 +466,7 @@
         "elapsed_seconds": 14.61,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 134/134"
@@ -503,7 +503,7 @@
         "elapsed_seconds": 12.22,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 71/71"
@@ -545,7 +545,7 @@
         "elapsed_seconds": 11.96,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 73/73"
@@ -587,7 +587,7 @@
         "elapsed_seconds": 12.02,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 69/69"
@@ -629,7 +629,7 @@
         "elapsed_seconds": 12.2,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 70/70"
@@ -671,7 +671,7 @@
         "elapsed_seconds": 3.53,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 24/24"
@@ -702,7 +702,7 @@
         "elapsed_seconds": 3.74,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 22/22"
@@ -733,7 +733,7 @@
         "elapsed_seconds": 3.53,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 22/22"
@@ -764,7 +764,7 @@
         "elapsed_seconds": 3.78,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 23/23"
@@ -795,7 +795,7 @@
         "elapsed_seconds": 6.83,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 49/49"
@@ -844,7 +844,7 @@
         "elapsed_seconds": 6.81,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 49/49"
@@ -893,7 +893,7 @@
         "elapsed_seconds": 6.96,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 50/50"
@@ -942,7 +942,7 @@
         "elapsed_seconds": 6.85,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 50/50"
@@ -991,7 +991,7 @@
         "elapsed_seconds": 14.21,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 109/109"
@@ -1022,7 +1022,7 @@
         "elapsed_seconds": 13.68,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 108/108"
@@ -1053,7 +1053,7 @@
         "elapsed_seconds": 13.72,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 107/107"
@@ -1084,7 +1084,7 @@
         "elapsed_seconds": 13.82,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 109/109"
@@ -1115,7 +1115,7 @@
         "elapsed_seconds": 1.37,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 5/5"
@@ -1142,7 +1142,7 @@
         "elapsed_seconds": 1.7,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 4/4"
@@ -1169,7 +1169,7 @@
         "elapsed_seconds": 1.44,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 5/5"
@@ -1196,7 +1196,7 @@
         "elapsed_seconds": 1.42,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 4/4"
@@ -1223,7 +1223,7 @@
         "elapsed_seconds": 7.23,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 61/61"
@@ -1252,7 +1252,7 @@
         "elapsed_seconds": 7.31,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 59/59"
@@ -1281,7 +1281,7 @@
         "elapsed_seconds": 7.25,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 61/61"
@@ -1310,7 +1310,7 @@
         "elapsed_seconds": 7.18,
         "launchservices_exit": 0,
         "selftest": [
-          "SELFTEST OK commit=88793deaac161f121a47d95d8e388bdee7331d99 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
+          "SELFTEST OK commit=0acf93cbfc8673979a9b088a2b5671b4f3d72e04 cdhash=fadd4904e81435b53e1d41599ad2a0ed98f50ad6"
         ],
         "foreground": [
           "INFO 前台采样 60/60"

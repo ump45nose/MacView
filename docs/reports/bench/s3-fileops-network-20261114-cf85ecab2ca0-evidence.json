@@ -1,5 +1,5 @@
 {
-  "commitBefore": "10854dfc67d64dd116688b36939988e036b3c794",
+  "commitBefore": "cf85ecab2ca0b00dd033aae391721ace1869eb9e",
   "gitStatusBefore": "",
   "baseline": {
     "/Users/yuwk/MacViewBench/fileops-a": {
@@ -61,7 +61,7 @@
         "/Users/yuwk/Developer/Repos/Personal/MacView.worktrees/s3-fileops/Packages/MacViewKit/.build/release/mvbench",
         "fileops",
         "--output",
-        "/Users/yuwk/Developer/Repos/Personal/MacView.worktrees/s3-fileops/docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6.json"
+        "/Users/yuwk/Developer/Repos/Personal/MacView.worktrees/s3-fileops/docs/reports/bench/s3-fileops-network-20261114-cf85ecab2ca0.json"
       ],
       "startedAt": "2026-11-14T08:51:08.889593+00:00",
       "pid": 34358,
@@ -94,12 +94,12 @@
       "entries": []
     }
   },
-  "commitAfter": "10854dfc67d64dd116688b36939988e036b3c794",
-  "gitStatusAfter": "?? docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6-evidence.json\n?? docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6.json\n",
+  "commitAfter": "cf85ecab2ca0b00dd033aae391721ace1869eb9e",
+  "gitStatusAfter": "?? docs/reports/bench/s3-fileops-network-20261114-cf85ecab2ca0-evidence.json\n?? docs/reports/bench/s3-fileops-network-20261114-cf85ecab2ca0.json\n",
   "finishedAt": "2026-11-14T08:56:19.420207+00:00",
   "mountRootsAndOriginalEntriesPreserved": true,
   "localFileopsResidualsAfter": [],
-  "finalGitStatus": "?? docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6-evidence.json\n?? docs/reports/bench/s3-fileops-network-20261114-10854dfc67d6.json\n",
+  "finalGitStatus": "?? docs/reports/bench/s3-fileops-network-20261114-cf85ecab2ca0-evidence.json\n?? docs/reports/bench/s3-fileops-network-20261114-cf85ecab2ca0.json\n",
   "checks": {
     "C1.5": "真实 NFS A→B 辅助进程排他 rename 返回 IOError.crossVolume；源保留，目标未创建，测试后删掉本次源。",
     "C1.22": "500,000,000 字节同卷移动，阈值 ≤1 秒。",

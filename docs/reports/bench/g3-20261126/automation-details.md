@@ -1,6 +1,6 @@
 # G3 自动化执行明细
 
-2026-11-26，MacPro，冻结提交 `d415d525259c98f1bc29b9dd0b3392e3cdb8212b`。首轮 32 组前台自检，28 组通过、4 组失败。4 个失败全部来自文件操作。完整命令、首轮和重测各自的退出码、断言、前台 PID 采样、签名和日志指纹见 [automation-summary.json](automation-summary.json)。
+2026-11-26，MacPro，冻结提交 `23538a3bc1d59015bdf29ac78811f1a38b3cafee`。首轮 32 组前台自检，28 组通过、4 组失败。4 个失败全部来自文件操作。完整命令、首轮和重测各自的退出码、断言、前台 PID 采样、签名和日志指纹见 [automation-summary.json](automation-summary.json)。
 
 | 检查 | 结果 | 实测 |
 |---|---|---|

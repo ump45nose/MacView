@@ -1,6 +1,6 @@
 {
-  "frozen_commit": "d415d525259c98f1bc29b9dd0b3392e3cdb8212b",
-  "installed_commit": "79a4bc3de77bb56e8449660de446b3008cf76144",
+  "frozen_commit": "23538a3bc1d59015bdf29ac78811f1a38b3cafee",
+  "installed_commit": "fd7496ab155f9bdf5ac8a7190f2ef6aafab8e8dc",
   "worker_count": 1,
   "counts": {
     "PASS": 34,
@@ -527,7 +527,7 @@
     {
       "mode": "mock",
       "group": "shell",
-      "terminal": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -547,7 +547,7 @@
     {
       "mode": "real",
       "group": "shell",
-      "terminal": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -567,7 +567,7 @@
     {
       "mode": "main",
       "group": "dock",
-      "terminal": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -587,7 +587,7 @@
     {
       "mode": "restore",
       "group": "dock",
-      "terminal": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -607,7 +607,7 @@
     {
       "mode": "corrupt",
       "group": "dock",
-      "terminal": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -627,7 +627,7 @@
     {
       "mode": "yes",
       "group": "panels",
-      "terminal": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -647,7 +647,7 @@
     {
       "mode": "history-write",
       "group": "session",
-      "terminal": "SELFTEST FAILED 1 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST FAILED 1 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -667,7 +667,7 @@
     {
       "mode": "history-verify",
       "group": "session",
-      "terminal": "SELFTEST FAILED 1 commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST FAILED 1 commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -687,7 +687,7 @@
     {
       "mode": "history-write",
       "group": "session",
-      "terminal": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -711,7 +711,7 @@
     {
       "mode": "history-verify",
       "group": "session",
-      "terminal": "SELFTEST OK commit=d415d525259c98f1bc29b9dd0b3392e3cdb8212b cdhash=5ba3c74c466472272081a78368210caa635acc7c",
+      "terminal": "SELFTEST OK commit=23538a3bc1d59015bdf29ac78811f1a38b3cafee cdhash=5ba3c74c466472272081a78368210caa635acc7c",
       "opened": 0,
       "actual_exit": [
         [
@@ -1360,9 +1360,9 @@
   },
   "screenshots": [
     "live-screens/hover-before-release.png",
-    "live-screens/nfs-offline-placeholder.png",
-    "live-screens/permanent-delete-en.png",
-    "live-screens/nfs-four-after-reopen.png"
+    "截图已移除（nfs-offline-placeholder.png）",
+    "截图已移除（permanent-delete-en.png）",
+    "截图已移除（nfs-four-after-reopen.png）"
   ],
   "cleanup": {
     "own_debug_termination_count": 20,
@@ -1586,7 +1586,7 @@
       "plaintext_archive_or_backup_remaining": false,
       "user_gallery_cache_remaining": false,
       "product_tracked_diff_against_current_HEAD": [],
-      "product_comparison_head": "d5afc67c1ec3b0b512e2f28e51395e26c313bdb5",
+      "product_comparison_head": "b8fa2ea54d57b9102dcc838b761d4bd4b664ce1c",
       "paths_outside_cleanup": [
         ".g5*",
         "App/Resources/Assets.xcassets",

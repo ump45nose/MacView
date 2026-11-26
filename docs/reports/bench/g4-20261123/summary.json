@@ -3,19 +3,19 @@
   "date": "2026-11-23",
   "gate": "G4",
   "verdict": "未通过，暂不放行",
-  "source_commit": "4fcdd741d8163d0f932d7dc2e22d0b45197d6e99",
+  "source_commit": "c2cdd364cab671a1790f08158cc0fa1f0eea7714",
   "environment": "MacPro，macOS 27.2，arm64；本机夹具与现有 SMB NAS 挂载；未修改挂载或系统配置",
   "builds": [
     {
       "configuration": "Debug",
-      "source_commit": "4fcdd741d8163d0f932d7dc2e22d0b45197d6e99",
+      "source_commit": "c2cdd364cab671a1790f08158cc0fa1f0eea7714",
       "binary_sha256": "25dd484d08ada083beae749d76faf409fd4c9d37cab971e12e7a40c067cc2f26",
       "cdhash": "47820382980f4eaf5a82dabef002468093f692e1",
       "warnings": 0
     },
     {
       "configuration": "Release",
-      "source_commit": "4fcdd741d8163d0f932d7dc2e22d0b45197d6e99",
+      "source_commit": "c2cdd364cab671a1790f08158cc0fa1f0eea7714",
       "binary_sha256": "a36fa4bd90ec15b80b28fbaa8ee6dd7d83f9e4f191325e2f190dc6c48b1ee3c1",
       "cdhash": "f3c5681777eec439821109509374a7a3e3c5ac0a",
       "warnings": 2
@@ -100,7 +100,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/effects-render/launcher.log"
@@ -115,7 +115,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/effects-panel/launcher.log"
@@ -135,7 +135,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST FAILED 1 commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-viewer-foreground-complete/stdout.log"
@@ -150,7 +150,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-settings/launcher.log"
@@ -165,7 +165,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-settings-en-light/stdout.log"
@@ -180,7 +180,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-settings-zh-dark/stdout.log"
@@ -195,7 +195,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/input-settings-en-dark/stdout.log"
@@ -215,7 +215,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST FAILED 1 commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/viewer-fixtures-corrected/stdout.log"
@@ -235,7 +235,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST FAILED 1 commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/settings-foreground/stdout.log"
@@ -255,7 +255,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST FAILED 1 commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/settings-en-light/stdout.log"
@@ -275,7 +275,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST FAILED 1 commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/settings-zh-dark/stdout.log"
@@ -295,7 +295,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST FAILED 1 commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST FAILED 1 commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/settings-en-dark/stdout.log"
@@ -315,8 +315,8 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1",
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1",
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-chrome-no-forced-theme/stdout.log"
@@ -331,7 +331,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-background/launcher.log"
@@ -346,7 +346,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-fonts/launcher.log"
@@ -366,7 +366,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-settings-zh-no-forced-theme/stdout.log"
@@ -386,7 +386,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-settings-en-no-forced-theme/stdout.log"
@@ -406,7 +406,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-settings-c310-foreground/stdout.log"
@@ -426,7 +426,7 @@
           ]
         ],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/appearance-settings-c310-dark-foreground/stdout.log"
@@ -441,8 +441,8 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1",
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1",
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/video-gallery/stdout.log"
@@ -457,7 +457,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/video-viewer/stdout.log"
@@ -472,7 +472,7 @@
         },
         "foreground_samples": [],
         "final_summaries": [
-          "SELFTEST OK commit=4fcdd741d8163d0f932d7dc2e22d0b45197d6e99 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
+          "SELFTEST OK commit=c2cdd364cab671a1790f08158cc0fa1f0eea7714 cdhash=47820382980f4eaf5a82dabef002468093f692e1"
         ],
         "logs": [
           "docs/reports/bench/g4-20261123/outputs/ui/selftests/video-settings/stdout.log"
@@ -499,7 +499,7 @@
     {
       "id": "D-S1",
       "requirement": "在效果面板拖动亮度、对比度、饱和度、伽马、色温、色调滑块，主视图在单页、双页、瀑布流、纵向连续、横向连续里实时变化，面板缩略图不变；拖动时不掉帧。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实滑块拖动；真实渲染",
       "automation_runs": [
         "effects-render",
@@ -527,7 +527,7 @@
     {
       "id": "D-S2",
       "requirement": "把当前状态勾选部分组保存为命名配置；在另一本书用快捷键套用，只有勾选的组变化；关掉再开这本书，值仍在（书记忆）；原来那本书不受影响。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实键盘、两书切换、重启",
       "automation_runs": [
         "effects-panel"
@@ -549,7 +549,7 @@
     {
       "id": "D-S3",
       "requirement": "“套用到全局默认”后，没有单独设置的书都按新值显示；“存为路径规则”后，匹配该路径的书按新值显示。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实书籍、路径和渲染",
       "automation_runs": [
         "effects-panel"
@@ -573,7 +573,7 @@
     {
       "id": "D-S4",
       "requirement": "用一键开关关闭效果看到原图，再打开回到原来的滑块值。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实界面操作与图像",
       "automation_runs": [
         "effects-render",
@@ -592,7 +592,7 @@
     {
       "id": "D-S5",
       "requirement": "播放视频时调色生效；复制图片粘贴到别的应用、拖出到 Finder，得到的是调色后的图；效果关闭时得到原文件。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实播放、剪贴板、Finder 拖放与像素内容",
       "automation_runs": [
         "effects-render"
@@ -617,7 +617,7 @@
     {
       "id": "D-S6",
       "requirement": "手工改坏 `profiles.json`，App 保留上一份配置并提示错误与“打开文件”入口；改回后自动重载。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实外部文件编辑",
       "automation_runs": [
         "effects-panel"
@@ -635,7 +635,7 @@
     {
       "id": "D-S7",
       "requirement": "背景切换为纯色、自定义颜色、棋盘格，透明图片能看出区别。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "实际透明图与可见渲染",
       "automation_runs": [
         "effects-render",
@@ -661,7 +661,7 @@
     {
       "id": "I-S1",
       "requirement": "在设置“快捷键”页把某命令改成多键序列，回到查看器按下后执行；录一个已被占用的键，界面标出冲突的命令；恢复默认后回到原键。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实键盘录制与按键",
       "automation_runs": [
         "input-settings",
@@ -683,7 +683,7 @@
     {
       "id": "I-S2",
       "requirement": "在“菜单与工具栏”页把一个命令加进右键菜单、调整顺序、加分隔线，查看器右键看到新菜单；主菜单同理；重启后保持。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实菜单打开与重启",
       "automation_runs": [
         "input-settings",
@@ -708,7 +708,7 @@
     {
       "id": "I-S3",
       "requirement": "用工具栏自定义面板加减按钮、换顺序，重启后保持；`menus.json` 里能看到结果。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实面板拖放、重启、文件读取",
       "automation_runs": [
         "input-settings",
@@ -729,7 +729,7 @@
     {
       "id": "I-S4",
       "requirement": "右键拖“←”翻到上一页、“→”下一页（默认绑定），拖动时看到轨迹和命令名；右键不拖仍弹菜单；在设置里新增“↓→”绑到某命令后生效。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实右键轨迹和设置录制",
       "automation_runs": [
         "input-settings",
@@ -752,7 +752,7 @@
     {
       "id": "I-S5",
       "requirement": "从左往右和从右往左两种阅读方向下，单击左/右区域翻页方向正确；中间区域绑定命令后单击生效；拖动平移、双击、框选不受影响。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实点击、拖动、双击、框选",
       "automation_runs": [
         "input-viewer-foreground-complete"
@@ -777,7 +777,7 @@
     {
       "id": "I-S6",
       "requirement": "滚轮按修饰键改绑（如 ⌥ 加滚轮切换书），鼠标与触控板分别生效；未改时行为和改动前一致。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实鼠标与触控板滚动",
       "automation_runs": [
         "input-viewer-foreground-complete"
@@ -798,7 +798,7 @@
     {
       "id": "I-S7",
       "requirement": "触控板左右轻扫绑到翻页后生效；捏合缩放照旧。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实触控板与系统设置",
       "automation_runs": [
         "input-viewer-foreground-complete"
@@ -813,7 +813,7 @@
     {
       "id": "I-S8",
       "requirement": "保存两个布局方案，用命令或快捷键在两者间切换，停靠面板随之变化；重启后方案仍在。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实命令/键盘、布局恢复",
       "automation_runs": [
         "input-viewer-foreground-complete",
@@ -834,7 +834,7 @@
     {
       "id": "I-S9",
       "requirement": "手工改坏 `menus.json` 或 `keybindings.json`，App 保留上一份并提示错误与“打开文件”入口；改回后自动重载。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实外部文件编辑",
       "automation_runs": [
         "input-viewer-foreground-complete",
@@ -855,7 +855,7 @@
     {
       "id": "A-S1",
       "requirement": "MacPro，设置 › 外观 › 外观选「深色」（系统为浅色）：所有阅读窗口、浮动面板和设置窗口立即变深色；退出重开仍是深色；选回「跟随系统」随系统。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实主题环境、设置交互、重启",
       "automation_runs": [
         "appearance-chrome-no-forced-theme"
@@ -879,7 +879,7 @@
     {
       "id": "A-S2",
       "requirement": "强调色改「跟随系统强调色」：瀑布流选中环、停靠放置指示、搜索高亮改用系统强调色。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "改系统强调色/实际画面",
       "automation_runs": [
         "appearance-chrome-no-forced-theme"
@@ -904,7 +904,7 @@
     {
       "id": "A-S3",
       "requirement": "字体「面板与列表」选一款已装字体、字号调大：书架、页面列表、历史的行文字立即变；「信息叠加层」改后 HUD 页码与状态栏变；「菜单」改后右键菜单、主菜单「视图」下拉条目、书架排序下拉变，菜单栏顶层标题不变；各组「恢复默认」回到系统字体。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "实际 UI 控件/菜单",
       "automation_runs": [
         "appearance-fonts",
@@ -940,7 +940,7 @@
     {
       "id": "A-S4",
       "requirement": "标题栏选「自动隐藏」：工具栏与标题栏收起，画面占满；指针移到顶端浮出，能拖窗口、点工具栏按钮；有两个标签时标签仍可切换；切回「显示」窗口位置和尺寸不变。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实鼠标、窗口与标签事件",
       "automation_runs": [
         "appearance-chrome-no-forced-theme"
@@ -967,7 +967,7 @@
     {
       "id": "A-S5",
       "requirement": "标题栏「无边框」+ 置顶 + 不透明度 60%：窗口没有标题栏和红绿灯；点 Finder 后仍在最上层；能透过窗口看到桌面；⌘ 拖画面移动窗口，拖边缘改尺寸；用命令或「窗口」菜单切换置顶生效。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实 Finder、桌面、⌘拖动、窗口边缘事件",
       "automation_runs": [
         "appearance-chrome-no-forced-theme"
@@ -993,7 +993,7 @@
     {
       "id": "A-S6",
       "requirement": "效果面板背景选「毛玻璃」：图片周围透出模糊的桌面；选「按图取色」：翻到白底页背景变近白，翻到深色照片背景变深；存进显示配置后套用到另一本书仍是这个背景。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实桌面、图片、翻页和保存/套用",
       "automation_runs": [
         "appearance-background"
@@ -1022,7 +1022,7 @@
     {
       "id": "A-S7",
       "requirement": "外观页布局方案节「保存当前布局…」存「阅读」，改动停靠区后再存「整理」；在列表里改名、「用当前布局覆盖」、删除（要确认）；从「窗口 › 布局方案」套用后停靠区随之变化；「管理布局方案…」打开到这一节。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实 Dock 拖放、菜单和确认操作",
       "automation_runs": [
         "appearance-settings-zh-no-forced-theme",
@@ -1047,7 +1047,7 @@
     {
       "id": "A-S8",
       "requirement": "英文界面、浅色与深色下外观页和新菜单项不截断（留关口 G4 走查）。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "实际英文界面/窗口宽度",
       "automation_runs": [
         "appearance-settings-c310-foreground",
@@ -1080,7 +1080,7 @@
     {
       "id": "V-S1",
       "requirement": "在 MacPro 上打开一个含视频的本机文件夹，页面列表切到网格，鼠标停在视频上左右移动；画面随位置换成不同的帧，底部进度线跟随，角标显示当前时间点；移出后恢复封面和总时长。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实鼠标悬停与移动",
       "automation_runs": [
         "video-gallery"
@@ -1100,7 +1100,7 @@
     {
       "id": "V-S2",
       "requirement": "再次悬停同一视频，以及退出重开 App 后悬停；各帧立即出现，不再逐步取。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实悬停、App 重启",
       "automation_runs": [
         "video-gallery"
@@ -1120,7 +1120,7 @@
     {
       "id": "V-S3",
       "requirement": "打开 NAS 挂载（/Volumes/Picture 或 NFS）上含视频的目录，第一次悬停；先显示封面，帧逐步出现，界面不卡。快速划过一排视频时不排长队，停下的那个很快开始出帧。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实 NAS 文件、冷缓存和真实鼠标",
       "automation_runs": [
         "video-gallery"
@@ -1144,7 +1144,7 @@
     {
       "id": "V-S4",
       "requirement": "主区切到瀑布流、纵向连续条、横向连续条，悬停视频同样可用；页面列表切到列表样式时悬停不切帧。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实鼠标和各浏览布局",
       "automation_runs": [
         "video-gallery"
@@ -1167,7 +1167,7 @@
     {
       "id": "V-S5",
       "requirement": "在画廊里悬停到视频中段后点击打开；查看器从该时间点开始播放。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实悬停与点击、播放素材",
       "automation_runs": [
         "video-gallery"
@@ -1184,7 +1184,7 @@
     {
       "id": "V-S6",
       "requirement": "在查看器播放视频，鼠标停在进度条上左右移动；上方浮出对应时间点的帧和时间，移开后消失。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实鼠标与视频播放",
       "automation_runs": [
         "video-viewer"
@@ -1203,7 +1203,7 @@
     {
       "id": "V-S7",
       "requirement": "在设置里关掉开关；画廊和进度条悬停都不再出预览帧，打开后恢复。",
-      "environment": "MacPro当前可见会话；冻结Debug4fcdd741，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
+      "environment": "MacPro当前可见会话；冻结Debugc2cdd364，V-S3为冻结Release；均独立support/cache/layout；经系统投递的真实鼠标/键盘事件与可见结果。",
       "required_real_input": "真实设置交互与悬停",
       "automation_runs": [
         "video-settings",
@@ -1566,7 +1566,7 @@
     "pipeline_evidence": "nas-preview/ai-images.json",
     "other_directory_decode_batch_failed": true
   },
-  "installed_release_source_commit": "15368c3295a23317f50837b17174cbc31238c29d",
+  "installed_release_source_commit": "f87e26010824671ef2b4531b85e16a5e35592f14",
   "raw_evidence": {
     "local_only": true,
     "directory": "outputs/",
