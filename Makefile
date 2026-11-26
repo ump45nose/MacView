@@ -4,12 +4,15 @@ APP := $(DERIVED)/Build/Products/Debug/MacView.app
 LOCAL_FIXTURES := Fixtures/local/generated
 FIXTURES_TMP := build/fixtures-tmp
 TEST_ARGS ?=
+MODE ?= local
+TARGET ?= local
+HOST ?=
 # 编译时为每个源文件写出要本地化的文案键，供 check-core-strings.py 核对英文翻译。
 # 目录不清空：增量构建只重写改过的模块，脚本会跳过已删除源文件的旧记录。
 CORE_STRINGS := build/core-strings
 SWIFT_STRINGS := -Xswiftc -emit-localized-strings -Xswiftc -emit-localized-strings-path -Xswiftc $(CURDIR)/$(CORE_STRINGS)
 
-.PHONY: project build test bench run clean
+.PHONY: project build test bench run package install clean
 
 # App/ 下增删文件后需要重新生成，所以 build 每次都先生成工程。
 project:
@@ -38,6 +41,14 @@ bench:
 
 run: build
 	open $(APP)
+
+# MODE=local|adhoc；正式包由 CI 使用 adhoc 模式生成。
+package:
+	scripts/package.sh --$(MODE)
+
+# TARGET=local 或 TARGET=ssh HOST=mac-work；明确当场构建，不从旧包中猜测。
+install:
+	scripts/install.sh "$(TARGET)" $(if $(filter ssh,$(TARGET)),"$(HOST)") --build
 
 clean:
 	rm -rf build MacView.xcodeproj $(PACKAGE)/.build
