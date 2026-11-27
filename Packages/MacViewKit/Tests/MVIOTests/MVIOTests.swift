@@ -167,17 +167,23 @@ import Testing
 }
 
 @Test func operationGroupAllowsContinuingProgressBeyondOneDeadline() async throws {
-    let scheduler = IOScheduler(configuration: .testing(metadata: 1, deadline: .milliseconds(250)))
+    let clock = ManualIOClock()
+    let scheduler = IOScheduler(configuration: .testing(metadata: 1, deadline: .milliseconds(250)), backend: nil, clock: clock)
+    let quick: @Sendable (@escaping @Sendable (Result<Void, IOError>) -> Void, @escaping @Sendable () -> Void) -> Void = { finish, _ in finish(.success(())) }
+    // 每 100 ms 有一次进展：第四次调用时距操作开始已 300 ms，超过一个期限仍可继续。
     let group = IORequestGroup(operation: true)
-    let start = ContinuousClock.now
     for _ in 0..<4 {
-        try await Task.sleep(for: .milliseconds(100))
-        let _: Void = try await scheduler.perform(on: testVolume, .bulk, priority: .visible, group: group) { finish, _ in
-            finish(.success(()))
-        }
+        clock.advance(by: .milliseconds(100))
+        try await scheduler.perform(on: testVolume, .bulk, priority: .visible, group: group, quick)
         scheduler.recordProgress(group)
     }
-    #expect(start.duration(to: .now) > .milliseconds(250))
+    // 同样的间隔没有进展时，下一次调用直接超时。
+    let stalled = IORequestGroup(operation: true)
+    try await scheduler.perform(on: testVolume, .bulk, priority: .visible, group: stalled, quick)
+    clock.advance(by: .milliseconds(300))
+    await #expect(throws: IOError.timeout) {
+        try await scheduler.perform(on: testVolume, .bulk, priority: .visible, group: stalled, quick)
+    }
 }
 
 @Test func operationTimeoutRejectsAlreadyQueuedSteps() async throws {

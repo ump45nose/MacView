@@ -112,15 +112,16 @@ public final class IOScheduler: Sendable {
     private let state = Mutex(State())
     private let direct: any FileBackend
     private let helper: (any FileBackend)?
-    private let timers = DispatchQueue(label: "io.github.ump45nose.MacView.io.deadlines")
+    private let clock: any IOClock
 
     public convenience init(configuration: IOConfiguration) {
         self.init(configuration: configuration, backend: nil)
     }
 
-    /// 测试用：`backend` 代替进程内执行和辅助进程，所有卷都用它。
-    init(configuration: IOConfiguration, backend: (any FileBackend)?) {
+    /// 测试用：`backend` 代替进程内执行和辅助进程，所有卷都用它；`clock` 代替系统时钟。
+    init(configuration: IOConfiguration, backend: (any FileBackend)?, clock: (any IOClock)? = nil) {
         self.configuration = configuration
+        self.clock = clock ?? SystemIOClock(queue: DispatchQueue(label: "io.github.ump45nose.MacView.io.deadlines"))
         table = VolumeTable()
         direct = backend ?? DirectBackend()
         helper = backend == nil ? configuration.helperExecutable.map(HelperBackend.init) : nil
@@ -265,7 +266,7 @@ public final class IOScheduler: Sendable {
         return direct
     }
 
-    func recordProgress(_ group: IORequestGroup?) { group?.operation?.progress() }
+    func recordProgress(_ group: IORequestGroup?) { group?.operation?.progress(now: clock.now) }
 
     /// 卷当前是否可用；不可用时抛出对应的错误。也用来登记第一次见到的卷。
     func volume(for location: Location) throws(IOError) -> Volume {
@@ -329,7 +330,7 @@ public final class IOScheduler: Sendable {
             if state.cancelledBeforeEnqueue.remove(id) != nil { return .cancelled }
             if let group, state.cancelledGroups.contains(group) { return .cancelled }
             if let operation = group?.operation,
-               operation.timedOut(volume.mountPoint) || operation.remaining(configuration.deadline.timeInterval, now: ProcessInfo.processInfo.systemUptime) <= 0 {
+               operation.timedOut(volume.mountPoint) || operation.remaining(configuration.deadline.timeInterval, now: clock.now) <= 0 {
                 operation.fail(volume.mountPoint)
                 return .timeout
             }
@@ -406,7 +407,7 @@ public final class IOScheduler: Sendable {
                 state.volumes[mountPoint]?.queues[channel]?.remove(at: best)
                 state.volumes[mountPoint]?.running[channel, default: 0] += 1
                 state.jobs[id]?.phase = .running
-                state.jobs[id]?.lastProgress = ProcessInfo.processInfo.systemUptime
+                state.jobs[id]?.lastProgress = clock.now
                 return (id, state.jobs[id]!)
             }
             guard let (id, job) = next else { return }
@@ -418,13 +419,13 @@ public final class IOScheduler: Sendable {
     private func armDeadline(_ id: UInt64, generation: Int) {
         let delay = state.withLock { state -> TimeInterval? in
             guard let job = state.jobs[id], job.generation == generation else { return nil }
-            let now = ProcessInfo.processInfo.systemUptime
+            let now = clock.now
             let operation = job.group?.operation?.remaining(configuration.deadline.timeInterval, now: now) ?? .infinity
             let call = job.lastProgress.map { configuration.deadline.timeInterval - (now - $0) } ?? .infinity
             return max(0, min(operation, call))
         }
         guard let delay, delay.isFinite else { return }
-        timers.asyncAfter(deadline: .now() + delay) { [weak self] in
+        clock.schedule(after: delay) { [weak self] in
             self?.expire(id, generation: generation)
         }
     }
@@ -432,9 +433,10 @@ public final class IOScheduler: Sendable {
     private func touch(_ id: UInt64) {
         let generation = state.withLock { state -> Int? in
             guard state.jobs[id]?.phase == .running else { return nil }
+            let now = clock.now
             state.jobs[id]?.generation += 1
-            state.jobs[id]?.lastProgress = ProcessInfo.processInfo.systemUptime
-            state.jobs[id]?.group?.operation?.progress()
+            state.jobs[id]?.lastProgress = now
+            state.jobs[id]?.group?.operation?.progress(now: now)
             return state.jobs[id]?.generation
         }
         if let generation { armDeadline(id, generation: generation) }
@@ -469,7 +471,7 @@ public final class IOScheduler: Sendable {
             guard let job = state.jobs[id], job.phase != .timedOut, job.generation == generation,
                   var volume = state.volumes[job.volume]
             else { return nil }
-            let now = ProcessInfo.processInfo.systemUptime
+            let now = clock.now
             let groupRemaining = job.group?.operation?.remaining(configuration.deadline.timeInterval, now: now) ?? .infinity
             let callRemaining = job.lastProgress.map { configuration.deadline.timeInterval - (now - $0) } ?? .infinity
             if min(groupRemaining, callRemaining) > 0 { return (job, nil, [], [], true) }
@@ -534,7 +536,7 @@ public final class IOScheduler: Sendable {
             }
             publishPendingHealth()
             if !healthy {
-                timers.asyncAfter(deadline: .now() + configuration.probeInterval.timeInterval) { [weak self] in
+                clock.schedule(after: configuration.probeInterval.timeInterval) { [weak self] in
                     self?.probe(volume)
                 }
             }

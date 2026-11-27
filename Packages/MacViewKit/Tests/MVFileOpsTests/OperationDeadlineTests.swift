@@ -12,11 +12,8 @@ struct OperationDeadlineTests {
     func deleteStopsAfterOneDeadline(trashExists: Bool) async throws {
         let fixture = try await DeadlineFixture(trashExists: trashExists)
         defer { fixture.clean() }
-        let started = ContinuousClock.now
-        let result = await fixture.service.perform(.delete([fixture.location]))
-        let elapsed = started.duration(to: .now)
+        let result = try await fixture.runForOneDeadline { await fixture.service.perform(.delete([fixture.location])) }
         #expect(result.failures.first?.error as? IOError == .timeout)
-        #expect(elapsed < .milliseconds(650), "一次操作不能累加等待：\(elapsed)")
         #expect(fixture.backend.blockedCalls == 1)
         fixture.backend.recover()
         let retry = await fixture.service.perform(try #require(result.retry))
@@ -29,11 +26,8 @@ struct OperationDeadlineTests {
     @Test func ratingStopsAfterOneDeadline() async throws {
         let fixture = try await DeadlineFixture(trashExists: false, rating: true)
         defer { fixture.clean() }
-        let started = ContinuousClock.now
-        let result = await fixture.service.perform(.setMetadata([fixture.location], XMPFields(rating: 2)))
-        let elapsed = started.duration(to: .now)
+        let result = try await fixture.runForOneDeadline { await fixture.service.perform(.setMetadata([fixture.location], XMPFields(rating: 2))) }
         #expect(result.failures.first?.error as? IOError == .timeout)
-        #expect(elapsed < .milliseconds(650), "失败清理不能再次等待：\(elapsed)")
         #expect(fixture.backend.blockedCalls == 1)
         fixture.backend.recover()
         #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.directory.path).contains { $0.contains(".mvtmp-") })
@@ -44,8 +38,10 @@ struct OperationDeadlineTests {
     }
 }
 
-private final class DeadlineFixture {
+private final class DeadlineFixture: Sendable {
+    static let deadline = Duration.milliseconds(400)
     let directory: URL
+    let clock = ManualIOClock()
     let scheduler: IOScheduler
     let backend: DeadlineBackend
     let location: Location
@@ -58,11 +54,11 @@ private final class DeadlineFixture {
         try FileManager.default.copyItem(at: workspace.appending(path: "Fixtures/image/format/baseline.jpg"), to: file)
         if trashExists { try FileManager.default.createDirectory(at: directory.appending(path: ".macview-trash"), withIntermediateDirectories: false) }
         var config = IOConfiguration(helperExecutable: nil)
-        config.setDeadlineForTesting(.milliseconds(400))
+        config.setDeadlineForTesting(Self.deadline)
         config.degradeAfterTimeouts = 100
-        let backend = DeadlineBackend(rating: rating, trashExists: trashExists)
+        let backend = DeadlineBackend(rating: rating, trashExists: trashExists, clock: clock)
         self.backend = backend
-        scheduler = IOScheduler(configuration: config, backend: backend)
+        scheduler = IOScheduler(configuration: config, backend: backend, clock: clock)
         let fs = FileSystemProvider(scheduler: scheduler)
         let registry = FileSourceRegistry(scheduler: scheduler)
         location = try await registry.location(for: file)
@@ -70,6 +66,39 @@ private final class DeadlineFixture {
         service = try FileOperationService(fileSystem: fs, journalURL: directory.appending(path: "journal.json"), prepareRetry: { _ in backend.notePrepare() }, isNetwork: { _ in true }, volumeRoot: { _ in root }, networkRoots: { [root] }, trash: { _ in throw IOError.unsupported(root) })
     }
     func clean() { backend.recover(); scheduler.shutdown(); try? FileManager.default.removeItem(at: directory) }
+
+    /// 等操作卡在故障调用上，再把时钟推到操作开始后正好一个期限。
+    /// 操作必须就此返回；若还要再等一个期限，时钟不再前进，5 秒后判失败。
+    func runForOneDeadline<T: Sendable>(_ body: @escaping @Sendable () async -> T) async throws -> T {
+        let start = clock.now
+        let outcome = Outcome<T>()
+        Task { outcome.set(await body()) }
+        try await waitUntil { self.backend.blockedCalls >= 1 }
+        let spent = clock.now - start
+        #expect(spent < Self.deadline.timeInterval, "故障调用之前的步骤已用 \(spent) 秒")
+        clock.advance(by: Self.deadline - .seconds(spent))
+        do {
+            try await waitUntil { outcome.value != nil }
+        } catch {
+            Issue.record("一次操作不能累加等待：推进到一个期限后仍未返回")
+            throw error
+        }
+        return outcome.value!
+    }
+}
+
+private final class Outcome<T: Sendable>: Sendable {
+    private let state = Mutex<T?>(nil)
+    var value: T? { state.withLock { $0 } }
+    func set(_ value: T) { state.withLock { $0 = value } }
+}
+
+private func waitUntil(_ condition: @Sendable () -> Bool) async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
+    while !condition() {
+        guard ContinuousClock.now < deadline else { throw CancellationError() }
+        try await Task.sleep(for: .milliseconds(5))
+    }
 }
 
 private final class DeadlineBackend: FileBackend {
@@ -83,7 +112,8 @@ private final class DeadlineBackend: FileBackend {
     private let state = Mutex(State())
     let rating: Bool
     let trashExists: Bool
-    init(rating: Bool, trashExists: Bool) { self.rating = rating; self.trashExists = trashExists }
+    let clock: ManualIOClock
+    init(rating: Bool, trashExists: Bool, clock: ManualIOClock) { self.rating = rating; self.trashExists = trashExists; self.clock = clock }
     var blockedCalls: Int { state.withLock { $0.calls } }
     var prepareCalls: Int { state.withLock { $0.prepareCalls } }
     func notePrepare() { state.withLock { $0.prepareCalls += 1 } }
@@ -109,13 +139,13 @@ private final class DeadlineBackend: FileBackend {
     func stat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void) { direct.stat(path, completion: completion) }
     func lstat(_ path: String, completion: @escaping @Sendable (Result<FileAttributes, FileOperationError>) -> Void) {
         let slow = state.withLock { $0.fault }
-        if slow { DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(140)) { [direct] in direct.lstat(path, completion: completion) } }
-        else { direct.lstat(path, completion: completion) }
+        if slow { clock.advance(by: .milliseconds(140)) }
+        direct.lstat(path, completion: completion)
     }
     func read(_ request: ReadRequest, completion: @escaping @Sendable (Result<Data, FileOperationError>) -> Void) {
         let slow = state.withLock { $0.fault }
-        if slow { DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(140)) { [direct] in direct.read(request, completion: completion) } }
-        else { direct.read(request, completion: completion) }
+        if slow { clock.advance(by: .milliseconds(140)) }
+        direct.read(request, completion: completion)
     }
     func list(_ path: String, batch: @escaping @Sendable ([FileAttributes]) -> Bool, completion: @escaping @Sendable (Result<Void, FileOperationError>) -> Void) { direct.list(path, batch: batch, completion: completion) }
     func probe(_ mountPoint: String, completion: @escaping @Sendable (Result<Void, FileOperationError>) -> Void) { direct.probe(mountPoint, completion: completion) }

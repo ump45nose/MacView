@@ -27,19 +27,24 @@ public struct IORequestGroup: Hashable, Sendable {
 }
 
 /// 仅用于用户发起的操作；预取组仍可长期存在，不携带操作期限。
+/// 时间由调度器的时钟给出：从第一次请求进入调度器开始计时，有进展时重新计时。
 final class OperationDeadline: Sendable {
     private struct State {
-        var lastProgress = ProcessInfo.processInfo.systemUptime
+        var lastProgress: TimeInterval?
         var timedOutVolumes: Set<String> = []
     }
     private let state = Mutex(State())
 
     func remaining(_ deadline: TimeInterval, now: TimeInterval) -> TimeInterval {
-        state.withLock { deadline - (now - $0.lastProgress) }
+        state.withLock { state in
+            let last = state.lastProgress ?? now
+            state.lastProgress = last
+            return deadline - (now - last)
+        }
     }
     func timedOut(_ volume: String) -> Bool { state.withLock { $0.timedOutVolumes.contains(volume) } }
     func fail(_ volume: String) { state.withLock { _ = $0.timedOutVolumes.insert(volume) } }
-    func progress() { state.withLock { $0.lastProgress = ProcessInfo.processInfo.systemUptime } }
+    func progress(now: TimeInterval) { state.withLock { $0.lastProgress = now } }
 }
 
 /// 一次文件操作的请求组；其他调用仍可显式指定自己的组。
