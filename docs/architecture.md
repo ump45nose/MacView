@@ -74,10 +74,20 @@ AGENTS.md  project.yml(XcodeGen)  Makefile
 App/                      # App target 源码 + Resources（xcstrings、assets）；Info.plist 由 project.yml 生成
 Packages/MacViewKit/      # Package.swift，Sources/<模块>，Tests/<模块>Tests
 Fixtures/                 # 提交的小夹具；Fixtures/local/ 放生成的大夹具和 NAS 样本副本（不入库）
+scripts/                  # 验收、隐私检查、git 钩子、签名、打包与安装脚本
+.github/workflows/        # ci.yml（push：隐私检查 + 构建测试）、release.yml（v* 标签：ad-hoc 包 + 草稿 Release）
 docs/architecture.md  docs/plans/{requirements,roadmap}.md  docs/plans/tasks/  docs/reports/{<任务>.md,bench/}
 ```
 
 `MacView.xcodeproj` 由 `make project` 用 XcodeGen 生成，不入库。工程配置只改 `project.yml`，不手工编辑 pbxproj。
+
+发布与隐私（S6）：
+- 个人环境不入库：NAS 主机、导出路径、样本目录和可写测试目录放在 `~/.config/macview/environment.json`（字段见 `Fixtures/environment.example.json`，可用同名 `MV_*` 环境变量覆盖）；缺失时验收脚本与 mvbench 报“未配置”并跳过网络项。测试与文档只用 `nas.example` 等占位和合成图集名。
+- 隐私检查 `scripts/privacy-check`：仓库内是通用规则（内网地址、`scripts/privacy-allowlist.txt` 以外的 `/Volumes/<名称>`、`smb://`/`nfs://` 非占位主机，及截图文字识别后套同样规则）；精确词表在仓库外 `~/.config/macview/privacy-patterns.txt`，不能被允许清单豁免。输出一律打码。
+- 两道检查：本机推送前钩子（`scripts/install-hooks.sh` 设绝对路径的 `core.hooksPath`，对所有 worktree 生效；先查 `macview.historyRoot` 拒绝基于改写前历史的推送，再跑全部规则含文字识别）；CI 的 Linux 作业只跑通用规则。GitHub macOS runner 上 Vision 文字识别不可用，截图只在本机识别。
+- 签名：本机安装用登录钥匙串里的自签证书 `MacView Local Development`（`scripts/setup-signing.sh` 首次创建），designated requirement 是证书叶哈希，跨构建不变，网络卷授权不随重装失效；公开包用 ad-hoc。`scripts/package.sh --local|--adhoc` 出 `MacView-<版本>-<模式>-<短提交>.zip` 与 `.sha256`，`scripts/install.sh local|ssh <主机>` 替换 `/Applications/MacView.app`，不碰支持目录。包内 `MVSourceCommit` 记源码提交，工作区不干净时带 `-dirty`。
+- Release：推 `v*` 标签由 `release.yml` 出草稿 Release；核对附件的 `MVSourceCommit` 后由人转正。
+- 仓库在 2026-11-26 改写全部历史后删库同名重建（改写前的完整历史只在仓库外的备份包里）；改写前的提交号已在文档中换成新号。
 
 NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/Github`）的 `Others/NeeView/`，移植版的文档在其中的 `portable/` 下。下文引用的路径都相对于 `Others/NeeView/`。
 

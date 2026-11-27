@@ -84,7 +84,7 @@ Run the generic privacy check before submitting changes:
 scripts/privacy-check --staged --generic-only
 ```
 
-CI checks generic privacy rules, including OCR for changed screenshots on macOS. If you maintain a private, nonempty exact-pattern file at `~/.config/macview/privacy-patterns.txt`, install the repository's pre-push hook:
+CI checks generic privacy rules. OCR of changed screenshots runs only in the local pre-push hook, because Vision text recognition is unavailable on GitHub's macOS runners. If you maintain a private, nonempty exact-pattern file at `~/.config/macview/privacy-patterns.txt`, install the repository's pre-push hook:
 
 ```sh
 scripts/install-hooks.sh

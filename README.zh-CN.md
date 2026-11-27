@@ -84,7 +84,7 @@ MacView 支持通过命令系统使用 JavaScript 脚本和外部命令，也支
 scripts/privacy-check --staged --generic-only
 ```
 
-CI 会检查通用隐私规则，并在 macOS 上对新增或改动的截图进行文字识别。如果你在 `~/.config/macview/privacy-patterns.txt` 维护了非空的私有精确词表，可以安装仓库的推送前钩子：
+CI 会检查通用隐私规则。新增或改动截图的文字识别只在本机推送前钩子里运行，因为 GitHub 的 macOS runner 上无法使用 Vision 文字识别。如果你在 `~/.config/macview/privacy-patterns.txt` 维护了非空的私有精确词表，可以安装仓库的推送前钩子：
 
 ```sh
 scripts/install-hooks.sh
