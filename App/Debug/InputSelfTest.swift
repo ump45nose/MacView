@@ -454,6 +454,7 @@ final class InputSelfTest {
             String(localized: "图像"),
             String(localized: "翻页"),
             String(localized: "书"),
+            String(localized: "脚本"),
             String(localized: "调试"),
             String(localized: "窗口"),
         ]
@@ -461,15 +462,16 @@ final class InputSelfTest {
 
         let fileSubmenuTitles = menuTitles(of: NSApp.mainMenu?.item(withTitle: String(localized: "文件"))?.submenu)
         let expectedFileTitles = [
-            String(localized: "打开文件夹或压缩包…"), "-",
+            String(localized: "打开文件夹或压缩包…"), String(localized: "打开来源"), "-",
             String(localized: "复制"), String(localized: "复制路径"), String(localized: "在 Finder 中显示"), String(localized: "用指定应用打开"), "-",
             String(localized: "移动到"), String(localized: "复制到"), String(localized: "重命名…"), String(localized: "删除"), "-",
             String(localized: "为此文件夹建立索引"), String(localized: "清空回收目录…"), "-",
+            String(localized: "导出用户数据…"), String(localized: "导入用户数据…"), "-",
             String(localized: "新建窗口"), String(localized: "新建标签页"), "-",
             String(localized: "重试失败的项"), String(localized: "设置…"), "-",
             String(localized: "关闭"),
         ]
-        log.check(fileSubmenuTitles == expectedFileTitles, "C2.3 无 menus.json 时“文件”子菜单条目与顺序一致")
+        log.check(fileSubmenuTitles == expectedFileTitles, "C2.3 无 menus.json 时“文件”子菜单条目与顺序一致：\(fileSubmenuTitles.joined(separator: "、"))")
 
         let imageSubmenu = NSApp.mainMenu?.item(withTitle: String(localized: "图像"))?.submenu
         let imageSubmenuTitles = menuTitles(of: imageSubmenu)
@@ -503,7 +505,8 @@ final class InputSelfTest {
             String(localized: "加到播放列表"), "-",
             String(localized: "评分"), String(localized: "编辑标签…"), "-",
             String(localized: "复制"), String(localized: "复制路径"), String(localized: "在 Finder 中显示"), String(localized: "用指定应用打开"), "-",
-            String(localized: "移动到"), String(localized: "复制到"), String(localized: "重命名…"), String(localized: "移到废纸篓"),
+            String(localized: "移动到"), String(localized: "复制到"), String(localized: "重命名…"), String(localized: "移到废纸篓"), "-",
+            String(localized: "脚本"),
         ]
         log.check(
             defaultContextTitles == expectedDefaultContextTitles,
@@ -543,7 +546,7 @@ final class InputSelfTest {
         let customContextTitles = menuTitles(of: customContextMenu)
         let expectedCustomTitles = [
             String(localized: "复制路径"),
-            customCommandID.rawValue,
+            app.catalog.title(of: customCommandID),
             "-",
             app.catalog.title(of: .frameNext),
             String(localized: "评分"),
@@ -554,7 +557,7 @@ final class InputSelfTest {
             "C2.3 自定义查看器右键菜单条目与顺序生效：\(customContextTitles.joined(separator: "、"))"
         )
 
-        if let genericItem = customContextMenu?.item(withTitle: customCommandID.rawValue),
+        if let genericItem = customContextMenu?.item(withTitle: app.catalog.title(of: customCommandID)),
            let action = genericItem.action {
             log.check(genericItem.isEnabled, "C2.3 通用命令菜单项可用")
             NSApp.sendAction(action, to: genericItem.target, from: genericItem)
@@ -773,6 +776,8 @@ final class InputSelfTest {
         await settle()
 
         let shortcuts = settings.state.model.shortcuts
+        // 内置命令加上脚本、插件登记的默认键；全部恢复默认应回到这一份。
+        let baselineBindings = app.catalog.bindings
         log.check(settings.state.page == .shortcuts, "C3.1 设置窗口已切换到快捷键页")
         log.check(
             shortcuts.sections.contains(where: { $0.scope == .viewer }) && shortcuts.sections.contains(where: { $0.scope == .global }),
@@ -865,13 +870,12 @@ final class InputSelfTest {
         )
 
         shortcuts.resetAll()
-        let defaultBindings = CommandCatalog().bindings
-        for _ in 0..<100 where app.catalog.bindings != defaultBindings {
+        for _ in 0..<100 where app.catalog.bindings != baselineBindings {
             try? await Task.sleep(for: .milliseconds(20))
         }
         let persistedAfterReset = readStoredKeyBindings(at: keyBindingsURL)
         log.check(
-            app.catalog.bindings == defaultBindings
+            app.catalog.bindings == baselineBindings
                 && app.catalog.bindings.contains(originalMagnifierBinding)
                 && persistedAfterReset?.bindings.isEmpty == true,
             "C3.1 全部恢复默认后回到原始默认键并清空 keybindings.json 的键盘覆盖"
