@@ -87,6 +87,7 @@ docs/architecture.md  docs/plans/{requirements,roadmap}.md  docs/plans/tasks/  d
 - 两道检查：本机推送前钩子（`scripts/install-hooks.sh` 设绝对路径的 `core.hooksPath`，对所有 worktree 生效；先查 `macview.historyRoot` 拒绝基于改写前历史的推送，再跑全部规则含文字识别）；CI 的 Linux 作业只跑通用规则。GitHub macOS runner 上 Vision 文字识别不可用，截图只在本机识别。
 - 签名：本机安装用登录钥匙串里的自签证书 `MacView Local Development`（`scripts/setup-signing.sh` 首次创建），designated requirement 是证书叶哈希，跨构建不变，网络卷授权不随重装失效；公开包用 ad-hoc。`scripts/package.sh --local|--adhoc` 出 `MacView-<版本>-<模式>-<短提交>.zip` 与 `.sha256`，`scripts/install.sh local|ssh <主机>` 替换 `/Applications/MacView.app`，不碰支持目录。包内 `MVSourceCommit` 记源码提交，工作区不干净时带 `-dirty`。
 - Release：推 `v*` 标签由 `release.yml` 出草稿 Release；核对附件的 `MVSourceCommit` 后由人转正。
+- 双机自动安装：main 的 push CI 通过后，`ci.yml` 已上传 `Delivery-arm64`（`scripts/delivery.sh stage` 整理的交付目录：ad-hoc 的 App、`install.sh`、`support/sign-app.sh`、`support/app-install.py`、`manifest.json`）。MacPro 上 mac-automation 的 `macauto delivery ci --due`（每 5 分钟）发现最新一次 main push 运行变绿且是新提交，就排一个双机交付：工作日复用这次 CI 的产物，休息日在 MacPro 本地 `scripts/delivery.sh build`。每台 Mac 在图形会话里用本机 `MacView Local Development` 证书重签，只正常退出 `/Applications` 里的那一份（不碰 Debug 构建与自检进程），替换后后台启动做启动检查，失败恢复并重启上一版。失败不自动补装，用 `macauto delivery deploy|retry` 显式重试。
 - 仓库在 2026-11-26 改写全部历史后删库同名重建（改写前的完整历史只在仓库外的备份包里）；改写前的提交号已在文档中换成新号。
 
 NeeView 源码位于源码根目录（MacPro 上为 `/Users/yuwk/WorkSpace/Code/Github`）的 `Others/NeeView/`，移植版的文档在其中的 `portable/` 下。下文引用的路径都相对于 `Others/NeeView/`。

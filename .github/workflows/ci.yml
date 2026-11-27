@@ -1,14 +1,27 @@
 name: CI
+# macauto 派发的交付构建以 Delivery <id> 命名；其余运行沿用默认名称。
+run-name: ${{ inputs.delivery_id && format('Delivery {0}', inputs.delivery_id) || '' }}
 
 on:
   push:
   workflow_dispatch:
+    inputs:
+      architectures:
+        description: 交付架构（目前只有 arm64）
+        type: string
+        default: arm64
+      source_sha:
+        description: 交付构建的源码提交
+        type: string
+      delivery_id:
+        description: macauto 交付任务 ID
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.delivery_id }}
   cancel-in-progress: true
 
 jobs:
@@ -53,6 +66,7 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v5
         with:
+          ref: ${{ inputs.source_sha || github.sha }}
           persist-credentials: false
           fetch-depth: 0
 
@@ -96,3 +110,26 @@ jobs:
             echo "::endgroup::"
           fi
           exit "$test_status"
+
+      # main 的 CI 通过后，MacPro 上的 macauto 取这个产物装到两台 Mac（各自用本机证书重签）。
+      - name: 打包双机交付产物
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.delivery_id != ''
+        run: |
+          set -euo pipefail
+          scripts/package.sh --adhoc --output "$PWD/build/release"
+          packages=(build/release/*.zip)
+          [ "${#packages[@]}" -eq 1 ]
+          scripts/delivery.sh stage --zip "$PWD/${packages[0]}" --output "$PWD/build/portable"
+          version=$(python3 -c "import json; print(json.load(open('build/portable/manifest.json'))['version'])")
+          mkdir -p build/delivery
+          ditto -c -k --sequesterRsrc build/portable "build/delivery/MacView-$version-delivery-arm64.zip"
+
+      - name: 上传双机交付产物
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.delivery_id != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: Delivery-arm64
+          path: build/delivery/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
