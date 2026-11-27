@@ -422,11 +422,27 @@ final class ViewerSelfTest {
         controller.run(.magnifierToggle)
         await settle()
         log.check(paged.isMagnifying, "放大镜打开")
+        // 错误、占位视图插到导航图下方时 AppKit 会重排子视图的图层；放大镜要始终画在页内容之上。
+        let overlay = NSView(frame: paged.bounds)
+        paged.addSubview(overlay, positioned: .below, relativeTo: paged.navigator)
+        await settle()
+        log.check(Self.drawsAbove(paged.magnifier.root, paged.contentContainer.layer), "加入叠加视图后放大镜仍画在页内容之上")
+        overlay.removeFromSuperview()
         let slot = paged.slots.first
         log.check(slot?.upgradeTarget?.pixelSize.width == 1200, "放大镜需要时请求原图：\(slot?.upgradeTarget?.pixelSize.width ?? 0)")
         controller.run(.magnifierToggle)
         await settle()
         log.check(!paged.isMagnifying, "放大镜关闭")
+    }
+
+    /// 同一父图层下，`top` 按 zPosition 与先后顺序画在 `bottom` 之上。
+    private static func drawsAbove(_ top: CALayer, _ bottom: CALayer?) -> Bool {
+        guard let bottom, let parent = top.superlayer, bottom.superlayer === parent,
+              let sublayers = parent.sublayers,
+              let topIndex = sublayers.firstIndex(where: { $0 === top }),
+              let bottomIndex = sublayers.firstIndex(where: { $0 === bottom }) else { return false }
+        if top.zPosition != bottom.zPosition { return top.zPosition > bottom.zPosition }
+        return topIndex > bottomIndex
     }
 
     // MARK: 工具

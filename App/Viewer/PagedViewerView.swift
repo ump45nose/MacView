@@ -102,6 +102,9 @@ final class PagedViewerView: NSView, NSDraggingSource {
         navigator.isHidden = true
         navigator.onPan = { [weak self] fraction in self?.pan(toFraction: fraction) }
         addSubview(navigator)
+        // 子视图增删时 AppKit 会重排子视图图层，手加的图层可能被压到下面；用 zPosition 固定阴影在最底、放大镜在最上。
+        shadowLayer.zPosition = -1
+        magnifier.root.zPosition = 1
         layer?.addSublayer(magnifier.root)
     }
 
