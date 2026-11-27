@@ -18,7 +18,7 @@ Image decoding uses ImageIO, and video playback uses AVFoundation. Files inside 
 
 ## System requirements
 
-- macOS 27 or later.
+- macOS 27 or later on Apple silicon. Public builds are arm64 only.
 - To build from source: Xcode with the macOS 27 SDK, and [Homebrew](https://brew.sh/) for XcodeGen.
 
 ## Download and install

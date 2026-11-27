@@ -18,7 +18,7 @@ MacView 是一款受 [NeeView](https://github.com/neelabo/NeeView) 启发的 mac
 
 ## 系统要求
 
-- macOS 27 或更高版本。
+- macOS 27 或更高版本，Apple 芯片的 Mac；公开包只有 arm64。
 - 如需从源码构建，需要包含 macOS 27 SDK 的 Xcode，并通过 [Homebrew](https://brew.sh/) 安装 XcodeGen。
 
 ## 下载安装
