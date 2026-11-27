@@ -53,9 +53,11 @@ final class DockCoordinator {
         Set(DockPanels.all.map(\.id))
     }
 
-    /// `~/Library/Application Support/MacView/layout.json`；自检用 `-MVLayoutFile <路径>` 换成临时文件。
+    /// `~/Library/Application Support/MacView/layout.json`；Debug 自检用 `-MVLayoutFile <路径>` 换成临时文件，Release 不认。
     static func defaultFileURL() -> URL {
+        #if DEBUG
         if let path = UserDefaults.standard.string(forKey: layoutFileKey) { return URL(fileURLWithPath: path) }
+        #endif
         return URL.applicationSupportDirectory.appending(path: "MacView/layout.json")
     }
 
